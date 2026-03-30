@@ -260,11 +260,12 @@ export default function FileDetailPage() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [allowDownload, setAllowDownload] = useState(true);
   const [maxPlays, setMaxPlays] = useState("");
   const [shareToken, setShareToken] = useState("");
 
-  useEffect(() => { if (pkg) { setTitle(pkg.title); setDescription(pkg.description ?? ""); } }, [pkg]);
+  useEffect(() => { if (pkg) { setTitle(pkg.title); setDescription(pkg.description ?? ""); setIsPublic(pkg.isPublic ?? false); } }, [pkg]);
   useEffect(() => {
     if (perms) {
       setAllowDownload(perms.allowDownload ?? true);
@@ -297,6 +298,7 @@ export default function FileDetailPage() {
           <h1 className="text-xl font-bold truncate">{pkg.title}</h1>
           <div className="flex items-center gap-2 mt-0.5">
             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${pkg.status === "ready" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{pkg.status}</span>
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${pkg.isPublic ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>{pkg.isPublic ? <><Globe className="h-3 w-3" />Public</> : <><Lock className="h-3 w-3" />Private</>}</span>
             <span className="text-xs text-muted-foreground">{pkg.contentType}</span>
             {pkg.scormVersion !== "none" && <span className="text-xs text-muted-foreground">SCORM {pkg.scormVersion}</span>}
           </div>
@@ -346,12 +348,32 @@ export default function FileDetailPage() {
                   {pkg.scormEntryPoint && <p><span className="text-muted-foreground">Entry:</span> <code className="text-xs bg-muted px-1 rounded">{pkg.scormEntryPoint}</code></p>}
                 </div>
               )}
+              <div className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-muted/30">
+                <div>
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    {isPublic ? <Globe className="h-4 w-4 text-blue-500" /> : <Lock className="h-4 w-4 text-slate-500" />}
+                    {isPublic ? "Public Access" : "Private Access"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isPublic
+                      ? "Anyone with the link can view this content — no login required."
+                      : "Only signed-in users can view this content."}
+                  </p>
+                </div>
+                <Switch
+                  checked={isPublic}
+                  onCheckedChange={(val) => {
+                    setIsPublic(val);
+                    updatePkg.mutate({ id: packageId, title, description, isPublic: val });
+                  }}
+                />
+              </div>
               {pkg.originalZipUrl && (
                 <Button variant="outline" size="sm" asChild>
                   <a href={pkg.originalZipUrl} download target="_blank" rel="noreferrer"><Download className="h-3.5 w-3.5 mr-1.5" />Download Original ZIP</a>
                 </Button>
               )}
-              <Button onClick={() => updatePkg.mutate({ id: packageId, title, description })} disabled={updatePkg.isPending} className="gap-2">
+              <Button onClick={() => updatePkg.mutate({ id: packageId, title, description, isPublic })} disabled={updatePkg.isPending} className="gap-2">
                 <Save className="h-3.5 w-3.5" />{updatePkg.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </CardContent>

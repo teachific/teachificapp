@@ -43,6 +43,18 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+  // Allow embed pages and content to be framed by any external site
+  app.use((req, res, next) => {
+    const path = req.path;
+    if (path.startsWith("/embed/") || path.startsWith("/api/content/")) {
+      res.removeHeader("X-Frame-Options");
+      res.setHeader("X-Frame-Options", "ALLOWALL");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    }
+    next();
+  });
+
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
 

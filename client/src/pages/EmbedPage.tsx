@@ -8,11 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
-  BookOpen, CheckCircle2, Clock, Download,
-  Maximize2, Minimize2, Loader2,
+  CheckCircle2, Clock, Download,
+  Maximize2, Minimize2, Loader2, Lock,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
+import { getLoginUrl } from "@/const";
 
 // SCORM 1.2 + 2004 API Bridge
 const SCORM_API_SCRIPT = `
@@ -72,7 +73,7 @@ export default function EmbedPage() {
   const sessionTokenRef = useRef<string | null>(null);
   const scormDataRef = useRef<Record<string, string>>({});
 
-  const { data: pkg, isLoading } = trpc.packages.get.useQuery({ id: packageId });
+  const { data: pkg, isLoading, error: pkgError } = trpc.packages.get.useQuery({ id: packageId });
   const { data: perms } = trpc.permissions.get.useQuery({ packageId });
   const startSession = trpc.sessions.start.useMutation();
   const endSession = trpc.sessions.end.useMutation();
@@ -192,6 +193,32 @@ export default function EmbedPage() {
   }
 
   if (!pkg) {
+    // Check if it's an UNAUTHORIZED error (private package, not logged in)
+    const isPrivateBlock = (pkgError as any)?.data?.code === "UNAUTHORIZED";
+    if (isPrivateBlock) {
+      return (
+        <div className="flex items-center justify-center h-screen bg-gray-950">
+          <div className="flex flex-col items-center gap-6 p-8 max-w-sm w-full bg-gray-900 rounded-2xl border border-gray-800 shadow-2xl text-center">
+            <div className="h-14 w-14 rounded-full bg-gray-800 flex items-center justify-center">
+              <Lock className="h-6 w-6 text-gray-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">Private Content</h2>
+              <p className="text-sm text-gray-400 mt-1">This content is restricted. Please sign in to access it.</p>
+            </div>
+            <Button
+              onClick={() => {
+                sessionStorage.setItem("returnTo", `/embed/${packageId}${window.location.search}`);
+                window.location.href = getLoginUrl();
+              }}
+              className="w-full"
+            >
+              Sign in to continue
+            </Button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center h-screen bg-gray-950 text-gray-400">
         <p>Content not found</p>

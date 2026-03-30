@@ -44,6 +44,12 @@ import {
   upsertScormData,
   getScormData,
   getLatestVersionNumber,
+  getFoldersByOrg,
+  getFolderById,
+  createFolder,
+  updateFolder,
+  deleteFolder,
+  movePackageToFolder,
 } from "./db";
 import {
   getQuizById,
@@ -175,9 +181,13 @@ export const appRouter = router({
         return allPkgs.flat();
       }),
 
-    get: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input, ctx }) => {
+    get: publicProcedure.input(z.object({ id: z.number() })).query(async ({ input, ctx }) => {
       const pkg = await getPackageById(input.id);
       if (!pkg) throw new TRPCError({ code: "NOT_FOUND" });
+      // Private packages require authentication
+      if (!pkg.isPublic && !ctx.user) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "This content is private. Please sign in to access it." });
+      }
       return pkg;
     }),
 
@@ -450,6 +460,11 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
       .mutation(async ({ input, ctx }) => {
         const pkg = await getPackageById(input.packageId);
         if (!pkg) throw new TRPCError({ code: "NOT_FOUND" });
+
+        // Private packages require authentication to start a session
+        if (!pkg.isPublic && !ctx.user) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "This content is private. Please sign in to access it." });
+        }
 
         const perms = await getPermissions(input.packageId);
 
@@ -801,6 +816,70 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     analytics: protectedProcedure
       .input(z.object({ quizId: z.number() }))
       .query(({ input }) => getQuizAnalytics(input.quizId)),
+  }),
+
+  // ── Folders ────────────────────────────────────────────────────────────────────────────────────
+  folders: router({
+    // List all folders for the current user's org
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(({ input, ctx }) => {
+        // Only members of the org can list folders
+        return getFoldersByOrg(input.orgId);
+      }),
+
+    // Create a new folder
+    create: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        name: z.string().min(1).max(255),
+        parentId: z.number().nullable().optional(),
+        color: z.string().max(32).optional(),
+      }))
+      .mutation(({ input, ctx }) =>
+        createFolder({
+          orgId: input.orgId,
+          ownerId: ctx.user.id,
+          name: input.name.trim(),
+          parentId: input.parentId ?? null,
+          color: input.color ?? null,
+        })
+      ),
+
+    // Rename a folder
+    rename: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().min(1).max(255) }))
+      .mutation(async ({ input }) => {
+        await updateFolder(input.id, { name: input.name.trim() });
+        return getFolderById(input.id);
+      }),
+
+    // Move a folder to a different parent (or to root if parentId is null)
+    move: protectedProcedure
+      .input(z.object({ id: z.number(), parentId: z.number().nullable() }))
+      .mutation(async ({ input }) => {
+        // Prevent moving a folder into itself or its own descendant
+        if (input.parentId === input.id)
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot move a folder into itself" });
+        await updateFolder(input.id, { parentId: input.parentId ?? null });
+        return getFolderById(input.id);
+      }),
+
+    // Delete a folder (children promoted to parent, packages moved to uncategorized)
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteFolder(input.id);
+        return { success: true };
+      }),
+
+    // Move a package into a folder (or to root if folderId is null)
+    movePackage: protectedProcedure
+      .input(z.object({ packageId: z.number(), folderId: z.number().nullable() }))
+      .mutation(async ({ input }) => {
+        await movePackageToFolder(input.packageId, input.folderId);
+        return { success: true };
+      }),
   }),
 });
 

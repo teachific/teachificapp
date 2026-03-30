@@ -192,3 +192,37 @@
 - [x] JS snippet uses string replacement to swap placeholders with the host site's dynamic variables
 - [x] Explain that the host site is responsible for substituting values before launching the iframe
 - [x] Add a "Live Preview" section where user can test-fill values and see the final URL
+
+## Mobile Responsiveness
+- [ ] DashboardLayout: collapsible sidebar drawer with hamburger menu on mobile
+- [ ] FilesPage: show type/status/plays on mobile, folder sidebar as collapsible panel
+- [ ] FileDetailPage: tabs scroll horizontally, form fields full width, sharing section stacks
+- [ ] AnalyticsPage: stats cards wrap, table scrolls horizontally
+- [ ] UploadPage: full width on mobile
+- [ ] PlayerPage/EmbedPage: iframe fills full viewport on mobile
+- [ ] Dashboard/Home: stat cards wrap to 2-col grid on mobile
+- [ ] Navigation: hamburger opens full-screen nav drawer on mobile
+
+## Bug Fix: Iframe Embed Broken on External Sites
+- [ ] Proxy content bytes through server instead of redirecting to S3 (avoids S3 X-Frame-Options blocks)
+- [ ] Add X-Frame-Options: ALLOWALL and correct CORS headers to content proxy responses
+- [ ] Ensure embed page itself has no frame-blocking headers
+- [ ] Test embed loads on boutultrasound.com mobile
+
+## Bug Fix: Embed Requires Login (Critical)
+- [ ] Make sessions.start a publicProcedure (no auth required)
+- [ ] Make sessions.end a publicProcedure
+- [ ] Make packages.get a publicProcedure for embed context
+- [ ] Update EmbedPage: remove login redirect, allow anonymous session start
+- [ ] Content proxy routes already public (Express, no tRPC auth)
+- [ ] Test: incognito window can view embedded content
+
+## Access Control: Public / Private Per Package
+- [x] Add isPublic boolean column to content_packages (default false = private)
+- [x] packages.get: make publicProcedure, return package only if public OR user is authenticated org member
+- [x] sessions.start: block unauthenticated start for private packages
+- [x] sessions.end / scorm data: already publicProcedure
+- [x] FileDetailPage Details tab: Public/Private toggle with live save and badge in header
+- [x] EmbedPage: if package is private and user not logged in, show login wall
+- [ ] PlayerPage: same private access gate (low priority — admin-only route)
+- [ ] Share link: token-protected links bypass the public/private check

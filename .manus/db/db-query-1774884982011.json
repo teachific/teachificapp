@@ -1,0 +1,13 @@
+{
+  "query": "SELECT s3Url FROM file_assets WHERE mimeType = 'text/html' LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute SELECT s3Url FROM file_assets WHERE mimeType = 'text/html' LIMIT 1;",
+  "rows": [
+    {
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/html5-unsupported.html"
+    }
+  ],
+  "messages": [],
+  "stdout": "s3Url\nhttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/html5-unsupported.html\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}
