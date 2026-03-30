@@ -176,6 +176,15 @@ export const playSessions = mysqlTable("play_sessions", {
   referrer: text("referrer"),
   country: varchar("country", { length: 2 }),
   isCompleted: boolean("isCompleted").default(false).notNull(),
+  // Dynamic URL parameters for learner identity & tracking
+  learnerName:   varchar("learnerName",   { length: 255 }),
+  learnerEmail:  varchar("learnerEmail",  { length: 320 }),
+  learnerId:     varchar("learnerId",     { length: 128 }),
+  learnerGroup:  varchar("learnerGroup",  { length: 128 }),
+  customData:    text("customData"),
+  utmSource:     varchar("utmSource",     { length: 128 }),
+  utmMedium:     varchar("utmMedium",     { length: 128 }),
+  utmCampaign:   varchar("utmCampaign",   { length: 128 }),
 });
 
 export type PlaySession = typeof playSessions.$inferSelect;

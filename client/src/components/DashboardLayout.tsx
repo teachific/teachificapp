@@ -96,11 +96,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full bg-white/5 backdrop-blur rounded-2xl border border-white/10 shadow-2xl">
           <div className="flex flex-col items-center gap-4">
             <div className="flex items-center justify-center">
-              <img
-                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/Teachific_ebe5bd67.png"
-                alt="Teachific"
-                className="h-16 w-auto object-contain brightness-0 invert"
-              />
+              <span className="text-4xl font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.03em' }}>
+                <span className="text-white">teach</span><span style={{ color: '#189aa1' }}>ific</span><span className="text-white" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '2px' }}>&#8482;</span>
+              </span>
             </div>
             <p className="text-sm text-slate-400 text-center max-w-sm">
               Sign in to access your content library, manage SCORM packages, and track learner progress.
@@ -189,20 +187,11 @@ function DashboardLayoutContent({
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
               {isCollapsed ? (
-                <img
-                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/Teachific-Icon_afe55ddc.png"
-                  alt="Teachific"
-                  className="h-7 w-7 object-contain rounded"
-                />
+                <span className="text-2xl font-bold select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#189aa1' }}>t</span>
               ) : (
-                <div className="flex items-center min-w-0 pl-1">
-                  <img
-                    src="https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/Teachific_ebe5bd67.png"
-                    alt="Teachific"
-                    className="h-8 w-auto object-contain"
-                    style={{ maxWidth: 140 }}
-                  />
-                </div>
+                <span className="text-2xl font-bold tracking-tight select-none pl-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
+                  <span className="text-white">teach</span><span style={{ color: '#189aa1' }}>ific</span><span className="text-white" style={{ fontSize: '0.5em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
+                </span>
               )}
             </div>
           </SidebarHeader>

@@ -436,6 +436,16 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         packageId: z.number(),
         versionId: z.number().optional(),
         orgId: z.number().optional(),
+        // Dynamic URL learner identity params
+        learnerName:  z.string().max(255).optional(),
+        learnerEmail: z.string().max(320).optional(),
+        learnerId:    z.string().max(128).optional(),
+        learnerGroup: z.string().max(128).optional(),
+        customData:   z.string().optional(),
+        utmSource:    z.string().max(128).optional(),
+        utmMedium:    z.string().max(128).optional(),
+        utmCampaign:  z.string().max(128).optional(),
+        referrer:     z.string().max(512).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const pkg = await getPackageById(input.packageId);
@@ -466,6 +476,16 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
           sessionToken: token,
           ipAddress: ctx.req.headers["x-forwarded-for"] as string ?? ctx.req.socket?.remoteAddress,
           userAgent: ctx.req.headers["user-agent"],
+          referrer: input.referrer,
+          // Dynamic learner identity from URL params
+          learnerName:  input.learnerName,
+          learnerEmail: input.learnerEmail,
+          learnerId:    input.learnerId,
+          learnerGroup: input.learnerGroup,
+          customData:   input.customData,
+          utmSource:    input.utmSource,
+          utmMedium:    input.utmMedium,
+          utmCampaign:  input.utmCampaign,
         });
 
         await incrementPlayCount(input.packageId);

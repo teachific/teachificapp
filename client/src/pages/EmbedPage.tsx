@@ -190,12 +190,9 @@ export default function EmbedPage() {
       <div className={`shrink-0 flex items-center px-4 gap-3 ${isLmsShell ? "h-14 bg-gray-900 border-b border-gray-800" : "h-11 bg-gray-900/80 border-b border-gray-800/60"}`}>
           {isLmsShell && (
           <div className="flex items-center gap-3 shrink-0">
-            <img
-              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/Teachific_ebe5bd67.png"
-              alt="Teachific"
-              className="h-6 w-auto object-contain hidden sm:block"
-              style={{ maxWidth: 110 }}
-            />
+            <span className="text-xl font-bold tracking-tight select-none hidden sm:inline" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
+              <span className="text-white">teach</span><span style={{ color: '#189aa1' }}>ific</span><span className="text-white" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
+            </span>
             <div className="h-4 w-px bg-gray-700 hidden sm:block" />
           </div>
           )}

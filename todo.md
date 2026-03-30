@@ -136,3 +136,17 @@
 - [x] Apply logo to login screen (white/inverted version)
 - [x] Apply logo to embed player LMS shell header
 - [x] Set logo as browser tab favicon in index.html
+
+## Dynamic URL Parameters
+- [ ] Add learnerName, learnerEmail, learnerId, orgId, groupId, customData columns to play_sessions
+- [ ] Update sessions.start tRPC procedure to accept and store URL params
+- [ ] Update EmbedPage to parse URL query params and pass to session start
+- [ ] Add URL builder UI in FileDetailPage with all supported params and copy-ready examples
+- [ ] Update analytics to expose per-session learner param data
+- [ ] Support ?token= for share links combined with learner params
+
+## Logo Text Lockup
+- [x] Replace logo image with styled text: "teach" white + "ific" teal + "™" white in sidebar
+- [x] Same text lockup on login screen
+- [x] Same text lockup in embed player header
+- [x] Collapsed sidebar shows just teal "t" icon character
