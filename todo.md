@@ -115,3 +115,17 @@
 - [x] UploadPage: auto-select org when user only has one org (skip the selector)
 - [x] UploadPage: if no org exists, auto-provision one before showing upload form
 - [x] Fix org selector to not block upload for site owner
+
+## Bug Fix: Player iframe shows Teachific app + 404 on content files
+- [ ] Diagnose upload route: check how files are stored (S3 keys, extracted paths)
+- [ ] Fix static file serving for extracted SCORM content
+- [ ] Fix PlayerPage iframe src to point to correct content entry point
+- [ ] Verify SCORM manifest parsing sets correct entryPoint field
+- [ ] Test full upload → play flow end-to-end
+
+## Bug Fix: Player iframe + Share Links
+- [x] Fix iframe src — currently loads Teachific app shell instead of SCORM content
+- [x] Add /api/content/:packageId/* proxy route to serve extracted S3 files with correct MIME types
+- [x] Create bare /embed/:packageId route (no admin nav) for share/embed links
+- [x] Fix share links to point to /embed/:packageId
+- [x] Test full upload → play → share flow

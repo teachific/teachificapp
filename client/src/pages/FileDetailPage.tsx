@@ -44,7 +44,7 @@ export default function FileDetailPage() {
     }
   }, [perms]);
 
-  const shareUrl = shareToken ? `${window.location.origin}/play/${packageId}?token=${shareToken}` : "";
+  const shareUrl = shareToken ? `${window.location.origin}/embed/${packageId}?token=${shareToken}` : "";
 
   if (isLoading) return (
     <div className="p-6 max-w-5xl mx-auto space-y-4">
@@ -155,9 +155,9 @@ export default function FileDetailPage() {
               <div>
                 <p className="text-sm font-medium mb-2">Direct Play Link</p>
                 <div className="flex gap-2">
-                  <Input readOnly value={`${window.location.origin}/play/${packageId}`} className="font-mono text-xs" />
-                  <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/play/${packageId}`); toast.success("Copied!"); }}><Copy className="h-4 w-4" /></Button>
-                  <Button variant="outline" size="icon" asChild><a href={`/play/${packageId}`} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /></a></Button>
+                  <Input readOnly value={`${window.location.origin}/embed/${packageId}`} className="font-mono text-xs" />
+                  <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/embed/${packageId}`); toast.success("Copied!"); }}><Copy className="h-4 w-4" /></Button>
+                  <Button variant="outline" size="icon" asChild><a href={`/embed/${packageId}`} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /></a></Button>
                 </div>
               </div>
               <div>
@@ -181,8 +181,8 @@ export default function FileDetailPage() {
               <div>
                 <p className="text-sm font-medium mb-2">Embed Code</p>
                 <div className="relative">
-                  <pre className="bg-muted rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap">{`<iframe src="${window.location.origin}/play/${packageId}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`}</pre>
-                  <Button variant="ghost" size="sm" className="absolute top-2 right-2" onClick={() => { navigator.clipboard.writeText(`<iframe src="${window.location.origin}/play/${packageId}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`); toast.success("Copied!"); }}><Copy className="h-3.5 w-3.5" /></Button>
+                  <pre className="bg-muted rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap">{`<iframe src="${window.location.origin}/embed/${packageId}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`}</pre>
+                  <Button variant="ghost" size="sm" className="absolute top-2 right-2" onClick={() => { navigator.clipboard.writeText(`<iframe src="${window.location.origin}/embed/${packageId}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`); toast.success("Copied!"); }}><Copy className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
             </CardContent>

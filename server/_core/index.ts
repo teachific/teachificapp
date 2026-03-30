@@ -9,6 +9,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import quizImportRouter from "../quizImportRoutes";
 import scormUploadRouter from "../scormUploadRoutes";
+import contentRouter from "../contentRoutes";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -32,15 +33,24 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
   // Quiz Excel import/export
   app.use("/api/quiz", quizImportRouter);
+
   // SCORM/HTML ZIP upload
   app.use("/api/upload", scormUploadRouter);
+
+  // Content file proxy — serves extracted package files by redirecting to S3 CDN URLs
+  // MUST be before tRPC and Vite so /api/content/* doesn't fall through to the SPA
+  app.use("/api/content", contentRouter);
+
   // tRPC API
   app.use(
     "/api/trpc",
@@ -49,6 +59,7 @@ async function startServer() {
       createContext,
     })
   );
+
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);

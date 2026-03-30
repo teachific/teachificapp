@@ -1,0 +1,18 @@
+{
+  "query": "SELECT id, relativePath, s3Key, s3Url, mimeType, isEntryPoint FROM file_assets WHERE packageId = 1 AND (isEntryPoint = 1 OR relativePath LIKE '%index.html%' OR relativePath LIKE '%story.html%') LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute SELECT id, relativePath, s3Key, s3Url, mimeType, isEntryPoint FROM file_assets WHERE packageId = 1 AND (isEntryPoint = 1 OR relativePath LIKE '%index.html%' OR relativePath LIKE '%story.html%') LIMIT 5;",
+  "rows": [
+    {
+      "id": "117",
+      "relativePath": "UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/index.html",
+      "s3Key": "orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/index.html",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/index.html",
+      "mimeType": "text/html",
+      "isEntryPoint": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\trelativePath\ts3Key\ts3Url\tmimeType\tisEntryPoint\n117\tUNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/index.html\torgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/index.html\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/index.html\ttext/html\t0\n",
+  "stderr": "",
+  "execution_time_ms": 67
+}

@@ -207,9 +207,8 @@ export default function PlayerPage() {
   );
 
   const isLmsShell = pkg.displayMode === "lms_shell";
-  const playerUrl = pkg.scormEntryPoint
-    ? `/api/content/${packageId}/${pkg.scormEntryPoint}${sessionToken ? `?sessionToken=${sessionToken}` : ""}`
-    : null;
+  // Always use the /entry redirect — it resolves the correct S3 URL regardless of subfolder nesting
+  const playerUrl = pkg.status === "ready" ? `/api/content/${packageId}/entry` : null;
 
   // ─── Native Player ──────────────────────────────────────────────────────────
   if (!isLmsShell) {

@@ -1,0 +1,90 @@
+{
+  "query": "SELECT id, relativePath, s3Key, s3Url, mimeType, isEntryPoint FROM file_assets WHERE packageId = 1 ORDER BY isEntryPoint DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute SELECT id, relativePath, s3Key, s3Url, mimeType, isEntryPoint FROM file_assets WHERE packageId = 1 ORDER BY isEntryPoint DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "2",
+      "relativePath": "UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/browsersupport.js",
+      "s3Key": "orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/browsersupport.js",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/browsersupport.js",
+      "mimeType": "application/javascript",
+      "isEntryPoint": "0"
+    },
+    {
+      "id": "3",
+      "relativePath": "UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/favicon.ico",
+      "s3Key": "orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/favicon.ico",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/favicon.ico",
+      "mimeType": "image/x-icon",
+      "isEntryPoint": "0"
+    },
+    {
+      "id": "4",
+      "relativePath": "UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt0.woff",
+      "s3Key": "orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt0.woff",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt0.woff",
+      "mimeType": "font/woff",
+      "isEntryPoint": "0"
+    },
+    {
+      "id": "5",
+      "relativePath": "UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt1.woff",
+      "s3Key": "orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt1.woff",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt1.woff",
+      "mimeType": "font/woff",
+      "isEntryPoint": "0"
+    },
+    {
+      "id": "6",
+      "relativePath": "UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt2.woff",
+      "s3Key": "orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt2.woff",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt2.woff",
+      "mimeType": "font/woff",
+      "isEntryPoint": "0"
+    },
+    {
+      "id": "7",
+      "relativePath": "UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt3.woff",
+      "s3Key": "orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt3.woff",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt3.woff",
+      "mimeType": "font/woff",
+      "isEntryPoint": "0"
+    },
+    {
+      "id": "8",
+      "relativePath": "UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt4.woff",
+      "s3Key": "orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt4.woff",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt4.woff",
+      "mimeType": "font/woff",
+      "isEntryPoint": "0"
+    },
+    {
+      "id": "9",
+      "relativePath": "UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt5.woff",
+      "s3Key": "orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt5.woff",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt5.woff",
+      "mimeType": "font/woff",
+      "isEntryPoint": "0"
+    },
+    {
+      "id": "10",
+      "relativePath": "UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt6.woff",
+      "s3Key": "orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt6.woff",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt6.woff",
+      "mimeType": "font/woff",
+      "isEntryPoint": "0"
+    },
+    {
+      "id": "1",
+      "relativePath": "UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/apple-touch-icon.png",
+      "s3Key": "orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/apple-touch-icon.png",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/apple-touch-icon.png",
+      "mimeType": "image/png",
+      "isEntryPoint": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\trelativePath\ts3Key\ts3Url\tmimeType\tisEntryPoint\n2\tUNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/browsersupport.js\torgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/browsersupport.js\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/browsersupport.js\tapplication/javascript\t0\n3\tUNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/favicon.ico\torgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/favicon.ico\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/favicon.ico\timage/x-icon\t0\n4\tUNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt0.woff\torgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt0.woff\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt0.woff\tfont/woff\t0\n5\tUNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt1.woff\torgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt1.woff\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt1.woff\tfont/woff\t0\n6\tUNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt2.woff\torgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt2.woff\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt2.woff\tfont/woff\t0\n7\tUNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt3.woff\torgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt3.woff\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt3.woff\tfont/woff\t0\n8\tUNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt4.woff\torgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt4.woff\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt4.woff\tfont/woff\t0\n9\tUNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt5.woff\torgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt5.woff\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt5.woff\tfont/woff\t0\n10\tUNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt6.woff\torgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt6.woff\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/fonts/fnt6.woff\tfont/woff\t0\n1\tUNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/apple-touch-icon.png\torgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/apple-touch-icon.png\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/extracted/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published)/data/apple-touch-icon.png\timage/png\t0\n",
+  "stderr": "",
+  "execution_time_ms": 59
+}

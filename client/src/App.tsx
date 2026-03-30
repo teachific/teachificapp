@@ -12,6 +12,7 @@ import FilesPage from "./pages/FilesPage";
 import UploadPage from "./pages/UploadPage";
 import FileDetailPage from "./pages/FileDetailPage";
 import PlayerPage from "./pages/PlayerPage";
+import EmbedPage from "./pages/EmbedPage";
 import QuizzesPage from "./pages/QuizzesPage";
 import QuizBuilderPage from "./pages/QuizBuilderPage";
 import QuizPlayerPage from "./pages/QuizPlayerPage";
@@ -22,7 +23,17 @@ import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminPermissionsPage from "./pages/admin/AdminPermissionsPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 
-function Router() {
+// Bare routes (no admin sidebar) — used for share links and external embeds
+function BareRouter() {
+  return (
+    <Switch>
+      <Route path="/embed/:id" component={EmbedPage} />
+    </Switch>
+  );
+}
+
+// Admin shell routes
+function AdminRouter() {
   return (
     <DashboardLayout>
       <Switch>
@@ -55,6 +66,15 @@ function Router() {
       </Switch>
     </DashboardLayout>
   );
+}
+
+function Router() {
+  // Check if current path is a bare route (embed/share)
+  const path = window.location.pathname;
+  if (path.startsWith("/embed/")) {
+    return <BareRouter />;
+  }
+  return <AdminRouter />;
 }
 
 export default function App() {

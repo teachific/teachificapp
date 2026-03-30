@@ -1,0 +1,20 @@
+{
+  "query": "SELECT id, title, status, scormEntryPoint, extractedFolderKey, contentType, scormVersion, originalZipUrl FROM content_packages LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute SELECT id, title, status, scormEntryPoint, extractedFolderKey, contentType, scormVersion, originalZipUrl FROM content_packages LIMIT 5;",
+  "rows": [
+    {
+      "id": "1",
+      "title": "UNLIMTED REGISTRY REVIEW QUIZ OBGYN",
+      "status": "ready",
+      "scormEntryPoint": "index.html",
+      "extractedFolderKey": "orgs/1/packages/Ha5VKcM2/extracted/",
+      "contentType": "unknown",
+      "scormVersion": "none",
+      "originalZipUrl": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published).zip"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tstatus\tscormEntryPoint\textractedFolderKey\tcontentType\tscormVersion\toriginalZipUrl\n1\tUNLIMTED REGISTRY REVIEW QUIZ OBGYN\tready\tindex.html\torgs/1/packages/Ha5VKcM2/extracted/\tunknown\tnone\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/orgs/1/packages/Ha5VKcM2/UNLIMTED REGISTRY REVIEW QUIZ - OB GYN (Published).zip\n",
+  "stderr": "",
+  "execution_time_ms": 116
+}
