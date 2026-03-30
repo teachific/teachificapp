@@ -348,25 +348,40 @@ export default function FileDetailPage() {
                   {pkg.scormEntryPoint && <p><span className="text-muted-foreground">Entry:</span> <code className="text-xs bg-muted px-1 rounded">{pkg.scormEntryPoint}</code></p>}
                 </div>
               )}
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-muted/30">
-                <div>
-                  <p className="text-sm font-medium flex items-center gap-1.5">
-                    {isPublic ? <Globe className="h-4 w-4 text-blue-500" /> : <Lock className="h-4 w-4 text-slate-500" />}
-                    {isPublic ? "Public Access" : "Private Access"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {isPublic
-                      ? "Anyone with the link can view this content — no login required."
-                      : "Only signed-in users can view this content."}
-                  </p>
+              <div className="space-y-2">
+                <Label>Access Control</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setIsPublic(false); updatePkg.mutate({ id: packageId, title, description, isPublic: false }); }}
+                    className={`flex flex-col items-start gap-1.5 rounded-lg border-2 p-3 text-left transition-all ${
+                      !isPublic
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border bg-background text-muted-foreground hover:border-border/80 hover:text-foreground"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 font-medium text-sm">
+                      <Lock className="h-4 w-4 shrink-0" />
+                      Private
+                    </div>
+                    <p className="text-xs leading-snug opacity-80">Only signed-in users can view</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsPublic(true); updatePkg.mutate({ id: packageId, title, description, isPublic: true }); }}
+                    className={`flex flex-col items-start gap-1.5 rounded-lg border-2 p-3 text-left transition-all ${
+                      isPublic
+                        ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
+                        : "border-border bg-background text-muted-foreground hover:border-border/80 hover:text-foreground"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 font-medium text-sm">
+                      <Globe className="h-4 w-4 shrink-0" />
+                      Public
+                    </div>
+                    <p className="text-xs leading-snug opacity-80">Anyone with the link can view</p>
+                  </button>
                 </div>
-                <Switch
-                  checked={isPublic}
-                  onCheckedChange={(val) => {
-                    setIsPublic(val);
-                    updatePkg.mutate({ id: packageId, title, description, isPublic: val });
-                  }}
-                />
               </div>
               {pkg.originalZipUrl && (
                 <Button variant="outline" size="sm" asChild>
