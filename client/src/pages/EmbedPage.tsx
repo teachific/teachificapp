@@ -204,7 +204,10 @@ export default function EmbedPage() {
 
   const formatElapsed = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
-  const playerUrl = pkg?.status === "ready" ? `/api/content/${packageId}/entry` : null;
+  // Include the currentVersionId as a cache-buster so mobile browsers always load the latest version
+  const playerUrl = pkg?.status === "ready"
+    ? `/api/content/${packageId}/entry?v=${(pkg as any).currentVersionId ?? 0}`
+    : null;
   const isLmsShell = pkg?.displayMode === "lms_shell";
 
   if (isLoading) {

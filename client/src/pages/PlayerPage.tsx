@@ -225,7 +225,10 @@ export default function PlayerPage() {
 
   const isLmsShell = pkg.displayMode === "lms_shell";
   // Always use the /entry redirect — it resolves the correct S3 URL regardless of subfolder nesting
-  const playerUrl = pkg.status === "ready" ? `/api/content/${packageId}/entry` : null;
+  // Include the currentVersionId as a cache-buster so mobile browsers always load the latest version
+  const playerUrl = pkg.status === "ready"
+    ? `/api/content/${packageId}/entry?v=${(pkg as any).currentVersionId ?? 0}`
+    : null;
 
   // ─── Native Player ──────────────────────────────────────────────────────────
   if (!isLmsShell) {

@@ -17,7 +17,7 @@
 import express, { Request, Response } from "express";
 import { getDb } from "./db";
 import { fileAssets, contentPackages } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import https from "https";
 import http from "http";
 
@@ -42,19 +42,18 @@ function setFrameHeaders(res: Response) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Range");
+  // Prevent mobile browsers from serving stale content after a version upload
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.removeHeader("ETag");
 }
 
 // Proxy a URL through the server, streaming bytes
 function proxyUrl(url: string, res: Response, contentType: string) {
   const protocol = url.startsWith("https") ? https : http;
   protocol.get(url, (upstream) => {
-    setFrameHeaders(res);
+    setFrameHeaders(res); // already sets no-store; do NOT forward S3 cache headers
     res.setHeader("Content-Type", contentType);
-    // Forward cache headers if present
-    const cc = upstream.headers["cache-control"];
-    if (cc) res.setHeader("Cache-Control", cc);
-    const etag = upstream.headers["etag"];
-    if (etag) res.setHeader("ETag", etag);
     res.status(upstream.statusCode ?? 200);
     upstream.pipe(res);
   }).on("error", (err) => {
@@ -72,7 +71,11 @@ async function findEntryAsset(packageId: number) {
   const pkg = pkgs[0];
   if (!pkg || pkg.status !== "ready") return { pkg, asset: null };
 
-  const allAssets = await db.select().from(fileAssets).where(eq(fileAssets.packageId, packageId));
+  // Filter to the current version's assets so a new upload is immediately reflected
+  const versionFilter = pkg.currentVersionId
+    ? and(eq(fileAssets.packageId, packageId), eq(fileAssets.versionId, pkg.currentVersionId))
+    : eq(fileAssets.packageId, packageId);
+  const allAssets = await db.select().from(fileAssets).where(versionFilter);
 
   let asset = allAssets.find((a) => Boolean(a.isEntryPoint));
 
@@ -130,7 +133,13 @@ router.get("/:packageId/*", async (req: Request, res: Response) => {
     const db = await getDb();
     if (!db) return res.status(503).json({ error: "DB unavailable" });
 
-    const allAssets = await db.select().from(fileAssets).where(eq(fileAssets.packageId, packageId));
+    // Use currentVersionId so asset lookups always hit the latest uploaded version
+    const pkgs = await db.select().from(contentPackages).where(eq(contentPackages.id, packageId)).limit(1);
+    const pkg = pkgs[0];
+    const versionFilter = pkg?.currentVersionId
+      ? and(eq(fileAssets.packageId, packageId), eq(fileAssets.versionId, pkg.currentVersionId))
+      : eq(fileAssets.packageId, packageId);
+    const allAssets = await db.select().from(fileAssets).where(versionFilter);
 
     let asset = allAssets.find((a) => a.relativePath.toLowerCase() === filePath.toLowerCase());
     if (!asset) {

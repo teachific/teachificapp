@@ -291,3 +291,10 @@
 - [x] Packages without a folderId appear under "All Files" and inside whichever folder is selected (or all)
 - [x] Remove "drop-uncategorized" drop target; dragging a package off a folder just moves it back to no folder via the folder's own drop zone or context menu
 - [x] Update empty-state message when a folder is selected but empty
+
+## Bug Fix: New Version Not Showing on Mobile
+- [x] Audit content proxy: was querying ALL assets for a package, ignoring versionId — old entry point matched first
+- [x] Fix contentRoutes to filter file_assets by currentVersionId in both /entry and /* routes
+- [x] Add Cache-Control: no-store, no-cache, must-revalidate + Pragma: no-cache to all proxy responses
+- [x] Remove forwarding of S3 ETag/Cache-Control headers that caused mobile caching
+- [x] Add ?v={currentVersionId} cache-buster to iframe src in EmbedPage and PlayerPage
