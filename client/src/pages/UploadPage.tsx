@@ -72,8 +72,13 @@ export default function UploadPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [packageId, setPackageId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadedBytes, setUploadedBytes] = useState(0);
+  const [progressPhase, setProgressPhase] = useState<string>("uploading");
+  const [extractDone, setExtractDone] = useState(0);
+  const [extractTotal, setExtractTotal] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sseRef = useRef<EventSource | null>(null);
 
   const analyzePackage = trpc.packages.analyze.useMutation();
 
@@ -85,8 +90,8 @@ export default function UploadPage() {
       toast.error("Only ZIP files are supported");
       return;
     }
-    if (selectedFile.size > 500 * 1024 * 1024) {
-      toast.error("File size must be under 500 MB");
+    if (selectedFile.size > 2 * 1024 * 1024 * 1024) {
+      toast.error("File size must be under 2 GB");
       return;
     }
     setFile(selectedFile);
@@ -110,7 +115,11 @@ export default function UploadPage() {
     if (!user) { toast.error("You must be logged in"); return; }
 
     setStep("uploading");
-    setUploadProgress(10);
+    setUploadProgress(5);
+    setUploadedBytes(0);
+    setProgressPhase("uploading");
+    setExtractDone(0);
+    setExtractTotal(0);
     setError(null);
 
     try {
@@ -125,20 +134,62 @@ export default function UploadPage() {
       const result = await new Promise<{ packageId: number }>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) setUploadProgress(10 + Math.round((e.loaded / e.total) * 50));
+          if (e.lengthComputable) {
+            setUploadedBytes(e.loaded);
+            // Upload phase = 5% → 60%
+            setUploadProgress(5 + Math.round((e.loaded / e.total) * 55));
+          }
         };
         xhr.onload = () => {
           if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
-          else reject(new Error(JSON.parse(xhr.responseText)?.error ?? "Upload failed"));
+          else {
+            try { reject(new Error(JSON.parse(xhr.responseText)?.error ?? "Upload failed")); }
+            catch { reject(new Error(`Upload failed (HTTP ${xhr.status})`)); }
+          }
         };
-        xhr.onerror = () => reject(new Error("Network error"));
+        xhr.onerror = () => reject(new Error("Network error during upload"));
+        xhr.ontimeout = () => reject(new Error("Upload timed out — try a smaller file or check your connection"));
+        xhr.timeout = 30 * 60 * 1000; // 30 min client timeout
         xhr.open("POST", "/api/upload/package");
         xhr.send(formData);
       });
 
       setPackageId(result.packageId);
-      setUploadProgress(65);
+      setUploadProgress(62);
+      setProgressPhase("extracting");
 
+      // Connect to SSE stream for real-time extraction progress
+      const sse = new EventSource(`/api/upload/progress/${result.packageId}`);
+      sseRef.current = sse;
+      sse.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data) as { done: number; total: number; phase: string };
+          setProgressPhase(data.phase);
+          setExtractDone(data.done);
+          setExtractTotal(data.total);
+          if (data.phase === "ready") {
+            setUploadProgress(100);
+            sse.close();
+            if (pollRef.current) clearInterval(pollRef.current);
+            setStep("done");
+            analyzePackage.mutate({ packageId: result.packageId, fileList: [] });
+          } else if (data.phase === "error") {
+            sse.close();
+            if (pollRef.current) clearInterval(pollRef.current);
+            setError("Processing failed");
+            setStep("configure");
+          } else if (data.total > 0) {
+            // Extract/upload phase = 62% → 97%
+            setUploadProgress(62 + Math.round((data.done / data.total) * 35));
+          }
+        } catch { /* ignore */ }
+      };
+      sse.onerror = () => {
+        // SSE disconnected — fall back to polling
+        sse.close();
+      };
+
+      // Polling fallback in case SSE is blocked
       pollRef.current = setInterval(async () => {
         try {
           const res = await fetch(`/api/upload/status/${result.packageId}`);
@@ -146,17 +197,17 @@ export default function UploadPage() {
           if (status.status === "ready") {
             setUploadProgress(100);
             clearInterval(pollRef.current!);
+            sseRef.current?.close();
             setStep("done");
             analyzePackage.mutate({ packageId: result.packageId, fileList: [] });
           } else if (status.status === "error") {
             clearInterval(pollRef.current!);
+            sseRef.current?.close();
             setError(status.processingError ?? "Processing failed");
             setStep("configure");
-          } else {
-            setUploadProgress((p) => Math.min(p + 5, 95));
           }
         } catch { /* ignore */ }
-      }, 2000);
+      }, 5000);
     } catch (err: unknown) {
       setError(String(err));
       setStep("configure");
@@ -366,17 +417,41 @@ export default function UploadPage() {
               <Loader2 className="h-8 w-8 text-primary animate-spin" />
             </div>
             <div>
-              <p className="font-semibold text-lg">{uploadProgress < 65 ? "Uploading..." : "Processing..."}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {uploadProgress < 65 ? "Transferring your file to storage" : "Extracting files and parsing SCORM manifest"}
+              <p className="font-semibold text-lg">
+                {progressPhase === "uploading" ? "Uploading to storage..." :
+                 progressPhase === "reading" ? "Reading ZIP contents..." :
+                 progressPhase === "extracting" ? "Extracting files..." :
+                 progressPhase === "uploading" ? "Uploading files to CDN..." :
+                 progressPhase === "finalizing" ? "Finalizing package..." :
+                 "Processing..."}
               </p>
+              {/* File size + bytes uploaded */}
+              {file && progressPhase === "uploading" && uploadedBytes > 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {formatSize(uploadedBytes)} / {formatSize(file.size)} transferred
+                </p>
+              )}
+              {/* Extraction file count */}
+              {extractTotal > 0 && progressPhase !== "uploading" && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {extractDone} / {extractTotal} files processed
+                </p>
+              )}
+              {/* File size info always visible */}
+              {file && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Package size: <span className="font-medium">{formatSize(file.size)}</span>
+                  {file.size > 100 * 1024 * 1024 && " — large files may take several minutes"}
+                </p>
+              )}
             </div>
-            <Progress value={uploadProgress} className="h-2" />
+            <Progress value={uploadProgress} className="h-2.5" />
+            <p className="text-xs font-medium text-primary">{uploadProgress}%</p>
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              {["Upload", "Extract", "Parse SCORM", "Ready"].map((s, i) => (
+              {["Upload", "Extract", "CDN Upload", "Ready"].map((s, i) => (
                 <span key={s} className="flex items-center gap-2">
                   {i > 0 && <ChevronRight className="h-3 w-3" />}
-                  <span className={uploadProgress >= [10, 65, 80, 100][i] ? "text-primary font-medium" : ""}>{s}</span>
+                  <span className={uploadProgress >= [5, 62, 75, 100][i] ? "text-primary font-medium" : ""}>{s}</span>
                 </span>
               ))}
             </div>

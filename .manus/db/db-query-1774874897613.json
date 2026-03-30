@@ -1,0 +1,91 @@
+{
+  "query": "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='content_packages' ORDER BY ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='content_packages' ORDER BY ORDINAL_POSITION;",
+  "rows": [
+    {
+      "COLUMN_NAME": "id"
+    },
+    {
+      "COLUMN_NAME": "orgId"
+    },
+    {
+      "COLUMN_NAME": "uploadedBy"
+    },
+    {
+      "COLUMN_NAME": "title"
+    },
+    {
+      "COLUMN_NAME": "description"
+    },
+    {
+      "COLUMN_NAME": "tags"
+    },
+    {
+      "COLUMN_NAME": "scormVersion"
+    },
+    {
+      "COLUMN_NAME": "scormEntryPoint"
+    },
+    {
+      "COLUMN_NAME": "scormManifest"
+    },
+    {
+      "COLUMN_NAME": "contentType"
+    },
+    {
+      "COLUMN_NAME": "llmSummary"
+    },
+    {
+      "COLUMN_NAME": "llmTags"
+    },
+    {
+      "COLUMN_NAME": "llmValidationNotes"
+    },
+    {
+      "COLUMN_NAME": "originalZipKey"
+    },
+    {
+      "COLUMN_NAME": "originalZipUrl"
+    },
+    {
+      "COLUMN_NAME": "originalZipSize"
+    },
+    {
+      "COLUMN_NAME": "extractedFolderKey"
+    },
+    {
+      "COLUMN_NAME": "status"
+    },
+    {
+      "COLUMN_NAME": "processingError"
+    },
+    {
+      "COLUMN_NAME": "currentVersionId"
+    },
+    {
+      "COLUMN_NAME": "totalPlayCount"
+    },
+    {
+      "COLUMN_NAME": "totalDownloadCount"
+    },
+    {
+      "COLUMN_NAME": "isPublic"
+    },
+    {
+      "COLUMN_NAME": "createdAt"
+    },
+    {
+      "COLUMN_NAME": "updatedAt"
+    },
+    {
+      "COLUMN_NAME": "displayMode"
+    },
+    {
+      "COLUMN_NAME": "lmsShellConfig"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_NAME\nid\norgId\nuploadedBy\ntitle\ndescription\ntags\nscormVersion\nscormEntryPoint\nscormManifest\ncontentType\nllmSummary\nllmTags\nllmValidationNotes\noriginalZipKey\noriginalZipUrl\noriginalZipSize\nextractedFolderKey\nstatus\nprocessingError\ncurrentVersionId\ntotalPlayCount\ntotalDownloadCount\nisPublic\ncreatedAt\nupdatedAt\ndisplayMode\nlmsShellConfig\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}

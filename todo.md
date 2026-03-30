@@ -138,15 +138,25 @@
 - [x] Set logo as browser tab favicon in index.html
 
 ## Dynamic URL Parameters
-- [ ] Add learnerName, learnerEmail, learnerId, orgId, groupId, customData columns to play_sessions
-- [ ] Update sessions.start tRPC procedure to accept and store URL params
-- [ ] Update EmbedPage to parse URL query params and pass to session start
-- [ ] Add URL builder UI in FileDetailPage with all supported params and copy-ready examples
-- [ ] Update analytics to expose per-session learner param data
-- [ ] Support ?token= for share links combined with learner params
+- [x] Add learnerName, learnerEmail, learnerId, orgId, groupId, customData columns to play_sessions
+- [x] Update sessions.start tRPC procedure to accept and store URL params
+- [x] Update EmbedPage to parse URL query params and pass to session start
+- [x] Add URL builder UI in FileDetailPage with all supported params and copy-ready examples
+- [x] Update analytics to expose per-session learner param data
+- [x] Support ?token= for share links combined with learner params
 
 ## Logo Text Lockup
 - [x] Replace logo image with styled text: "teach" white + "ific" teal + "™" white in sidebar
 - [x] Same text lockup on login screen
 - [x] Same text lockup in embed player header
 - [x] Collapsed sidebar shows just teal "t" icon character
+
+## Bug Fix: Upload Spinning / Timeout
+- [x] Diagnose upload timeout root cause (body size limit, multer, S3)
+- [x] Fix server body size limit and multer config for large ZIPs — switched to diskStorage
+- [x] Add streaming S3 upload with real-time progress events (XHR + SSE)
+- [x] UploadPage: show file size before upload starts
+- [x] UploadPage: real-time bytes-uploaded progress bar with % and MB/MB display
+- [x] UploadPage: phase labels (Upload → Extract → CDN Upload → Ready)
+- [x] Batch-streaming extraction: read CONCURRENCY files at a time to avoid RAM exhaustion
+- [x] Seed AdvancedCardiacSonographer.zip (345 files) under All About Ultrasound org (ID 1)

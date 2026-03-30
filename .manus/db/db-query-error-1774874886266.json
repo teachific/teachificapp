@@ -1,0 +1,8 @@
+{
+  "query": "UPDATE content_packages SET status='ready', scormEntryPoint='Advanced Cardiac Sonographer/index.html', contentType='html', title='Advanced Cardiac Sonographer', currentVersionId=3, updatedAt=NOW() WHERE id=5; UPDATE content_versions SET status='active' WHERE id=3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute UPDATE content_packages SET status='ready', scormEntryPoint='Advanced Cardiac Sonographer/index.html', contentType='html', title='Advanced Cardiac Sonographer', currentVersionId=3, updatedAt=NOW() WHERE id=5; UPDATE content_versions SET status='active' WHERE id=3;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'status' in 'field list'"
+  ]
+}

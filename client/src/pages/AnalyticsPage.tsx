@@ -3,14 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, CartesianGrid, PieChart, Pie, Cell, Legend,
+  CartesianGrid, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
   Activity, BarChart3, BookOpen, CheckCircle2, Clock,
-  Download, FileArchive, Play, TrendingUp, Users,
+  Download, FileArchive, Play, TrendingUp, Users, Search,
+  ChevronDown, ChevronUp, ExternalLink,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
@@ -38,6 +40,176 @@ function StatCard({
   );
 }
 
+// ── Learner Sessions Table ────────────────────────────────────────────────────
+function LearnerSessionsTable({ packageId, packageTitle }: { packageId: number; packageTitle: string }) {
+  const [search, setSearch] = useState("");
+  const [sortField, setSortField] = useState<"startedAt" | "learnerName" | "completionStatus" | "scoreRaw">("startedAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const { data: sessions, isLoading } = trpc.sessions.listByPackage.useQuery(
+    { packageId, limit: 500 },
+    { enabled: !!packageId }
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return (sessions ?? []).filter((s: any) =>
+      !q ||
+      (s.learnerName ?? "").toLowerCase().includes(q) ||
+      (s.learnerEmail ?? "").toLowerCase().includes(q) ||
+      (s.learnerId ?? "").toLowerCase().includes(q) ||
+      (s.learnerGroup ?? "").toLowerCase().includes(q)
+    );
+  }, [sessions, search]);
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a: any, b: any) => {
+      let av = a[sortField] ?? "";
+      let bv = b[sortField] ?? "";
+      if (sortField === "startedAt") { av = new Date(av).getTime(); bv = new Date(bv).getTime(); }
+      if (sortField === "scoreRaw") { av = av ?? -1; bv = bv ?? -1; }
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, sortField, sortDir]);
+
+  const toggleSort = (field: typeof sortField) => {
+    if (sortField === field) setSortDir((d) => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
+  };
+
+  const SortIcon = ({ field }: { field: typeof sortField }) => {
+    if (sortField !== field) return null;
+    return sortDir === "asc" ? <ChevronUp className="h-3 w-3 inline ml-0.5" /> : <ChevronDown className="h-3 w-3 inline ml-0.5" />;
+  };
+
+  const completionBadge = (status: string) => {
+    const map: Record<string, string> = {
+      completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+      passed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+      failed: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+      incomplete: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+      not_attempted: "bg-muted text-muted-foreground",
+    };
+    return map[status] ?? "bg-muted text-muted-foreground";
+  };
+
+  const handleExportCSV = () => {
+    const rows = [
+      ["Learner Name", "Email", "ID", "Group", "Started", "Duration (min)", "Status", "Score", "UTM Source", "UTM Campaign"],
+      ...sorted.map((s: any) => [
+        s.learnerName ?? "",
+        s.learnerEmail ?? "",
+        s.learnerId ?? "",
+        s.learnerGroup ?? "",
+        s.startedAt ? new Date(s.startedAt).toLocaleString() : "",
+        s.durationSeconds ? Math.round(s.durationSeconds / 60) : "",
+        s.completionStatus ?? "",
+        s.scoreRaw != null ? s.scoreRaw : "",
+        s.utmSource ?? "",
+        s.utmCampaign ?? "",
+      ]),
+    ];
+    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${packageTitle.replace(/\s+/g, "-")}-learners.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search learners..."
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
+        <Button size="sm" variant="outline" onClick={handleExportCSV} className="gap-1.5 text-xs h-8">
+          <Download className="h-3.5 w-3.5" />Export CSV
+        </Button>
+        <span className="text-xs text-muted-foreground ml-auto">{sorted.length} sessions</span>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-border/60">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/50 bg-muted/30">
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => toggleSort("learnerName")}>
+                Learner <SortIcon field="learnerName" />
+              </th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Group</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => toggleSort("startedAt")}>
+                Started <SortIcon field="startedAt" />
+              </th>
+              <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground">Duration</th>
+              <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => toggleSort("completionStatus")}>
+                Status <SortIcon field="completionStatus" />
+              </th>
+              <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => toggleSort("scoreRaw")}>
+                Score <SortIcon field="scoreRaw" />
+              </th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">UTM</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/50">
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i}><td colSpan={7} className="px-4 py-2"><Skeleton className="h-7 w-full" /></td></tr>
+              ))
+            ) : sorted.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground text-sm">
+                  {search ? "No sessions match your search" : "No sessions recorded yet"}
+                </td>
+              </tr>
+            ) : (
+              sorted.map((s: any) => (
+                <tr key={s.id} className="hover:bg-accent/20 transition-colors">
+                  <td className="px-4 py-2.5">
+                    <div>
+                      <p className="font-medium text-sm">{s.learnerName || <span className="text-muted-foreground italic">Anonymous</span>}</p>
+                      {s.learnerEmail && <p className="text-xs text-muted-foreground">{s.learnerEmail}</p>}
+                      {s.learnerId && <p className="text-xs text-muted-foreground font-mono">ID: {s.learnerId}</p>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs text-muted-foreground">{s.learnerGroup || "—"}</td>
+                  <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                    {s.startedAt ? new Date(s.startedAt).toLocaleString() : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-center text-xs">
+                    {s.durationSeconds ? `${Math.round(s.durationSeconds / 60)}m` : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${completionBadge(s.completionStatus ?? "not_attempted")}`}>
+                      {(s.completionStatus ?? "not_attempted").replace(/_/g, " ")}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-center text-xs font-medium">
+                    {s.scoreRaw != null ? (s.scoreMax ? `${s.scoreRaw}/${s.scoreMax}` : s.scoreRaw) : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                    {[s.utmSource, s.utmMedium, s.utmCampaign].filter(Boolean).join(" / ") || "—"}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function AnalyticsPage() {
   const [, setLocation] = useLocation();
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(null);
@@ -98,6 +270,8 @@ export default function AnalyticsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const selectedPackage = packages?.find((p) => p.id === selectedPackageId);
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -153,6 +327,7 @@ export default function AnalyticsPage() {
         <TabsList>
           <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" />Overview</TabsTrigger>
           <TabsTrigger value="content" className="gap-1.5"><FileArchive className="h-3.5 w-3.5" />Content</TabsTrigger>
+          <TabsTrigger value="learners" className="gap-1.5"><Users className="h-3.5 w-3.5" />Learners</TabsTrigger>
           <TabsTrigger value="quizzes" className="gap-1.5"><BookOpen className="h-3.5 w-3.5" />Quizzes</TabsTrigger>
         </TabsList>
 
@@ -234,7 +409,7 @@ export default function AnalyticsPage() {
             <Card className="shadow-sm border-border/60 lg:col-span-2">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-amber-500" />Recent Activity
+                  <Clock className="h-4 w-4 text-amber-500" />Recent Content
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -330,6 +505,64 @@ export default function AnalyticsPage() {
                   </tbody>
                 </table>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Learners Tab */}
+        <TabsContent value="learners" className="mt-5 space-y-4">
+          <Card className="shadow-sm border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />Learner Sessions
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Per-session breakdown with learner tracking data captured from URL parameters.
+                Select a content package to view its learner sessions.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Select Content Package</label>
+                <select
+                  className="w-full max-w-md h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                  value={selectedPackageId ?? ""}
+                  onChange={(e) => setSelectedPackageId(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">— Choose a package —</option>
+                  {(packages ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title} ({p.totalPlayCount ?? 0} plays)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedPackageId && selectedPackage ? (
+                <>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium">{selectedPackage.title}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 text-xs gap-1"
+                      onClick={() => setLocation(`/files/${selectedPackageId}`)}
+                    >
+                      <ExternalLink className="h-3 w-3" />Manage
+                    </Button>
+                  </div>
+                  <LearnerSessionsTable packageId={selectedPackageId} packageTitle={selectedPackage.title} />
+                </>
+              ) : (
+                <div className="py-10 text-center text-muted-foreground">
+                  <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium text-sm">Select a package to view learner sessions</p>
+                  <p className="text-xs mt-1 max-w-sm mx-auto">
+                    Learner data is captured when users access content via URLs with tracking parameters
+                    (learner_name, learner_email, learner_id, etc.)
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

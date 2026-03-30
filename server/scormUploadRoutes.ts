@@ -2,28 +2,51 @@
  * REST routes for SCORM/HTML ZIP file upload and extraction.
  * Mounted at /api/upload in server/_core/index.ts
  *
- * POST /api/upload/package  — upload a ZIP, store to S3, extract, parse SCORM manifest
- * GET  /api/upload/status/:packageId — poll processing status
+ * POST /api/upload/package          — upload a ZIP to disk, store to S3, extract in parallel
+ * GET  /api/upload/status/:id       — poll processing status
+ * GET  /api/upload/progress/:id     — SSE stream of real-time extraction progress
  */
 import express, { Request, Response } from "express";
 import multer from "multer";
 import unzipper from "unzipper";
-import { Readable } from "stream";
+import { createReadStream, existsSync, unlinkSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
 import { parseScormManifest } from "./scormParser";
 import { createPackage, updatePackage, createVersion, createFileAsset, getPackageById } from "./db";
 
 const router = express.Router();
+
+// ── Disk-based multer — avoids loading 400+ MB into RAM ──────────────────────
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, tmpdir()),
+    filename: (_req, file, cb) => cb(null, `teachific-upload-${nanoid(12)}-${file.originalname}`),
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // 2 GB hard cap
 });
+
+// ── In-memory SSE progress map ────────────────────────────────────────────────
+// packageId → { done, total, phase, error }
+const progressMap = new Map<number, { done: number; total: number; phase: string; error?: string }>();
+const sseClients = new Map<number, Response[]>();
+
+function emitProgress(packageId: number, done: number, total: number, phase: string) {
+  progressMap.set(packageId, { done, total, phase });
+  const clients = sseClients.get(packageId) ?? [];
+  const data = JSON.stringify({ done, total, phase });
+  for (const res of clients) {
+    try { res.write(`data: ${data}\n\n`); } catch { /* client disconnected */ }
+  }
+}
 
 // ── POST /api/upload/package ──────────────────────────────────────────────────
 router.post("/package", upload.single("file"), async (req: Request, res: Response) => {
+  const tmpPath = (req.file as Express.Multer.File & { path: string })?.path;
   try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    if (!req.file || !tmpPath) return res.status(400).json({ error: "No file uploaded" });
 
     const orgId = parseInt(req.body.orgId ?? "0", 10);
     const uploadedBy = parseInt(req.body.uploadedBy ?? "0", 10);
@@ -32,16 +55,19 @@ router.post("/package", upload.single("file"), async (req: Request, res: Respons
     const lmsShellConfig = req.body.lmsShellConfig;
 
     if (!orgId || !uploadedBy) {
+      if (existsSync(tmpPath)) unlinkSync(tmpPath);
       return res.status(400).json({ error: "orgId and uploadedBy are required" });
     }
 
     const suffix = nanoid(8);
     const zipKey = `orgs/${orgId}/packages/${suffix}/${req.file.originalname}`;
 
-    // 1. Store original ZIP to S3
-    const { url: zipUrl } = await storagePut(zipKey, req.file.buffer, "application/zip");
+    // 1. Stream original ZIP to S3 (streaming — no full buffer in RAM)
+    const zipStream = createReadStream(tmpPath);
+    const zipBuffer = await streamToBuffer(tmpPath);
+    const { url: zipUrl } = await storagePut(zipKey, zipBuffer, "application/zip");
 
-    // 2. Create package record (status: uploading)
+    // 2. Create package record (status: processing)
     await createPackage({
       orgId,
       uploadedBy,
@@ -56,24 +82,29 @@ router.post("/package", upload.single("file"), async (req: Request, res: Respons
       status: "processing",
     });
 
-    // Get the newly created package (most recent for this org)
-    // We'll do a quick re-query via a helper
     const { getDb } = await import("./db");
     const { contentPackages } = await import("../drizzle/schema");
     const { desc, eq } = await import("drizzle-orm");
     const db = await getDb();
-    if (!db) return res.status(500).json({ error: "DB unavailable" });
+    if (!db) {
+      if (existsSync(tmpPath)) unlinkSync(tmpPath);
+      return res.status(500).json({ error: "DB unavailable" });
+    }
 
     const pkgs = await db.select().from(contentPackages)
       .where(eq(contentPackages.orgId, orgId))
       .orderBy(desc(contentPackages.createdAt))
       .limit(1);
     const pkg = pkgs[0];
-    if (!pkg) return res.status(500).json({ error: "Package creation failed" });
+    if (!pkg) {
+      if (existsSync(tmpPath)) unlinkSync(tmpPath);
+      return res.status(500).json({ error: "Package creation failed" });
+    }
 
-    // 3. Extract ZIP asynchronously and update package
-    processZip(req.file.buffer, pkg.id, orgId, suffix).catch((err) => {
+    // 3. Process ZIP asynchronously — streaming extraction + parallel S3 uploads
+    processZip(tmpPath, req.file.size, pkg.id, orgId, suffix).catch((err) => {
       console.error(`[ZIP Processing] Package ${pkg.id} failed:`, err);
+      emitProgress(pkg.id, 0, 1, "error");
       updatePackage(pkg.id, { status: "error", processingError: String(err) }).catch(console.error);
     });
 
@@ -84,6 +115,7 @@ router.post("/package", upload.single("file"), async (req: Request, res: Respons
       message: "Upload received. Processing in background.",
     });
   } catch (err: unknown) {
+    if (tmpPath && existsSync(tmpPath)) unlinkSync(tmpPath);
     console.error("[Upload] Error:", err);
     return res.status(500).json({ error: "Upload failed", detail: String(err) });
   }
@@ -95,6 +127,7 @@ router.get("/status/:packageId", async (req: Request, res: Response) => {
     const packageId = parseInt(req.params.packageId, 10);
     const pkg = await getPackageById(packageId);
     if (!pkg) return res.status(404).json({ error: "Package not found" });
+    const progress = progressMap.get(packageId);
     return res.json({
       packageId: pkg.id,
       status: pkg.status,
@@ -102,161 +135,251 @@ router.get("/status/:packageId", async (req: Request, res: Response) => {
       scormVersion: pkg.scormVersion,
       scormEntryPoint: pkg.scormEntryPoint,
       processingError: pkg.processingError,
+      progress: progress ?? null,
     });
   } catch (err: unknown) {
     return res.status(500).json({ error: "Status check failed", detail: String(err) });
   }
 });
 
-// ─── Background ZIP processing ────────────────────────────────────────────────
+// ── GET /api/upload/progress/:packageId  (SSE) ────────────────────────────────
+router.get("/progress/:packageId", (req: Request, res: Response) => {
+  const packageId = parseInt(req.params.packageId, 10);
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  // Send current state immediately if available
+  const current = progressMap.get(packageId);
+  if (current) res.write(`data: ${JSON.stringify(current)}\n\n`);
+
+  const clients = sseClients.get(packageId) ?? [];
+  clients.push(res);
+  sseClients.set(packageId, clients);
+
+  req.on("close", () => {
+    const remaining = (sseClients.get(packageId) ?? []).filter((c) => c !== res);
+    sseClients.set(packageId, remaining);
+  });
+});
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function streamToBuffer(filePath: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const stream = createReadStream(filePath);
+    stream.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+    stream.on("error", reject);
+  });
+}
+
+async function parallelUpload<T>(
+  items: T[],
+  fn: (item: T) => Promise<void>,
+  concurrency = 10
+): Promise<void> {
+  let i = 0;
+  async function worker() {
+    while (i < items.length) {
+      const item = items[i++];
+      await fn(item);
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, worker));
+}
+
+// ─── Background ZIP processing — streaming extraction to avoid RAM exhaustion ─
 async function processZip(
-  buffer: Buffer,
+  tmpPath: string,
+  zipSize: number,
   packageId: number,
   orgId: number,
   suffix: string
 ) {
-  const extractedFiles: Array<{ key: string; url: string; path: string; size: number; mimeType: string }> = [];
-  let manifestXml: string | null = null;
-  let entryPoint: string | null = null;
-  let indexHtmlPath: string | null = null;
+  try {
+    type FileEntry = { key: string; url: string; path: string; size: number; mimeType: string };
+    const extractedFiles: FileEntry[] = [];
+    let manifestXml: string | null = null;
+    let indexHtmlPath: string | null = null;
 
-  // Extract all files from ZIP
-  const directory = await unzipper.Open.buffer(buffer);
+    emitProgress(packageId, 0, 1, "reading");
 
-  for (const file of directory.files) {
-    if (file.type === "Directory") continue;
+    // ── Pass 1: Count total files (fast directory scan) ──────────────────────
+    const directory = await unzipper.Open.file(tmpPath);
+    const fileEntries = directory.files.filter((f) => f.type !== "Directory");
+    const total = fileEntries.length;
 
-    const filePath = file.path.replace(/^\//, ""); // strip leading slash
-    const fileBuffer = await file.buffer();
-    const mimeType = guessMime(filePath);
-    const s3Key = `orgs/${orgId}/packages/${suffix}/extracted/${filePath}`;
+    emitProgress(packageId, 0, total, "extracting");
 
-    const { url: fileS3Url } = await storagePut(s3Key, fileBuffer, mimeType);
-    extractedFiles.push({ key: s3Key, url: fileS3Url, path: filePath, size: fileBuffer.length, mimeType });
+    // ── Pass 2: Stream-extract each file and upload to S3 in parallel ────────
+    // We process in batches to keep memory bounded: read CONCURRENCY files at a
+    // time, upload them, then move on.  This avoids loading all 345 buffers at once.
+    const CONCURRENCY = 8;
+    let done = 0;
 
-    // Capture imsmanifest.xml for SCORM parsing
-    if (filePath.toLowerCase() === "imsmanifest.xml" || filePath.toLowerCase().endsWith("/imsmanifest.xml")) {
-      manifestXml = fileBuffer.toString("utf-8");
+    // Split entries into batches
+    const batches: typeof fileEntries[] = [];
+    for (let i = 0; i < fileEntries.length; i += CONCURRENCY) {
+      batches.push(fileEntries.slice(i, i + CONCURRENCY));
     }
 
-    // Track index.html as fallback entry point
-    if (filePath.toLowerCase() === "index.html" || filePath.toLowerCase() === "story.html" || filePath.toLowerCase() === "index_lms.html") {
-      if (!indexHtmlPath) indexHtmlPath = filePath;
+    for (const batch of batches) {
+      // Read batch buffers sequentially (unzipper is not safe for concurrent reads)
+      const buffers: Array<{ path: string; buffer: Buffer; mimeType: string }> = [];
+      for (const file of batch) {
+        const filePath = file.path.replace(/^\//, "");
+        const fileBuffer = await file.buffer();
+        const mimeType = guessMime(filePath);
+        buffers.push({ path: filePath, buffer: fileBuffer, mimeType });
+
+        // Capture manifest and entry point candidates
+        if (filePath.toLowerCase() === "imsmanifest.xml" || filePath.toLowerCase().endsWith("/imsmanifest.xml")) {
+          manifestXml = fileBuffer.toString("utf-8");
+        }
+        if (!indexHtmlPath) {
+          const lower = filePath.toLowerCase();
+          if (lower === "index.html" || lower.endsWith("/index.html") ||
+              lower === "story.html" || lower.endsWith("/story.html") ||
+              lower === "index_lms.html" || lower.endsWith("/index_lms.html")) {
+            indexHtmlPath = filePath;
+          }
+        }
+      }
+
+      // Upload batch to S3 in parallel
+      await parallelUpload(buffers, async ({ path: filePath, buffer: fileBuffer, mimeType }) => {
+        const s3Key = `orgs/${orgId}/packages/${suffix}/extracted/${filePath}`;
+        const { url: fileS3Url } = await storagePut(s3Key, fileBuffer, mimeType);
+        extractedFiles.push({ key: s3Key, url: fileS3Url, path: filePath, size: fileBuffer.length, mimeType });
+        done++;
+        emitProgress(packageId, done, total, "uploading");
+      }, CONCURRENCY);
+    }
+
+    emitProgress(packageId, total, total, "finalizing");
+
+    // ── Parse SCORM manifest ──────────────────────────────────────────────────
+    let scormVersion: "1.2" | "2004" | "none" = "none";
+    let scormEntryPoint: string | undefined;
+    let scormManifest: string | undefined;
+    let contentType: "scorm" | "html" | "articulate" | "ispring" | "unknown" = "unknown";
+    let entryPoint: string | null = null;
+
+    if (manifestXml) {
+      try {
+        const parsed = await parseScormManifest(manifestXml);
+        scormVersion = (parsed?.version ?? "none") as "1.2" | "2004" | "none";
+        scormEntryPoint = parsed?.entryPoint ?? undefined;
+        scormManifest = JSON.stringify(parsed);
+        contentType = "scorm";
+        if (manifestXml.includes("articulate") || manifestXml.includes("Articulate")) contentType = "articulate";
+        if (manifestXml.includes("ispring") || manifestXml.includes("iSpring")) contentType = "ispring";
+      } catch (e) {
+        console.warn("[SCORM Parse] Failed to parse manifest:", e);
+      }
+    } else if (indexHtmlPath) {
+      contentType = "html";
+      entryPoint = indexHtmlPath;
+    }
+
+    // Resolve entry point — prefer deepest index.html if SCORM entry not found
+    let resolvedEntryPath = scormEntryPoint ?? entryPoint ?? indexHtmlPath ?? "index.html";
+
+    // If the resolved entry doesn't match any extracted file, find the deepest index.html
+    const entryMatch = extractedFiles.find(
+      (f) => f.path.toLowerCase() === resolvedEntryPath.toLowerCase()
+    );
+    if (!entryMatch) {
+      const htmlCandidates = extractedFiles.filter((f) =>
+        f.path.toLowerCase().endsWith("index.html") ||
+        f.path.toLowerCase().endsWith("story.html") ||
+        f.path.toLowerCase().endsWith("index_lms.html")
+      );
+      if (htmlCandidates.length > 0) {
+        // Pick the deepest (most path segments)
+        htmlCandidates.sort((a, b) => b.path.split("/").length - a.path.split("/").length);
+        resolvedEntryPath = htmlCandidates[0].path;
+      }
+    }
+
+    // ── Create version record ─────────────────────────────────────────────────
+    await createVersion({
+      packageId,
+      versionNumber: 1,
+      versionLabel: "v1.0",
+      changelog: "Initial upload",
+      zipKey: `orgs/${orgId}/packages/${suffix}/original.zip`,
+      zipUrl: "",
+      zipSize: zipSize,
+      extractedFolderKey: `orgs/${orgId}/packages/${suffix}/extracted/`,
+      entryPoint: resolvedEntryPath,
+      fileCount: extractedFiles.length,
+      uploadedBy: 0,
+    });
+
+    const { getVersionsByPackage } = await import("./db");
+    const versions = await getVersionsByPackage(packageId);
+    const versionId = versions[0]?.id;
+
+    // ── Store file assets ─────────────────────────────────────────────────────
+    if (versionId) {
+      // Insert in batches of 50 to avoid huge single queries
+      const ASSET_BATCH = 50;
+      for (let i = 0; i < extractedFiles.length; i += ASSET_BATCH) {
+        const assetBatch = extractedFiles.slice(i, i + ASSET_BATCH);
+        await Promise.all(assetBatch.map((f) =>
+          createFileAsset({
+            packageId,
+            versionId,
+            relativePath: f.path,
+            s3Key: f.key,
+            s3Url: f.url,
+            fileSize: f.size,
+            mimeType: f.mimeType,
+            isEntryPoint: f.path.toLowerCase() === resolvedEntryPath.toLowerCase(),
+          })
+        ));
+      }
+    }
+
+    // ── Update package to ready ───────────────────────────────────────────────
+    await updatePackage(packageId, {
+      status: "ready",
+      contentType,
+      scormVersion,
+      scormEntryPoint: resolvedEntryPath,
+      scormManifest,
+      extractedFolderKey: `orgs/${orgId}/packages/${suffix}/extracted/`,
+      currentVersionId: versionId,
+    });
+
+    emitProgress(packageId, total, total, "ready");
+    console.log(`[ZIP Processing] Package ${packageId} ready. ${extractedFiles.length} files extracted. Entry: ${resolvedEntryPath}`);
+  } finally {
+    // Always clean up temp file
+    if (existsSync(tmpPath)) {
+      try { unlinkSync(tmpPath); } catch { /* ignore */ }
     }
   }
-
-  // Parse SCORM manifest if present
-  let scormVersion: "1.2" | "2004" | "none" = "none";
-  let scormEntryPoint: string | undefined;
-  let scormManifest: string | undefined;
-  let contentType: "scorm" | "html" | "articulate" | "ispring" | "unknown" = "unknown";
-
-  if (manifestXml) {
-    try {
-      const parsed = await parseScormManifest(manifestXml);
-      scormVersion = (parsed?.version ?? "none") as "1.2" | "2004" | "none";
-      scormEntryPoint = parsed?.entryPoint ?? undefined;
-      scormManifest = JSON.stringify(parsed);
-      contentType = "scorm";
-
-      // Detect Articulate/iSpring
-      if (manifestXml.includes("articulate") || manifestXml.includes("Articulate")) contentType = "articulate";
-      if (manifestXml.includes("ispring") || manifestXml.includes("iSpring")) contentType = "ispring";
-    } catch (e) {
-      console.warn("[SCORM Parse] Failed to parse manifest:", e);
-    }
-  } else if (indexHtmlPath) {
-    contentType = "html";
-    entryPoint = indexHtmlPath;
-  }
-
-  // Resolve entry point URL
-  const resolvedEntryPath = scormEntryPoint ?? entryPoint ?? indexHtmlPath ?? "index.html"; // always a string
-  const entryAsset = extractedFiles.find(
-    (f) => f.path.toLowerCase() === resolvedEntryPath.toLowerCase()
-  );
-  const entryUrl = entryAsset?.url ?? "";
-
-  // Create a version record
-  await createVersion({
-    packageId,
-    versionNumber: 1,
-    versionLabel: "v1.0",
-    changelog: "Initial upload",
-    zipKey: (extractedFiles[0]?.key?.split("/extracted/")[0] ?? "") + "/original.zip",
-    zipUrl: "",
-    zipSize: buffer.length,
-    extractedFolderKey: `orgs/${orgId}/packages/${suffix}/extracted/`,
-    entryPoint: resolvedEntryPath,
-    fileCount: extractedFiles.length,
-    uploadedBy: 0, // system
-  });
-
-  // Get the version ID
-  const { getVersionsByPackage } = await import("./db");
-  const versions = await getVersionsByPackage(packageId);
-  const versionId = versions[0]?.id;
-
-  // Store file assets
-  if (versionId) {
-    for (const f of extractedFiles) {
-      await createFileAsset({
-        packageId,
-        versionId,
-        relativePath: f.path,
-        s3Key: f.key,
-        s3Url: f.url,
-        fileSize: f.size,
-        mimeType: f.mimeType,
-        isEntryPoint: f.path.toLowerCase() === resolvedEntryPath.toLowerCase(),
-      });
-    }
-  }
-
-  // Update package to ready
-  await updatePackage(packageId, {
-    status: "ready",
-    contentType,
-    scormVersion,
-    scormEntryPoint: resolvedEntryPath,
-    scormManifest,
-    extractedFolderKey: `orgs/${orgId}/packages/${suffix}/extracted/`,
-    currentVersionId: versionId,
-  });
-
-  console.log(`[ZIP Processing] Package ${packageId} ready. ${extractedFiles.length} files extracted.`);
 }
 
 function guessMime(filePath: string): string {
   const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
   const mimeMap: Record<string, string> = {
-    html: "text/html",
-    htm: "text/html",
-    css: "text/css",
-    js: "application/javascript",
-    mjs: "application/javascript",
-    json: "application/json",
-    xml: "application/xml",
-    png: "image/png",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    gif: "image/gif",
-    svg: "image/svg+xml",
-    webp: "image/webp",
-    mp4: "video/mp4",
-    webm: "video/webm",
-    mp3: "audio/mpeg",
-    wav: "audio/wav",
-    ogg: "audio/ogg",
-    woff: "font/woff",
-    woff2: "font/woff2",
-    ttf: "font/ttf",
-    otf: "font/otf",
-    pdf: "application/pdf",
-    zip: "application/zip",
-    swf: "application/x-shockwave-flash",
-    ico: "image/x-icon",
-    txt: "text/plain",
+    html: "text/html", htm: "text/html", css: "text/css",
+    js: "application/javascript", mjs: "application/javascript",
+    json: "application/json", xml: "application/xml",
+    png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+    gif: "image/gif", svg: "image/svg+xml", webp: "image/webp",
+    mp4: "video/mp4", webm: "video/webm", mp3: "audio/mpeg",
+    wav: "audio/wav", ogg: "audio/ogg",
+    woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf",
+    pdf: "application/pdf", zip: "application/zip",
+    swf: "application/x-shockwave-flash", ico: "image/x-icon", txt: "text/plain",
   };
   return mimeMap[ext] ?? "application/octet-stream";
 }

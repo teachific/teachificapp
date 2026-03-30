@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM file_assets WHERE packageId IN (2,3,4); DELETE FROM content_versions WHERE packageId IN (2,3,4); DELETE FROM content_packages WHERE id IN (2,3,4);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute DELETE FROM file_assets WHERE packageId IN (2,3,4); DELETE FROM content_versions WHERE packageId IN (2,3,4); DELETE FROM content_packages WHERE id IN (2,3,4);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 108
+}

@@ -1,0 +1,14 @@
+{
+  "query": "SELECT relativePath, s3Url FROM file_assets WHERE packageId=5 AND isEntryPoint=1 LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute SELECT relativePath, s3Url FROM file_assets WHERE packageId=5 AND isEntryPoint=1 LIMIT 5;",
+  "rows": [
+    {
+      "relativePath": "Advanced Cardiac Sonographer/index.html",
+      "s3Url": "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/org-1/packages/5/v1/files/Advanced Cardiac Sonographer/index.html"
+    }
+  ],
+  "messages": [],
+  "stdout": "relativePath\ts3Url\nAdvanced Cardiac Sonographer/index.html\thttps://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/org-1/packages/5/v1/files/Advanced Cardiac Sonographer/index.html\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}

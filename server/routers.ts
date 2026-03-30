@@ -544,8 +544,8 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
       .query(({ input }) => getPlaySession(input.sessionToken)),
 
     listByPackage: protectedProcedure
-      .input(z.object({ packageId: z.number() }))
-      .query(({ input }) => getPlaySessionsByPackage(input.packageId)),
+      .input(z.object({ packageId: z.number(), limit: z.number().optional() }))
+      .query(({ input }) => getPlaySessionsByPackage(input.packageId, input.limit ?? 200)),
   }),
 
   // ── SCORM LMS API ─────────────────────────────────────────────────────────

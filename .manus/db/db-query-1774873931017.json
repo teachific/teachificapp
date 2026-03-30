@@ -1,0 +1,17 @@
+{
+  "query": "SELECT id, name FROM organizations; SELECT id, name, email, role FROM users;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute SELECT id, name FROM organizations; SELECT id, name, email, role FROM users;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "All About Ultrasound"
+    }
+  ],
+  "messages": [
+    "id\tname\temail\trole",
+    "1\tlarawilliams0501\tlarawilliams0501@gmail.com\tsite_owner"
+  ],
+  "stdout": "id\tname\n1\tAll About Ultrasound\nid\tname\temail\trole\n1\tlarawilliams0501\tlarawilliams0501@gmail.com\tsite_owner\n",
+  "stderr": "",
+  "execution_time_ms": 74
+}

@@ -9,12 +9,96 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   ChevronLeft, Copy, Download, ExternalLink, FileArchive,
-  GitBranch, Globe, Link2, Lock, Play, RefreshCw, Save, Settings, Shield,
+  GitBranch, Globe, Link2, Lock, Play, RefreshCw, Save, Settings, Shield, User,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { useLocation, useParams } from "wouter";
 
+// ── URL Parameter Builder ─────────────────────────────────────────────────────
+interface LearnerParams {
+  learner_name: string;
+  learner_email: string;
+  learner_id: string;
+  learner_group: string;
+  custom_data: string;
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign: string;
+}
+
+const PARAM_FIELDS: Array<{ key: keyof LearnerParams; label: string; placeholder: string; desc: string }> = [
+  { key: "learner_name",  label: "Learner Name",    placeholder: "e.g. Jane Smith",         desc: "Full name of the learner" },
+  { key: "learner_email", label: "Learner Email",   placeholder: "e.g. jane@example.com",   desc: "Email address for tracking" },
+  { key: "learner_id",    label: "Learner ID",      placeholder: "e.g. EMP-12345",          desc: "Employee or student ID" },
+  { key: "learner_group", label: "Group / Cohort",  placeholder: "e.g. Cohort-2026-Q1",     desc: "Team, class, or cohort name" },
+  { key: "custom_data",   label: "Custom Data",     placeholder: "e.g. department=cardio",  desc: "Any extra key=value data" },
+  { key: "utm_source",    label: "UTM Source",      placeholder: "e.g. email",              desc: "Traffic source" },
+  { key: "utm_medium",    label: "UTM Medium",      placeholder: "e.g. newsletter",         desc: "Marketing medium" },
+  { key: "utm_campaign",  label: "UTM Campaign",    placeholder: "e.g. spring-2026",        desc: "Campaign name" },
+];
+
+function UrlParamBuilder({ baseUrl }: { baseUrl: string }) {
+  const [params, setParams] = useState<LearnerParams>({
+    learner_name: "", learner_email: "", learner_id: "", learner_group: "",
+    custom_data: "", utm_source: "", utm_medium: "", utm_campaign: "",
+  });
+
+  const builtUrl = useMemo(() => {
+    const url = new URL(baseUrl);
+    for (const { key } of PARAM_FIELDS) {
+      const val = params[key].trim();
+      if (val) url.searchParams.set(key, val);
+    }
+    return url.toString();
+  }, [baseUrl, params]);
+
+  const hasParams = PARAM_FIELDS.some(({ key }) => params[key].trim() !== "");
+
+  return (
+    <div className="space-y-4 pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {PARAM_FIELDS.map(({ key, label, placeholder, desc }) => (
+          <div key={key} className="space-y-1">
+            <Label className="text-xs font-medium">{label}</Label>
+            <Input
+              value={params[key]}
+              onChange={(e) => setParams((p) => ({ ...p, [key]: e.target.value }))}
+              placeholder={placeholder}
+              className="h-8 text-xs"
+            />
+            <p className="text-xs text-muted-foreground">{desc}</p>
+          </div>
+        ))}
+      </div>
+
+      {hasParams && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Generated URL</p>
+          <div className="flex gap-2">
+            <Input readOnly value={builtUrl} className="font-mono text-xs" />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => { navigator.clipboard.writeText(builtUrl); toast.success("URL copied!"); }}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" asChild>
+              <a href={builtUrl} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /></a>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!hasParams && (
+        <p className="text-xs text-muted-foreground italic">Fill in at least one field above to generate a tracking URL.</p>
+      )}
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function FileDetailPage() {
   const [, setLocation] = useLocation();
   const params = useParams<{ id: string }>();
@@ -44,7 +128,8 @@ export default function FileDetailPage() {
     }
   }, [perms]);
 
-  const shareUrl = shareToken ? `${window.location.origin}/embed/${packageId}?token=${shareToken}` : "";
+  const baseEmbedUrl = `${window.location.origin}/embed/${packageId}`;
+  const shareUrl = shareToken ? `${baseEmbedUrl}?token=${shareToken}` : "";
 
   if (isLoading) return (
     <div className="p-6 max-w-5xl mx-auto space-y-4">
@@ -148,15 +233,16 @@ export default function FileDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="sharing" className="mt-4">
+        <TabsContent value="sharing" className="mt-4 space-y-4">
+          {/* Basic share links */}
           <Card className="shadow-sm border-border/60">
             <CardHeader><CardTitle className="text-sm">Share & Embed</CardTitle></CardHeader>
             <CardContent className="space-y-5">
               <div>
                 <p className="text-sm font-medium mb-2">Direct Play Link</p>
                 <div className="flex gap-2">
-                  <Input readOnly value={`${window.location.origin}/embed/${packageId}`} className="font-mono text-xs" />
-                  <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/embed/${packageId}`); toast.success("Copied!"); }}><Copy className="h-4 w-4" /></Button>
+                  <Input readOnly value={baseEmbedUrl} className="font-mono text-xs" />
+                  <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(baseEmbedUrl); toast.success("Copied!"); }}><Copy className="h-4 w-4" /></Button>
                   <Button variant="outline" size="icon" asChild><a href={`/embed/${packageId}`} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /></a></Button>
                 </div>
               </div>
@@ -181,10 +267,26 @@ export default function FileDetailPage() {
               <div>
                 <p className="text-sm font-medium mb-2">Embed Code</p>
                 <div className="relative">
-                  <pre className="bg-muted rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap">{`<iframe src="${window.location.origin}/embed/${packageId}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`}</pre>
-                  <Button variant="ghost" size="sm" className="absolute top-2 right-2" onClick={() => { navigator.clipboard.writeText(`<iframe src="${window.location.origin}/embed/${packageId}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`); toast.success("Copied!"); }}><Copy className="h-3.5 w-3.5" /></Button>
+                  <pre className="bg-muted rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap">{`<iframe src="${baseEmbedUrl}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`}</pre>
+                  <Button variant="ghost" size="sm" className="absolute top-2 right-2" onClick={() => { navigator.clipboard.writeText(`<iframe src="${baseEmbedUrl}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`); toast.success("Copied!"); }}><Copy className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* URL Parameter Builder */}
+          <Card className="shadow-sm border-border/60">
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <User className="h-4 w-4 text-primary" />
+                Learner Tracking URL Builder
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Build a personalised embed URL with learner data pre-filled. These parameters are captured in Analytics and tied to each session.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <UrlParamBuilder baseUrl={baseEmbedUrl} />
             </CardContent>
           </Card>
         </TabsContent>
