@@ -251,13 +251,39 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
   const [progress, setProgress] = useState<{ done: number; total: number; phase: string } | null>(null);
   const utils = trpc.useUtils();
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     if (!file) return;
     setUploading(true);
     setProgress({ done: 0, total: 1, phase: "uploading" });
 
-    try {
-      // Open SSE stream first
+    // ── Phase 1: XHR upload with real byte-level progress ──────────────────
+    // Using XHR (not fetch) so we get upload.onprogress events for large files.
+    // The server responds as soon as the file is received and processing starts.
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("changelog", changelog || `Version upload ${new Date().toLocaleDateString()}`);
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        setProgress({ done: pct, total: 100, phase: "uploading" });
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        let msg = "Upload failed";
+        try { msg = JSON.parse(xhr.responseText).error ?? msg; } catch { /* ignore */ }
+        toast.error(msg);
+        setUploading(false);
+        setProgress(null);
+        return;
+      }
+
+      // ── Phase 2: SSE stream for extraction + S3 processing progress ────
+      setProgress({ done: 0, total: 1, phase: "reading" });
       const evtSource = new EventSource(`/api/upload/progress/${packageId}`);
       evtSource.onmessage = (e) => {
         try {
@@ -281,30 +307,37 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
         } catch { /* ignore parse errors */ }
       };
       evtSource.onerror = () => { evtSource.close(); setUploading(false); setProgress(null); };
+    };
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("changelog", changelog || `Version upload ${new Date().toLocaleDateString()}`);
-
-      const res = await fetch(`/api/upload/version/${packageId}`, { method: "POST", body: formData });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Upload failed" }));
-        throw new Error(err.error ?? "Upload failed");
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
+    xhr.onerror = () => {
+      toast.error("Network error — upload failed. Please try again.");
       setUploading(false);
       setProgress(null);
-    }
+    };
+
+    xhr.ontimeout = () => {
+      toast.error("Upload timed out. Please try a smaller file or check your connection.");
+      setUploading(false);
+      setProgress(null);
+    };
+
+    // No timeout on XHR — let the server handle it (server timeout is 10 min)
+    xhr.timeout = 0;
+    xhr.open("POST", `/api/upload/version/${packageId}`);
+    xhr.send(formData);
   };
 
-  const phaseLabel: Record<string, string> = {
-    reading: "Reading ZIP...",
-    extracting: "Extracting files...",
-    uploading: "Uploading to CDN...",
-    finalizing: "Finalizing...",
-    ready: "Done!",
-    error: "Error",
+  const phaseLabel = (phase: string, done: number, total: number): string => {
+    if (phase === "uploading" && total === 100) return `Uploading... ${done}%`;
+    const labels: Record<string, string> = {
+      uploading: "Uploading...",
+      reading: "Reading ZIP...",
+      extracting: "Extracting files...",
+      finalizing: "Finalizing...",
+      ready: "Done!",
+      error: "Error",
+    };
+    return labels[phase] ?? phase;
   };
 
   return (
@@ -343,8 +376,8 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
         {progress && (
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{phaseLabel[progress.phase] ?? progress.phase}</span>
-              <span>{progress.total > 1 ? `${progress.done} / ${progress.total} files` : ""}</span>
+              <span>{phaseLabel(progress.phase, progress.done, progress.total)}</span>
+              <span>{progress.phase !== "uploading" && progress.total > 1 ? `${progress.done} / ${progress.total} files` : ""}</span>
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
               <div

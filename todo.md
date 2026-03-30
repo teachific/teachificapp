@@ -298,3 +298,12 @@
 - [x] Add Cache-Control: no-store, no-cache, must-revalidate + Pragma: no-cache to all proxy responses
 - [x] Remove forwarding of S3 ETag/Cache-Control headers that caused mobile caching
 - [x] Add ?v={currentVersionId} cache-buster to iframe src in EmbedPage and PlayerPage
+
+## Bug Fix: Version Uploader Timeout on Large Files
+- [x] Audit: root cause was streamToBuffer() loading entire ZIP into RAM before S3 upload, blocking the HTTP response
+- [x] Replace streamToBuffer() with storagePutStream() in both /package and /version routes — streams file directly to S3 without RAM buffer
+- [x] Remove unused streamToBuffer helper and createReadStream import
+- [x] Rewrite UploadNewVersion component to use XHR with upload.onprogress for real byte-level progress
+- [x] Two-phase progress: Phase 1 = XHR byte upload % (0-100%), Phase 2 = SSE extraction/CDN progress
+- [x] XHR timeout set to 0 (unlimited) — server handles the 10-min timeout
+- [x] phaseLabel updated to show "Uploading... 47%" during upload phase

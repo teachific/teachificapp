@@ -9,11 +9,11 @@
 import express, { Request, Response } from "express";
 import multer from "multer";
 import unzipper from "unzipper";
-import { createReadStream, existsSync, unlinkSync } from "fs";
+import { existsSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { nanoid } from "nanoid";
-import { storagePut } from "./storage";
+import { storagePut, storagePutStream } from "./storage";
 import { parseScormManifest } from "./scormParser";
 import { createPackage, updatePackage, createVersion, createFileAsset, getPackageById } from "./db";
 
@@ -62,10 +62,8 @@ router.post("/package", upload.single("file"), async (req: Request, res: Respons
     const suffix = nanoid(8);
     const zipKey = `orgs/${orgId}/packages/${suffix}/${req.file.originalname}`;
 
-    // 1. Stream original ZIP to S3 (streaming — no full buffer in RAM)
-    const zipStream = createReadStream(tmpPath);
-    const zipBuffer = await streamToBuffer(tmpPath);
-    const { url: zipUrl } = await storagePut(zipKey, zipBuffer, "application/zip");
+    // 1. Stream original ZIP directly to S3 — no full buffer in RAM
+    const { url: zipUrl } = await storagePutStream(zipKey, tmpPath, "application/zip");
 
     // 2. Create package record (status: processing)
     await createPackage({
@@ -142,10 +140,9 @@ router.post("/version/:packageId", upload.single("file"), async (req: Request, r
     const suffix = nanoid(8);
     const orgId = pkg.orgId;
 
-    // 1. Stream original ZIP to S3
-    const zipBuffer = await streamToBuffer(tmpPath);
+    // 1. Stream original ZIP directly to S3 — no full buffer in RAM
     const zipKey = `orgs/${orgId}/packages/${suffix}/original.zip`;
-    const { url: zipUrl } = await storagePut(zipKey, zipBuffer, "application/zip");
+    const { url: zipUrl } = await storagePutStream(zipKey, tmpPath, "application/zip");
 
     // 2. Set package back to processing
     await updatePackage(packageId, { status: "processing" });
@@ -215,16 +212,6 @@ router.get("/progress/:packageId", (req: Request, res: Response) => {
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async function streamToBuffer(filePath: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    const stream = createReadStream(filePath);
-    stream.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-    stream.on("end", () => resolve(Buffer.concat(chunks)));
-    stream.on("error", reject);
-  });
-}
 
 async function parallelUpload<T>(
   items: T[],
