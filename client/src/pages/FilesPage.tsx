@@ -354,7 +354,7 @@ export default function FilesPage() {
   const [deletePackageId, setDeletePackageId] = useState<number | null>(null);
 
   // Folder state
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null | "root">(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [folderDialogOpen, setFolderDialogOpen] = useState(false);
   const [folderDialogMode, setFolderDialogMode] = useState<"create" | "rename">("create");
   const [folderDialogParentId, setFolderDialogParentId] = useState<number | null>(null);
@@ -485,13 +485,6 @@ export default function FilesPage() {
       return;
     }
 
-    // Package dropped onto "uncategorized" or "all" zones
-    if (activeId.startsWith("pkg-") && overId === "drop-uncategorized") {
-      const packageId = Number(activeId.replace("pkg-", ""));
-      movePackageMut.mutate({ packageId, folderId: null });
-      return;
-    }
-
     // Folder reordering within the sidebar
     if (activeId.startsWith("folder-") && overId.startsWith("folder-")) {
       const activeFolder = Number(activeId.replace("folder-", ""));
@@ -528,9 +521,7 @@ export default function FilesPage() {
 
   const filtered = useMemo(() => {
     let list = packages ?? [];
-    if (selectedFolderId === "root") {
-      list = list.filter((p) => (p as any).folderId == null);
-    } else if (typeof selectedFolderId === "number") {
+    if (typeof selectedFolderId === "number") {
       list = list.filter((p) => (p as any).folderId === selectedFolderId);
     }
     if (search) list = list.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()));
@@ -545,14 +536,8 @@ export default function FilesPage() {
 
   const selectedFolderName = useMemo(() => {
     if (selectedFolderId === null) return "All Files";
-    if (selectedFolderId === "root") return "Uncategorized";
     return folders.find((f) => f.id === selectedFolderId)?.name ?? "Folder";
   }, [selectedFolderId, folders]);
-
-  const uncategorizedCount = useMemo(() =>
-    (packages ?? []).filter((p) => (p as any).folderId == null).length,
-    [packages]
-  );
 
   // IDs for sortable contexts
   const folderSortableIds = rootFolders.map((f) => `folder-${f.id}`);
@@ -603,25 +588,6 @@ export default function FilesPage() {
             <span className="flex-1 text-left">All Files</span>
             <span className="text-xs text-muted-foreground">{packages?.length ?? 0}</span>
           </button>
-
-          {/* Uncategorized — also a drop target */}
-          <div
-            id="drop-uncategorized"
-            className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-md mx-1 transition-colors cursor-pointer ${
-              activeDragId?.startsWith("pkg-") ? "ring-1 ring-dashed ring-muted-foreground/40" : ""
-            } ${
-              selectedFolderId === "root"
-                ? "bg-primary/10 text-primary font-medium"
-                : "hover:bg-accent/50 text-muted-foreground"
-            }`}
-            onClick={() => setSelectedFolderId("root")}
-          >
-            <Folder className="h-4 w-4 shrink-0 opacity-50" />
-            <span className="flex-1 text-left">Uncategorized</span>
-            {uncategorizedCount > 0 && (
-              <span className="text-xs text-muted-foreground">{uncategorizedCount}</span>
-            )}
-          </div>
 
           {/* Sortable folder tree */}
           {rootFolders.length > 0 && (
@@ -703,7 +669,7 @@ export default function FilesPage() {
                   {search || filterType !== "all"
                     ? "No packages match your filters"
                     : selectedFolderId !== null
-                      ? "This folder is empty — drag packages here from All Files"
+                      ? "This folder is empty — drag a package here or use the Move to Folder menu"
                       : "No packages uploaded yet"}
                 </p>
                 {!search && filterType === "all" && selectedFolderId === null && (

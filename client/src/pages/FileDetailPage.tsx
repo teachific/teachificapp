@@ -389,11 +389,12 @@ export default function FileDetailPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
+  const [autoFullscreenMobile, setAutoFullscreenMobile] = useState(false);
   const [allowDownload, setAllowDownload] = useState(true);
   const [maxPlays, setMaxPlays] = useState("");
   const [shareToken, setShareToken] = useState("");
 
-  useEffect(() => { if (pkg) { setTitle(pkg.title); setDescription(pkg.description ?? ""); setIsPublic(pkg.isPublic ?? false); } }, [pkg]);
+  useEffect(() => { if (pkg) { setTitle(pkg.title); setDescription(pkg.description ?? ""); setIsPublic(pkg.isPublic ?? false); setAutoFullscreenMobile((pkg as any).autoFullscreenMobile ?? false); } }, [pkg]);
   useEffect(() => {
     if (perms) {
       setAllowDownload(perms.allowDownload ?? true);
@@ -511,12 +512,36 @@ export default function FileDetailPage() {
                   </button>
                 </div>
               </div>
+              {/* Mobile Playback Settings */}
+              <div className="space-y-2">
+                <Label>Mobile Playback</Label>
+                <div
+                  className={`flex items-center justify-between rounded-lg border-2 p-3 transition-all cursor-pointer ${
+                    autoFullscreenMobile
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-background hover:border-border/80"
+                  }`}
+                  onClick={() => {
+                    const next = !autoFullscreenMobile;
+                    setAutoFullscreenMobile(next);
+                    updatePkg.mutate({ id: packageId, title, description, isPublic, autoFullscreenMobile: next });
+                  }}
+                >
+                  <div className="space-y-0.5">
+                    <p className={`text-sm font-medium ${ autoFullscreenMobile ? "text-primary" : "text-foreground" }`}>Auto-fullscreen on mobile</p>
+                    <p className="text-xs text-muted-foreground">Automatically enter fullscreen when opened on a mobile device</p>
+                  </div>
+                  <div className={`h-5 w-9 rounded-full transition-colors shrink-0 ${ autoFullscreenMobile ? "bg-primary" : "bg-muted-foreground/30" }`}>
+                    <div className={`h-4 w-4 rounded-full bg-white shadow transition-transform mt-0.5 ${ autoFullscreenMobile ? "translate-x-4 ml-0.5" : "translate-x-0.5" }`} />
+                  </div>
+                </div>
+              </div>
               {pkg.originalZipUrl && (
                 <Button variant="outline" size="sm" asChild>
                   <a href={pkg.originalZipUrl} download target="_blank" rel="noreferrer"><Download className="h-3.5 w-3.5 mr-1.5" />Download Original ZIP</a>
                 </Button>
               )}
-              <Button onClick={() => updatePkg.mutate({ id: packageId, title, description, isPublic })} disabled={updatePkg.isPending} className="gap-2">
+              <Button onClick={() => updatePkg.mutate({ id: packageId, title, description, isPublic, autoFullscreenMobile })} disabled={updatePkg.isPending} className="gap-2">
                 <Save className="h-3.5 w-3.5" />{updatePkg.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </CardContent>

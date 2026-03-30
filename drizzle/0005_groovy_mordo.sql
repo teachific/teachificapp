@@ -1,0 +1,1 @@
+ALTER TABLE `content_packages` ADD `autoFullscreenMobile` boolean DEFAULT false NOT NULL;

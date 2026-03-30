@@ -273,3 +273,21 @@
 ## Bug Fix: Folder Sort Order Not Persisting
 - [x] Fix getFoldersByOrg in db.ts to sort by sortOrder ASC (was sorting alphabetically by name)
 - [x] Folder drag-and-drop reorder now persists correctly across page refreshes
+
+## Feature: Auto-Fullscreen on Mobile
+- [x] Add autoFullscreenMobile boolean column to content_packages table (default false)
+- [x] Generate and apply migration SQL
+- [x] Expose autoFullscreenMobile in packages.get (public) and packages.update (protected) tRPC procedures
+- [x] Add toggle in FileDetailPage Details tab under Mobile Playback section
+- [x] EmbedPage: read autoFullscreenMobile from package, detect mobile UA, request fullscreen on mount
+- [x] PlayerPage: same auto-fullscreen logic for admin preview
+- [x] Dismiss mobile prompt banner automatically when auto-fullscreen fires
+- [x] Write vitest test for packages.update with autoFullscreenMobile field
+
+## Bug Fix: Folder Sidebar — Remove Uncategorized Virtual Folder
+- [x] Remove "Uncategorized" virtual folder entry from the sidebar
+- [x] "All Files" remains the only top-level filter (shows all packages regardless of folder)
+- [x] Clicking a real folder filters to only that folder's packages
+- [x] Packages without a folderId appear under "All Files" and inside whichever folder is selected (or all)
+- [x] Remove "drop-uncategorized" drop target; dragging a package off a folder just moves it back to no folder via the folder's own drop zone or context menu
+- [x] Update empty-state message when a folder is selected but empty

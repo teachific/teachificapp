@@ -236,6 +236,7 @@ export const appRouter = router({
         displayMode: z.enum(["native", "lms_shell", "quiz"]).optional(),
         lmsShellConfig: z.string().optional(),
         isPublic: z.boolean().optional(),
+        autoFullscreenMobile: z.boolean().optional(),
         status: z.enum(["uploading", "processing", "ready", "error"]).optional(),
         scormVersion: z.enum(["1.2", "2004", "none"]).optional(),
         scormEntryPoint: z.string().optional(),

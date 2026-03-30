@@ -103,6 +103,7 @@ export const contentPackages = mysqlTable("content_packages", {
   totalPlayCount: int("totalPlayCount").default(0).notNull(),
   totalDownloadCount: int("totalDownloadCount").default(0).notNull(),
   isPublic: boolean("isPublic").default(false).notNull(),
+  autoFullscreenMobile: boolean("autoFullscreenMobile").default(false).notNull(),
   folderId: int("folderId"), // null = root / uncategorized
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

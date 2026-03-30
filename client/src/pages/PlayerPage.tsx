@@ -176,6 +176,22 @@ export default function PlayerPage() {
     }
   };
 
+  // Auto-fullscreen on mobile when the setting is enabled
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  useEffect(() => {
+    if (!pkg) return;
+    if (!(pkg as any).autoFullscreenMobile) return;
+    if (!isMobile) return;
+    if (document.fullscreenElement) return;
+    const timer = setTimeout(() => {
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+        setMobileBannerDismissed(true);
+      }).catch(() => {});
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [pkg]);
+
   const formatElapsed = (s: number) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;

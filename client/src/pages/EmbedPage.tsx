@@ -183,6 +183,25 @@ export default function EmbedPage() {
     }
   };
 
+  // Auto-fullscreen on mobile when the setting is enabled
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  useEffect(() => {
+    if (!pkg) return;
+    if (!(pkg as any).autoFullscreenMobile) return;
+    if (!isMobile) return;
+    if (document.fullscreenElement) return;
+    // Small delay so the page is fully rendered before requesting fullscreen
+    const timer = setTimeout(() => {
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+        setMobileBannerDismissed(true); // suppress the manual prompt
+      }).catch(() => {
+        // Browser may block auto-fullscreen without a user gesture; fall back to showing the banner
+      });
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [pkg]);
+
   const formatElapsed = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
   const playerUrl = pkg?.status === "ready" ? `/api/content/${packageId}/entry` : null;
