@@ -375,3 +375,12 @@
 - [x] folders.list: scoped to org_admin's assigned org
 - [x] Helper getOrgIdForUser(userId) added to db.ts
 - [x] No frontend changes needed — all queries return scoped data automatically
+
+## Bug Fix: Upload Fails Mid-Way (Presigned S3 Multipart)
+- [ ] Server: createMultipartUpload tRPC mutation — returns uploadId + array of presigned PUT URLs (one per 5 MB part)
+- [ ] Server: completeMultipartUpload tRPC mutation — receives ETags from client, tells S3 to assemble, triggers ZIP processing
+- [ ] Server: abortMultipartUpload tRPC mutation — cleanup on client cancel/error
+- [ ] Client: UploadNewVersion uploads each part directly to S3 presigned URL (no proxy involved)
+- [ ] Client: accurate per-part XHR progress (0-100%)
+- [ ] Client: after all parts uploaded, calls completeMultipartUpload, then polls SSE for extraction progress
+- [ ] Apply same flow to initial package upload (UploadPage)
