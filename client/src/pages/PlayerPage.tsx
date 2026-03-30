@@ -256,7 +256,6 @@ export default function PlayerPage() {
               title={pkg.title}
               allow="fullscreen"
               onLoad={handleIframeLoad}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock allow-presentation"
             />
           ) : (
             <div className="flex items-center justify-center h-full text-gray-400">
@@ -353,7 +352,6 @@ export default function PlayerPage() {
             title={pkg.title}
             allow="fullscreen"
             onLoad={handleIframeLoad}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock allow-presentation"
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400">

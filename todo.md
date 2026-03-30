@@ -231,3 +231,17 @@
 - [x] Content shows briefly then disappears in embed player
 - [x] Root cause: permissions.get was protectedProcedure — threw UNAUTHORIZED for unauthenticated users, causing tRPC retries and re-renders that flashed the iframe
 - [x] Fix: made permissions.get a publicProcedure; added retry:false + staleTime:Infinity to pkg and perms queries in EmbedPage
+
+## File Organization: Drag-and-Drop Folders
+- [ ] Install @dnd-kit/core and @dnd-kit/sortable for drag-and-drop
+- [ ] Two-column layout: folder tree sidebar (left) + package grid (right)
+- [ ] Drag package cards onto folder nodes to move them
+- [ ] Folder drop zones highlight on hover during drag
+- [ ] Clicking a folder filters packages to show only that folder's contents
+- [ ] Breadcrumb path shows current folder location
+- [ ] "All Files" and "Uncategorized" virtual folders in sidebar
+
+## Bug Fix: Drag-to-Order Questions Not Working on Mobile in Iframe
+- [x] Diagnose: iframe sandbox attribute blocking touch/pointer events
+- [x] Removed sandbox attribute from all iframes in EmbedPage and PlayerPage (native + LMS shell modes)
+- [x] Applies to ordering, connect, and match question types — all rely on touch drag events

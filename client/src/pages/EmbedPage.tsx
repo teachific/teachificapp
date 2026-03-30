@@ -304,7 +304,6 @@ export default function EmbedPage() {
             title={pkg.title}
             allow="fullscreen autoplay"
             onLoad={handleIframeLoad}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock allow-presentation"
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400">
