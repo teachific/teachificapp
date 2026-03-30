@@ -188,7 +188,13 @@ function DashboardLayoutContent({
               >
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
-              {!isCollapsed && (
+              {isCollapsed ? (
+                <img
+                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/Teachific-Icon_afe55ddc.png"
+                  alt="Teachific"
+                  className="h-7 w-7 object-contain rounded"
+                />
+              ) : (
                 <div className="flex items-center min-w-0 pl-1">
                   <img
                     src="https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/Teachific_ebe5bd67.png"
