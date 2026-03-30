@@ -260,9 +260,9 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
     if (!file) return;
     setUploading(true);
 
-    const CHUNK_SIZE = 512 * 1024; // 512 KB — small enough to pass through any proxy
-    const PARALLEL = 4; // send 4 chunks at a time to keep connection active
-    const MAX_RETRIES = 3;
+    const CHUNK_SIZE = 1 * 1024 * 1024; // 1 MB per chunk
+    const PARALLEL = 1; // sequential — prevents connection contention that causes server-side abort
+    const MAX_RETRIES = 5;
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     const changelogText = changelog || `Version upload ${new Date().toLocaleDateString()}`;
 
@@ -280,7 +280,7 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
         form.append("chunkIndex", String(i));
 
         const xhr = new XMLHttpRequest();
-        xhr.timeout = 120000; // 2 min per chunk
+        xhr.timeout = 0; // no timeout — let the server decide when to abort
         xhr.open("POST", `/api/chunked/version/${packageId}/chunk/${uploadId}`);
 
         xhr.upload.onprogress = (e) => {
@@ -313,8 +313,8 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
           return;
         } catch (err) {
           if (attempt === MAX_RETRIES) throw err;
-          // Exponential backoff: 1s, 2s, 4s
-          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+          // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+          await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt)));
         }
       }
     };

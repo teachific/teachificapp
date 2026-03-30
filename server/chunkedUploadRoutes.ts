@@ -32,7 +32,7 @@ const chunkUpload = multer({
     destination: (_req, _file, cb) => cb(null, tmpdir()),
     filename: (_req, file, cb) => cb(null, `chunk-${nanoid(12)}-${file.originalname}`),
   }),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB per chunk max (client sends 512 KB chunks)
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB per chunk max (client sends 1 MB chunks)
 });
 
 // ── In-memory upload session registry ────────────────────────────────────────

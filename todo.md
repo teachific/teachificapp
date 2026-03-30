@@ -384,3 +384,9 @@
 - [ ] Client: accurate per-part XHR progress (0-100%)
 - [ ] Client: after all parts uploaded, calls completeMultipartUpload, then polls SSE for extraction progress
 - [ ] Apply same flow to initial package upload (UploadPage)
+
+## Bug Fix: Upload Permanently Broken — Direct-to-Storage Approach
+- [ ] Investigate Forge API for presigned upload endpoint
+- [ ] Test direct browser-to-S3 upload bypassing proxy entirely
+- [ ] Implement chosen approach end-to-end
+- [ ] Update UploadNewVersion UI for new flow
