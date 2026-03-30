@@ -2,9 +2,11 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   analyticsEvents,
+  contentFolders,
   contentPackages,
   contentVersions,
   fileAssets,
+  InsertContentFolder,
   InsertUser,
   orgMembers,
   organizations,
@@ -417,4 +419,60 @@ export async function getAnalyticsSummary(orgId?: number) {
     totalDownloads: (map["download"] ?? 0),
     totalCompletions: (map["scorm_complete"] ?? 0) + (map["scorm_pass"] ?? 0),
   };
+}
+
+// ─── Content Folders ───────────────────────────────────────────────────────────
+export async function getFoldersByOrg(orgId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contentFolders)
+    .where(eq(contentFolders.orgId, orgId))
+    .orderBy(contentFolders.name);
+}
+
+export async function getFolderById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(contentFolders).where(eq(contentFolders.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function createFolder(data: InsertContentFolder) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(contentFolders).values(data);
+  const id = (result[0] as any).insertId as number;
+  const rows = await db.select().from(contentFolders).where(eq(contentFolders.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function updateFolder(id: number, data: Partial<InsertContentFolder>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(contentFolders).set(data).where(eq(contentFolders.id, id));
+}
+
+export async function deleteFolder(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  // Move all child folders to the parent of the deleted folder
+  const folder = await getFolderById(id);
+  if (folder) {
+    await db.update(contentFolders)
+      .set({ parentId: folder.parentId ?? null })
+      .where(eq(contentFolders.parentId, id));
+    // Move all packages in this folder to uncategorized (null)
+    await db.update(contentPackages)
+      .set({ folderId: null })
+      .where(eq(contentPackages.folderId, id));
+  }
+  await db.delete(contentFolders).where(eq(contentFolders.id, id));
+}
+
+export async function movePackageToFolder(packageId: number, folderId: number | null) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(contentPackages)
+    .set({ folderId: folderId ?? null })
+    .where(eq(contentPackages.id, packageId));
 }

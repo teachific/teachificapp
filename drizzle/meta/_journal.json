@@ -22,6 +22,13 @@
       "when": 1774858566049,
       "tag": "0002_kind_blur",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1774882826324,
+      "tag": "0003_broad_nova",
+      "breakpoints": true
     }
   ]
 }

@@ -59,6 +59,21 @@ export const orgMembers = mysqlTable("org_members", {
 export type OrgMember = typeof orgMembers.$inferSelect;
 export type InsertOrgMember = typeof orgMembers.$inferInsert;
 
+// ─── Content Folders ────────────────────────────────────────────────────────────
+export const contentFolders = mysqlTable("content_folders", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  ownerId: int("ownerId").notNull(),
+  parentId: int("parentId"), // null = root folder
+  name: varchar("name", { length: 255 }).notNull(),
+  color: varchar("color", { length: 32 }), // optional accent color
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ContentFolder = typeof contentFolders.$inferSelect;
+export type InsertContentFolder = typeof contentFolders.$inferInsert;
+
 // ─── Content Packages ─────────────────────────────────────────────────────────
 export const contentPackages = mysqlTable("content_packages", {
   id: int("id").autoincrement().primaryKey(),
@@ -87,6 +102,7 @@ export const contentPackages = mysqlTable("content_packages", {
   totalPlayCount: int("totalPlayCount").default(0).notNull(),
   totalDownloadCount: int("totalDownloadCount").default(0).notNull(),
   isPublic: boolean("isPublic").default(false).notNull(),
+  folderId: int("folderId"), // null = root / uncategorized
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

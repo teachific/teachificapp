@@ -15,84 +15,229 @@ import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { useLocation, useParams } from "wouter";
 
-// ── URL Parameter Builder ─────────────────────────────────────────────────────
-interface LearnerParams {
-  learner_name: string;
-  learner_email: string;
-  learner_id: string;
-  learner_group: string;
-  custom_data: string;
-  utm_source: string;
-  utm_medium: string;
-  utm_campaign: string;
-}
+// ── Dynamic Embed Integration Builder ────────────────────────────────────────
+const ALL_PARAMS = [
+  { key: "learner_name",  label: "Learner Name",   token: "{{learner_name}}",  desc: "Full name of the learner",        example: "Jane Smith" },
+  { key: "learner_email", label: "Learner Email",  token: "{{learner_email}}", desc: "Email address for session tracking", example: "jane@example.com" },
+  { key: "learner_id",    label: "Learner ID",     token: "{{learner_id}}",    desc: "Employee, student, or user ID",   example: "EMP-12345" },
+  { key: "learner_group", label: "Group / Cohort", token: "{{learner_group}}", desc: "Team, class, or cohort name",     example: "Cohort-2026-Q1" },
+  { key: "custom_data",   label: "Custom Data",    token: "{{custom_data}}",   desc: "Any extra key=value metadata",    example: "dept=cardio" },
+  { key: "utm_source",    label: "UTM Source",     token: "{{utm_source}}",    desc: "Traffic source (e.g. email)",     example: "lms" },
+  { key: "utm_medium",    label: "UTM Medium",     token: "{{utm_medium}}",    desc: "Marketing medium",               example: "course" },
+  { key: "utm_campaign",  label: "UTM Campaign",   token: "{{utm_campaign}}",  desc: "Campaign or course name",        example: "onboarding-2026" },
+] as const;
 
-const PARAM_FIELDS: Array<{ key: keyof LearnerParams; label: string; placeholder: string; desc: string }> = [
-  { key: "learner_name",  label: "Learner Name",    placeholder: "e.g. Jane Smith",         desc: "Full name of the learner" },
-  { key: "learner_email", label: "Learner Email",   placeholder: "e.g. jane@example.com",   desc: "Email address for tracking" },
-  { key: "learner_id",    label: "Learner ID",      placeholder: "e.g. EMP-12345",          desc: "Employee or student ID" },
-  { key: "learner_group", label: "Group / Cohort",  placeholder: "e.g. Cohort-2026-Q1",     desc: "Team, class, or cohort name" },
-  { key: "custom_data",   label: "Custom Data",     placeholder: "e.g. department=cardio",  desc: "Any extra key=value data" },
-  { key: "utm_source",    label: "UTM Source",      placeholder: "e.g. email",              desc: "Traffic source" },
-  { key: "utm_medium",    label: "UTM Medium",      placeholder: "e.g. newsletter",         desc: "Marketing medium" },
-  { key: "utm_campaign",  label: "UTM Campaign",    placeholder: "e.g. spring-2026",        desc: "Campaign name" },
-];
+type ParamKey = typeof ALL_PARAMS[number]["key"];
 
-function UrlParamBuilder({ baseUrl }: { baseUrl: string }) {
-  const [params, setParams] = useState<LearnerParams>({
-    learner_name: "", learner_email: "", learner_id: "", learner_group: "",
-    custom_data: "", utm_source: "", utm_medium: "", utm_campaign: "",
-  });
+function EmbedIntegrationBuilder({ baseUrl }: { baseUrl: string }) {
+  const [enabled, setEnabled] = useState<Set<ParamKey>>(() => new Set<ParamKey>(["learner_name", "learner_email", "learner_id"]));
+  const [testValues, setTestValues] = useState<Record<ParamKey, string>>(
+    Object.fromEntries(ALL_PARAMS.map((p) => [p.key, ""])) as Record<ParamKey, string>
+  );
+  const [activeTab, setActiveTab] = useState<"js" | "iframe" | "server">("js");
+  const [showTest, setShowTest] = useState(false);
 
-  const builtUrl = useMemo(() => {
+  const toggleParam = (key: ParamKey) => {
+    setEnabled((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  // Template URL — uses {{token}} placeholders for enabled params
+  const templateUrl = useMemo(() => {
     const url = new URL(baseUrl);
-    for (const { key } of PARAM_FIELDS) {
-      const val = params[key].trim();
-      if (val) url.searchParams.set(key, val);
+    for (const p of ALL_PARAMS) {
+      if (enabled.has(p.key)) url.searchParams.set(p.key, p.token);
     }
     return url.toString();
-  }, [baseUrl, params]);
+  }, [baseUrl, enabled]);
 
-  const hasParams = PARAM_FIELDS.some(({ key }) => params[key].trim() !== "");
+  // Live preview URL — substitutes test values (or keeps placeholder if blank)
+  const previewUrl = useMemo(() => {
+    const url = new URL(baseUrl);
+    for (const p of ALL_PARAMS) {
+      if (!enabled.has(p.key)) continue;
+      const val = testValues[p.key].trim();
+      url.searchParams.set(p.key, val || p.token);
+    }
+    return url.toString();
+  }, [baseUrl, enabled, testValues]);
+
+  const enabledParams = ALL_PARAMS.filter((p) => enabled.has(p.key));
+
+  // Code snippets
+  const jsVarLines = enabledParams.map((p) => `  const ${p.key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())} = getCurrentUser().${p.key}; // replace with your variable`).join("\n");
+  const jsReplaceLines = enabledParams.map((p) => `    .replace('${p.token}', encodeURIComponent(${p.key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())}))`).join("\n");
+
+  const jsSnippet = enabledParams.length === 0 ? `// Enable at least one parameter above` : `// 1. Store the template URL (copy from above)
+const TEMPLATE_URL = '${templateUrl}';
+
+// 2. Replace placeholders with your app's dynamic variables
+function buildLearnerUrl() {
+${jsVarLines}
+
+  return TEMPLATE_URL
+${jsReplaceLines};
+}
+
+// 3. Set the iframe src
+document.getElementById('teachific-frame').src = buildLearnerUrl();`;
+
+  const jsUrl = templateUrl.replace(/{{/g, '${user.').replace(/}}/g, '}');
+  const BT = String.fromCharCode(96); // backtick — avoids nested template literal parse errors
+  const iframeSnippet = enabledParams.length === 0
+    ? '<iframe src="' + baseUrl + '" width="100%" height="600" frameborder="0" allowfullscreen></iframe>'
+    : [
+        '<!-- Replace each {{token}} with your platform\'s variable syntax -->',
+        '<!-- Example shown with generic JS template literals -->',
+        '<script>',
+        '  const url = ' + BT + jsUrl + BT + ';',
+        '  document.write(' + BT + '<iframe src="${url}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>' + BT + ');',
+        '</script>',
+      ].join('\n');
+
+  const serverSnippet = enabledParams.length === 0
+    ? '# Enable at least one parameter above'
+    : [
+        '# Python / Django example',
+        'from urllib.parse import urlencode, quote_plus',
+        '',
+        "base = '" + baseUrl + "'",
+        'params = {',
+        ...enabledParams.map((p) => "    '" + p.key + "': request.user." + p.key.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase()) + ",  # your user object field"),
+        '}',
+        "embed_url = base + '?' + urlencode(params, quote_via=quote_plus)",
+        '',
+        '# Pass embed_url to your template:',
+        '# <iframe src="{{ embed_url }}" ...></iframe>',
+        '',
+        '# Node.js / Express example:',
+        '# const params = new URLSearchParams({',
+        ...enabledParams.map((p) => '#   ' + p.key + ': req.user.' + p.key + ','),
+        '# });',
+        '# const embedUrl = `' + baseUrl + '?${params}`;',
+      ].join('\n');
 
   return (
-    <div className="space-y-4 pt-2">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {PARAM_FIELDS.map(({ key, label, placeholder, desc }) => (
-          <div key={key} className="space-y-1">
-            <Label className="text-xs font-medium">{label}</Label>
-            <Input
-              value={params[key]}
-              onChange={(e) => setParams((p) => ({ ...p, [key]: e.target.value }))}
-              placeholder={placeholder}
-              className="h-8 text-xs"
-            />
-            <p className="text-xs text-muted-foreground">{desc}</p>
-          </div>
-        ))}
+    <div className="space-y-5 pt-1">
+      {/* Step 1: Select params */}
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Step 1 — Choose which variables to pass</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {ALL_PARAMS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => toggleParam(p.key)}
+              className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-left transition-colors ${
+                enabled.has(p.key)
+                  ? "border-primary/60 bg-primary/5 text-foreground"
+                  : "border-border/50 bg-muted/30 text-muted-foreground hover:border-border"
+              }`}
+            >
+              <div className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center ${
+                enabled.has(p.key) ? "bg-primary border-primary" : "border-muted-foreground/40"
+              }`}>
+                {enabled.has(p.key) && <svg viewBox="0 0 10 8" className="h-2.5 w-2.5 fill-primary-foreground"><path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium leading-tight">{p.label}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{p.desc}</p>
+                <code className="text-[10px] text-primary/80 mt-0.5 block">{p.token}</code>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {hasParams && (
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Generated URL</p>
+      {/* Step 2: Template URL */}
+      {enabledParams.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Step 2 — Template URL (copy this into your code)</p>
           <div className="flex gap-2">
-            <Input readOnly value={builtUrl} className="font-mono text-xs" />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => { navigator.clipboard.writeText(builtUrl); toast.success("URL copied!"); }}
-            >
-              <Copy className="h-4 w-4" />
+            <Input readOnly value={templateUrl} className="font-mono text-[11px] h-8" />
+            <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => { navigator.clipboard.writeText(templateUrl); toast.success("Template URL copied!"); }}>
+              <Copy className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="outline" size="icon" asChild>
-              <a href={builtUrl} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /></a>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            Your server or frontend replaces each <code className="text-primary/80">&#123;&#123;token&#125;&#125;</code> with the learner's actual value before setting the iframe <code className="text-primary/80">src</code>.
+          </p>
+        </div>
+      )}
+
+      {/* Step 3: Code snippets */}
+      {enabledParams.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Step 3 — Integration code</p>
+          <div className="flex gap-1 mb-2">
+            {(["js", "iframe", "server"] as const).map((t) => (
+              <button key={t} type="button" onClick={() => setActiveTab(t)}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  activeTab === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}>
+                {t === "js" ? "JavaScript" : t === "iframe" ? "iframe HTML" : "Server-side"}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <pre className="bg-muted rounded-lg p-3 text-[11px] leading-relaxed overflow-x-auto whitespace-pre font-mono max-h-56">
+              {activeTab === "js" ? jsSnippet : activeTab === "iframe" ? iframeSnippet : serverSnippet}
+            </pre>
+            <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-6 px-2 text-[10px]"
+              onClick={() => {
+                const txt = activeTab === "js" ? jsSnippet : activeTab === "iframe" ? iframeSnippet : serverSnippet;
+                navigator.clipboard.writeText(txt);
+                toast.success("Code copied!");
+              }}>
+              <Copy className="h-3 w-3 mr-1" />Copy
             </Button>
           </div>
         </div>
       )}
 
-      {!hasParams && (
-        <p className="text-xs text-muted-foreground italic">Fill in at least one field above to generate a tracking URL.</p>
+      {/* Step 4: Live test */}
+      {enabledParams.length > 0 && (
+        <div>
+          <button type="button" onClick={() => setShowTest((v) => !v)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors">
+            <svg viewBox="0 0 16 16" className={`h-3.5 w-3.5 transition-transform ${showTest ? "rotate-90" : ""}`} fill="currentColor">
+              <path d="M6 4l4 4-4 4"/>
+            </svg>
+            Step 4 — Test with sample values
+          </button>
+          {showTest && (
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {enabledParams.map((p) => (
+                  <div key={p.key} className="space-y-0.5">
+                    <Label className="text-[11px] font-medium">{p.label}</Label>
+                    <Input
+                      value={testValues[p.key]}
+                      onChange={(e) => setTestValues((v) => ({ ...v, [p.key]: e.target.value }))}
+                      placeholder={p.example}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground mb-1">Preview URL (unfilled tokens remain as placeholders):</p>
+                <div className="flex gap-2">
+                  <Input readOnly value={previewUrl} className="font-mono text-[11px] h-7" />
+                  <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" onClick={() => { navigator.clipboard.writeText(previewUrl); toast.success("Copied!"); }}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                  <Button variant="outline" size="icon" className="h-7 w-7 shrink-0" asChild>
+                    <a href={previewUrl} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -279,14 +424,14 @@ export default function FileDetailPage() {
             <CardHeader>
               <CardTitle className="text-sm flex items-center gap-2">
                 <User className="h-4 w-4 text-primary" />
-                Learner Tracking URL Builder
+                Dynamic Embed Integration
               </CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
-                Build a personalised embed URL with learner data pre-filled. These parameters are captured in Analytics and tied to each session.
+                Choose which variables to pass from your platform. Copy the template URL or ready-made code snippet and substitute the placeholders with your site's dynamic values.
               </p>
             </CardHeader>
             <CardContent>
-              <UrlParamBuilder baseUrl={baseEmbedUrl} />
+              <EmbedIntegrationBuilder baseUrl={baseEmbedUrl} />
             </CardContent>
           </Card>
         </TabsContent>

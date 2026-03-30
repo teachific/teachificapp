@@ -160,3 +160,35 @@
 - [x] UploadPage: phase labels (Upload → Extract → CDN Upload → Ready)
 - [x] Batch-streaming extraction: read CONCURRENCY files at a time to avoid RAM exhaustion
 - [x] Seed AdvancedCardiacSonographer.zip (345 files) under All About Ultrasound org (ID 1)
+
+## Bug Fix: Learner URL Parameters Not Stored in Sessions
+- [ ] Audit EmbedPage: confirm URL params are parsed and passed to sessions.start mutation
+- [ ] Audit sessions.start procedure: confirm all learner fields are accepted and written to DB
+- [ ] Check PlayerPage (non-embed): does it also parse and forward URL params?
+- [ ] Verify play_sessions rows contain learner fields after a tracked play
+- [ ] Fix whichever layer is dropping the params
+- [ ] Test end-to-end with a constructed tracking URL
+
+## File Organization: Folders & Subfolders
+- [ ] Add content_folders table (id, name, parentId, orgId, ownerId, createdAt, updatedAt)
+- [ ] Add folderId column to content_packages table
+- [ ] Generate and apply migration SQL
+- [ ] Add folder CRUD tRPC procedures (create, rename, delete, list, move)
+- [ ] Add procedure to move package into/out of folder
+- [ ] Build folder tree sidebar in FilesPage (collapsible, nested)
+- [ ] Add "New Folder" button and inline rename
+- [ ] Show packages filtered by selected folder (or "All" / "Uncategorized")
+- [ ] Allow moving packages between folders (context menu or drag)
+- [ ] Allow moving folders into other folders (drag or move dialog)
+- [ ] Delete folder: prompt to move contents or delete all
+- [ ] Show folder breadcrumb when browsing inside a folder
+- [ ] Write vitest tests for folder procedures
+
+## URL Builder Redesign: Template Placeholder Mode
+- [x] Replace manual-entry fields with a template placeholder system
+- [x] Each param shows its placeholder token (e.g. {{learner_name}}) for use in the host site
+- [x] Generate a base embed URL with all enabled params as placeholders
+- [x] Provide tabbed code snippets: Plain JS, iframe HTML, and a generic LMS/server-side example
+- [x] JS snippet uses string replacement to swap placeholders with the host site's dynamic variables
+- [x] Explain that the host site is responsible for substituting values before launching the iframe
+- [x] Add a "Live Preview" section where user can test-fill values and see the final URL

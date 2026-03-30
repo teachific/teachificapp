@@ -1,0 +1,37 @@
+{
+  "query": "SELECT id, packageId, learnerName, learnerEmail, learnerId, utmSource, startedAt FROM play_sessions ORDER BY id DESC LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute SELECT id, packageId, learnerName, learnerEmail, learnerId, utmSource, startedAt FROM play_sessions ORDER BY id DESC LIMIT 3;",
+  "rows": [
+    {
+      "id": "22",
+      "packageId": "5",
+      "learnerName": "TestLearner",
+      "learnerEmail": "test@example.com",
+      "learnerId": "TEST-001",
+      "utmSource": "test_debug",
+      "startedAt": "2026-03-30 14:54:35"
+    },
+    {
+      "id": "21",
+      "packageId": "5",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "utmSource": "NULL",
+      "startedAt": "2026-03-30 14:54:15"
+    },
+    {
+      "id": "20",
+      "packageId": "5",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "utmSource": "NULL",
+      "startedAt": "2026-03-30 14:48:03"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tpackageId\tlearnerName\tlearnerEmail\tlearnerId\tutmSource\tstartedAt\n22\t5\tTestLearner\ttest@example.com\tTEST-001\ttest_debug\t2026-03-30 14:54:35\n21\t5\tNULL\tNULL\tNULL\tNULL\t2026-03-30 14:54:15\n20\t5\tNULL\tNULL\tNULL\tNULL\t2026-03-30 14:48:03\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}

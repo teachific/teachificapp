@@ -1,0 +1,120 @@
+{
+  "query": "SELECT id, packageId, sessionToken, learnerName, learnerEmail, learnerId, learnerGroup, utmSource, utmCampaign FROM play_sessions ORDER BY id DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute SELECT id, packageId, sessionToken, learnerName, learnerEmail, learnerId, learnerGroup, utmSource, utmCampaign FROM play_sessions ORDER BY id DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "20",
+      "packageId": "5",
+      "sessionToken": "Lv13h6CxKWpgUiQve0MOdLLnb3pxOyGp",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "learnerGroup": "NULL",
+      "utmSource": "NULL",
+      "utmCampaign": "NULL"
+    },
+    {
+      "id": "19",
+      "packageId": "5",
+      "sessionToken": "-rBAFIMydOtI8jelgmzxDQzJegMtS9ek",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "learnerGroup": "NULL",
+      "utmSource": "NULL",
+      "utmCampaign": "NULL"
+    },
+    {
+      "id": "18",
+      "packageId": "5",
+      "sessionToken": "X1umz3g6nNyg_f9wrQ3HggeBUoom6XQ5",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "learnerGroup": "NULL",
+      "utmSource": "NULL",
+      "utmCampaign": "NULL"
+    },
+    {
+      "id": "17",
+      "packageId": "1",
+      "sessionToken": "zGbHwX6SslELuoVrHHKn4uNxYU0vetJs",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "learnerGroup": "NULL",
+      "utmSource": "NULL",
+      "utmCampaign": "NULL"
+    },
+    {
+      "id": "16",
+      "packageId": "1",
+      "sessionToken": "6XcO1KBNpgnyP7wlMEjfwJuNCrw93fqm",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "learnerGroup": "NULL",
+      "utmSource": "NULL",
+      "utmCampaign": "NULL"
+    },
+    {
+      "id": "15",
+      "packageId": "1",
+      "sessionToken": "ruSHbbL1HbUkCUpnJuqOcl1nxbjmHJjc",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "learnerGroup": "NULL",
+      "utmSource": "NULL",
+      "utmCampaign": "NULL"
+    },
+    {
+      "id": "14",
+      "packageId": "1",
+      "sessionToken": "AJsRqCdxdL0MIL_KgsAuXUkNmQCnm8Ab",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "learnerGroup": "NULL",
+      "utmSource": "NULL",
+      "utmCampaign": "NULL"
+    },
+    {
+      "id": "13",
+      "packageId": "1",
+      "sessionToken": "Tcw-Yck2CPTRQKHqJgLD8LGbf1CPklUH",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "learnerGroup": "NULL",
+      "utmSource": "NULL",
+      "utmCampaign": "NULL"
+    },
+    {
+      "id": "12",
+      "packageId": "1",
+      "sessionToken": "fEkTPHnqCi6w1rWYgVvKpMqhKz-LOdV_",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "learnerGroup": "NULL",
+      "utmSource": "NULL",
+      "utmCampaign": "NULL"
+    },
+    {
+      "id": "11",
+      "packageId": "1",
+      "sessionToken": "tyOcsakI2WchKaHhr9UH17xTPAn2_hem",
+      "learnerName": "NULL",
+      "learnerEmail": "NULL",
+      "learnerId": "NULL",
+      "learnerGroup": "NULL",
+      "utmSource": "NULL",
+      "utmCampaign": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tpackageId\tsessionToken\tlearnerName\tlearnerEmail\tlearnerId\tlearnerGroup\tutmSource\tutmCampaign\n20\t5\tLv13h6CxKWpgUiQve0MOdLLnb3pxOyGp\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n19\t5\t-rBAFIMydOtI8jelgmzxDQzJegMtS9ek\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n18\t5\tX1umz3g6nNyg_f9wrQ3HggeBUoom6XQ5\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n17\t1\tzGbHwX6SslELuoVrHHKn4uNxYU0vetJs\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n16\t1\t6XcO1KBNpgnyP7wlMEjfwJuNCrw93fqm\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n15\t1\truSHbbL1HbUkCUpnJuqOcl1nxbjmHJjc\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n14\t1\tAJsRqCdxdL0MIL_KgsAuXUkNmQCnm8Ab\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n13\t1\tTcw-Yck2CPTRQKHqJgLD8LGbf1CPklUH\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n12\t1\tfEkTPHnqCi6w1rWYgVvKpMqhKz-LOdV_\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n11\t1\ttyOcsakI2WchKaHhr9UH17xTPAn2_hem\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 67
+}
