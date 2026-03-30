@@ -1,0 +1,1 @@
+ALTER TABLE `content_folders` ADD `sortOrder` int DEFAULT 0 NOT NULL;

@@ -67,6 +67,7 @@ export const contentFolders = mysqlTable("content_folders", {
   parentId: int("parentId"), // null = root folder
   name: varchar("name", { length: 255 }).notNull(),
   color: varchar("color", { length: 32 }), // optional accent color
+  sortOrder: int("sortOrder").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

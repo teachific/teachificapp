@@ -254,3 +254,22 @@
 - [x] EmbedPage: show themed banner on mobile with "Best displayed in full screen" + Full Screen + Dismiss (✕)
 - [x] PlayerPage: same banner in both native and LMS shell modes
 - [x] Banner only shows on mobile (sm breakpoint), hidden when fullscreen is active, dismissed via state
+
+## Feature: Upload New Version (Version Replacement)
+- [x] Version upload endpoint: POST /api/upload/version/:packageId — same extraction logic, increments version number
+- [x] Keep same package ID / embed URL — only the content files change
+- [x] FileDetailPage Versions tab: Upload New Version card with file picker, changelog field, and progress bar
+- [x] Version history list showing versionLabel, changelog, file count, entry point, and Current badge
+- [ ] Allow rolling back to a previous version from the version history list (future)
+
+## Feature: Drag-and-Drop Folder Organization
+- [x] Add sortOrder column to content_folders table
+- [x] Add folders.reorder tRPC procedure to persist folder order
+- [x] packages.move procedure already existed in routers.ts
+- [x] FilesPage: draggable package cards that can be dropped onto folder nodes
+- [x] FilesPage: reorderable folder list in sidebar via drag handle
+- [x] FilesPage: fix stale @/contexts/AuthContext import
+
+## Bug Fix: Folder Sort Order Not Persisting
+- [x] Fix getFoldersByOrg in db.ts to sort by sortOrder ASC (was sorting alphabetically by name)
+- [x] Folder drag-and-drop reorder now persists correctly across page refreshes

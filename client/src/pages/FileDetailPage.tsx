@@ -243,6 +243,134 @@ document.getElementById('teachific-frame').src = buildLearnerUrl();`;
   );
 }
 
+// ── Upload New Version Component ────────────────────────────────────────────
+function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSuccess: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [changelog, setChangelog] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number; phase: string } | null>(null);
+  const utils = trpc.useUtils();
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setUploading(true);
+    setProgress({ done: 0, total: 1, phase: "uploading" });
+
+    try {
+      // Open SSE stream first
+      const evtSource = new EventSource(`/api/upload/progress/${packageId}`);
+      evtSource.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          setProgress({ done: data.done ?? 0, total: data.total ?? 1, phase: data.phase ?? "processing" });
+          if (data.phase === "ready" || data.phase === "error") {
+            evtSource.close();
+            setUploading(false);
+            if (data.phase === "ready") {
+              toast.success("New version uploaded successfully!");
+              setFile(null);
+              setChangelog("");
+              utils.versions.list.invalidate({ packageId });
+              utils.packages.get.invalidate({ id: packageId });
+              onSuccess();
+            } else {
+              toast.error("Version upload failed. Please try again.");
+            }
+            setProgress(null);
+          }
+        } catch { /* ignore parse errors */ }
+      };
+      evtSource.onerror = () => { evtSource.close(); setUploading(false); setProgress(null); };
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("changelog", changelog || `Version upload ${new Date().toLocaleDateString()}`);
+
+      const res = await fetch(`/api/upload/version/${packageId}`, { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Upload failed" }));
+        throw new Error(err.error ?? "Upload failed");
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+      setUploading(false);
+      setProgress(null);
+    }
+  };
+
+  const phaseLabel: Record<string, string> = {
+    reading: "Reading ZIP...",
+    extracting: "Extracting files...",
+    uploading: "Uploading to CDN...",
+    finalizing: "Finalizing...",
+    ready: "Done!",
+    error: "Error",
+  };
+
+  return (
+    <Card className="shadow-sm border-border/60">
+      <CardHeader>
+        <CardTitle className="text-sm flex items-center gap-2">
+          <RefreshCw className="h-4 w-4 text-primary" />
+          Upload New Version
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Replace the content while keeping the same embed URL and share links. All existing sessions and analytics are preserved.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div>
+          <Label className="text-xs mb-1 block">New ZIP file</Label>
+          <input
+            type="file"
+            accept=".zip"
+            disabled={uploading}
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="block w-full text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer disabled:opacity-50"
+          />
+          {file && <p className="text-xs text-muted-foreground mt-1">{file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)</p>}
+        </div>
+        <div>
+          <Label className="text-xs mb-1 block">Changelog <span className="text-muted-foreground">(optional)</span></Label>
+          <Input
+            value={changelog}
+            onChange={(e) => setChangelog(e.target.value)}
+            placeholder="What changed in this version?"
+            disabled={uploading}
+            className="text-sm h-8"
+          />
+        </div>
+        {progress && (
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{phaseLabel[progress.phase] ?? progress.phase}</span>
+              <span>{progress.total > 1 ? `${progress.done} / ${progress.total} files` : ""}</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: progress.total > 0 ? `${Math.round((progress.done / progress.total) * 100)}%` : "0%" }}
+              />
+            </div>
+          </div>
+        )}
+        <Button
+          onClick={handleUpload}
+          disabled={!file || uploading}
+          size="sm"
+          className="w-full"
+        >
+          {uploading ? (
+            <><RefreshCw className="h-3.5 w-3.5 mr-2 animate-spin" />Processing...</>
+          ) : (
+            <><RefreshCw className="h-3.5 w-3.5 mr-2" />Upload New Version</>
+          )}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function FileDetailPage() {
   const [, setLocation] = useLocation();
@@ -473,20 +601,32 @@ export default function FileDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="versions" className="mt-4">
+        <TabsContent value="versions" className="mt-4 space-y-4">
+          {/* Upload New Version */}
+          <UploadNewVersion packageId={packageId} onSuccess={() => refetch()} />
+
+          {/* Version History */}
           <Card className="shadow-sm border-border/60">
             <CardHeader><CardTitle className="text-sm">Version History</CardTitle></CardHeader>
             <CardContent>
               {!versions || versions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No version history available</p>
+                <p className="text-sm text-muted-foreground">No version history available yet.</p>
               ) : (
                 <div className="space-y-2">
                   {versions.map((v: any, i: number) => (
                     <div key={v.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/60">
-                      <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{v.versionNumber}</div>
+                      <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                        {v.versionNumber}
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{v.changeNotes ?? `Version ${v.versionNumber}`}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(v.createdAt).toLocaleString()}</p>
+                        <p className="text-sm font-medium">{v.versionLabel ?? `Version ${v.versionNumber}`}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {v.changelog && <span className="mr-2">{v.changelog}</span>}
+                          {new Date(v.createdAt).toLocaleString()}
+                        </p>
+                        {v.fileCount && (
+                          <p className="text-xs text-muted-foreground">{v.fileCount} files · {v.entryPoint}</p>
+                        )}
                       </div>
                       {i === 0 && <Badge variant="secondary" className="text-xs">Current</Badge>}
                     </div>

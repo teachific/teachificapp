@@ -427,7 +427,7 @@ export async function getFoldersByOrg(orgId: number) {
   if (!db) return [];
   return db.select().from(contentFolders)
     .where(eq(contentFolders.orgId, orgId))
-    .orderBy(contentFolders.name);
+    .orderBy(contentFolders.sortOrder, contentFolders.name);
 }
 
 export async function getFolderById(id: number) {

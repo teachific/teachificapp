@@ -880,6 +880,16 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         await movePackageToFolder(input.packageId, input.folderId);
         return { success: true };
       }),
+
+    // Reorder folders by updating sortOrder for a batch of IDs
+    reorder: protectedProcedure
+      .input(z.object({ orderedIds: z.array(z.number()) }))
+      .mutation(async ({ input }) => {
+        await Promise.all(
+          input.orderedIds.map((id, index) => updateFolder(id, { sortOrder: index }))
+        );
+        return { success: true };
+      }),
   }),
 });
 
