@@ -255,8 +255,8 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
     if (!file) return;
     setUploading(true);
 
-    const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB — smaller chunks finish faster, less idle time
-    const PARALLEL = 3; // send 3 chunks at a time to keep connection active
+    const CHUNK_SIZE = 512 * 1024; // 512 KB — small enough to pass through any proxy
+    const PARALLEL = 4; // send 4 chunks at a time to keep connection active
     const MAX_RETRIES = 3;
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     const changelogText = changelog || `Version upload ${new Date().toLocaleDateString()}`;
@@ -320,7 +320,7 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
       const initRes = await fetch(`/api/chunked/version/${packageId}/initiate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ totalChunks, filename: file.name }),
+        body: JSON.stringify({ totalChunks, filename: file.name, totalBytes: file.size }),
       });
       if (!initRes.ok) throw new Error((await initRes.json().catch(() => ({}))).error ?? "Failed to start upload");
       const { uploadId } = await initRes.json();

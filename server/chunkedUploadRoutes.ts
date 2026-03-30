@@ -19,6 +19,10 @@ import { nanoid } from "nanoid";
 import { processZipVersion, emitProgress } from "./scormUploadRoutes";
 import { storagePutStream } from "./storage";
 import { getPackageById, updatePackage } from "./db";
+import { sdk } from "./_core/sdk";
+import { ENV } from "./_core/env";
+
+const LARGE_FILE_LIMIT = 100 * 1024 * 1024; // 100 MB
 
 const router = express.Router();
 
@@ -28,7 +32,7 @@ const chunkUpload = multer({
     destination: (_req, _file, cb) => cb(null, tmpdir()),
     filename: (_req, file, cb) => cb(null, `chunk-${nanoid(12)}-${file.originalname}`),
   }),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB per chunk max
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB per chunk max (client sends 512 KB chunks)
 });
 
 // ── In-memory upload session registry ────────────────────────────────────────
@@ -43,11 +47,29 @@ interface UploadSession {
 const sessions = new Map<string, UploadSession>();
 
 // ── POST /api/chunked/version/:packageId/initiate ─────────────────────────────
-router.post("/version/:packageId/initiate", express.json(), (req: Request, res: Response) => {
-  const { totalChunks, filename } = req.body;
+router.post("/version/:packageId/initiate", express.json(), async (req: Request, res: Response) => {
+  const { totalChunks, filename, totalBytes } = req.body;
   if (!totalChunks || !filename) {
     return res.status(400).json({ error: "totalChunks and filename are required" });
   }
+
+  // Enforce owner-only restriction for files > 100 MB
+  const fileSizeBytes = parseInt(String(totalBytes ?? "0"), 10);
+  if (fileSizeBytes > LARGE_FILE_LIMIT) {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user || user.openId !== ENV.ownerOpenId) {
+        return res.status(403).json({
+          error: "Files larger than 100 MB can only be uploaded by the site owner.",
+        });
+      }
+    } catch {
+      return res.status(403).json({
+        error: "Files larger than 100 MB can only be uploaded by the site owner.",
+      });
+    }
+  }
+
   const uploadId = nanoid(16);
   sessions.set(uploadId, {
     uploadId,

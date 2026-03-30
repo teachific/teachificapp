@@ -333,3 +333,9 @@
 - [x] Added per-chunk retry with exponential backoff (1s, 2s, 4s) up to 3 retries
 - [x] Per-chunk XHR timeout set to 2 minutes (was unlimited)
 - [x] Accurate overall progress using per-chunk byte tracking across parallel uploads
+
+## Feature: Restrict Large Uploads (>100 MB) to Site Owner Only
+- [x] Server: /initiate rejects with 403 if totalBytes > 100 MB and user.openId !== OWNER_OPEN_ID
+- [x] Frontend: passes totalBytes in initiate body; 403 error surfaces as toast with clear message
+- [x] Chunk size reduced to 512 KB to pass through strict production proxy limits
+- [x] Parallel batch size increased to 4 chunks at a time
