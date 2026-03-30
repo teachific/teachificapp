@@ -4,11 +4,11 @@
  *
  * Flow for version upload:
  *   POST /api/chunked/version/:packageId/initiate   → { uploadId }
- *   POST /api/chunked/version/:packageId/chunk/:uploadId  (repeat per chunk)
- *   POST /api/chunked/version/:packageId/finalize/:uploadId → triggers processing
+ *   POST /api/chunked/version/:packageId/chunk/:uploadId  (repeat per chunk, 5 MB each)
+ *   POST /api/chunked/version/:packageId/finalize/:uploadId → assembles + processes directly
  *
- * After finalize, the assembled ZIP is handed to the existing /api/upload/version/:id
- * route via an internal HTTP POST so all SSE progress logic is reused unchanged.
+ * The finalize handler calls processZipVersion() directly (no internal HTTP forward),
+ * so the assembled file never crosses the proxy again.
  */
 import express, { Request, Response } from "express";
 import multer from "multer";
@@ -16,8 +16,9 @@ import { existsSync, unlinkSync, createWriteStream, createReadStream, statSync }
 import { tmpdir } from "os";
 import { join } from "path";
 import { nanoid } from "nanoid";
-import FormData from "form-data";
-import http from "http";
+import { processZipVersion, emitProgress } from "./scormUploadRoutes";
+import { storagePutStream } from "./storage";
+import { getPackageById, updatePackage } from "./db";
 
 const router = express.Router();
 
@@ -93,11 +94,14 @@ router.post(
 );
 
 // ── POST /api/chunked/version/:packageId/finalize/:uploadId ───────────────────
+// Assembles all chunks into one temp file, then calls processZipVersion directly.
+// No internal HTTP forward — the assembled file never crosses the proxy again.
 router.post(
   "/version/:packageId/finalize/:uploadId",
   express.json(),
   async (req: Request, res: Response) => {
-    const { uploadId, packageId } = req.params;
+    const { uploadId, packageId: packageIdStr } = req.params;
+    const packageId = parseInt(packageIdStr, 10);
     const session = sessions.get(uploadId);
     if (!session) return res.status(404).json({ error: "Upload session not found" });
 
@@ -109,26 +113,53 @@ router.post(
 
     const assembledPath = join(tmpdir(), `assembled-${uploadId}-${session.filename}`);
     try {
+      // 1. Assemble all chunks into one temp file (pure disk I/O, no RAM buffer)
       await assembleChunks(session, assembledPath);
+      cleanupSession(session); // free chunk temp files immediately
 
+      const fileSize = statSync(assembledPath).size;
       const { uploadedBy, changelog } = req.body;
+      const uploadedByNum = parseInt(String(uploadedBy ?? "0"), 10);
+      const changelogStr = String(changelog ?? "New version");
 
-      // Forward the assembled file to the existing /api/upload/version/:packageId
-      // route as a multipart POST — this reuses all SSE progress logic unchanged.
-      const port = parseInt(process.env.PORT ?? "3000", 10);
-      const result = await forwardToUploadRoute(
-        assembledPath,
-        session.filename,
+      // 2. Look up package to get orgId
+      const pkg = await getPackageById(packageId);
+      if (!pkg) {
+        if (existsSync(assembledPath)) unlinkSync(assembledPath);
+        return res.status(404).json({ error: "Package not found" });
+      }
+
+      const suffix = nanoid(8);
+      const orgId = pkg.orgId;
+
+      // 3. Stream original ZIP to S3 (true streaming — no RAM buffer)
+      const zipKey = `orgs/${orgId}/packages/${suffix}/original.zip`;
+      const { url: zipUrl } = await storagePutStream(zipKey, assembledPath, "application/zip");
+
+      // 4. Mark package as processing
+      await updatePackage(packageId, { status: "processing" });
+
+      // 5. Respond immediately — processing runs in the background
+      res.json({
         packageId,
-        String(uploadedBy ?? "0"),
-        String(changelog ?? "New version"),
-        port
-      );
+        zipUrl,
+        status: "processing",
+        message: "Version upload received. Processing in background.",
+      });
 
-      cleanupSession(session);
-      return res.json(result);
+      // 6. Process ZIP asynchronously (extracts files, uploads to S3, updates DB)
+      processZipVersion(assembledPath, fileSize, packageId, orgId, suffix, uploadedByNum, changelogStr)
+        .catch((err) => {
+          console.error(`[Chunked Version] Package ${packageId} failed:`, err);
+          emitProgress(packageId, 0, 1, "error");
+          updatePackage(packageId, { status: "error", processingError: String(err) }).catch(console.error);
+        });
+
     } catch (err: unknown) {
       cleanupSession(session);
+      if (existsSync(assembledPath)) {
+        try { unlinkSync(assembledPath); } catch { /* ignore */ }
+      }
       console.error("[Chunked Version Finalize] Error:", err);
       return res.status(500).json({ error: "Finalize failed", detail: String(err) });
     }
@@ -163,55 +194,6 @@ function assembleChunks(session: UploadSession, outputPath: string): Promise<voi
       readStream.pipe(writeStream, { end: false });
     }
     writeNext();
-  });
-}
-
-function forwardToUploadRoute(
-  filePath: string,
-  filename: string,
-  packageId: string,
-  uploadedBy: string,
-  changelog: string,
-  port: number
-): Promise<Record<string, unknown>> {
-  return new Promise((resolve, reject) => {
-    const form = new FormData();
-    form.append("file", createReadStream(filePath), {
-      filename,
-      contentType: "application/zip",
-      knownLength: statSync(filePath).size,
-    });
-    form.append("uploadedBy", uploadedBy);
-    form.append("changelog", changelog);
-
-    const options: http.RequestOptions = {
-      hostname: "127.0.0.1",
-      port,
-      path: `/api/upload/version/${packageId}`,
-      method: "POST",
-      headers: form.getHeaders(),
-      // No timeout — let the server-side 10-min timeout apply
-    };
-
-    const req = http.request(options, (res) => {
-      let body = "";
-      res.on("data", (chunk) => { body += chunk; });
-      res.on("end", () => {
-        try {
-          const parsed = JSON.parse(body);
-          if ((res.statusCode ?? 500) >= 400) {
-            reject(new Error(parsed.error ?? `HTTP ${res.statusCode}`));
-          } else {
-            resolve(parsed);
-          }
-        } catch {
-          reject(new Error(`Invalid JSON response: ${body.slice(0, 200)}`));
-        }
-      });
-    });
-
-    req.on("error", reject);
-    form.pipe(req);
   });
 }
 

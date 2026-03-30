@@ -93,8 +93,9 @@ export async function storagePut(
 }
 
 /**
- * Upload a file from a local path using a stream — avoids loading the entire file into RAM.
- * Uses node-fetch / undici compatible FormData with a ReadStream blob.
+ * Upload a file from a local path using form-data + node-fetch style multipart.
+ * Uses the `form-data` npm package which supports streaming ReadStreams natively,
+ * so the entire file is never loaded into RAM.
  */
 export async function storagePutStream(
   relKey: string,
@@ -105,34 +106,56 @@ export async function storagePutStream(
   const key = normalizeKey(relKey);
   const uploadUrl = buildUploadUrl(baseUrl, key);
 
-  // Use node's built-in fetch (Node 18+) with a ReadableStream body via FormData
-  // We read the file into a Buffer in chunks to stay compatible with the Forge proxy
-  // but we do it in a single streaming pass rather than pre-loading the whole file.
   const { createReadStream, statSync } = await import("fs");
-  const { Readable } = await import("stream");
+  const FormDataNode = (await import("form-data")).default;
+  const https = await import("https");
+  const http = await import("http");
 
   const fileSize = statSync(filePath).size;
-  const nodeStream = createReadStream(filePath);
-
-  // Convert Node.js ReadStream → Web ReadableStream for fetch
-  const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
-  const blob = new Blob([await new Response(webStream).arrayBuffer()], { type: contentType });
-
-  const form = new FormData();
-  form.append("file", blob, key.split("/").pop() ?? key);
-
-  const response = await fetch(uploadUrl, {
-    method: "POST",
-    headers: buildAuthHeaders(apiKey),
-    body: form,
+  const form = new FormDataNode();
+  form.append("file", createReadStream(filePath), {
+    filename: key.split("/").pop() ?? key,
+    contentType,
+    knownLength: fileSize,
   });
 
-  if (!response.ok) {
-    const message = await response.text().catch(() => response.statusText);
-    throw new Error(`Storage stream upload failed (${response.status}): ${message}`);
-  }
-  const url = (await response.json()).url;
-  return { key, url };
+  // Use Node's http/https directly so we can stream form-data without buffering
+  return new Promise((resolve, reject) => {
+    const uploadUrlParsed = uploadUrl;
+    const isHttps = uploadUrlParsed.protocol === "https:";
+    const transport = isHttps ? https : http;
+
+    const options = {
+      method: "POST",
+      hostname: uploadUrlParsed.hostname,
+      port: uploadUrlParsed.port || (isHttps ? 443 : 80),
+      path: uploadUrlParsed.pathname + uploadUrlParsed.search,
+      headers: {
+        ...form.getHeaders(),
+        Authorization: `Bearer ${apiKey}`,
+      },
+    };
+
+    const req = (transport as typeof https).request(options, (res) => {
+      let body = "";
+      res.on("data", (chunk) => { body += chunk; });
+      res.on("end", () => {
+        if ((res.statusCode ?? 500) >= 400) {
+          reject(new Error(`Storage stream upload failed (${res.statusCode}): ${body.slice(0, 200)}`));
+          return;
+        }
+        try {
+          const parsed = JSON.parse(body);
+          resolve({ key, url: parsed.url });
+        } catch {
+          reject(new Error(`Invalid JSON from storage: ${body.slice(0, 200)}`));
+        }
+      });
+    });
+
+    req.on("error", reject);
+    form.pipe(req);
+  });
 }
 
 export async function storageGet(relKey: string): Promise<{ key: string; url: string; }> {

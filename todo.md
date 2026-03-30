@@ -317,3 +317,11 @@
 - [x] UploadNewVersion UI: 3-step chunked flow with per-chunk XHR progress (shows "Uploading... 47%")
 - [x] Installed form-data package for server-side multipart forwarding
 - [x] Mounted /api/chunked router in server/_core/index.ts
+
+## Bug Fix: Upload Still Timing Out After Chunked Upload
+- [x] Root cause: finalize was forwarding the 457 MB assembled file via internal HTTP POST — same proxy limit
+- [x] Fix: export processZipVersion + emitProgress from scormUploadRoutes
+- [x] Fix: chunkedUploadRoutes finalize now calls processZipVersion directly — no HTTP forward at all
+- [x] Fix: storagePutStream rewritten to use form-data + Node http.request piping — truly streams to S3 without loading file into RAM
+- [x] Finalize responds immediately after storagePutStream + updatePackage; extraction runs in background
+- [x] SSE progress stream unchanged — client still receives extraction updates via /api/upload/progress/:id

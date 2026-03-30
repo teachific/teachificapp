@@ -33,7 +33,7 @@ const upload = multer({
 const progressMap = new Map<number, { done: number; total: number; phase: string; error?: string }>();
 const sseClients = new Map<number, Response[]>();
 
-function emitProgress(packageId: number, done: number, total: number, phase: string) {
+export function emitProgress(packageId: number, done: number, total: number, phase: string) {
   progressMap.set(packageId, { done, total, phase });
   const clients = sseClients.get(packageId) ?? [];
   const data = JSON.stringify({ done, total, phase });
@@ -404,7 +404,7 @@ async function processZip(
 }
 
 // ─── Background ZIP processing for a new version of an existing package ─────
-async function processZipVersion(
+export async function processZipVersion(
   tmpPath: string,
   zipSize: number,
   packageId: number,
