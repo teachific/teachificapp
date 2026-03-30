@@ -307,3 +307,13 @@
 - [x] Two-phase progress: Phase 1 = XHR byte upload % (0-100%), Phase 2 = SSE extraction/CDN progress
 - [x] XHR timeout set to 0 (unlimited) — server handles the 10-min timeout
 - [x] phaseLabel updated to show "Uploading... 47%" during upload phase
+
+## Bug Fix: Upload Silently Stops (Proxy Body Limit)
+- [x] Root cause: reverse proxy silently drops requests exceeding its body size limit with no error
+- [x] New chunkedUploadRoutes.ts: initiate / chunk / finalize endpoints at /api/chunked
+- [x] Each chunk is 5 MB max — well under any proxy limit
+- [x] Finalize assembles chunks into a temp file, then forwards to /api/upload/version/:id internally
+- [x] All SSE extraction progress reused unchanged
+- [x] UploadNewVersion UI: 3-step chunked flow with per-chunk XHR progress (shows "Uploading... 47%")
+- [x] Installed form-data package for server-side multipart forwarding
+- [x] Mounted /api/chunked router in server/_core/index.ts

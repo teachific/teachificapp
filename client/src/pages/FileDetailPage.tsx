@@ -251,39 +251,67 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
   const [progress, setProgress] = useState<{ done: number; total: number; phase: string } | null>(null);
   const utils = trpc.useUtils();
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!file) return;
     setUploading(true);
-    setProgress({ done: 0, total: 1, phase: "uploading" });
 
-    // ── Phase 1: XHR upload with real byte-level progress ──────────────────
-    // Using XHR (not fetch) so we get upload.onprogress events for large files.
-    // The server responds as soon as the file is received and processing starts.
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("changelog", changelog || `Version upload ${new Date().toLocaleDateString()}`);
+    const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB — well under any proxy limit
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const changelogText = changelog || `Version upload ${new Date().toLocaleDateString()}`;
 
-    const xhr = new XMLHttpRequest();
+    const abort = () => { setUploading(false); setProgress(null); };
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        const pct = Math.round((e.loaded / e.total) * 100);
-        setProgress({ done: pct, total: 100, phase: "uploading" });
+    try {
+      // ── Step 1: Initiate chunked session ──────────────────────────────────
+      setProgress({ done: 0, total: totalChunks, phase: "uploading" });
+      const initRes = await fetch(`/api/chunked/version/${packageId}/initiate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ totalChunks, filename: file.name }),
+      });
+      if (!initRes.ok) throw new Error((await initRes.json().catch(() => ({}))).error ?? "Failed to start upload");
+      const { uploadId } = await initRes.json();
+
+      // ── Step 2: Upload each chunk ─────────────────────────────────────────
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const chunk = file.slice(start, start + CHUNK_SIZE);
+
+        await new Promise<void>((resolve, reject) => {
+          const form = new FormData();
+          form.append("chunk", chunk, file.name);
+          form.append("chunkIndex", String(i));
+
+          const xhr = new XMLHttpRequest();
+          xhr.timeout = 0;
+          xhr.open("POST", `/api/chunked/version/${packageId}/chunk/${uploadId}`);
+
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              // Overall byte progress across all chunks
+              const bytesDone = i * CHUNK_SIZE + e.loaded;
+              const pct = Math.round((bytesDone / file.size) * 100);
+              setProgress({ done: pct, total: 100, phase: "uploading" });
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else {
+              let msg = `Chunk ${i + 1} upload failed`;
+              try { msg = JSON.parse(xhr.responseText).error ?? msg; } catch { /* ignore */ }
+              reject(new Error(msg));
+            }
+          };
+          xhr.onerror = () => reject(new Error(`Network error on chunk ${i + 1}`));
+          xhr.send(form);
+        });
       }
-    };
 
-    xhr.onload = () => {
-      if (xhr.status < 200 || xhr.status >= 300) {
-        let msg = "Upload failed";
-        try { msg = JSON.parse(xhr.responseText).error ?? msg; } catch { /* ignore */ }
-        toast.error(msg);
-        setUploading(false);
-        setProgress(null);
-        return;
-      }
-
-      // ── Phase 2: SSE stream for extraction + S3 processing progress ────
+      // ── Step 3: Finalize — server assembles chunks and starts processing ──
       setProgress({ done: 0, total: 1, phase: "reading" });
+
+      // Open SSE stream before finalize so we don't miss early events
       const evtSource = new EventSource(`/api/upload/progress/${packageId}`);
       evtSource.onmessage = (e) => {
         try {
@@ -306,25 +334,22 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
           }
         } catch { /* ignore parse errors */ }
       };
-      evtSource.onerror = () => { evtSource.close(); setUploading(false); setProgress(null); };
-    };
+      evtSource.onerror = () => { evtSource.close(); abort(); };
 
-    xhr.onerror = () => {
-      toast.error("Network error — upload failed. Please try again.");
-      setUploading(false);
-      setProgress(null);
-    };
-
-    xhr.ontimeout = () => {
-      toast.error("Upload timed out. Please try a smaller file or check your connection.");
-      setUploading(false);
-      setProgress(null);
-    };
-
-    // No timeout on XHR — let the server handle it (server timeout is 10 min)
-    xhr.timeout = 0;
-    xhr.open("POST", `/api/upload/version/${packageId}`);
-    xhr.send(formData);
+      const finalRes = await fetch(`/api/chunked/version/${packageId}/finalize/${uploadId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ changelog: changelogText }),
+      });
+      if (!finalRes.ok) {
+        evtSource.close();
+        throw new Error((await finalRes.json().catch(() => ({}))).error ?? "Finalize failed");
+      }
+      // SSE will handle the rest — no further action needed here
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+      abort();
+    }
   };
 
   const phaseLabel = (phase: string, done: number, total: number): string => {

@@ -9,6 +9,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import quizImportRouter from "../quizImportRoutes";
 import scormUploadRouter from "../scormUploadRoutes";
+import chunkedUploadRouter from "../chunkedUploadRoutes";
 import contentRouter from "../contentRoutes";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -63,6 +64,9 @@ async function startServer() {
 
   // SCORM/HTML ZIP upload
   app.use("/api/upload", scormUploadRouter);
+
+  // Chunked upload for large files — bypasses proxy body size limit
+  app.use("/api/chunked", chunkedUploadRouter);
 
   // Content file proxy — serves extracted package files by redirecting to S3 CDN URLs
   // MUST be before tRPC and Vite so /api/content/* doesn't fall through to the SPA
