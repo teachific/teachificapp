@@ -249,3 +249,8 @@
 ## UI: Teal Fullscreen Button on Mobile
 - [x] EmbedPage: fullscreen button teal-highlighted on mobile screens
 - [x] PlayerPage: fullscreen button teal-highlighted on mobile screens (both native and LMS shell modes)
+
+## UI: Mobile Fullscreen Prompt Banner
+- [x] EmbedPage: show themed banner on mobile with "Best displayed in full screen" + Full Screen + Dismiss (✕)
+- [x] PlayerPage: same banner in both native and LMS shell modes
+- [x] Banner only shows on mobile (sm breakpoint), hidden when fullscreen is active, dismissed via state
