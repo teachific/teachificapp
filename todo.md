@@ -325,3 +325,11 @@
 - [x] Fix: storagePutStream rewritten to use form-data + Node http.request piping — truly streams to S3 without loading file into RAM
 - [x] Finalize responds immediately after storagePutStream + updatePackage; extraction runs in background
 - [x] SSE progress stream unchanged — client still receives extraction updates via /api/upload/progress/:id
+
+## Bug Fix: Chunk Upload Stops at ~40%
+- [x] Diagnosis: proxy idle timeout drops connection when sequential chunks leave gaps > ~60s
+- [x] Reduced chunk size from 5 MB to 2 MB so each chunk completes faster
+- [x] Changed from sequential to parallel batch upload (3 chunks at a time) to keep connection active
+- [x] Added per-chunk retry with exponential backoff (1s, 2s, 4s) up to 3 retries
+- [x] Per-chunk XHR timeout set to 2 minutes (was unlimited)
+- [x] Accurate overall progress using per-chunk byte tracking across parallel uploads

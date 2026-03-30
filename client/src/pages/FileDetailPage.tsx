@@ -255,15 +255,68 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
     if (!file) return;
     setUploading(true);
 
-    const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB — well under any proxy limit
+    const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB — smaller chunks finish faster, less idle time
+    const PARALLEL = 3; // send 3 chunks at a time to keep connection active
+    const MAX_RETRIES = 3;
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     const changelogText = changelog || `Version upload ${new Date().toLocaleDateString()}`;
 
     const abort = () => { setUploading(false); setProgress(null); };
 
+    // Track per-chunk bytes uploaded for accurate overall progress
+    const chunkProgress = new Array(totalChunks).fill(0);
+
+    const uploadChunk = (i: number, uploadId: string): Promise<void> =>
+      new Promise<void>((resolve, reject) => {
+        const start = i * CHUNK_SIZE;
+        const chunk = file.slice(start, start + CHUNK_SIZE);
+        const form = new FormData();
+        form.append("chunk", chunk, file.name);
+        form.append("chunkIndex", String(i));
+
+        const xhr = new XMLHttpRequest();
+        xhr.timeout = 120000; // 2 min per chunk
+        xhr.open("POST", `/api/chunked/version/${packageId}/chunk/${uploadId}`);
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            chunkProgress[i] = e.loaded;
+            const bytesDone = chunkProgress.reduce((a, b) => a + b, 0);
+            const pct = Math.min(99, Math.round((bytesDone / file.size) * 100));
+            setProgress({ done: pct, total: 100, phase: "uploading" });
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            chunkProgress[i] = chunk.size; // mark complete
+            resolve();
+          } else {
+            let msg = `Chunk ${i + 1} failed (${xhr.status})`;
+            try { msg = JSON.parse(xhr.responseText).error ?? msg; } catch { /* ignore */ }
+            reject(new Error(msg));
+          }
+        };
+        xhr.onerror = () => reject(new Error(`Network error on chunk ${i + 1}`));
+        xhr.ontimeout = () => reject(new Error(`Timeout on chunk ${i + 1}`));
+        xhr.send(form);
+      });
+
+    const uploadChunkWithRetry = async (i: number, uploadId: string): Promise<void> => {
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          await uploadChunk(i, uploadId);
+          return;
+        } catch (err) {
+          if (attempt === MAX_RETRIES) throw err;
+          // Exponential backoff: 1s, 2s, 4s
+          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        }
+      }
+    };
+
     try {
       // ── Step 1: Initiate chunked session ──────────────────────────────────
-      setProgress({ done: 0, total: totalChunks, phase: "uploading" });
+      setProgress({ done: 0, total: 100, phase: "uploading" });
       const initRes = await fetch(`/api/chunked/version/${packageId}/initiate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -272,40 +325,13 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
       if (!initRes.ok) throw new Error((await initRes.json().catch(() => ({}))).error ?? "Failed to start upload");
       const { uploadId } = await initRes.json();
 
-      // ── Step 2: Upload each chunk ─────────────────────────────────────────
-      for (let i = 0; i < totalChunks; i++) {
-        const start = i * CHUNK_SIZE;
-        const chunk = file.slice(start, start + CHUNK_SIZE);
-
-        await new Promise<void>((resolve, reject) => {
-          const form = new FormData();
-          form.append("chunk", chunk, file.name);
-          form.append("chunkIndex", String(i));
-
-          const xhr = new XMLHttpRequest();
-          xhr.timeout = 0;
-          xhr.open("POST", `/api/chunked/version/${packageId}/chunk/${uploadId}`);
-
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              // Overall byte progress across all chunks
-              const bytesDone = i * CHUNK_SIZE + e.loaded;
-              const pct = Math.round((bytesDone / file.size) * 100);
-              setProgress({ done: pct, total: 100, phase: "uploading" });
-            }
-          };
-
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) resolve();
-            else {
-              let msg = `Chunk ${i + 1} upload failed`;
-              try { msg = JSON.parse(xhr.responseText).error ?? msg; } catch { /* ignore */ }
-              reject(new Error(msg));
-            }
-          };
-          xhr.onerror = () => reject(new Error(`Network error on chunk ${i + 1}`));
-          xhr.send(form);
-        });
+      // ── Step 2: Upload chunks PARALLEL (3 at a time) with per-chunk retry ─
+      for (let i = 0; i < totalChunks; i += PARALLEL) {
+        const batch = [];
+        for (let j = i; j < Math.min(i + PARALLEL, totalChunks); j++) {
+          batch.push(uploadChunkWithRetry(j, uploadId));
+        }
+        await Promise.all(batch);
       }
 
       // ── Step 3: Finalize — server assembles chunks and starts processing ──
