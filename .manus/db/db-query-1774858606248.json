@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `analytics_events` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`packageId` int NOT NULL,\n\t`sessionId` int,\n\t`userId` int,\n\t`orgId` int,\n\t`eventType` enum('play_start','play_end','play_pause','play_resume','download','scorm_complete','scorm_pass','scorm_fail','page_view','link_click','error') NOT NULL,\n\t`eventData` text,\n\t`occurredAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `analytics_events_id` PRIMARY KEY(`id`)\n)",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute CREATE TABLE `analytics_events` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`packageId` int NOT NULL,\n\t`sessionId` int,\n\t`userId` int,\n\t`orgId` int,\n\t`eventType` enum('play_start','play_end','play_pause','play_resume','download','scorm_complete','scorm_pass','scorm_fail','page_view','link_click','error') NOT NULL,\n\t`eventData` text,\n\t`occurredAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `analytics_events_id` PRIMARY KEY(`id`)\n)",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 400
+}

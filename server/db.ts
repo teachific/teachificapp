@@ -1,11 +1,22 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import {
+  analyticsEvents,
+  contentPackages,
+  contentVersions,
+  fileAssets,
+  InsertUser,
+  orgMembers,
+  organizations,
+  permissions,
+  playSessions,
+  scormData,
+  users,
+} from "../drizzle/schema";
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -18,75 +29,392 @@ export async function getDb() {
   return _db;
 }
 
+// ─── Users ─────────────────────────────────────────────────────────────────────
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
-
+  if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
+  if (!db) return;
+
+  const values: InsertUser = { openId: user.openId };
+  const updateSet: Record<string, unknown> = {};
+
+  const textFields = ["name", "email", "loginMethod"] as const;
+  for (const field of textFields) {
+    const value = user[field];
+    if (value === undefined) continue;
+    const normalized = value ?? null;
+    values[field] = normalized;
+    updateSet[field] = normalized;
   }
 
-  try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
-    });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
+  if (user.lastSignedIn !== undefined) {
+    values.lastSignedIn = user.lastSignedIn;
+    updateSet.lastSignedIn = user.lastSignedIn;
   }
+
+  // Auto-promote owner to site_owner
+  if (user.openId === ENV.ownerOpenId) {
+    values.role = "site_owner";
+    updateSet.role = "site_owner";
+  } else if (user.role !== undefined) {
+    values.role = user.role;
+    updateSet.role = user.role;
+  }
+
+  if (!values.lastSignedIn) values.lastSignedIn = new Date();
+  if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
+
+  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
 }
 
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
-
+  if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(users).orderBy(desc(users.createdAt));
+}
+
+export async function updateUserRole(userId: number, role: "site_owner" | "admin" | "user") {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ role }).where(eq(users.id, userId));
+}
+
+// ─── Organizations ─────────────────────────────────────────────────────────────
+export async function createOrg(data: {
+  name: string;
+  slug: string;
+  description?: string;
+  ownerId: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(organizations).values(data);
+  return result[0];
+}
+
+export async function getOrgById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getOrgBySlug(slug: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(organizations).where(eq(organizations.slug, slug)).limit(1);
+  return result[0];
+}
+
+export async function getAllOrgs() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(organizations).orderBy(desc(organizations.createdAt));
+}
+
+export async function updateOrg(id: number, data: Partial<typeof organizations.$inferInsert>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(organizations).set(data).where(eq(organizations.id, id));
+}
+
+export async function getOrgsByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const members = await db.select().from(orgMembers).where(eq(orgMembers.userId, userId));
+  if (members.length === 0) return [];
+  const orgIds = members.map((m) => m.orgId);
+  return db.select().from(organizations).where(inArray(organizations.id, orgIds));
+}
+
+// ─── Org Members ───────────────────────────────────────────────────────────────
+export async function addOrgMember(orgId: number, userId: number, role: "admin" | "user", invitedBy?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(orgMembers).values({ orgId, userId, role, invitedBy });
+}
+
+export async function getOrgMembers(orgId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(orgMembers).where(eq(orgMembers.orgId, orgId));
+}
+
+export async function getOrgMember(orgId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(orgMembers)
+    .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)))
+    .limit(1);
+  return result[0];
+}
+
+export async function removeOrgMember(orgId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(orgMembers).where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)));
+}
+
+export async function updateOrgMemberRole(orgId: number, userId: number, role: "admin" | "user") {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(orgMembers).set({ role }).where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)));
+}
+
+// ─── Content Packages ──────────────────────────────────────────────────────────
+export async function createPackage(data: typeof contentPackages.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(contentPackages).values(data);
+  return result[0];
+}
+
+export async function getPackageById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(contentPackages).where(eq(contentPackages.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getPackagesByOrg(orgId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contentPackages).where(eq(contentPackages.orgId, orgId)).orderBy(desc(contentPackages.createdAt));
+}
+
+export async function getAllPackages() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contentPackages).orderBy(desc(contentPackages.createdAt));
+}
+
+export async function updatePackage(id: number, data: Partial<typeof contentPackages.$inferInsert>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(contentPackages).set(data).where(eq(contentPackages.id, id));
+}
+
+export async function deletePackage(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(contentPackages).where(eq(contentPackages.id, id));
+}
+
+export async function incrementPlayCount(packageId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(contentPackages)
+    .set({ totalPlayCount: sql`totalPlayCount + 1` })
+    .where(eq(contentPackages.id, packageId));
+}
+
+export async function incrementDownloadCount(packageId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(contentPackages)
+    .set({ totalDownloadCount: sql`totalDownloadCount + 1` })
+    .where(eq(contentPackages.id, packageId));
+}
+
+// ─── Content Versions ──────────────────────────────────────────────────────────
+export async function createVersion(data: typeof contentVersions.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(contentVersions).values(data);
+  return result[0];
+}
+
+export async function getVersionsByPackage(packageId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contentVersions)
+    .where(eq(contentVersions.packageId, packageId))
+    .orderBy(desc(contentVersions.versionNumber));
+}
+
+export async function getVersionById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(contentVersions).where(eq(contentVersions.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getLatestVersionNumber(packageId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const versions = await db.select().from(contentVersions)
+    .where(eq(contentVersions.packageId, packageId))
+    .orderBy(desc(contentVersions.versionNumber))
+    .limit(1);
+  return versions[0]?.versionNumber ?? 0;
+}
+
+// ─── File Assets ───────────────────────────────────────────────────────────────
+export async function createFileAsset(data: typeof fileAssets.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(fileAssets).values(data);
+}
+
+export async function getFileAssetsByVersion(versionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(fileAssets).where(eq(fileAssets.versionId, versionId));
+}
+
+export async function getEntryPointAsset(versionId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(fileAssets)
+    .where(and(eq(fileAssets.versionId, versionId), eq(fileAssets.isEntryPoint, true)))
+    .limit(1);
+  return result[0];
+}
+
+// ─── Permissions ───────────────────────────────────────────────────────────────
+export async function createPermissions(packageId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(permissions).values({ packageId });
+}
+
+export async function getPermissions(packageId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(permissions).where(eq(permissions.packageId, packageId)).limit(1);
+  return result[0];
+}
+
+export async function updatePermissions(packageId: number, data: Partial<typeof permissions.$inferInsert>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(permissions).set(data).where(eq(permissions.packageId, packageId));
+}
+
+// ─── Play Sessions ─────────────────────────────────────────────────────────────
+export async function createPlaySession(data: typeof playSessions.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(playSessions).values(data);
+  return result[0];
+}
+
+export async function getPlaySession(sessionToken: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(playSessions).where(eq(playSessions.sessionToken, sessionToken)).limit(1);
+  return result[0];
+}
+
+export async function updatePlaySession(sessionToken: string, data: Partial<typeof playSessions.$inferInsert>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(playSessions).set(data).where(eq(playSessions.sessionToken, sessionToken));
+}
+
+export async function getPlaySessionsByPackage(packageId: number, limit = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(playSessions)
+    .where(eq(playSessions.packageId, packageId))
+    .orderBy(desc(playSessions.startedAt))
+    .limit(limit);
+}
+
+export async function getUserPlayCount(packageId: number, userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(*)` })
+    .from(playSessions)
+    .where(and(eq(playSessions.packageId, packageId), eq(playSessions.userId, userId)));
+  return result[0]?.count ?? 0;
+}
+
+// ─── SCORM Data ────────────────────────────────────────────────────────────────
+export async function upsertScormData(sessionId: number, packageId: number, userId: number | undefined, data: {
+  cmiData?: string;
+  suspendData?: string;
+  lessonStatus?: string;
+  lessonLocation?: string;
+  score?: number;
+  totalTime?: string;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await db.select().from(scormData).where(eq(scormData.sessionId, sessionId)).limit(1);
+  if (existing.length > 0) {
+    await db.update(scormData).set(data).where(eq(scormData.sessionId, sessionId));
+  } else {
+    await db.insert(scormData).values({ sessionId, packageId, userId, ...data });
+  }
+}
+
+export async function getScormData(sessionId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(scormData).where(eq(scormData.sessionId, sessionId)).limit(1);
+  return result[0];
+}
+
+// ─── Analytics Events ──────────────────────────────────────────────────────────
+export async function logAnalyticsEvent(data: typeof analyticsEvents.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(analyticsEvents).values(data);
+}
+
+export async function getAnalyticsByPackage(packageId: number, limit = 500) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(analyticsEvents)
+    .where(eq(analyticsEvents.packageId, packageId))
+    .orderBy(desc(analyticsEvents.occurredAt))
+    .limit(limit);
+}
+
+export async function getAnalyticsByOrg(orgId: number, limit = 1000) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(analyticsEvents)
+    .where(eq(analyticsEvents.orgId, orgId))
+    .orderBy(desc(analyticsEvents.occurredAt))
+    .limit(limit);
+}
+
+export async function getAnalyticsSummary(orgId?: number) {
+  const db = await getDb();
+  if (!db) return { totalPlays: 0, totalDownloads: 0, totalCompletions: 0 };
+
+  const baseQuery = orgId
+    ? db.select({ eventType: analyticsEvents.eventType, count: sql<number>`count(*)` })
+        .from(analyticsEvents)
+        .where(eq(analyticsEvents.orgId, orgId))
+        .groupBy(analyticsEvents.eventType)
+    : db.select({ eventType: analyticsEvents.eventType, count: sql<number>`count(*)` })
+        .from(analyticsEvents)
+        .groupBy(analyticsEvents.eventType);
+
+  const rows = await baseQuery;
+  const map = Object.fromEntries(rows.map((r) => [r.eventType, r.count]));
+  return {
+    totalPlays: (map["play_start"] ?? 0),
+    totalDownloads: (map["download"] ?? 0),
+    totalCompletions: (map["scorm_complete"] ?? 0) + (map["scorm_pass"] ?? 0),
+  };
+}

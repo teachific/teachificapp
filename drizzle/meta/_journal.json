@@ -1,5 +1,27 @@
 {
   "version": "7",
   "dialect": "mysql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1774858143766,
+      "tag": "0000_striped_frog_thor",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1774858407233,
+      "tag": "0001_keen_rick_jones",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1774858566049,
+      "tag": "0002_kind_blur",
+      "breakpoints": true
+    }
+  ]
 }
