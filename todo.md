@@ -129,3 +129,10 @@
 - [x] Create bare /embed/:packageId route (no admin nav) for share/embed links
 - [x] Fix share links to point to /embed/:packageId
 - [x] Test full upload → play → share flow
+
+## Logo Branding
+- [x] Upload Teachific.png logo to CDN
+- [x] Apply logo to sidebar header (replaces icon + text)
+- [x] Apply logo to login screen (white/inverted version)
+- [x] Apply logo to embed player LMS shell header
+- [x] Set logo as browser tab favicon in index.html

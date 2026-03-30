@@ -188,17 +188,17 @@ export default function EmbedPage() {
     <div className="flex flex-col h-screen bg-gray-950">
       {/* Minimal top bar */}
       <div className={`shrink-0 flex items-center px-4 gap-3 ${isLmsShell ? "h-14 bg-gray-900 border-b border-gray-800" : "h-11 bg-gray-900/80 border-b border-gray-800/60"}`}>
-        {isLmsShell && (
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="h-6 w-6 rounded-md bg-primary flex items-center justify-center">
-              <BookOpen className="h-3.5 w-3.5 text-primary-foreground" />
-            </div>
-            <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider hidden sm:block" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              Teachific&#8482;
-            </span>
+          {isLmsShell && (
+          <div className="flex items-center gap-3 shrink-0">
+            <img
+              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/Teachific_ebe5bd67.png"
+              alt="Teachific"
+              className="h-6 w-auto object-contain hidden sm:block"
+              style={{ maxWidth: 110 }}
+            />
             <div className="h-4 w-px bg-gray-700 hidden sm:block" />
           </div>
-        )}
+          )}
 
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white truncate">{pkg.title}</p>

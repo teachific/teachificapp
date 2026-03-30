@@ -95,12 +95,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full bg-white/5 backdrop-blur rounded-2xl border border-white/10 shadow-2xl">
           <div className="flex flex-col items-center gap-4">
-            <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
-              <FileArchive className="h-8 w-8 text-primary-foreground" />
+            <div className="flex items-center justify-center">
+              <img
+                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/Teachific_ebe5bd67.png"
+                alt="Teachific"
+                className="h-16 w-auto object-contain brightness-0 invert"
+              />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-center text-white" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              Teachific&#8482;
-            </h1>
             <p className="text-sm text-slate-400 text-center max-w-sm">
               Sign in to access your content library, manage SCORM packages, and track learner progress.
             </p>
@@ -188,11 +189,13 @@ function DashboardLayoutContent({
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
               {!isCollapsed && (
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="h-6 w-6 rounded bg-primary flex items-center justify-center shrink-0">
-                    <FileArchive className="h-3.5 w-3.5 text-primary-foreground" />
-                  </div>
-                  <span className="font-bold tracking-tight truncate text-sm" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Teachific&#8482;</span>
+                <div className="flex items-center min-w-0 pl-1">
+                  <img
+                    src="https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/Teachific_ebe5bd67.png"
+                    alt="Teachific"
+                    className="h-8 w-auto object-contain"
+                    style={{ maxWidth: 140 }}
+                  />
                 </div>
               )}
             </div>
