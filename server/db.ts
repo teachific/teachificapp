@@ -143,6 +143,14 @@ export async function getOrgsByUserId(userId: number) {
   return db.select().from(organizations).where(inArray(organizations.id, orgIds));
 }
 
+/** Returns the primary orgId for an org_admin user (first membership row). Returns null if none found. */
+export async function getOrgIdForUser(userId: number): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select({ orgId: orgMembers.orgId }).from(orgMembers).where(eq(orgMembers.userId, userId)).limit(1);
+  return rows[0]?.orgId ?? null;
+}
+
 // ─── Org Members ───────────────────────────────────────────────────────────────
 export async function addOrgMember(orgId: number, userId: number, role: "org_admin" | "user", invitedBy?: number) {
   const db = await getDb();

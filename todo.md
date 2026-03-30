@@ -366,3 +366,12 @@
 - [x] Frontend: role labels updated in Users admin panel (Site Admin, Org Admin, Owner, User)
 - [x] Frontend: sidebar admin nav hidden from org_admin users
 - [ ] Frontend: org_admin My Files shows only their org's packages (deferred)
+
+## Feature: Org Admin Content Scoping
+- [x] packages.list: filtered to org_admin's assigned org (getOrgIdForUser)
+- [x] analytics.summary: scoped to org_admin's org
+- [x] analytics.byPackage: 403 if package is outside org_admin's org
+- [x] sessions.listByPackage: 403 if package is outside org_admin's org
+- [x] folders.list: scoped to org_admin's assigned org
+- [x] Helper getOrgIdForUser(userId) added to db.ts
+- [x] No frontend changes needed — all queries return scoped data automatically

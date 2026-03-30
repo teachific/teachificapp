@@ -52,6 +52,7 @@ import {
   movePackageToFolder,
   setVersionReplacedAt,
   deleteVersionAssets,
+  getOrgIdForUser,
 } from "./db";
 import {
   getQuizById,
@@ -182,9 +183,17 @@ export const appRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number().optional() }).optional())
       .query(async ({ input, ctx }) => {
+        // Site-wide roles: see everything (or filter by explicit orgId)
         if (ctx.user.role === "site_owner" || ctx.user.role === "site_admin") {
           return input?.orgId ? getPackagesByOrg(input.orgId) : getAllPackages();
         }
+        // org_admin: always scoped to their assigned org only
+        if (ctx.user.role === "org_admin") {
+          const orgId = await getOrgIdForUser(ctx.user.id);
+          if (!orgId) return [];
+          return getPackagesByOrg(orgId);
+        }
+        // Regular users: see packages from their orgs
         const orgs = await getOrgsByUserId(ctx.user.id);
         const orgIds = orgs.map((o) => o.id);
         if (input?.orgId && orgIds.includes(input.orgId)) return getPackagesByOrg(input.orgId);
@@ -606,7 +615,15 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
 
     listByPackage: protectedProcedure
       .input(z.object({ packageId: z.number(), limit: z.number().optional() }))
-      .query(({ input }) => getPlaySessionsByPackage(input.packageId, input.limit ?? 200)),
+      .query(async ({ input, ctx }) => {
+        // org_admin: verify the package belongs to their org
+        if (ctx.user.role === "org_admin") {
+          const orgId = await getOrgIdForUser(ctx.user.id);
+          const pkg = await getPackageById(input.packageId);
+          if (!pkg || pkg.orgId !== orgId) throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+        }
+        return getPlaySessionsByPackage(input.packageId, input.limit ?? 200);
+      }),
   }),
 
   // ── SCORM LMS API ─────────────────────────────────────────────────────────
@@ -644,11 +661,26 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
   analytics: router({
     summary: protectedProcedure
       .input(z.object({ orgId: z.number().optional() }))
-      .query(({ input }) => getAnalyticsSummary(input.orgId)),
+      .query(async ({ input, ctx }) => {
+        // org_admin: always scope to their assigned org
+        if (ctx.user.role === "org_admin") {
+          const orgId = await getOrgIdForUser(ctx.user.id);
+          return getAnalyticsSummary(orgId ?? undefined);
+        }
+        return getAnalyticsSummary(input.orgId);
+      }),
 
     byPackage: protectedProcedure
       .input(z.object({ packageId: z.number() }))
-      .query(({ input }) => getAnalyticsByPackage(input.packageId)),
+      .query(async ({ input, ctx }) => {
+        // org_admin: verify the package belongs to their org before returning data
+        if (ctx.user.role === "org_admin") {
+          const orgId = await getOrgIdForUser(ctx.user.id);
+          const pkg = await getPackageById(input.packageId);
+          if (!pkg || pkg.orgId !== orgId) throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+        }
+        return getAnalyticsByPackage(input.packageId);
+      }),
 
     byOrg: protectedProcedure
       .input(z.object({ orgId: z.number() }))
@@ -869,8 +901,13 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     // List all folders for the current user's org
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
-      .query(({ input, ctx }) => {
-        // Only members of the org can list folders
+      .query(async ({ input, ctx }) => {
+        // org_admin: always scope to their assigned org, ignore input.orgId
+        if (ctx.user.role === "org_admin") {
+          const orgId = await getOrgIdForUser(ctx.user.id);
+          if (!orgId) return [];
+          return getFoldersByOrg(orgId);
+        }
         return getFoldersByOrg(input.orgId);
       }),
 
