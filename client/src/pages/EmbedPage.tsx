@@ -49,6 +49,19 @@ export default function EmbedPage() {
   const params = useParams<{ id: string }>();
   const packageId = Number(params.id);
 
+  // Read dynamic learner identity + UTM params from the URL query string
+  // Supported: ?learner_name=&learner_email=&learner_id=&learner_group=&custom_data=&utm_source=&utm_medium=&utm_campaign=
+  const urlParams = new URLSearchParams(window.location.search);
+  const learnerName   = urlParams.get("learner_name")   ?? undefined;
+  const learnerEmail  = urlParams.get("learner_email")  ?? undefined;
+  const learnerId     = urlParams.get("learner_id")     ?? undefined;
+  const learnerGroup  = urlParams.get("learner_group")  ?? undefined;
+  const customData    = urlParams.get("custom_data")    ?? undefined;
+  const utmSource     = urlParams.get("utm_source")     ?? undefined;
+  const utmMedium     = urlParams.get("utm_medium")     ?? undefined;
+  const utmCampaign   = urlParams.get("utm_campaign")   ?? undefined;
+  const referrer      = document.referrer || undefined;
+
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [completionStatus, setCompletionStatus] = useState("not_started");
@@ -65,10 +78,21 @@ export default function EmbedPage() {
   const endSession = trpc.sessions.end.useMutation();
   const saveScorm = trpc.scorm.setData.useMutation();
 
-  // Start session
+  // Start session — forward all URL learner params so they are stored on the session record
   useEffect(() => {
     if (pkg?.status === "ready") {
-      startSession.mutateAsync({ packageId })
+      startSession.mutateAsync({
+        packageId,
+        learnerName,
+        learnerEmail,
+        learnerId,
+        learnerGroup,
+        customData,
+        utmSource,
+        utmMedium,
+        utmCampaign,
+        referrer,
+      })
         .then((r) => {
           sessionTokenRef.current = r.sessionToken;
           setStarted(true);
