@@ -226,3 +226,8 @@
 - [x] EmbedPage: if package is private and user not logged in, show login wall
 - [ ] PlayerPage: same private access gate (low priority — admin-only route)
 - [ ] Share link: token-protected links bypass the public/private check
+
+## Bug Fix: Embed Content Flash
+- [x] Content shows briefly then disappears in embed player
+- [x] Root cause: permissions.get was protectedProcedure — threw UNAUTHORIZED for unauthenticated users, causing tRPC retries and re-renders that flashed the iframe
+- [x] Fix: made permissions.get a publicProcedure; added retry:false + staleTime:Infinity to pkg and perms queries in EmbedPage

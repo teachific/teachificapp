@@ -73,8 +73,11 @@ export default function EmbedPage() {
   const sessionTokenRef = useRef<string | null>(null);
   const scormDataRef = useRef<Record<string, string>>({});
 
-  const { data: pkg, isLoading, error: pkgError } = trpc.packages.get.useQuery({ id: packageId });
-  const { data: perms } = trpc.permissions.get.useQuery({ packageId });
+  const { data: pkg, isLoading, error: pkgError } = trpc.packages.get.useQuery(
+    { id: packageId },
+    { retry: false, staleTime: Infinity }
+  );
+  const { data: perms } = trpc.permissions.get.useQuery({ packageId }, { retry: false });
   const startSession = trpc.sessions.start.useMutation();
   const endSession = trpc.sessions.end.useMutation();
   const saveScorm = trpc.scorm.setData.useMutation();

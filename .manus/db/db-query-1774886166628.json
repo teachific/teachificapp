@@ -1,0 +1,25 @@
+{
+  "query": "SELECT id, title, isPublic FROM content_packages ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute SELECT id, title, isPublic FROM content_packages ORDER BY id;",
+  "rows": [
+    {
+      "id": "1",
+      "title": "UNLIMITED REGISTRY REVIEW QUIZ OBGYN",
+      "isPublic": "1"
+    },
+    {
+      "id": "5",
+      "title": "UNLIMITED REGISTRY REVIEW QUIZ - ADVANCED CARDIAC SONOGRAPHER (ACS)",
+      "isPublic": "1"
+    },
+    {
+      "id": "6",
+      "title": "UNLIMITED FLASHCARDS   ACS",
+      "isPublic": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tisPublic\n1\tUNLIMITED REGISTRY REVIEW QUIZ OBGYN\t1\n5\tUNLIMITED REGISTRY REVIEW QUIZ - ADVANCED CARDIAC SONOGRAPHER (ACS)\t1\n6\tUNLIMITED FLASHCARDS   ACS\t1\n",
+  "stderr": "",
+  "execution_time_ms": 65
+}

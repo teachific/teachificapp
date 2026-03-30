@@ -1,0 +1,234 @@
+{
+  "query": "DESCRIBE content_packages;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute DESCRIBE content_packages;",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "orgId",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "uploadedBy",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "title",
+      "Type": "varchar(500)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "description",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "tags",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "scormVersion",
+      "Type": "enum('1.2','2004','none')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "none",
+      "Extra": ""
+    },
+    {
+      "Field": "scormEntryPoint",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "scormManifest",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "contentType",
+      "Type": "enum('scorm','html','articulate','ispring','unknown')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "unknown",
+      "Extra": ""
+    },
+    {
+      "Field": "llmSummary",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "llmTags",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "llmValidationNotes",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "originalZipKey",
+      "Type": "text",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "originalZipUrl",
+      "Type": "text",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "originalZipSize",
+      "Type": "bigint",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "extractedFolderKey",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "enum('uploading','processing','ready','error')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "uploading",
+      "Extra": ""
+    },
+    {
+      "Field": "processingError",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "currentVersionId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "totalPlayCount",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "totalDownloadCount",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "isPublic",
+      "Type": "tinyint(1)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "createdAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updatedAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "displayMode",
+      "Type": "varchar(20)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "native",
+      "Extra": ""
+    },
+    {
+      "Field": "lmsShellConfig",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "folderId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\norgId\tint\tNO\t\tNULL\t\nuploadedBy\tint\tNO\t\tNULL\t\ntitle\tvarchar(500)\tNO\t\tNULL\t\ndescription\ttext\tYES\t\tNULL\t\ntags\ttext\tYES\t\tNULL\t\nscormVersion\tenum('1.2','2004','none')\tNO\t\tnone\t\nscormEntryPoint\ttext\tYES\t\tNULL\t\nscormManifest\ttext\tYES\t\tNULL\t\ncontentType\tenum('scorm','html','articulate','ispring','unknown')\tNO\t\tunknown\t\nllmSummary\ttext\tYES\t\tNULL\t\nllmTags\ttext\tYES\t\tNULL\t\nllmValidationNotes\ttext\tYES\t\tNULL\t\noriginalZipKey\ttext\tNO\t\tNULL\t\noriginalZipUrl\ttext\tNO\t\tNULL\t\noriginalZipSize\tbigint\tYES\t\t0\t\nextractedFolderKey\ttext\tYES\t\tNULL\t\nstatus\tenum('uploading','processing','ready','error')\tNO\t\tuploading\t\nprocessingError\ttext\tYES\t\tNULL\t\ncurrentVersionId\tint\tYES\t\tNULL\t\ntotalPlayCount\tint\tNO\t\t0\t\ntotalDownloadCount\tint\tNO\t\t0\t\nisPublic\ttinyint(1)\tNO\t\t0\t\ncreatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\ndisplayMode\tvarchar(20)\tNO\t\tnative\t\nlmsShellConfig\ttext\tYES\t\tNULL\t\nfolderId\tint\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 61
+}

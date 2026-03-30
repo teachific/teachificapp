@@ -392,7 +392,7 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
 
   // ── Permissions ───────────────────────────────────────────────────────────
   permissions: router({
-    get: protectedProcedure
+    get: publicProcedure
       .input(z.object({ packageId: z.number() }))
       .query(({ input }) => getPermissions(input.packageId)),
 
