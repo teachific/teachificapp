@@ -11,7 +11,7 @@ import {
   AlertCircle, CheckCircle2, ChevronRight, FileArchive,
   Layers, Loader2, Monitor, Play, Upload, X,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -42,7 +42,25 @@ const DISPLAY_MODES: Array<{ id: DisplayMode; label: string; desc: string; icon:
 export default function UploadPage() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-  const { data: myOrgs } = trpc.orgs.myOrgs.useQuery();
+  const utils = trpc.useUtils();
+
+  // Fetch user's orgs
+  const { data: myOrgs, isLoading: orgsLoading } = trpc.orgs.myOrgs.useQuery(undefined, {
+    enabled: !!user,
+  });
+
+  // Auto-provision default org if user has none
+  const ensureDefault = trpc.orgs.ensureDefault.useMutation({
+    onSuccess: () => {
+      utils.orgs.myOrgs.invalidate();
+    },
+  });
+
+  useEffect(() => {
+    if (!orgsLoading && myOrgs && myOrgs.length === 0 && !ensureDefault.isPending) {
+      ensureDefault.mutate();
+    }
+  }, [orgsLoading, myOrgs]);
 
   const [step, setStep] = useState<Step>("select");
   const [file, setFile] = useState<File | null>(null);
@@ -58,6 +76,9 @@ export default function UploadPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const analyzePackage = trpc.packages.analyze.useMutation();
+
+  // Resolve the effective org ID: prefer explicit selection, fall back to first org
+  const effectiveOrgId = selectedOrgId || myOrgs?.[0]?.id;
 
   const handleFileSelect = useCallback((selectedFile: File) => {
     if (!selectedFile.name.toLowerCase().endsWith(".zip")) {
@@ -82,8 +103,10 @@ export default function UploadPage() {
 
   const handleUpload = async () => {
     if (!file || !title.trim()) { toast.error("Please provide a title"); return; }
-    const orgId = selectedOrgId || myOrgs?.[0]?.id;
-    if (!orgId) { toast.error("Please select an organization"); return; }
+    if (!effectiveOrgId) {
+      toast.error("No workspace found. Please wait a moment and try again.");
+      return;
+    }
     if (!user) { toast.error("You must be logged in"); return; }
 
     setStep("uploading");
@@ -93,7 +116,7 @@ export default function UploadPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("orgId", String(orgId));
+      formData.append("orgId", String(effectiveOrgId));
       formData.append("uploadedBy", String(user.id));
       formData.append("title", title);
       formData.append("displayMode", displayMode);
@@ -151,6 +174,9 @@ export default function UploadPage() {
     setPackageId(null); setUploadProgress(0); setError(null); setStep("select");
   };
 
+  // Show a loading state while provisioning the default org
+  const isProvisioningOrg = orgsLoading || ensureDefault.isPending;
+
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -164,8 +190,39 @@ export default function UploadPage() {
         <p className="text-muted-foreground text-sm mt-1">Upload SCORM, Articulate, iSpring, or HTML ZIP packages</p>
       </div>
 
+      {/* Provisioning spinner */}
+      {isProvisioningOrg && (
+        <Card className="shadow-sm border-border/60">
+          <CardContent className="p-6 flex items-center gap-3 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+            Setting up your workspace&hellip;
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Workspace badge — shown when org is resolved */}
+      {!isProvisioningOrg && effectiveOrgId && myOrgs && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Workspace:</span>
+          <Badge variant="secondary" className="text-xs">
+            {myOrgs.find((o) => o.id === effectiveOrgId)?.name ?? "My Workspace"}
+          </Badge>
+          {myOrgs.length > 1 && (
+            <select
+              className="ml-2 h-7 rounded-md border border-input bg-background px-2 text-xs"
+              value={selectedOrgId || ""}
+              onChange={(e) => setSelectedOrgId(Number(e.target.value))}
+            >
+              {myOrgs.map((org) => (
+                <option key={org.id} value={org.id}>{org.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
       {/* Step 1: Select File */}
-      {step === "select" && (
+      {step === "select" && !isProvisioningOrg && (
         <Card className="shadow-sm border-border/60">
           <CardContent className="p-8">
             <div
@@ -239,12 +296,15 @@ export default function UploadPage() {
                 <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)}
                   placeholder="Brief description of this content..." rows={3} />
               </div>
+              {/* Only show org selector when user belongs to multiple orgs */}
               {myOrgs && myOrgs.length > 1 && (
                 <div className="space-y-1.5">
-                  <Label>Organization</Label>
-                  <select className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                    value={selectedOrgId || ""} onChange={(e) => setSelectedOrgId(Number(e.target.value))}>
-                    <option value="">Select organization...</option>
+                  <Label>Workspace</Label>
+                  <select
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                    value={selectedOrgId || myOrgs[0]?.id || ""}
+                    onChange={(e) => setSelectedOrgId(Number(e.target.value))}
+                  >
                     {myOrgs.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
                   </select>
                 </div>
@@ -259,10 +319,15 @@ export default function UploadPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {DISPLAY_MODES.map((mode) => (
-                <button key={mode.id} onClick={() => setDisplayMode(mode.id)}
-                  className={`w-full flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all ${
-                    displayMode === mode.id ? "border-primary bg-primary/5" : "border-border/60 hover:border-primary/30 hover:bg-accent/30"
-                  }`}>
+                <button
+                  key={mode.id}
+                  onClick={() => setDisplayMode(mode.id)}
+                  className={`w-full flex items-start gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                    displayMode === mode.id
+                      ? "border-primary bg-primary/5"
+                      : "border-border/60 hover:border-primary/30 hover:bg-accent/30"
+                  }`}
+                >
                   <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${
                     displayMode === mode.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                   }`}>
@@ -282,7 +347,11 @@ export default function UploadPage() {
 
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => { setFile(null); setStep("select"); }}>Back</Button>
-            <Button onClick={handleUpload} disabled={!title.trim()} className="flex-1 gap-2">
+            <Button
+              onClick={handleUpload}
+              disabled={!title.trim() || !effectiveOrgId}
+              className="flex-1 gap-2"
+            >
               <Upload className="h-4 w-4" />Upload Package
             </Button>
           </div>
@@ -339,10 +408,8 @@ export default function UploadPage() {
               <Button variant="outline" onClick={() => setLocation(`/play/${packageId}`)}>
                 <Play className="h-4 w-4 mr-1.5" />Preview
               </Button>
+              <Button variant="ghost" onClick={resetForm}>Upload Another</Button>
             </div>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={resetForm}>
-              Upload Another
-            </Button>
           </CardContent>
         </Card>
       )}

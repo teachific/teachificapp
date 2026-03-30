@@ -108,3 +108,10 @@
 - [x] Update HTML page title and meta tags in index.html
 - [x] Update all page headers and references to old platform name
 - [x] Save checkpoint and deliver
+
+## Bug Fix: Upload Requires Organization Selection
+- [x] Auto-create a default "Personal Workspace" org for site owner on first login
+- [x] Add backend procedure to ensure user always has at least one org
+- [x] UploadPage: auto-select org when user only has one org (skip the selector)
+- [x] UploadPage: if no org exists, auto-provision one before showing upload form
+- [x] Fix org selector to not block upload for site owner

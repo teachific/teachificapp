@@ -113,6 +113,21 @@ export const appRouter = router({
   orgs: router({
     list: adminProcedure.query(() => getAllOrgs()),
     myOrgs: protectedProcedure.query(({ ctx }) => getOrgsByUserId(ctx.user.id)),
+    // Auto-provision a default org for users who have none (e.g. existing users pre-dating auto-creation)
+    ensureDefault: protectedProcedure.mutation(async ({ ctx }) => {
+      const existing = await getOrgsByUserId(ctx.user.id);
+      if (existing.length > 0) return existing[0];
+      const base = (ctx.user.name || ctx.user.email || "personal")
+        .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+      const slug = `${base}-workspace`;
+      const taken = await getOrgBySlug(slug);
+      const finalSlug = taken ? `${slug}-${ctx.user.id}` : slug;
+      const orgName = ctx.user.name ? `${ctx.user.name}'s Workspace` : "My Workspace";
+      await createOrg({ name: orgName, slug: finalSlug, description: "Default personal workspace", ownerId: ctx.user.id });
+      const newOrg = await getOrgBySlug(finalSlug);
+      if (newOrg) await addOrgMember(newOrg.id, ctx.user.id, "admin");
+      return newOrg;
+    }),
     get: protectedProcedure.input(z.object({ id: z.number() })).query(({ input }) => getOrgById(input.id)),
     getBySlug: protectedProcedure.input(z.object({ slug: z.string() })).query(({ input }) => getOrgBySlug(input.slug)),
 

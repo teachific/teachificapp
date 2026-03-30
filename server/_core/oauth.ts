@@ -9,6 +9,44 @@ function getQueryParam(req: Request, key: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+/** Auto-provision a default personal workspace for new users who have no org. */
+async function ensureDefaultOrg(openId: string, displayName: string | null, email: string | null) {
+  try {
+    const user = await db.getUserByOpenId(openId);
+    if (!user) return;
+
+    const existingOrgs = await db.getOrgsByUserId(user.id);
+    if (existingOrgs.length > 0) return; // already has at least one org
+
+    const base = (displayName || email || "personal")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40);
+    const slug = `${base}-workspace`;
+
+    // Avoid slug collision
+    const existing = await db.getOrgBySlug(slug);
+    const finalSlug = existing ? `${slug}-${user.id}` : slug;
+    const orgName = displayName ? `${displayName}'s Workspace` : "My Workspace";
+
+    await db.createOrg({
+      name: orgName,
+      slug: finalSlug,
+      description: "Default personal workspace",
+      ownerId: user.id,
+    });
+
+    const newOrg = await db.getOrgBySlug(finalSlug);
+    if (newOrg) {
+      await db.addOrgMember(newOrg.id, user.id, "admin");
+      console.log(`[OAuth] Created default org "${orgName}" (id=${newOrg.id}) for user ${user.id}`);
+    }
+  } catch (err) {
+    console.warn("[OAuth] Could not auto-create default org:", err);
+  }
+}
+
 export function registerOAuthRoutes(app: Express) {
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
@@ -35,6 +73,9 @@ export function registerOAuthRoutes(app: Express) {
         loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
         lastSignedIn: new Date(),
       });
+
+      // Auto-provision default workspace for users who have none
+      await ensureDefaultOrg(userInfo.openId, userInfo.name || null, userInfo.email ?? null);
 
       const sessionToken = await sdk.createSessionToken(userInfo.openId, {
         name: userInfo.name || "",
