@@ -39,7 +39,7 @@ async function ensureDefaultOrg(openId: string, displayName: string | null, emai
 
     const newOrg = await db.getOrgBySlug(finalSlug);
     if (newOrg) {
-      await db.addOrgMember(newOrg.id, user.id, "admin");
+      await db.addOrgMember(newOrg.id, user.id, "org_admin");
       console.log(`[OAuth] Created default org "${orgName}" (id=${newOrg.id}) for user ${user.id}`);
     }
   } catch (err) {

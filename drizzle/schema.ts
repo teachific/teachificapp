@@ -19,7 +19,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["site_owner", "admin", "user"]).default("user").notNull(),
+  role: mysqlEnum("role", ["site_owner", "site_admin", "org_admin", "user"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -51,7 +51,7 @@ export const orgMembers = mysqlTable("org_members", {
   id: int("id").autoincrement().primaryKey(),
   orgId: int("orgId").notNull(),
   userId: int("userId").notNull(),
-  role: mysqlEnum("role", ["admin", "user"]).default("user").notNull(),
+  role: mysqlEnum("role", ["org_admin", "user"]).default("user").notNull(),
   invitedBy: int("invitedBy"),
   joinedAt: timestamp("joinedAt").defaultNow().notNull(),
 });
@@ -128,6 +128,7 @@ export const contentVersions = mysqlTable("content_versions", {
   fileCount: int("fileCount").default(0),
   isActive: boolean("isActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  replacedAt: timestamp("replacedAt"), // set when a newer version becomes current; null = still current
 });
 
 export type ContentVersion = typeof contentVersions.$inferSelect;

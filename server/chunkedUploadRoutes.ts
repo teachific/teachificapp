@@ -53,19 +53,20 @@ router.post("/version/:packageId/initiate", express.json(), async (req: Request,
     return res.status(400).json({ error: "totalChunks and filename are required" });
   }
 
-  // Enforce owner-only restriction for files > 100 MB
+  // Restrict large uploads (> 100 MB) to site owner only
   const fileSizeBytes = parseInt(String(totalBytes ?? "0"), 10);
   if (fileSizeBytes > LARGE_FILE_LIMIT) {
+    let isOwner = false;
     try {
       const user = await sdk.authenticateRequest(req);
-      if (!user || user.openId !== ENV.ownerOpenId) {
-        return res.status(403).json({
-          error: "Files larger than 100 MB can only be uploaded by the site owner.",
-        });
-      }
+      // site_owner and site_admin have unlimited upload access; fallback: openId match
+      isOwner = !!(user && (user.role === "site_owner" || user.role === "site_admin" || user.openId === ENV.ownerOpenId));
     } catch {
+      isOwner = false;
+    }
+    if (!isOwner) {
       return res.status(403).json({
-        error: "Files larger than 100 MB can only be uploaded by the site owner.",
+        error: "File size is restricted to 100 MB.",
       });
     }
   }

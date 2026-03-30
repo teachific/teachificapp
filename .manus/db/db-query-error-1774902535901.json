@@ -1,0 +1,8 @@
+{
+  "query": "\nALTER TABLE users MODIFY COLUMN role ENUM('site_owner','site_admin','org_admin','user') NOT NULL DEFAULT 'user';\nUPDATE users SET role = 'site_admin' WHERE role = 'admin';\nALTER TABLE org_members MODIFY COLUMN role ENUM('org_admin','user') NOT NULL DEFAULT 'user';\nUPDATE org_members SET role = 'org_admin' WHERE role = 'admin';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute \nALTER TABLE users MODIFY COLUMN role ENUM('site_owner','site_admin','org_admin','user') NOT NULL DEFAULT 'user';\nUPDATE users SET role = 'site_admin' WHERE role = 'admin';\nALTER TABLE org_members MODIFY COLUMN role ENUM('org_admin','user') NOT NULL DEFAULT 'user';\nUPDATE org_members SET role = 'org_admin' WHERE role = 'admin';\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1265 (01000) at line 4: Data truncated for column 'role', value is 'admin'"
+  ]
+}

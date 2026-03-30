@@ -139,7 +139,8 @@ function DashboardLayoutContent({
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const isAdmin = user?.role === "admin" || user?.role === "site_owner";
+  const isAdmin = user?.role === "site_admin" || user?.role === "site_owner";
+  const isOrgAdmin = user?.role === "org_admin";
 
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
@@ -247,9 +248,9 @@ function DashboardLayoutContent({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="text-xs font-medium truncate leading-none">{user?.name || "User"}</p>
-                        {isAdmin && (
+                        {(isAdmin || isOrgAdmin) && (
                           <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 shrink-0">
-                            {user?.role === "site_owner" ? "Owner" : "Admin"}
+                            {user?.role === "site_owner" ? "Owner" : user?.role === "site_admin" ? "Site Admin" : "Org Admin"}
                           </Badge>
                         )}
                       </div>

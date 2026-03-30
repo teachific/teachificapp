@@ -35,7 +35,12 @@ export default function AdminUsersPage() {
                 <p className="text-sm font-medium">{u.name ?? "Unknown"}</p>
                 <p className="text-xs text-muted-foreground">{u.email ?? u.openId}</p>
               </div>
-              <Badge variant={u.role === "admin" ? "default" : "secondary"} className="text-xs">{u.role}</Badge>
+              <Badge
+                variant={u.role === "site_owner" || u.role === "site_admin" ? "default" : "secondary"}
+                className="text-xs"
+              >
+                {u.role === "site_owner" ? "Owner" : u.role === "site_admin" ? "Site Admin" : u.role === "org_admin" ? "Org Admin" : "User"}
+              </Badge>
               <span className="text-xs text-muted-foreground">{u.loginMethod ?? "—"}</span>
               <span className="text-xs text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</span>
             </div>

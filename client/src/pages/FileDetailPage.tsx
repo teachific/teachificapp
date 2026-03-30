@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -250,6 +251,10 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number; phase: string } | null>(null);
   const utils = trpc.useUtils();
+  const { user } = useAuth();
+  // Only site_owner and site_admin can upload files over 100 MB
+  const canUploadLarge = user?.role === "site_owner" || user?.role === "site_admin";
+  const FILE_SIZE_LIMIT = 100 * 1024 * 1024; // 100 MB
 
   const handleUpload = async () => {
     if (!file) return;
@@ -412,7 +417,14 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="block w-full text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer disabled:opacity-50"
           />
-          {file && <p className="text-xs text-muted-foreground mt-1">{file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)</p>}
+          {file && (
+            <div className="mt-1 space-y-1">
+              <p className="text-xs text-muted-foreground">{file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)</p>
+              {!canUploadLarge && file.size > FILE_SIZE_LIMIT && (
+                <p className="text-xs text-destructive font-medium">File size is restricted to 100 MB.</p>
+              )}
+            </div>
+          )}
         </div>
         <div>
           <Label className="text-xs mb-1 block">Changelog <span className="text-muted-foreground">(optional)</span></Label>
@@ -440,7 +452,7 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
         )}
         <Button
           onClick={handleUpload}
-          disabled={!file || uploading}
+          disabled={!file || uploading || (!canUploadLarge && !!file && file.size > FILE_SIZE_LIMIT)}
           size="sm"
           className="w-full"
         >
@@ -466,9 +478,18 @@ export default function FileDetailPage() {
   const { data: perms } = trpc.permissions.get.useQuery({ packageId });
   const { data: analytics } = trpc.analytics.byPackage.useQuery({ packageId });
 
+  const utils = trpc.useUtils();
   const updatePkg = trpc.packages.update.useMutation({ onSuccess: () => { toast.success("Saved"); refetch(); } });
   const updatePerms = trpc.permissions.update.useMutation({ onSuccess: () => toast.success("Permissions saved") });
   const generateToken = trpc.permissions.generateShareToken.useMutation();
+  const restoreVersion = trpc.versions.restore.useMutation({
+    onSuccess: () => {
+      toast.success("Version restored successfully");
+      refetch();
+      utils.versions.list.invalidate({ packageId });
+    },
+    onError: () => toast.error("Failed to restore version"),
+  });
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -722,24 +743,53 @@ export default function FileDetailPage() {
                 <p className="text-sm text-muted-foreground">No version history available yet.</p>
               ) : (
                 <div className="space-y-2">
-                  {versions.map((v: any, i: number) => (
-                    <div key={v.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/60">
-                      <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                        {v.versionNumber}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{v.versionLabel ?? `Version ${v.versionNumber}`}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {v.changelog && <span className="mr-2">{v.changelog}</span>}
-                          {new Date(v.createdAt).toLocaleString()}
-                        </p>
-                        {v.fileCount && (
-                          <p className="text-xs text-muted-foreground">{v.fileCount} files · {v.entryPoint}</p>
+                  {versions.map((v: any) => {
+                    const isCurrent = v.id === pkg?.currentVersionId;
+                    // Days remaining before auto-deletion (30 days after replacedAt)
+                    const daysLeft = v.replacedAt
+                      ? Math.ceil((new Date(v.replacedAt).getTime() + 30 * 24 * 60 * 60 * 1000 - Date.now()) / (1000 * 60 * 60 * 24))
+                      : null;
+                    const isExpired = daysLeft !== null && daysLeft <= 0;
+                    return (
+                      <div key={v.id} className={`flex items-start gap-3 p-3 rounded-lg border ${isCurrent ? "border-primary/40 bg-primary/5" : "border-border/60"}${isExpired ? " opacity-50" : ""}` }>
+                        <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${isCurrent ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                          {v.versionNumber}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-medium">{v.versionLabel ?? `Version ${v.versionNumber}`}</p>
+                            {isCurrent && <Badge variant="secondary" className="text-xs">Current</Badge>}
+                            {daysLeft !== null && !isExpired && (
+                              <Badge variant="outline" className="text-xs text-amber-600 border-amber-400">
+                                Auto-delete in {daysLeft}d
+                              </Badge>
+                            )}
+                            {isExpired && (
+                              <Badge variant="outline" className="text-xs text-destructive border-destructive/50">Pending deletion</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {v.changelog && <span className="mr-2">{v.changelog}</span>}
+                            {new Date(v.createdAt).toLocaleString()}
+                          </p>
+                          {v.fileCount > 0 && (
+                            <p className="text-xs text-muted-foreground">{v.fileCount} files · {v.entryPoint}</p>
+                          )}
+                        </div>
+                        {!isCurrent && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 text-xs h-7"
+                            onClick={() => restoreVersion.mutate({ packageId, versionId: v.id })}
+                            disabled={restoreVersion.isPending}
+                          >
+                            Restore
+                          </Button>
                         )}
                       </div>
-                      {i === 0 && <Badge variant="secondary" className="text-xs">Current</Badge>}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

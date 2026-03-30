@@ -89,7 +89,7 @@ export async function getAllUsers() {
   return db.select().from(users).orderBy(desc(users.createdAt));
 }
 
-export async function updateUserRole(userId: number, role: "site_owner" | "admin" | "user") {
+export async function updateUserRole(userId: number, role: "site_owner" | "site_admin" | "org_admin" | "user") {
   const db = await getDb();
   if (!db) return;
   await db.update(users).set({ role }).where(eq(users.id, userId));
@@ -144,7 +144,7 @@ export async function getOrgsByUserId(userId: number) {
 }
 
 // ─── Org Members ───────────────────────────────────────────────────────────────
-export async function addOrgMember(orgId: number, userId: number, role: "admin" | "user", invitedBy?: number) {
+export async function addOrgMember(orgId: number, userId: number, role: "org_admin" | "user", invitedBy?: number) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   await db.insert(orgMembers).values({ orgId, userId, role, invitedBy });
@@ -173,7 +173,7 @@ export async function removeOrgMember(orgId: number, userId: number) {
   await db.delete(orgMembers).where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)));
 }
 
-export async function updateOrgMemberRole(orgId: number, userId: number, role: "admin" | "user") {
+export async function updateOrgMemberRole(orgId: number, userId: number, role: "org_admin" | "user") {
   const db = await getDb();
   if (!db) return;
   await db.update(orgMembers).set({ role }).where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)));
@@ -265,6 +265,19 @@ export async function getLatestVersionNumber(packageId: number): Promise<number>
     .orderBy(desc(contentVersions.versionNumber))
     .limit(1);
   return versions[0]?.versionNumber ?? 0;
+}
+
+export async function setVersionReplacedAt(versionId: number, replacedAt: Date | null) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(contentVersions).set({ replacedAt }).where(eq(contentVersions.id, versionId));
+}
+
+export async function deleteVersionAssets(versionId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(fileAssets).where(eq(fileAssets.versionId, versionId));
+  await db.delete(contentVersions).where(eq(contentVersions.id, versionId));
 }
 
 // ─── File Assets ───────────────────────────────────────────────────────────────

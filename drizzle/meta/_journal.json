@@ -43,6 +43,13 @@
       "when": 1774892984041,
       "tag": "0005_groovy_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1774902339645,
+      "tag": "0006_fine_psynapse",
+      "breakpoints": true
     }
   ]
 }

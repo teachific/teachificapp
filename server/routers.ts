@@ -50,6 +50,8 @@ import {
   updateFolder,
   deleteFolder,
   movePackageToFolder,
+  setVersionReplacedAt,
+  deleteVersionAssets,
 } from "./db";
 import {
   getQuizById,
@@ -78,9 +80,18 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { ENV } from "./_core/env";
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
+// site_owner + site_admin have site-wide access
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin" && ctx.user.role !== "site_owner") {
+  if (ctx.user.role !== "site_admin" && ctx.user.role !== "site_owner") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+  }
+  return next({ ctx });
+});
+
+// org_admin can manage their own org; site_admin + site_owner can manage any org
+const orgAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (!(["site_owner", "site_admin", "org_admin"] as string[]).includes(ctx.user.role)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Organization admin access required" });
   }
   return next({ ctx });
 });
@@ -111,7 +122,7 @@ export const appRouter = router({
     list: adminProcedure.query(() => getAllUsers()),
     get: adminProcedure.input(z.object({ id: z.number() })).query(({ input }) => getUserById(input.id)),
     updateRole: ownerProcedure
-      .input(z.object({ userId: z.number(), role: z.enum(["site_owner", "admin", "user"]) }))
+      .input(z.object({ userId: z.number(), role: z.enum(["site_owner", "site_admin", "org_admin", "user"]) }))
       .mutation(({ input }) => updateUserRole(input.userId, input.role)),
   }),
 
@@ -131,7 +142,7 @@ export const appRouter = router({
       const orgName = ctx.user.name ? `${ctx.user.name}'s Workspace` : "My Workspace";
       await createOrg({ name: orgName, slug: finalSlug, description: "Default personal workspace", ownerId: ctx.user.id });
       const newOrg = await getOrgBySlug(finalSlug);
-      if (newOrg) await addOrgMember(newOrg.id, ctx.user.id, "admin");
+      if (newOrg) await addOrgMember(newOrg.id, ctx.user.id, "org_admin");
       return newOrg;
     }),
     get: protectedProcedure.input(z.object({ id: z.number() })).query(({ input }) => getOrgById(input.id)),
@@ -144,7 +155,7 @@ export const appRouter = router({
         if (existing) throw new TRPCError({ code: "CONFLICT", message: "Slug already in use" });
         await createOrg({ ...input, ownerId: ctx.user.id });
         const org = await getOrgBySlug(input.slug);
-        if (org) await addOrgMember(org.id, ctx.user.id, "admin");
+        if (org) await addOrgMember(org.id, ctx.user.id, "org_admin");
         return org;
       }),
 
@@ -155,13 +166,13 @@ export const appRouter = router({
         return members.map((m, i) => ({ ...m, user: users[i] }));
       }),
       add: adminProcedure
-        .input(z.object({ orgId: z.number(), userId: z.number(), role: z.enum(["admin", "user"]) }))
+        .input(z.object({ orgId: z.number(), userId: z.number(), role: z.enum(["org_admin", "user"]) }))
         .mutation(({ input, ctx }) => addOrgMember(input.orgId, input.userId, input.role, ctx.user.id)),
       remove: adminProcedure
         .input(z.object({ orgId: z.number(), userId: z.number() }))
         .mutation(({ input }) => removeOrgMember(input.orgId, input.userId)),
       updateRole: adminProcedure
-        .input(z.object({ orgId: z.number(), userId: z.number(), role: z.enum(["admin", "user"]) }))
+        .input(z.object({ orgId: z.number(), userId: z.number(), role: z.enum(["org_admin", "user"]) }))
         .mutation(({ input }) => updateOrgMemberRole(input.orgId, input.userId, input.role)),
     }),
   }),
@@ -171,7 +182,7 @@ export const appRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number().optional() }).optional())
       .query(async ({ input, ctx }) => {
-        if (ctx.user.role === "site_owner" || ctx.user.role === "admin") {
+        if (ctx.user.role === "site_owner" || ctx.user.role === "site_admin") {
           return input?.orgId ? getPackagesByOrg(input.orgId) : getAllPackages();
         }
         const orgs = await getOrgsByUserId(ctx.user.id);
@@ -366,6 +377,11 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         fileCount: z.number().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        // Mark the currently active version as replaced
+        const pkg = await getPackageById(input.packageId);
+        if (pkg?.currentVersionId) {
+          await setVersionReplacedAt(pkg.currentVersionId, new Date());
+        }
         const latestNum = await getLatestVersionNumber(input.packageId);
         await createVersion({
           ...input,
@@ -380,6 +396,35 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
           await updatePackage(input.packageId, { currentVersionId: newVersion.id });
         }
         return newVersion;
+      }),
+
+    restore: protectedProcedure
+      .input(z.object({ packageId: z.number(), versionId: z.number() }))
+      .mutation(async ({ input }) => {
+        const pkg = await getPackageById(input.packageId);
+        // Mark the currently active version as replaced (now)
+        if (pkg?.currentVersionId && pkg.currentVersionId !== input.versionId) {
+          await setVersionReplacedAt(pkg.currentVersionId, new Date());
+        }
+        // Restore the target version: clear its replacedAt and set as current
+        await setVersionReplacedAt(input.versionId, null);
+        await updatePackage(input.packageId, { currentVersionId: input.versionId });
+        return { success: true };
+      }),
+
+    purgeExpired: protectedProcedure
+      .input(z.object({ packageId: z.number() }))
+      .mutation(async ({ input }) => {
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+        const cutoff = new Date(Date.now() - THIRTY_DAYS_MS);
+        const versions = await getVersionsByPackage(input.packageId);
+        const expired = versions.filter(
+          (v) => v.replacedAt !== null && v.replacedAt !== undefined && new Date(v.replacedAt) < cutoff
+        );
+        for (const v of expired) {
+          await deleteVersionAssets(v.id);
+        }
+        return { deleted: expired.length };
       }),
 
     assets: protectedProcedure

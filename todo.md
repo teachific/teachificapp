@@ -339,3 +339,30 @@
 - [x] Frontend: passes totalBytes in initiate body; 403 error surfaces as toast with clear message
 - [x] Chunk size reduced to 512 KB to pass through strict production proxy limits
 - [x] Parallel batch size increased to 4 chunks at a time
+
+## Feature: Version Restore + Auto-Delete + Upload Size Warning
+- [ ] Add replacedAt timestamp column to content_package_versions table
+- [ ] Generate and apply migration SQL
+- [ ] DB helper: setVersionReplacedAt(versionId, timestamp)
+- [ ] DB helper: getVersionsDueForDeletion(packageId) — versions where replacedAt < now - 30 days
+- [ ] DB helper: deleteVersionAssets(versionId) — remove S3 files and DB rows
+- [ ] tRPC procedure: packages.versions.restore — sets package currentVersionId, clears replacedAt on restored version, sets replacedAt on previously current version
+- [ ] tRPC procedure: packages.versions.purgeExpired — deletes S3 assets + DB rows for versions past 30-day window (called on page load)
+- [x] FileDetailPage Versions tab: "Restore" button on non-current versions
+- [x] FileDetailPage Versions tab: "Auto-delete in Xd" amber badge + "Pending deletion" badge on replaced versions
+- [ ] FileDetailPage Versions tab: confirmation dialog before restore (deferred)
+- [x] Frontend: show "File size is restricted to 100 MB." inline warning when selected file exceeds 100 MB
+- [x] Upload button disabled for oversized files for non-privileged users
+
+## Feature: Split Admin Role into Site Admin + Org Admin
+- [x] Schema: users.role enum updated to ["site_owner","site_admin","org_admin","user"]
+- [x] Schema: org_members.role enum updated to include org_admin
+- [x] Migrated existing admin users to site_admin
+- [x] Applied migration SQL
+- [x] Server: adminProcedure now allows site_owner + site_admin
+- [x] Server: upload size gate — site_owner + site_admin = unlimited; org_admin + user = 100 MB cap
+- [ ] Server: orgAdminProcedure scoped to their org (deferred)
+- [ ] Server: packages/files queries for org_admin scoped to their assigned org only (deferred)
+- [x] Frontend: role labels updated in Users admin panel (Site Admin, Org Admin, Owner, User)
+- [x] Frontend: sidebar admin nav hidden from org_admin users
+- [ ] Frontend: org_admin My Files shows only their org's packages (deferred)

@@ -1,0 +1,9 @@
+{
+  "query": "\nALTER TABLE org_members MODIFY COLUMN role ENUM('admin','org_admin','user') NOT NULL DEFAULT 'user';\nUPDATE org_members SET role = 'org_admin' WHERE role = 'admin';\nALTER TABLE org_members MODIFY COLUMN role ENUM('org_admin','user') NOT NULL DEFAULT 'user';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute \nALTER TABLE org_members MODIFY COLUMN role ENUM('admin','org_admin','user') NOT NULL DEFAULT 'user';\nUPDATE org_members SET role = 'org_admin' WHERE role = 'admin';\nALTER TABLE org_members MODIFY COLUMN role ENUM('org_admin','user') NOT NULL DEFAULT 'user';\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 754
+}

@@ -1,0 +1,17 @@
+{
+  "query": "SELECT id, openId, name, email, role FROM users ORDER BY id ASC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute SELECT id, openId, name, email, role FROM users ORDER BY id ASC LIMIT 5;",
+  "rows": [
+    {
+      "id": "1",
+      "openId": "gqhMK9SGUVFtXNBydrcBYv",
+      "name": "larawilliams0501",
+      "email": "larawilliams0501@gmail.com",
+      "role": "site_owner"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\topenId\tname\temail\trole\n1\tgqhMK9SGUVFtXNBydrcBYv\tlarawilliams0501\tlarawilliams0501@gmail.com\tsite_owner\n",
+  "stderr": "",
+  "execution_time_ms": 136
+}
