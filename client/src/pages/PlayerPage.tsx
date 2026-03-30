@@ -240,7 +240,7 @@ export default function PlayerPage() {
             <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white" onClick={() => window.open(`/play/${packageId}`, "_blank")}>
               <ExternalLink className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white" onClick={toggleFullscreen}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white sm:text-gray-400 sm:hover:text-white sm:bg-transparent text-teal-400 bg-teal-500/20 hover:bg-teal-500/30 hover:text-teal-300" onClick={toggleFullscreen}>
               {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
           </div>
@@ -325,7 +325,7 @@ export default function PlayerPage() {
                 <Download className="h-4 w-4" />
               </Button>
             )}
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white" onClick={toggleFullscreen}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white sm:text-gray-400 sm:hover:text-white sm:bg-transparent text-teal-400 bg-teal-500/20 hover:bg-teal-500/30 hover:text-teal-300" onClick={toggleFullscreen}>
               {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
           </div>

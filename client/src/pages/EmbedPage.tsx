@@ -278,7 +278,7 @@ export default function EmbedPage() {
               </a>
             </Button>
           )}
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white" onClick={toggleFullscreen} title="Fullscreen">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white sm:text-gray-400 sm:hover:text-white sm:bg-transparent text-teal-400 bg-teal-500/20 hover:bg-teal-500/30 hover:text-teal-300" onClick={toggleFullscreen} title="Fullscreen">
             {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </Button>
         </div>

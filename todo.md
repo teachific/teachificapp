@@ -245,3 +245,7 @@
 - [x] Diagnose: iframe sandbox attribute blocking touch/pointer events
 - [x] Removed sandbox attribute from all iframes in EmbedPage and PlayerPage (native + LMS shell modes)
 - [x] Applies to ordering, connect, and match question types — all rely on touch drag events
+
+## UI: Teal Fullscreen Button on Mobile
+- [x] EmbedPage: fullscreen button teal-highlighted on mobile screens
+- [x] PlayerPage: fullscreen button teal-highlighted on mobile screens (both native and LMS shell modes)
