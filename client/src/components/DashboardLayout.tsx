@@ -25,6 +25,7 @@ import {
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
+  Activity,
   BarChart3,
   BookOpen,
   Building2,
@@ -58,16 +59,11 @@ const navGroups = [
     ],
   },
   {
-    label: "Content",
+    label: "",
     items: [
       { icon: BookOpen, label: "Courses", path: "/lms/courses" },
       { icon: Download, label: "Digital Downloads", path: "/admin/downloads" },
       { icon: Video, label: "Webinars", path: "/lms/webinars" },
-    ],
-  },
-  {
-    label: "People",
-    items: [
       { icon: Users, label: "Members", path: "/lms/members" },
     ],
   },
@@ -78,6 +74,7 @@ const navGroups = [
       { icon: Building2, label: "Organizations", path: "/admin/orgs" },
       { icon: Users, label: "Users", path: "/admin/users" },
       { icon: BarChart3, label: "Analytics", path: "/lms/analytics" },
+      { icon: Activity, label: "Activity Log", path: "/lms/activity" },
       { icon: Palette, label: "Branding", path: "/lms/branding" },
       { icon: FileText, label: "Custom Pages", path: "/lms/custom-pages" },
       { icon: Mail, label: "Email Marketing", path: "/lms/email-marketing" },
