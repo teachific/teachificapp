@@ -1084,3 +1084,7 @@
 ## Analytics Nav Sub-items (Apr 2, 2026)
 - [x] Add Downloads Reports link under Analytics in sidebar → /admin/downloads/reports
 - [x] Add Webinar Reports link under Analytics in sidebar → /lms/webinars/reports
+
+## DATE_FORMAT Fix & Settings Nav (Apr 2, 2026)
+- [x] Fix DATE_FORMAT query error in getRevenueChartData (enrolledAt column type issue)
+- [x] Add Settings accordion group back to sidebar nav

@@ -563,20 +563,39 @@ export async function getRevenueChartData(
   days: number = 30,
   groupBy: 'day' | 'week' | 'month' = 'day'
 ) {
-  const db = await getDb();
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  // MySQL/TiDB: DATE_FORMAT() — use sql.raw() to inline the format literal so Drizzle doesn't parameterize it
-  const fmt = groupBy === 'day' ? '%Y-%m-%d' : groupBy === 'week' ? '%Y-%u' : '%Y-%m';
-  return db
+  // Fetch raw rows and group in JS to avoid DATE_FORMAT sandbox restrictions
+  const rows = await db
     .select({
-      date: sql<string>`DATE_FORMAT(${courseEnrollments.enrolledAt}, ${sql.raw("'" + fmt + "'")})`,
-      revenue: sql<number>`COALESCE(SUM(${courseEnrollments.amountPaid}), 0)`,
-      enrollments: sql<number>`COUNT(*)`,
+      enrolledAt: courseEnrollments.enrolledAt,
+      amountPaid: courseEnrollments.amountPaid,
     })
     .from(courseEnrollments)
-    .where(and(eq(courseEnrollments.orgId, orgId), gte(courseEnrollments.enrolledAt, cutoff)))
-    .groupBy(sql.raw(`DATE_FORMAT(\`course_enrollments\`.\`enrolledAt\`, '${fmt}')`))
-    .orderBy(sql.raw(`DATE_FORMAT(\`course_enrollments\`.\`enrolledAt\`, '${fmt}')`));
+    .where(and(eq(courseEnrollments.orgId, orgId), gte(courseEnrollments.enrolledAt, cutoff)));
+
+  const buckets = new Map<string, { revenue: number; enrollments: number }>();
+  for (const row of rows) {
+    const d = new Date(row.enrolledAt);
+    let key: string;
+    if (groupBy === 'month') {
+      key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    } else if (groupBy === 'week') {
+      const day = d.getDay() || 7;
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - day + 1);
+      key = monday.toISOString().slice(0, 10);
+    } else {
+      key = d.toISOString().slice(0, 10);
+    }
+    const existing = buckets.get(key) ?? { revenue: 0, enrollments: 0 };
+    existing.revenue += Number(row.amountPaid ?? 0);
+    existing.enrollments += 1;
+    buckets.set(key, existing);
+  }
+
+  return Array.from(buckets.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, { revenue, enrollments }]) => ({ date, revenue, enrollments }));
 }
 
 export async function getRecentActivity(orgId: number, limit: number = 20) {

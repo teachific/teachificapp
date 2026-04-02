@@ -206,6 +206,26 @@ const navGroups: NavGroup[] = [
       },
     ],
   },
+  // ── Settings ──
+  {
+    dividerBefore: true,
+    items: [
+      {
+        icon: Settings,
+        label: "Settings",
+        path: "/lms/settings",
+        adminOnly: true,
+        subItems: [
+          { label: "General", path: "/lms/settings" },
+          { label: "Branding", path: "/lms/branding" },
+          { label: "Custom Pages", path: "/lms/custom-pages" },
+          { label: "Email Templates", path: "/lms/email-templates" },
+          { label: "Payments", path: "/lms/settings/payments" },
+          { label: "Notifications", path: "/lms/settings/notifications" },
+        ],
+      },
+    ],
+  },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
