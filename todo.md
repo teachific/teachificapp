@@ -792,3 +792,17 @@
 - [ ] Remove any org-level filtering/sorting from the sidebar nav menu items
 - [ ] Sidebar nav items (Courses, Members, Analytics, etc.) should be scoped to the user's current org automatically
 - [ ] Organization selector/filter belongs only in Platform Admin panel
+
+## Course Image Upload in Course Settings
+- [ ] Add thumbnail/cover image upload to course settings (General tab in CourseBuilderPage)
+- [ ] Upload via S3 storagePut, store URL in courses.thumbnailUrl
+- [ ] Show thumbnail on course cards in CoursesPage and learner dashboard
+
+## Pricing Plan Improvements
+- [ ] Add "Free" option as a primary pricing type (no payment required, instant enrollment)
+- [ ] Add "Monthly Payment Plan" option: total price divided into N monthly payments
+- [ ] Payment plan fields: number of payments (e.g. 3), amount per payment, total price
+- [ ] Show payment count on pricing cards (e.g. "3 payments of $33.33")
+- [ ] Primary pricing section: Free / One-time / Subscription / Payment Plan radio selector
+- [ ] Additional pricing options: allow multiple pricing tiers per course
+- [ ] Copy enrollment link button per pricing option
