@@ -1027,3 +1027,15 @@
 - [x] AdminUsersPage: org filter dropdown for platform admins
 - [x] MembersPage: Add Member button + dialog (name, email, role, course enrollment)
 - [x] MembersPage: Edit Member sheet (role change, course enrollment)
+
+## Sidebar Navigation Redesign (Apr 2, 2026)
+- [x] Add collapsible accordion groups to sidebar (Courses, Analytics, Settings expand inline)
+- [x] Add sub-items under Courses: All Courses, Course Builder, Certificates, Coupons
+- [x] Add sub-items under Analytics: Overview, Activity Log, Downloads Reports, Webinar Reports
+- [x] Add sub-items under Settings: General, Branding, Custom Pages, Email Marketing, Integrations
+- [x] Add sub-items under Users: All Users, Roles & Permissions, Invitations
+- [x] Style sub-items with left border accent and indented text (Thinkific-style)
+- [x] Add divider between content section and Administration section
+- [x] Polish active state: teal background + white text for active item
+- [x] Add hover state: subtle gray background
+- [x] Improve section label styling: uppercase, small, muted

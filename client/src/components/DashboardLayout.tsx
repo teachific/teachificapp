@@ -11,13 +11,8 @@ import {
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
   useSidebar,
@@ -26,22 +21,26 @@ import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   Activity,
+  Award,
   BarChart3,
   BookOpen,
   Building2,
+  ChevronDown,
   ChevronRight,
   Download,
   FileText,
+  FolderOpen,
+  GraduationCap,
   LayoutDashboard,
-  Library,
   LogOut,
   Mail,
   Palette,
   PanelLeft,
   Settings,
-  Crown,
   ShieldCheck,
+  Tag,
   User,
+  UserCog,
   Users,
   Video,
 } from "lucide-react";
@@ -50,47 +49,112 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
-const navGroups = [
+// ─── Nav definition ──────────────────────────────────────────────────────────
+// Items can have sub-items for accordion expansion.
+// adminOnly: true  → only site_admin / site_owner see this
+// ownerOnly: true  → only site_owner sees this
+type NavSubItem = { label: string; path: string };
+type NavItem = {
+  icon: React.ElementType;
+  label: string;
+  path: string;
+  ownerOnly?: boolean;
+  adminOnly?: boolean;
+  subItems?: NavSubItem[];
+};
+type NavGroup = {
+  label?: string;
+  dividerBefore?: boolean;
+  adminOnly?: boolean;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
   {
-    label: "",
     items: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/lms" },
-      { icon: Library, label: "Media Library", path: "/media-library" },
+      { icon: FolderOpen, label: "Media Library", path: "/media-library" },
     ],
   },
   {
-    label: "",
+    dividerBefore: true,
     items: [
-      { icon: BookOpen, label: "Courses", path: "/lms/courses" },
+      {
+        icon: GraduationCap,
+        label: "Courses",
+        path: "/lms/courses",
+        subItems: [
+          { label: "All Courses", path: "/lms/courses" },
+          { label: "Course Builder", path: "/lms/courses" },
+          { label: "Certificates", path: "/lms/courses" },
+          { label: "Coupons", path: "/lms/courses" },
+        ],
+      },
       { icon: Download, label: "Digital Downloads", path: "/admin/downloads" },
       { icon: Video, label: "Webinars", path: "/lms/webinars" },
+    ],
+  },
+  {
+    dividerBefore: true,
+    items: [
       { icon: Users, label: "Members", path: "/lms/members" },
     ],
   },
   {
     label: "Administration",
+    dividerBefore: true,
     adminOnly: true,
     items: [
       { icon: Building2, label: "Organizations", path: "/admin/orgs" },
-      { icon: Users, label: "Users", path: "/admin/users" },
-      { icon: BarChart3, label: "Analytics", path: "/lms/analytics" },
-      { icon: Activity, label: "Activity Log", path: "/lms/activity" },
-      { icon: Palette, label: "Branding", path: "/lms/branding" },
-      { icon: FileText, label: "Custom Pages", path: "/lms/custom-pages" },
-      { icon: Mail, label: "Email Marketing", path: "/lms/email-marketing" },
+      {
+        icon: UserCog,
+        label: "Users",
+        path: "/admin/users",
+        adminOnly: true,
+        subItems: [
+          { label: "All Users", path: "/admin/users" },
+          { label: "Roles & Permissions", path: "/admin/users" },
+          { label: "Invitations", path: "/admin/users" },
+        ],
+      },
+      {
+        icon: BarChart3,
+        label: "Analytics",
+        path: "/lms/analytics",
+        subItems: [
+          { label: "Overview", path: "/lms/analytics" },
+          { label: "Activity Log", path: "/lms/activity" },
+          { label: "Downloads Reports", path: "/admin/downloads/reports" },
+          { label: "Webinar Reports", path: "/lms/webinars/reports" },
+        ],
+      },
     ],
   },
   {
-    label: "",
+    adminOnly: true,
     items: [
-      { icon: Settings, label: "Settings", path: "/lms/settings" },
+      { icon: Palette, label: "Branding", path: "/lms/branding" },
+      { icon: FileText, label: "Custom Pages", path: "/lms/custom-pages" },
+      { icon: Mail, label: "Email Marketing", path: "/lms/email-marketing" },
+      {
+        icon: Settings,
+        label: "Settings",
+        path: "/lms/settings",
+        subItems: [
+          { label: "General", path: "/lms/settings" },
+          { label: "Learning Content", path: "/lms/settings" },
+          { label: "Payments", path: "/lms/settings" },
+          { label: "Integrations", path: "/lms/settings" },
+          { label: "Code & Analytics", path: "/lms/settings" },
+        ],
+      },
     ],
   },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
-const DEFAULT_WIDTH = 260;
-const MIN_WIDTH = 200;
+const DEFAULT_WIDTH = 272;
+const MIN_WIDTH = 220;
 const MAX_WIDTH = 400;
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -170,6 +234,29 @@ function DashboardLayoutContent({
   const isOwner = user?.role === "site_owner";
   const isOrgAdmin = user?.role === "org_admin";
 
+  // Track which accordion groups are open (by item path)
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    // Auto-open the group that contains the current active path
+    const initial = new Set<string>();
+    for (const group of navGroups) {
+      for (const item of group.items) {
+        if (item.subItems && item.subItems.some((s) => location.startsWith(s.path) && s.path !== item.path)) {
+          initial.add(item.path);
+        }
+      }
+    }
+    return initial;
+  });
+
+  const toggleGroup = (path: string) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
+
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
   }, [isCollapsed]);
@@ -196,72 +283,143 @@ function DashboardLayoutContent({
     };
   }, [isResizing, setSidebarWidth]);
 
-  const activeItem = navGroups.flatMap((g) => g.items).find((i) => {
-    if (i.path === "/") return location === "/";
-    return location.startsWith(i.path);
-  });
+  // Determine the active top-level item for the header breadcrumb
+  const allItems = navGroups.flatMap((g) => g.items);
+  const activeItem = allItems.find((i) => {
+    if (i.path === "/lms") return location === "/lms" || location === "/";
+    return location.startsWith(i.path) && i.path !== "/lms";
+  }) ?? allItems.find((i) => i.path === "/lms");
+
+  const isItemActive = (item: NavItem) => {
+    if (item.path === "/lms") return location === "/lms" || location === "/";
+    return location.startsWith(item.path);
+  };
+
+  const isSubItemActive = (sub: NavSubItem) => location === sub.path || (sub.path !== "/" && location.startsWith(sub.path));
 
   return (
     <>
       <div className="relative" ref={sidebarRef}>
-        <Sidebar collapsible="icon" className="border-r border-border/50" disableTransition={isResizing}>
+        <Sidebar collapsible="icon" className="border-r border-border/40" disableTransition={isResizing}>
           {/* Header */}
-          <SidebarHeader className="h-16 justify-center border-b border-border/50">
-            <div className="flex items-center gap-3 px-2 w-full">
+          <SidebarHeader className="h-16 justify-center border-b border-border/40 px-3">
+            <div className="flex items-center gap-2.5 w-full">
               <button
                 onClick={toggleSidebar}
-                className="h-8 w-8 flex items-center justify-center hover:bg-accent rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
+                className="h-8 w-8 flex items-center justify-center hover:bg-sidebar-accent rounded-lg transition-colors focus:outline-none shrink-0"
                 aria-label="Toggle navigation"
               >
-                <PanelLeft className="h-4 w-4 text-muted-foreground" />
+                <PanelLeft className="h-4 w-4 text-sidebar-foreground/50" />
               </button>
-              {isCollapsed ? (
-                <span className="text-2xl font-bold select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#15a4b7' }}>t</span>
-              ) : (
-                <span className="text-2xl font-bold tracking-tight select-none pl-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
-                  <span className="text-white">teach</span><span style={{ color: '#15a4b7' }}>ific</span><span className="text-white" style={{ fontSize: '0.5em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
+              {!isCollapsed && (
+                <span className="text-[22px] font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
+                  <span className="text-sidebar-foreground">teach</span>
+                  <span style={{ color: '#15a4b7' }}>ific</span>
+                  <span className="text-sidebar-foreground" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
                 </span>
+              )}
+              {isCollapsed && (
+                <span className="text-[22px] font-bold select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#15a4b7' }}>t</span>
               )}
             </div>
           </SidebarHeader>
 
           {/* Navigation */}
-          <SidebarContent className="gap-0 py-2">
+          <SidebarContent className="py-3 px-0 overflow-y-auto">
             {navGroups.map((group, groupIdx) => {
               if (group.adminOnly && !isAdmin) return null;
               return (
-                <SidebarGroup key={groupIdx} className="py-1">
-                  {group.label && (
-                    <SidebarGroupLabel className="px-4 text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1">
-                      {group.label}
-                    </SidebarGroupLabel>
+                <div key={groupIdx}>
+                  {/* Divider + optional section label */}
+                  {group.dividerBefore && (
+                    <div className="mx-3 my-2 border-t border-border/30" />
                   )}
-                  <SidebarMenu className="px-2">
-                    {group.items.filter((item) => !(item as any).ownerOnly || isOwner).map((item) => {
-                      const isActive = item.path === "/" ? location === "/" : location.startsWith(item.path);
-                      return (
-                        <SidebarMenuItem key={item.path}>
-                          <SidebarMenuButton
-                            isActive={isActive}
-                            onClick={() => setLocation(item.path)}
-                            tooltip={item.label}
-                            className="h-9 transition-all font-normal"
-                          >
-                            <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                            <span className={isActive ? "font-medium" : ""}>{item.label}</span>
-                            {isActive && !isCollapsed && (
-                              <ChevronRight className="ml-auto h-3 w-3 text-primary opacity-60" />
+                  {group.label && !isCollapsed && (
+                    <div className="px-4 pt-1 pb-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 select-none">
+                        {group.label}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Items */}
+                  <div className="px-2 space-y-0.5">
+                    {group.items
+                      .filter((item) => {
+                        if (item.ownerOnly && !isOwner) return false;
+                        if (item.adminOnly && !isAdmin) return false;
+                        return true;
+                      })
+                      .map((item) => {
+                        const active = isItemActive(item);
+                        const hasSubItems = item.subItems && item.subItems.length > 0;
+                        const isOpen = openGroups.has(item.path);
+
+                        return (
+                          <div key={item.path}>
+                            {/* Top-level nav item */}
+                            <button
+                              onClick={() => {
+                                if (hasSubItems && !isCollapsed) {
+                                  toggleGroup(item.path);
+                                } else {
+                                  setLocation(item.path);
+                                }
+                              }}
+                              title={isCollapsed ? item.label : undefined}
+                              className={`
+                                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 group
+                                ${active
+                                  ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                                }
+                                ${isCollapsed ? "justify-center px-2" : ""}
+                              `}
+                            >
+                              <item.icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-primary-foreground" : "text-sidebar-foreground/60 group-hover:text-sidebar-foreground"}`} />
+                              {!isCollapsed && (
+                                <>
+                                  <span className="flex-1 text-left leading-none">{item.label}</span>
+                                  {hasSubItems ? (
+                                    <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-0" : "-rotate-90"} ${active ? "text-primary-foreground/70" : "text-sidebar-foreground/40"}`} />
+                                  ) : active ? (
+                                    <ChevronRight className="h-3 w-3 shrink-0 opacity-60 text-primary-foreground" />
+                                  ) : null}
+                                </>
+                              )}
+                            </button>
+
+                            {/* Sub-items (accordion) */}
+                            {hasSubItems && !isCollapsed && isOpen && (
+                              <div className="ml-4 mt-0.5 mb-1 pl-3 border-l-2 border-primary/30 space-y-0.5">
+                                {item.subItems!.map((sub) => {
+                                  const subActive = isSubItemActive(sub);
+                                  return (
+                                    <button
+                                      key={sub.path + sub.label}
+                                      onClick={() => setLocation(sub.path)}
+                                      className={`
+                                        w-full text-left px-2 py-1.5 rounded-md text-[13px] transition-all duration-150
+                                        ${subActive
+                                          ? "text-primary font-medium bg-primary/8"
+                                          : "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                                        }
+                                      `}
+                                    >
+                                      {sub.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             )}
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      );
-                    })}
-                  </SidebarMenu>
-                </SidebarGroup>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
               );
             })}
           </SidebarContent>
-          {/* No footer — profile is in top-right header */}
         </Sidebar>
 
         {/* Resize handle */}
@@ -273,20 +431,22 @@ function DashboardLayoutContent({
       </div>
 
       <SidebarInset>
-        {/* Top header bar with profile menu */}
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/50 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
+        {/* Top header bar */}
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
           <div className="flex items-center gap-3">
             {isMobile && <SidebarTrigger className="h-9 w-9 rounded-lg" />}
             {activeItem ? (
-              <span className="font-medium text-sm text-muted-foreground">{activeItem.label}</span>
+              <div className="flex items-center gap-2">
+                <activeItem.icon className="h-4 w-4 text-muted-foreground" />
+                <span className="font-semibold text-sm">{activeItem.label}</span>
+              </div>
             ) : (
               <span className="text-xl font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
                 <span className="text-foreground">teach</span><span style={{ color: '#15a4b7' }}>ific</span><span className="text-foreground" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '2px' }}>&#8482;</span>
               </span>
             )}
           </div>
-
-           <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             {/* Profile dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -348,7 +508,6 @@ function DashboardLayoutContent({
             </DropdownMenu>
           </div>
         </header>
-
         <main className="flex-1 min-h-[calc(100vh-3.5rem)]">{children}</main>
       </SidebarInset>
     </>
