@@ -1,4 +1,4 @@
-import { and, desc, asc, eq, sql } from "drizzle-orm";
+import { and, desc, asc, eq, sql, gt, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   courses,
@@ -14,6 +14,7 @@ import {
   certificates,
   coupons,
   courseReviews,
+  users,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -479,6 +480,123 @@ export async function createCertificate(data: typeof certificates.$inferInsert) 
   const id = (result as any)[0]?.insertId ?? (result as any).insertId;
   const rows = await db.select().from(certificates).where(eq(certificates.id, Number(id)));
   return rows[0];
+}
+
+// ─── Dashboard Analytics ─────────────────────────────────────────────────────
+
+export async function getDashboardMetrics(orgId: number, days: number = 30) {
+  const db = await getDb();
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const [revenueRow] = await db
+    .select({ total: sql<number>`COALESCE(SUM(${courseEnrollments.amountPaid}), 0)` })
+    .from(courseEnrollments)
+    .where(and(eq(courseEnrollments.orgId, orgId), gte(courseEnrollments.enrolledAt, cutoff)));
+  const revenue = Number(revenueRow?.total ?? 0);
+
+  const [regRow] = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(courseEnrollments)
+    .where(and(eq(courseEnrollments.orgId, orgId), gte(courseEnrollments.enrolledAt, cutoff)));
+  const registrations = Number(regRow?.count ?? 0);
+
+  const [salesRow] = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(courseEnrollments)
+    .where(and(
+      eq(courseEnrollments.orgId, orgId),
+      gte(courseEnrollments.enrolledAt, cutoff),
+      gt(courseEnrollments.amountPaid, 0)
+    ));
+  const sales = Number(salesRow?.count ?? 0);
+
+  const [membersRow] = await db
+    .select({ count: sql<number>`COUNT(DISTINCT ${courseEnrollments.userId})` })
+    .from(courseEnrollments)
+    .where(and(eq(courseEnrollments.orgId, orgId), eq(courseEnrollments.isActive, true)));
+  const activeMembers = Number(membersRow?.count ?? 0);
+
+  return { revenue, registrations, sales, activeMembers };
+}
+
+export async function getRevenueChartData(
+  orgId: number,
+  days: number = 30,
+  groupBy: 'day' | 'week' | 'month' = 'day'
+) {
+  const db = await getDb();
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const fmt = groupBy === 'day' ? '%Y-%m-%d' : groupBy === 'week' ? '%Y-%u' : '%Y-%m';
+  return db
+    .select({
+      date: sql<string>`DATE_FORMAT(${courseEnrollments.enrolledAt}, ${fmt})`,
+      revenue: sql<number>`COALESCE(SUM(${courseEnrollments.amountPaid}), 0)`,
+      enrollments: sql<number>`COUNT(*)`,
+    })
+    .from(courseEnrollments)
+    .where(and(eq(courseEnrollments.orgId, orgId), gte(courseEnrollments.enrolledAt, cutoff)))
+    .groupBy(sql`DATE_FORMAT(${courseEnrollments.enrolledAt}, ${fmt})`)
+    .orderBy(sql`DATE_FORMAT(${courseEnrollments.enrolledAt}, ${fmt})`);
+}
+
+export async function getRecentActivity(orgId: number, limit: number = 20) {
+  const db = await getDb();
+  return db
+    .select({
+      id: courseEnrollments.id,
+      type: sql<string>`'enrollment'`,
+      userName: users.name,
+      userEmail: users.email,
+      courseName: courses.title,
+      timestamp: courseEnrollments.enrolledAt,
+      price: courseEnrollments.amountPaid,
+    })
+    .from(courseEnrollments)
+    .innerJoin(users, eq(courseEnrollments.userId, users.id))
+    .innerJoin(courses, eq(courseEnrollments.courseId, courses.id))
+    .where(eq(courseEnrollments.orgId, orgId))
+    .orderBy(desc(courseEnrollments.enrolledAt))
+    .limit(limit);
+}
+
+export async function getRecentlyEditedCourses(orgId: number, limit: number = 6) {
+  const db = await getDb();
+  return db
+    .select({
+      id: courses.id,
+      title: courses.title,
+      slug: courses.slug,
+      thumbnailUrl: courses.thumbnailUrl,
+      status: courses.status,
+      updatedAt: courses.updatedAt,
+    })
+    .from(courses)
+    .where(eq(courses.orgId, orgId))
+    .orderBy(desc(courses.updatedAt))
+    .limit(limit);
+}
+
+export async function getEnrolledCoursesForUser(userId: number) {
+  const db = await getDb();
+  return db
+    .select({
+      enrollmentId: courseEnrollments.id,
+      courseId: courses.id,
+      title: courses.title,
+      slug: courses.slug,
+      thumbnailUrl: courses.thumbnailUrl,
+      status: courses.status,
+      progressPct: courseEnrollments.progressPct,
+      completedAt: courseEnrollments.completedAt,
+      lastAccessedAt: courseEnrollments.lastAccessedAt,
+      lastLessonId: courseEnrollments.lastLessonId,
+      enrolledAt: courseEnrollments.enrolledAt,
+      orgId: courses.orgId,
+    })
+    .from(courseEnrollments)
+    .innerJoin(courses, eq(courseEnrollments.courseId, courses.id))
+    .where(and(eq(courseEnrollments.userId, userId), eq(courseEnrollments.isActive, true)))
+    .orderBy(desc(courseEnrollments.lastAccessedAt));
 }
 
 // ─── LMS Analytics ───────────────────────────────────────────────────────────

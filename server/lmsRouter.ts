@@ -49,6 +49,11 @@ import {
   createReview,
   getCertificatesByUser,
   getLmsAnalyticsByOrg,
+  getDashboardMetrics,
+  getRevenueChartData,
+  getRecentActivity,
+  getRecentlyEditedCourses,
+  getEnrolledCoursesForUser,
 } from "./lmsDb";
 import { getOrgById, getOrgMember } from "./db";
 import { copyCourse, copyLessonToSection, copySectionToCourse } from "./lmsDbCopy";
@@ -892,7 +897,44 @@ export const lmsRouter = router({
       }),
   }),
 
-  // ── Media Upload ──────────────────────────────────────────────────────────
+  // ── Dashboard Analytics ─────────────────────────────────────────────────
+
+  dashboard: router({
+    metrics: protectedProcedure
+      .input(z.object({ orgId: z.number(), days: z.number().default(30) }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getDashboardMetrics(input.orgId, input.days);
+      }),
+    chartData: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        days: z.number().default(30),
+        groupBy: z.enum(['day', 'week', 'month']).default('day'),
+      }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getRevenueChartData(input.orgId, input.days, input.groupBy);
+      }),
+    recentActivity: protectedProcedure
+      .input(z.object({ orgId: z.number(), limit: z.number().default(20) }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getRecentActivity(input.orgId, input.limit);
+      }),
+    recentCourses: protectedProcedure
+      .input(z.object({ orgId: z.number(), limit: z.number().default(6) }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getRecentlyEditedCourses(input.orgId, input.limit);
+      }),
+    enrolledCourses: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getEnrolledCoursesForUser(ctx.user.id);
+      }),
+  }),
+
+  // ── Media Upload ────────────────────────────────────────────────────────
 
   media: router({
     getUploadUrl: protectedProcedure

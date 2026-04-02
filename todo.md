@@ -761,3 +761,34 @@
 - [ ] Group by: In Progress, Not Started, Completed
 - [ ] If no courses, show a friendly empty state with a link to the course catalog
 - [ ] Role-based routing: org_admin and above → org admin dashboard; user role → learner dashboard
+
+## Full WYSIWYG Drag-and-Drop Page Builder
+- [ ] Replace simple text editor with a full block-based page builder
+- [ ] Left panel: section type library (Banner, Text+Media, Image Block, CTA, Course Outline, Video, Testimonials, Pricing, Checklist, Social Proof, HTML Block)
+- [ ] Canvas: live WYSIWYG preview with click-to-edit inline editing
+- [ ] Drag to reorder sections (dnd-kit)
+- [ ] Each block has a settings panel (background color, text, image URL, button text/link, etc.)
+- [ ] Banner block: full-width hero with background image/color, headline, subtext, CTA button
+- [ ] Text & Media block: left/right image + text layout
+- [ ] Image Block: gallery or single image with caption
+- [ ] CTA block: centered headline + button
+- [ ] Course Outline block: pulls curriculum from a selected course
+- [ ] Video block: embed YouTube/Vimeo or upload
+- [ ] Testimonials block: quote cards with avatar, name, role
+- [ ] Pricing block: shows pricing options from a selected course
+- [ ] Checklist block: bullet list with checkmark icons
+- [ ] HTML block: raw HTML/CSS/JS injection
+- [ ] Page settings panel: slug, SEO title/description, show/hide header+footer
+- [ ] Save and publish controls
+- [ ] Public renderer at /p/:slug for published pages
+
+## Org Auto-Detection (No Manual Org Selection for Org Admins)
+- [ ] Org admins should never see an org selector dropdown — their org is auto-detected from their membership
+- [ ] All lmsRouter dashboard/analytics/course procedures should derive orgId from ctx.user's org membership, not from input
+- [ ] If a user is admin of multiple orgs, show an org switcher in the header (not a dropdown on every page)
+- [ ] Platform Admin pages are the only place where org filtering/sorting by organization is shown
+
+## Nav Restriction: Platform Admin Items Stay in Platform Admin
+- [ ] Remove any org-level filtering/sorting from the sidebar nav menu items
+- [ ] Sidebar nav items (Courses, Members, Analytics, etc.) should be scoped to the user's current org automatically
+- [ ] Organization selector/filter belongs only in Platform Admin panel
