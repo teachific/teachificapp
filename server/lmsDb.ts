@@ -565,18 +565,18 @@ export async function getRevenueChartData(
 ) {
   const db = await getDb();
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  // SQLite uses strftime() — MySQL DATE_FORMAT is not supported
+  // SQLite strftime() requires the format to be a literal, not a bound param — use sql.raw()
   const fmt = groupBy === 'day' ? '%Y-%m-%d' : groupBy === 'week' ? '%Y-%W' : '%Y-%m';
   return db
     .select({
-      date: sql<string>`strftime(${fmt}, ${courseEnrollments.enrolledAt})`,
+      date: sql<string>`strftime('${sql.raw(fmt)}', ${courseEnrollments.enrolledAt})`,
       revenue: sql<number>`COALESCE(SUM(${courseEnrollments.amountPaid}), 0)`,
       enrollments: sql<number>`COUNT(*)`,
     })
     .from(courseEnrollments)
     .where(and(eq(courseEnrollments.orgId, orgId), gte(courseEnrollments.enrolledAt, cutoff)))
-    .groupBy(sql`strftime(${fmt}, ${courseEnrollments.enrolledAt})`)
-    .orderBy(sql`strftime(${fmt}, ${courseEnrollments.enrolledAt})`);
+    .groupBy(sql`strftime('${sql.raw(fmt)}', ${courseEnrollments.enrolledAt})`)
+    .orderBy(sql`strftime('${sql.raw(fmt)}', ${courseEnrollments.enrolledAt})`);
 }
 
 export async function getRecentActivity(orgId: number, limit: number = 20) {
