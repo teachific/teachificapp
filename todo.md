@@ -609,3 +609,6 @@
 ## Vimeo Support (Already Implemented)
 - [x] Vimeo URLs already handled in CoursePlayerPage video case (lines 245-248)
 - [x] Converts vimeo.com/{id} to https://player.vimeo.com/video/{id} embed URL
+
+## Searchable Organization Selector in Custom Pages
+- [x] Replace plain <select> with a searchable combobox (input + filtered dropdown) in CustomPagesPage
