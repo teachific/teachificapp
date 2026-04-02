@@ -6,7 +6,18 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ChevronLeft, Download, GripVertical, Plus, Save, Trash2, Upload, CheckCircle2,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import UpgradePromptDialog from "@/components/UpgradePromptDialog";
+import { useOrgPlan } from "@/hooks/useOrgPlan";
+import {
+  ChevronLeft, Download, GripVertical, Plus, Save, Trash2, Upload, CheckCircle2, Sparkles, Loader2,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -97,6 +108,35 @@ export default function QuizBuilderPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // AI generation state
+  const [aiOpen, setAiOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiNumQ, setAiNumQ] = useState(10);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const { can } = useOrgPlan(orgId || null);
+
+  const aiGenerateMutation = trpc.lms.ai.generateQuiz.useMutation({
+    onSuccess: (result) => {
+      if (result?.questions) {
+        const imported: Question[] = result.questions.map((q: any) => ({
+          id: Math.random().toString(36).slice(2),
+          type: (q.type ?? "multiple_choice") as QuestionType,
+          text: q.text ?? q.questionText ?? "",
+          points: 1,
+          choices: (q.choices ?? []).map((c: any) => ({ text: c.text, isCorrect: c.isCorrect })),
+        }));
+        setQuestions((prev) => [...prev, ...imported]);
+        if (!title) setTitle(aiTopic);
+        toast.success(`AI generated ${imported.length} questions`);
+        setAiOpen(false);
+        setAiTopic("");
+      }
+      setAiGenerating(false);
+    },
+    onError: (e) => { toast.error(e.message); setAiGenerating(false); },
+  });
+
   const addQuestion = (type: QuestionType = "multiple_choice") => {
     const q: Question = {
       id: Math.random().toString(36).slice(2),
@@ -178,6 +218,17 @@ export default function QuizBuilderPage() {
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => setLocation("/quizzes")}><ChevronLeft className="h-4 w-4" /></Button>
         <h1 className="text-xl font-bold flex-1">{isNew ? "Create Quiz" : "Edit Quiz"}</h1>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            if (!can("aiGeneration")) { setUpgradeOpen(true); return; }
+            setAiOpen(true);
+          }}
+        >
+          <Sparkles className="h-4 w-4 text-purple-500" />
+          AI Generate
+        </Button>
         <Button variant="outline" onClick={handleImportExcel} className="gap-2"><Upload className="h-4 w-4" />Import Excel</Button>
         <Button variant="outline" asChild className="gap-2"><a href="/api/quiz/template" download="QuizTemplate.xlsx"><Download className="h-4 w-4" />Template</a></Button>
         <Button onClick={handleSave} disabled={saving} className="gap-2"><Save className="h-4 w-4" />{saving ? "Saving..." : "Save Quiz"}</Button>
@@ -228,6 +279,75 @@ export default function QuizBuilderPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* AI Generate Dialog */}
+      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              AI Quiz Generator
+            </DialogTitle>
+            <DialogDescription>
+              Enter a topic and AI will generate quiz questions with answer choices.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div>
+              <Label>Topic or Subject</Label>
+              <Textarea
+                placeholder="e.g. Cardiac anatomy and physiology"
+                value={aiTopic}
+                onChange={(e) => setAiTopic(e.target.value)}
+                className="mt-1.5 resize-none"
+                rows={2}
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label>Number of Questions</Label>
+              <Input
+                type="number"
+                min={1}
+                max={50}
+                value={aiNumQ}
+                onChange={(e) => setAiNumQ(parseInt(e.target.value) || 10)}
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAiOpen(false)} disabled={aiGenerating}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!aiTopic.trim() || aiGenerating || !orgId}
+              onClick={() => {
+                if (!orgId) return;
+                setAiGenerating(true);
+                aiGenerateMutation.mutate({ topic: aiTopic.trim(), numQuestions: aiNumQ });
+              }}
+              className="gap-2"
+            >
+              {aiGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {aiGenerating ? "Generating..." : "Generate Questions"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade Prompt */}
+      <UpgradePromptDialog
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        requiredPlan="starter"
+        featureName="AI Quiz Generation"
+        featureDescription="Automatically generate quiz questions with answer choices from any topic using AI."
+      />
     </div>
   );
 }

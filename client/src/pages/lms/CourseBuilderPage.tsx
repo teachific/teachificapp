@@ -1,0 +1,1179 @@
+import { useState, useEffect } from "react";
+import { LessonEditorSheet } from "@/components/lms/LessonEditorSheet";
+import { useParams, useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { useOrgPlan } from "@/hooks/useOrgPlan";
+import UpgradePromptDialog from "@/components/UpgradePromptDialog";
+import { toast } from "sonner";
+import {
+  ChevronLeft,
+  Plus,
+  GripVertical,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Video,
+  FileText,
+  HelpCircle,
+  FileArchive,
+  Music,
+  Download,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  Settings,
+  DollarSign,
+  Calendar,
+  CheckCircle,
+} from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+const LESSON_TYPES = [
+  { value: "video", label: "Video", icon: Video },
+  { value: "text", label: "Text / Rich Content", icon: FileText },
+  { value: "scorm", label: "SCORM / HTML5", icon: FileArchive },
+  { value: "quiz", label: "Quiz", icon: HelpCircle },
+  { value: "flashcard", label: "Flashcards", icon: FileText },
+  { value: "exam", label: "Exam", icon: CheckCircle },
+  { value: "pdf", label: "PDF", icon: FileText },
+  { value: "audio", label: "Audio", icon: Music },
+  { value: "assignment", label: "Assignment", icon: Edit },
+  { value: "download", label: "Download", icon: Download },
+  { value: "weblink", label: "Web Link / Embed", icon: Eye },
+  { value: "zoom", label: "Zoom / Live Session", icon: Video },
+];
+
+const lessonTypeIcon = (type: string) => {
+  const found = LESSON_TYPES.find((t) => t.value === type);
+  const Icon = found?.icon ?? FileText;
+  return <Icon className="h-3.5 w-3.5" />;
+};
+
+// ─── Sortable Lesson Item ────────────────────────────────────────────────────
+
+function SortableLesson({
+  lesson,
+  onEdit,
+  onDelete,
+}: {
+  lesson: { id: number; title: string; lessonType: string; isFreePreview: boolean; isPublished: boolean; durationSeconds?: number | null };
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: lesson.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const formatDuration = (secs?: number | null) => {
+    if (!secs) return null;
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 px-3 py-2.5 bg-background border border-border/50 rounded-lg hover:border-border transition-colors group"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
+      <span className="text-muted-foreground">{lessonTypeIcon(lesson.lessonType)}</span>
+
+      <span className="flex-1 text-sm truncate">{lesson.title}</span>
+
+      <div className="flex items-center gap-2 shrink-0">
+        {lesson.isFreePreview && (
+          <Badge variant="outline" className="text-xs h-5 px-1.5 text-primary border-primary/30">
+            Free Preview
+          </Badge>
+        )}
+        {formatDuration(lesson.durationSeconds) && (
+          <span className="text-xs text-muted-foreground">
+            {formatDuration(lesson.durationSeconds)}
+          </span>
+        )}
+        {lesson.isPublished ? (
+          <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+        ) : (
+          <span className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/30" />
+        )}
+      </div>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <MoreVertical className="h-3.5 w-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={onEdit}>
+            <Edit className="h-4 w-4 mr-2" /> Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-4 w-4 mr-2" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+// ─── Section Block ────────────────────────────────────────────────────────────
+
+function SectionBlock({
+  section,
+  courseId,
+  onRefresh,
+  onEditLesson,
+}: {
+  section: {
+    id: number;
+    title: string;
+    isFreePreview: boolean;
+    lessons: Array<{ id: number; title: string; lessonType: string; isFreePreview: boolean; isPublished: boolean; durationSeconds?: number | null; sortOrder: number }>;
+  };
+  courseId: number;
+  onRefresh: () => void;
+  onEditLesson?: (lessonId: number) => void;
+}) {
+  const utils = trpc.useUtils();
+  const [expanded, setExpanded] = useState(true);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleVal, setTitleVal] = useState(section.title);
+  const [addLessonOpen, setAddLessonOpen] = useState(false);
+  const [newLessonTitle, setNewLessonTitle] = useState("");
+  const [newLessonType, setNewLessonType] = useState("video");
+  const [lessonIds, setLessonIds] = useState(
+    section.lessons.sort((a, b) => a.sortOrder - b.sortOrder).map((l) => l.id)
+  );
+
+  useEffect(() => {
+    setLessonIds(section.lessons.sort((a, b) => a.sortOrder - b.sortOrder).map((l) => l.id));
+  }, [section.lessons]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const updateSection = trpc.lms.curriculum.updateSection.useMutation({
+    onSuccess: onRefresh,
+  });
+  const deleteSection = trpc.lms.curriculum.deleteSection.useMutation({
+    onSuccess: () => {
+      onRefresh();
+      toast.success("Section deleted");
+    },
+  });
+  const createLesson = trpc.lms.curriculum.createLesson.useMutation({
+    onSuccess: () => {
+      onRefresh();
+      setAddLessonOpen(false);
+      setNewLessonTitle("");
+      toast.success("Lesson added");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteLesson = trpc.lms.curriculum.deleteLesson.useMutation({
+    onSuccess: () => {
+      onRefresh();
+      toast.success("Lesson deleted");
+    },
+  });
+  const reorderLessons = trpc.lms.curriculum.reorderLessons.useMutation();
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = lessonIds.indexOf(active.id as number);
+    const newIdx = lessonIds.indexOf(over.id as number);
+    const reordered = arrayMove(lessonIds, oldIdx, newIdx);
+    setLessonIds(reordered);
+    reorderLessons.mutate({ lessonIds: reordered });
+  };
+
+  const handleTitleBlur = () => {
+    setEditingTitle(false);
+    if (titleVal !== section.title) {
+      updateSection.mutate({ id: section.id, title: titleVal });
+    }
+  };
+
+  const sortedLessons = lessonIds
+    .map((id) => section.lessons.find((l) => l.id === id))
+    .filter(Boolean) as typeof section.lessons;
+
+  return (
+    <div className="border border-border rounded-xl overflow-hidden">
+      {/* Section header */}
+      <div className="flex items-center gap-2 px-4 py-3 bg-muted/30">
+        <button onClick={() => setExpanded((v) => !v)} className="text-muted-foreground">
+          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
+
+        {editingTitle ? (
+          <Input
+            value={titleVal}
+            onChange={(e) => setTitleVal(e.target.value)}
+            onBlur={handleTitleBlur}
+            onKeyDown={(e) => e.key === "Enter" && handleTitleBlur()}
+            className="h-7 text-sm font-semibold flex-1"
+            autoFocus
+          />
+        ) : (
+          <button
+            className="flex-1 text-left text-sm font-semibold hover:text-primary transition-colors"
+            onClick={() => setEditingTitle(true)}
+          >
+            {section.title}
+          </button>
+        )}
+
+        <span className="text-xs text-muted-foreground">
+          {section.lessons.length} lesson{section.lessons.length !== 1 ? "s" : ""}
+        </span>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7">
+              <MoreVertical className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setEditingTitle(true)}>
+              <Edit className="h-4 w-4 mr-2" /> Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => {
+                if (confirm("Delete this section and all its lessons?")) {
+                  deleteSection.mutate({ id: section.id });
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Delete Section
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Lessons */}
+      {expanded && (
+        <div className="p-3 flex flex-col gap-2">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={lessonIds} strategy={verticalListSortingStrategy}>
+              {sortedLessons.map((lesson) => (
+                <SortableLesson
+                  key={lesson.id}
+                  lesson={lesson}
+                  onEdit={() => onEditLesson?.(lesson.id)}
+                  onDelete={() => {
+                    if (confirm(`Delete "${lesson.title}"?`)) {
+                      deleteLesson.mutate({ id: lesson.id });
+                    }
+                  }}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="justify-start gap-2 text-muted-foreground hover:text-foreground mt-1"
+            onClick={() => setAddLessonOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Add Lesson
+          </Button>
+        </div>
+      )}
+
+      {/* Add Lesson Dialog */}
+      <Dialog open={addLessonOpen} onOpenChange={setAddLessonOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Lesson</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div>
+              <Label>Lesson Title</Label>
+              <Input
+                placeholder="e.g. Introduction to Doppler"
+                value={newLessonTitle}
+                onChange={(e) => setNewLessonTitle(e.target.value)}
+                className="mt-1.5"
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label>Lesson Type</Label>
+              <Select value={newLessonType} onValueChange={setNewLessonType}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LESSON_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      <div className="flex items-center gap-2">
+                        <t.icon className="h-4 w-4" />
+                        {t.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddLessonOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!newLessonTitle.trim()}
+              onClick={() =>
+                createLesson.mutate({
+                  courseId,
+                  sectionId: section.id,
+                  title: newLessonTitle.trim(),
+                  lessonType: newLessonType as any,
+                  sortOrder: section.lessons.length,
+                })
+              }
+            >
+              Add Lesson
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function CourseBuilderPage() {
+  const { id } = useParams<{ id: string }>();
+  const courseId = parseInt(id ?? "0");
+  const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
+
+  const [activeTab, setActiveTab] = useState<"curriculum" | "settings" | "pricing" | "after_purchase" | "drip">("curriculum");
+  const [addSectionOpen, setAddSectionOpen] = useState(false);
+  const [newSectionTitle, setNewSectionTitle] = useState("");
+  const [editingLessonId, setEditingLessonId] = useState<number | null>(null);
+  const [lessonEditorOpen, setLessonEditorOpen] = useState(false);
+  const { data: orgs } = trpc.orgs.myOrgs.useQuery();
+  const orgId = orgs?.[0]?.id ?? 0;
+  const { data: editingLesson } = trpc.lms.curriculum.getLesson.useQuery(
+    { id: editingLessonId! },
+    { enabled: !!editingLessonId }
+  );
+  const openLessonEditor = (lessonId: number) => {
+    setEditingLessonId(lessonId);
+    setLessonEditorOpen(true);
+  };
+
+  const { data: course, isLoading: courseLoading } = trpc.lms.courses.get.useQuery(
+    { id: courseId },
+    { enabled: !!courseId }
+  );
+  const { data: curriculum, isLoading: curriculumLoading, refetch } = trpc.lms.curriculum.get.useQuery(
+    { courseId },
+    { enabled: !!courseId }
+  );
+
+  const createSection = trpc.lms.curriculum.createSection.useMutation({
+    onSuccess: () => {
+      refetch();
+      setAddSectionOpen(false);
+      setNewSectionTitle("");
+      toast.success("Section added");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const updateCourse = trpc.lms.courses.update.useMutation({
+    onSuccess: () => {
+      utils.lms.courses.get.invalidate({ id: courseId });
+      toast.success("Saved");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const tabs = [
+    { id: "curriculum", label: "Curriculum", icon: FileText },
+    { id: "settings", label: "Settings", icon: Settings },
+    { id: "pricing", label: "Pricing", icon: DollarSign },
+    { id: "after_purchase", label: "After Purchase", icon: CheckCircle },
+    { id: "drip", label: "Drip Schedule", icon: Calendar },
+  ] as const;
+
+  if (courseLoading) {
+    return (
+      <div className="p-6 flex flex-col gap-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="p-6 text-center text-muted-foreground">Course not found</div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLocation("/lms/courses")}
+            className="h-8 w-8"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-semibold leading-tight">{course.title}</h1>
+              <Badge
+                variant="outline"
+                className={
+                  course.status === "published"
+                    ? "text-green-600 border-green-300 bg-green-50 dark:bg-green-900/20"
+                    : "text-yellow-600 border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20"
+                }
+              >
+                {course.status.charAt(0).toUpperCase() + course.status.slice(1)}
+              </Badge>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => window.open(`/learn/${courseId}?preview=1`, "_blank")}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Preview
+          </Button>
+          <Button
+            size="sm"
+            onClick={() =>
+              updateCourse.mutate({
+                id: courseId,
+                status: course.status === "published" ? "draft" : "published",
+              })
+            }
+          >
+            {course.status === "published" ? "Unpublish" : "Publish"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex items-center gap-0 px-6 border-b border-border bg-background">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab.id
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <tab.icon className="h-3.5 w-3.5" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-6">
+        {activeTab === "curriculum" && (
+          <div className="max-w-3xl mx-auto flex flex-col gap-4">
+            {curriculumLoading ? (
+              [...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)
+            ) : curriculum?.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-4 text-center border-2 border-dashed border-border rounded-xl">
+                <FileText className="h-10 w-10 text-muted-foreground/40" />
+                <div>
+                  <p className="font-medium">No sections yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Add a section to start building your curriculum
+                  </p>
+                </div>
+                <Button onClick={() => setAddSectionOpen(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Section
+                </Button>
+              </div>
+            ) : (
+              <>
+                {curriculum?.map((section) => (
+                  <SectionBlock
+                    key={section.id}
+                    section={section as any}
+                    courseId={courseId}
+                    onRefresh={refetch}
+                    onEditLesson={openLessonEditor}
+                  />
+                ))}
+                <Button
+                  variant="outline"
+                  className="gap-2 self-start"
+                  onClick={() => setAddSectionOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Section
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+
+        {activeTab === "settings" && (
+          <CourseSettingsTab course={course} onSave={(data) => updateCourse.mutate({ id: courseId, ...data })} />
+        )}
+
+        {activeTab === "pricing" && (
+          <CoursePricingTab courseId={courseId} />
+        )}
+
+        {(activeTab === "after_purchase" || activeTab === "drip") && (
+          <div className="max-w-2xl mx-auto flex flex-col items-center justify-center py-16 gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              {activeTab === "drip" ? <Calendar className="h-6 w-6 text-muted-foreground" /> : <CheckCircle className="h-6 w-6 text-muted-foreground" />}
+            </div>
+            <p className="font-medium">Coming Soon</p>
+            <p className="text-sm text-muted-foreground">
+              {activeTab === "drip"
+                ? "Drip schedule configuration will be available shortly."
+                : "After-purchase redirect and welcome email settings coming soon."}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Lesson Editor Sheet */}
+      <LessonEditorSheet
+        lesson={editingLesson ?? null}
+        open={lessonEditorOpen}
+        onClose={() => { setLessonEditorOpen(false); setEditingLessonId(null); }}
+        onSaved={() => { refetch(); }}
+        orgId={orgId}
+      />
+
+      {/* Add Section Dialog */}
+      <Dialog open={addSectionOpen} onOpenChange={setAddSectionOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Section</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Label>Section Title</Label>
+            <Input
+              placeholder="e.g. Introduction"
+              value={newSectionTitle}
+              onChange={(e) => setNewSectionTitle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && createSection.mutate({ courseId, title: newSectionTitle.trim(), sortOrder: curriculum?.length ?? 0 })}
+              className="mt-1.5"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddSectionOpen(false)}>Cancel</Button>
+            <Button
+              disabled={!newSectionTitle.trim()}
+              onClick={() =>
+                createSection.mutate({
+                  courseId,
+                  title: newSectionTitle.trim(),
+                  sortOrder: curriculum?.length ?? 0,
+                })
+              }
+            >
+              Add Section
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Settings Tab ─────────────────────────────────────────────────────────────
+
+function CourseSettingsTab({
+  course,
+  onSave,
+}: {
+  course: any;
+  onSave: (data: any) => void;
+}) {
+  const { data: orgs } = trpc.orgs.myOrgs.useQuery();
+  const orgId = orgs?.[0]?.id ?? 0;
+  const { plan, can, limits } = useOrgPlan(orgId);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState("");
+
+  const [form, setForm] = useState({
+    title: course.title ?? "",
+    slug: course.slug ?? "",
+    description: course.description ?? "",
+    shortDescription: course.shortDescription ?? "",
+    isPrivate: course.isPrivate ?? false,
+    isHidden: course.isHidden ?? false,
+    disableTextCopy: course.disableTextCopy ?? false,
+    seoTitle: course.seoTitle ?? "",
+    seoDescription: course.seoDescription ?? "",
+    enableChapterShare: course.enableChapterShare ?? true,
+    enableCompletionShare: course.enableCompletionShare ?? true,
+    socialShareText: course.socialShareText ?? "",
+    // Player appearance
+    playerThemeColor: course.playerThemeColor ?? "",
+    playerSidebarStyle: course.playerSidebarStyle ?? "full",
+    playerShowProgress: course.playerShowProgress ?? true,
+    playerAllowNotes: course.playerAllowNotes ?? false,
+    playerShowLessonIcons: course.playerShowLessonIcons ?? true,
+    // Completion
+    completionType: course.completionType ?? "all_lessons",
+    completionPercentage: course.completionPercentage ?? 100,
+    showCompleteButton: course.showCompleteButton ?? true,
+    enableCertificate: course.enableCertificate ?? false,
+    trackProgress: course.trackProgress ?? true,
+    requireSequential: course.requireSequential ?? false,
+    language: course.language ?? "en",
+    // After purchase
+    welcomeEmailEnabled: course.welcomeEmailEnabled ?? true,
+    welcomeEmailSubject: course.welcomeEmailSubject ?? "",
+    welcomeEmailBody: course.welcomeEmailBody ?? "",
+    afterPurchaseRedirectUrl: course.afterPurchaseRedirectUrl ?? "",
+    // Page code
+    headerCode: course.headerCode ?? "",
+    footerCode: course.footerCode ?? "",
+  });
+
+  const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
+
+  const gated = (feature: keyof typeof limits, fn: () => void) => {
+    if (!can(feature)) {
+      setUpgradeFeature(feature);
+      setUpgradeOpen(true);
+    } else {
+      fn();
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto flex flex-col gap-8">
+      <UpgradePromptDialog open={upgradeOpen} onClose={() => setUpgradeOpen(false)} featureName={upgradeFeature} requiredPlan={plan} />
+
+      {/* Basic */}
+      <section className="border border-border rounded-xl p-6 flex flex-col gap-5">
+        <h2 className="font-semibold text-base">Basic Settings</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <Label>Course Name</Label>
+            <Input value={form.title} onChange={(e) => set("title", e.target.value)} className="mt-1.5" />
+          </div>
+          <div className="col-span-2">
+            <Label>Course URL Slug</Label>
+            <Input value={form.slug} onChange={(e) => set("slug", e.target.value)} className="mt-1.5" />
+          </div>
+          <div className="col-span-2">
+            <Label>Short Description</Label>
+            <Input value={form.shortDescription} onChange={(e) => set("shortDescription", e.target.value)} placeholder="Shown on course cards" className="mt-1.5" />
+          </div>
+          <div className="col-span-2">
+            <Label>Full Description</Label>
+            <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={4} className="mt-1.5" />
+          </div>
+          <div>
+            <Label>Language</Label>
+            <Select value={form.language} onValueChange={(v) => set("language", v)}>
+              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="es">Spanish</SelectItem>
+                <SelectItem value="fr">French</SelectItem>
+                <SelectItem value="de">German</SelectItem>
+                <SelectItem value="pt">Portuguese</SelectItem>
+                <SelectItem value="zh">Chinese</SelectItem>
+                <SelectItem value="ja">Japanese</SelectItem>
+                <SelectItem value="ar">Arabic</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div>
+          <Label>Access</Label>
+          <div className="flex flex-col gap-3 mt-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Private course</p>
+                <p className="text-xs text-muted-foreground">Only accessible via direct link or enrollment</p>
+              </div>
+              <Switch checked={form.isPrivate} onCheckedChange={(v) => set("isPrivate", v)} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Hidden course</p>
+                <p className="text-xs text-muted-foreground">Not shown in course catalog</p>
+              </div>
+              <Switch checked={form.isHidden} onCheckedChange={(v) => set("isHidden", v)} />
+            </div>
+          </div>
+        </div>
+        <div>
+          <Label>Security</Label>
+          <div className="flex items-center justify-between mt-2">
+            <div>
+              <p className="text-sm font-medium">Disable text copying</p>
+              <p className="text-xs text-muted-foreground">Prevents students from selecting/copying lesson text</p>
+            </div>
+            <Switch checked={form.disableTextCopy} onCheckedChange={(v) => set("disableTextCopy", v)} />
+          </div>
+        </div>
+      </section>
+
+      {/* Player Appearance */}
+      <section className="border border-border rounded-xl p-6 flex flex-col gap-5">
+        <h2 className="font-semibold text-base">Player Appearance</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Theme Color</Label>
+            <div className="flex items-center gap-2 mt-1.5">
+              <input
+                type="color"
+                value={form.playerThemeColor || "#0ea5e9"}
+                onChange={(e) => set("playerThemeColor", e.target.value)}
+                className="h-9 w-14 rounded border border-border cursor-pointer"
+              />
+              <Input
+                value={form.playerThemeColor}
+                onChange={(e) => set("playerThemeColor", e.target.value)}
+                placeholder="#0ea5e9"
+                className="flex-1"
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Sidebar Style</Label>
+            <Select value={form.playerSidebarStyle} onValueChange={(v) => set("playerSidebarStyle", v)}>
+              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full">Full — show all sections &amp; lessons</SelectItem>
+                <SelectItem value="minimal">Minimal — collapsed by default</SelectItem>
+                <SelectItem value="hidden">Hidden — no sidebar</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Show progress bar</p>
+              <p className="text-xs text-muted-foreground">Display overall completion % in the player</p>
+            </div>
+            <Switch checked={form.playerShowProgress} onCheckedChange={(v) => set("playerShowProgress", v)} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Show lesson type icons</p>
+              <p className="text-xs text-muted-foreground">Display icons next to lessons in the sidebar</p>
+            </div>
+            <Switch checked={form.playerShowLessonIcons} onCheckedChange={(v) => set("playerShowLessonIcons", v)} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Allow student notes</p>
+              <p className="text-xs text-muted-foreground">Students can take private notes on each lesson</p>
+            </div>
+            <Switch checked={form.playerAllowNotes} onCheckedChange={(v) => set("playerAllowNotes", v)} />
+          </div>
+        </div>
+      </section>
+
+      {/* Progress & Completion */}
+      <section className="border border-border rounded-xl p-6 flex flex-col gap-5">
+        <h2 className="font-semibold text-base">Progress &amp; Completion</h2>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Track progress</p>
+              <p className="text-xs text-muted-foreground">Record which lessons students have completed</p>
+            </div>
+            <Switch checked={form.trackProgress} onCheckedChange={(v) => set("trackProgress", v)} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Show Complete &amp; Continue button</p>
+              <p className="text-xs text-muted-foreground">Students must click to mark lessons complete</p>
+            </div>
+            <Switch checked={form.showCompleteButton} onCheckedChange={(v) => set("showCompleteButton", v)} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Require sequential order</p>
+              <p className="text-xs text-muted-foreground">Students must complete lessons in order</p>
+            </div>
+            <Switch checked={form.requireSequential} onCheckedChange={(v) => set("requireSequential", v)} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Enable certificate on completion</p>
+              <p className="text-xs text-muted-foreground">Auto-generate a certificate when course is completed</p>
+            </div>
+            <Switch
+              checked={form.enableCertificate}
+              onCheckedChange={(v) => {
+                if (v && !can("certificates")) {
+                  setUpgradeFeature("certificates");
+                  setUpgradeOpen(true);
+                } else {
+                  set("enableCertificate", v);
+                }
+              }}
+            />
+          </div>
+        </div>
+        <div>
+          <Label>Completion criteria</Label>
+          <Select value={form.completionType} onValueChange={(v) => set("completionType", v)}>
+            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all_lessons">Complete all lessons</SelectItem>
+              <SelectItem value="percentage">Complete a percentage of lessons</SelectItem>
+              <SelectItem value="quiz_pass">Pass a required quiz</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {form.completionType === "percentage" && (
+          <div>
+            <Label>Completion percentage: {form.completionPercentage}%</Label>
+            <input
+              type="range"
+              min={1}
+              max={100}
+              value={form.completionPercentage}
+              onChange={(e) => set("completionPercentage", parseInt(e.target.value))}
+              className="w-full mt-2"
+            />
+          </div>
+        )}
+      </section>
+
+      {/* After Purchase */}
+      <section className="border border-border rounded-xl p-6 flex flex-col gap-5">
+        <h2 className="font-semibold text-base">After Purchase</h2>
+        <div>
+          <Label>Redirect URL after enrollment</Label>
+          <Input
+            value={form.afterPurchaseRedirectUrl}
+            onChange={(e) => set("afterPurchaseRedirectUrl", e.target.value)}
+            placeholder="https://example.com/welcome"
+            className="mt-1.5"
+          />
+          <p className="text-xs text-muted-foreground mt-1">Leave blank to go directly to the course player</p>
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">Send welcome email</p>
+            <p className="text-xs text-muted-foreground">Automatically email new students on enrollment</p>
+          </div>
+          <Switch checked={form.welcomeEmailEnabled} onCheckedChange={(v) => set("welcomeEmailEnabled", v)} />
+        </div>
+        {form.welcomeEmailEnabled && (
+          <>
+            <div>
+              <Label>Email subject</Label>
+              <Input
+                value={form.welcomeEmailSubject}
+                onChange={(e) => set("welcomeEmailSubject", e.target.value)}
+                placeholder="Welcome to {course_name}!"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label>Email body</Label>
+              <Textarea
+                value={form.welcomeEmailBody}
+                onChange={(e) => set("welcomeEmailBody", e.target.value)}
+                rows={5}
+                placeholder="Hi {student_name}, welcome to the course..."
+                className="mt-1.5"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Available tokens: {'{student_name}'}, {'{course_name}'}, {'{course_url}'}</p>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Page Code — Pro+ gated */}
+      <section className="border border-border rounded-xl p-6 flex flex-col gap-5">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-base">Page Code</h2>
+          {!can("customCode") && (
+            <Badge variant="outline" className="text-xs border-amber-400 text-amber-600">Pro+</Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground -mt-2">Add custom HTML/JS to the course player page. We cannot provide support for custom code.</p>
+        <div>
+          <Label>Header code (before &lt;/head&gt;)</Label>
+          <Textarea
+            value={form.headerCode}
+            onChange={(e) => {
+              if (!can("customCode")) { setUpgradeFeature("customCode"); setUpgradeOpen(true); return; }
+              set("headerCode", e.target.value);
+            }}
+            rows={4}
+            placeholder="<!-- Google Analytics, etc. -->"
+            className="mt-1.5 font-mono text-xs"
+            disabled={!can("customCode")}
+          />
+        </div>
+        <div>
+          <Label>Footer code (before &lt;/body&gt;)</Label>
+          <Textarea
+            value={form.footerCode}
+            onChange={(e) => {
+              if (!can("customCode")) { setUpgradeFeature("customCode"); setUpgradeOpen(true); return; }
+              set("footerCode", e.target.value);
+            }}
+            rows={4}
+            placeholder="<!-- Custom scripts -->"
+            className="mt-1.5 font-mono text-xs"
+            disabled={!can("customCode")}
+          />
+        </div>
+      </section>
+
+      {/* Social sharing */}
+      <section className="border border-border rounded-xl p-6 flex flex-col gap-5">
+        <h2 className="font-semibold text-base">Social Sharing</h2>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">Share at chapter completion</p>
+            <Switch checked={form.enableChapterShare} onCheckedChange={(v) => set("enableChapterShare", v)} />
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">Share at course completion</p>
+            <Switch checked={form.enableCompletionShare} onCheckedChange={(v) => set("enableCompletionShare", v)} />
+          </div>
+        </div>
+        <div>
+          <Label>Social sharing text</Label>
+          <Input
+            value={form.socialShareText}
+            onChange={(e) => set("socialShareText", e.target.value)}
+            placeholder="Check out this course!"
+            className="mt-1.5"
+          />
+          <p className="text-xs text-muted-foreground mt-1">Used as default content for X/Twitter</p>
+        </div>
+      </section>
+
+      {/* SEO */}
+      <section className="border border-border rounded-xl p-6 flex flex-col gap-4">
+        <h2 className="font-semibold text-base">SEO</h2>
+        <div>
+          <Label>SEO Title</Label>
+          <Input value={form.seoTitle} onChange={(e) => set("seoTitle", e.target.value)} className="mt-1.5" />
+        </div>
+        <div>
+          <Label>SEO Description</Label>
+          <Input value={form.seoDescription} onChange={(e) => set("seoDescription", e.target.value)} className="mt-1.5" />
+        </div>
+      </section>
+
+      <Button onClick={() => onSave(form)} className="self-start">Save Settings</Button>
+    </div>
+  );
+}
+
+// ─── Pricing Tab ──────────────────────────────────────────────────────────────
+
+function CoursePricingTab({ courseId }: { courseId: number }) {
+  const utils = trpc.useUtils();
+  const { data: orgs } = trpc.orgs.myOrgs.useQuery();
+  const orgId = orgs?.[0]?.id;
+  const { data: pricing } = trpc.lms.pricing.list.useQuery({ courseId });
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    pricingType: "one_time" as "free" | "one_time" | "subscription" | "payment_plan",
+    price: 0,
+    billingInterval: "month" as "month" | "year",
+    accessDays: undefined as number | undefined,
+  });
+
+  const createPricing = trpc.lms.pricing.create.useMutation({
+    onSuccess: () => {
+      utils.lms.pricing.list.invalidate({ courseId });
+      setOpen(false);
+      toast.success("Pricing option added");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const deletePricing = trpc.lms.pricing.delete.useMutation({
+    onSuccess: () => utils.lms.pricing.list.invalidate({ courseId }),
+  });
+
+  return (
+    <div className="max-w-2xl mx-auto flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold">Pricing Options</h2>
+        <Button size="sm" onClick={() => setOpen(true)} className="gap-1.5">
+          <Plus className="h-4 w-4" /> Add Pricing
+        </Button>
+      </div>
+
+      {pricing?.length === 0 && (
+        <div className="border-2 border-dashed border-border rounded-xl p-10 text-center text-muted-foreground">
+          <DollarSign className="h-8 w-8 mx-auto mb-2 opacity-40" />
+          <p className="text-sm">No pricing options yet. Add one to start selling this course.</p>
+        </div>
+      )}
+
+      {pricing?.map((p) => (
+        <div key={p.id} className="border border-border rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="font-medium text-sm">{p.name}</p>
+            <p className="text-xs text-muted-foreground capitalize">
+              {p.pricingType === "free" ? "Free" : `$${p.price} ${p.pricingType === "subscription" ? `/ ${(p as any).billingInterval ?? "month"}` : ""}`}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive"
+            onClick={() => deletePricing.mutate({ id: p.id })}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add Pricing Option</DialogTitle></DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div>
+              <Label>Name</Label>
+              <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Monthly Access" className="mt-1.5" />
+            </div>
+            <div>
+              <Label>Type</Label>
+              <Select value={form.pricingType} onValueChange={(v: any) => setForm(f => ({ ...f, pricingType: v }))}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="one_time">One-time payment</SelectItem>
+                  <SelectItem value="subscription">Subscription</SelectItem>
+                  <SelectItem value="payment_plan">Payment plan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {form.pricingType !== "free" && (
+              <div>
+                <Label>Price (USD)</Label>
+                <Input type="number" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))} className="mt-1.5" />
+              </div>
+            )}
+            {form.pricingType === "subscription" && (
+              <div>
+                <Label>Billing Interval</Label>
+                <Select value={form.billingInterval} onValueChange={(v: any) => setForm(f => ({ ...f, billingInterval: v }))}>
+                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Monthly</SelectItem>
+                    <SelectItem value="year">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              disabled={!form.name || !orgId}
+              onClick={() => createPricing.mutate({ courseId, orgId: orgId!, ...form })}
+            >
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

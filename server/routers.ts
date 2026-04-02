@@ -77,6 +77,7 @@ import {
 import { invokeLLM } from "./_core/llm";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
+import { lmsRouter } from "./lmsRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { ENV } from "./_core/env";
 
@@ -107,6 +108,7 @@ const ownerProcedure = protectedProcedure.use(({ ctx, next }) => {
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
+  lms: lmsRouter,
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   auth: router({

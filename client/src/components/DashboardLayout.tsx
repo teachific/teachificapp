@@ -31,8 +31,11 @@ import {
   Building2,
   ChevronRight,
   FileArchive,
+  GraduationCap,
   LayoutDashboard,
+  Library,
   LogOut,
+  Palette,
   PanelLeft,
   Settings,
   Shield,
@@ -46,18 +49,12 @@ import { Button } from "./ui/button";
 
 const navGroups = [
   {
-    label: "Content",
+    label: "",
     items: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-      { icon: Upload, label: "Upload Content", path: "/upload" },
-      { icon: FileArchive, label: "My Files", path: "/files" },
-      { icon: BookOpen, label: "Quizzes", path: "/quizzes" },
-    ],
-  },
-  {
-    label: "Analytics",
-    items: [
-      { icon: BarChart3, label: "Analytics", path: "/analytics" },
+      { icon: Library, label: "Media Library", path: "/media-library" },
+      { icon: GraduationCap, label: "Courses", path: "/lms/courses" },
+      { icon: Users, label: "Members", path: "/lms/members" },
     ],
   },
   {
@@ -67,6 +64,8 @@ const navGroups = [
       { icon: Building2, label: "Organizations", path: "/admin/orgs" },
       { icon: Users, label: "Users", path: "/admin/users" },
       { icon: Shield, label: "Permissions", path: "/admin/permissions" },
+      { icon: BarChart3, label: "Analytics", path: "/lms/analytics" },
+      { icon: Palette, label: "Branding", path: "/lms/branding" },
       { icon: Settings, label: "Settings", path: "/admin/settings" },
     ],
   },
@@ -202,12 +201,12 @@ function DashboardLayoutContent({
             {navGroups.map((group) => {
               if (group.adminOnly && !isAdmin) return null;
               return (
-                <SidebarGroup key={group.label} className="py-1">
-                  {!isCollapsed && (
-                    <SidebarGroupLabel className="px-4 text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1">
-                      {group.label}
-                    </SidebarGroupLabel>
-                  )}
+                <SidebarGroup key={group.label || "main"} className="py-1">
+                    {group.label && (
+                      <SidebarGroupLabel className="px-4 text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1">
+                        {group.label}
+                      </SidebarGroupLabel>
+                    )}
                   <SidebarMenu className="px-2">
                     {group.items.map((item) => {
                       const isActive = item.path === "/" ? location === "/" : location.startsWith(item.path);

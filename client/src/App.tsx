@@ -10,6 +10,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Dashboard from "./pages/Dashboard";
 import FilesPage from "./pages/FilesPage";
 import UploadPage from "./pages/UploadPage";
+import MediaLibraryPage from "./pages/MediaLibraryPage";
 import FileDetailPage from "./pages/FileDetailPage";
 import PlayerPage from "./pages/PlayerPage";
 import EmbedPage from "./pages/EmbedPage";
@@ -22,12 +23,23 @@ import AdminOrgsPage from "./pages/admin/AdminOrgsPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminPermissionsPage from "./pages/admin/AdminPermissionsPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
-
-// Bare routes (no admin sidebar) — used for share links and external embeds
+// LMS pages
+import CoursesPage from "./pages/lms/CoursesPage";
+import CourseBuilderPage from "./pages/lms/CourseBuilderPage";
+import BrandingPage from "./pages/lms/BrandingPage";
+import MembersPage from "./pages/lms/MembersPage";
+import LmsAnalyticsPage from "./pages/lms/LmsAnalyticsPage";
+import PageBuilderPage from "./pages/lms/PageBuilderPage";
+import SchoolPage from "./pages/lms/SchoolPage";
+import CourseSalesPage from "./pages/lms/CourseSalesPage";
+import CoursePlayerPage from "./pages/lms/CoursePlayerPage";
+// Bare routes (no admin sidebar) — used for share links and external embedss
 function BareRouter() {
   return (
     <Switch>
       <Route path="/embed/:id" component={EmbedPage} />
+      <Route path="/learn/:courseId" component={CoursePlayerPage} />
+      <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
     </Switch>
   );
 }
@@ -39,13 +51,15 @@ function AdminRouter() {
       <Switch>
         {/* Main */}
         <Route path="/" component={Dashboard} />
-        <Route path="/upload" component={UploadPage} />
-        <Route path="/files" component={FilesPage} />
+        <Route path="/media-library" component={MediaLibraryPage} />
+        {/* Legacy routes — redirect to media library with correct tab */}
+        <Route path="/upload">{() => { window.location.replace("/media-library#upload"); return null; }}</Route>
+        <Route path="/files">{() => { window.location.replace("/media-library#files"); return null; }}</Route>
         <Route path="/files/:id" component={FileDetailPage} />
+        <Route path="/quizzes">{() => { window.location.replace("/media-library#quizzes"); return null; }}</Route>
         <Route path="/play/:id" component={PlayerPage} />
 
-        {/* Quizzes */}
-        <Route path="/quizzes" component={QuizzesPage} />
+        {/* Quiz sub-routes (builder/player/results) — still accessible directly */}
         <Route path="/quizzes/new" component={QuizBuilderPage} />
         <Route path="/quizzes/:id/edit" component={QuizBuilderPage} />
         <Route path="/quizzes/:id/play" component={QuizPlayerPage} />
@@ -54,6 +68,21 @@ function AdminRouter() {
         {/* Analytics */}
         <Route path="/analytics" component={AnalyticsPage} />
 
+        {/* LMS */}
+        <Route path="/lms/courses" component={CoursesPage} />
+        <Route path="/lms/courses/new" component={CourseBuilderPage} />
+        <Route path="/lms/courses/:id" component={CourseBuilderPage} />
+        <Route path="/lms/members" component={MembersPage} />
+        <Route path="/lms/analytics" component={LmsAnalyticsPage} />
+        <Route path="/lms/branding" component={BrandingPage} />
+        <Route path="/lms/page-builder/:pageId" component={PageBuilderPage} />
+        <Route path="/lms/courses/:courseId/page-builder" component={PageBuilderPage} />
+        {/* Student storefront */}
+        <Route path="/school" component={SchoolPage} />
+        <Route path="/school/courses/:courseId" component={CourseSalesPage} />
+        {/* Course player */}
+        <Route path="/learn/:courseId" component={CoursePlayerPage} />
+        <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
         {/* Admin */}
         <Route path="/admin/orgs" component={AdminOrgsPage} />
         <Route path="/admin/users" component={AdminUsersPage} />
@@ -69,9 +98,9 @@ function AdminRouter() {
 }
 
 function Router() {
-  // Check if current path is a bare route (embed/share)
+  // Check if current path is a bare route (embed/share/learn)
   const path = window.location.pathname;
-  if (path.startsWith("/embed/")) {
+  if (path.startsWith("/embed/") || path.startsWith("/learn/")) {
     return <BareRouter />;
   }
   return <AdminRouter />;

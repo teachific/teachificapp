@@ -1,0 +1,1047 @@
+import { useState, useEffect, useCallback } from "react";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import RichTextEditor from "@/components/RichTextEditor";
+import {
+  Video,
+  FileText,
+  HelpCircle,
+  FileArchive,
+  Music,
+  Download,
+  Eye,
+  Edit,
+  CheckCircle,
+  Users,
+  Clock,
+  Lock,
+  Unlock,
+  Upload,
+  Link,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface Lesson {
+  id: number;
+  title: string;
+  lessonType: string;
+  contentJson?: string | null;
+  videoUrl?: string | null;
+  videoProvider?: string | null;
+  packageId?: number | null;
+  quizId?: number | null;
+  isFreePreview?: boolean | null;
+  isPublished?: boolean | null;
+  durationSeconds?: number | null;
+  downloadUrl?: string | null;
+  downloadFileName?: string | null;
+  pdfUrl?: string | null;
+  audioUrl?: string | null;
+  webLinkUrl?: string | null;
+  richTextAddOn?: string | null;
+  liveSessionJson?: string | null;
+}
+
+interface LessonEditorSheetProps {
+  lesson: Lesson | null;
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+  orgId: number;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const LESSON_TYPE_META: Record<string, { label: string; icon: any; color: string }> = {
+  video: { label: "Video", icon: Video, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+  text: { label: "Text / Rich Content", icon: FileText, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
+  scorm: { label: "SCORM / HTML5", icon: FileArchive, color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" },
+  quiz: { label: "Quiz", icon: HelpCircle, color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
+  flashcard: { label: "Flashcards", icon: FileText, color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  exam: { label: "Exam", icon: CheckCircle, color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+  pdf: { label: "PDF", icon: FileText, color: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400" },
+  audio: { label: "Audio", icon: Music, color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" },
+  assignment: { label: "Assignment", icon: Edit, color: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400" },
+  download: { label: "Download", icon: Download, color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400" },
+  weblink: { label: "Web Link / Embed", icon: Eye, color: "bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400" },
+  zoom: { label: "Zoom / Live Session", icon: Users, color: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400" },
+};
+
+function formatSeconds(s: number | null | undefined): string {
+  if (!s) return "";
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
+function parseSeconds(val: string): number | undefined {
+  if (!val) return undefined;
+  const parts = val.split(":");
+  if (parts.length === 2) {
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  }
+  return parseInt(val) || undefined;
+}
+
+// ─── Flashcard editor ────────────────────────────────────────────────────────
+
+function FlashcardEditor({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [cards, setCards] = useState<{ front: string; back: string }[]>(() => {
+    try {
+      const parsed = JSON.parse(value || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const update = useCallback(
+    (newCards: { front: string; back: string }[]) => {
+      setCards(newCards);
+      onChange(JSON.stringify(newCards));
+    },
+    [onChange]
+  );
+
+  const addCard = () => update([...cards, { front: "", back: "" }]);
+  const removeCard = (i: number) => update(cards.filter((_, idx) => idx !== i));
+  const updateCard = (i: number, field: "front" | "back", val: string) => {
+    const next = cards.map((c, idx) => (idx === i ? { ...c, [field]: val } : c));
+    update(next);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      {cards.map((card, i) => (
+        <div key={i} className="border border-border rounded-lg p-3 flex flex-col gap-2 relative">
+          <button
+            type="button"
+            onClick={() => removeCard(i)}
+            className="absolute top-2 right-2 text-muted-foreground hover:text-destructive"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+          <div>
+            <Label className="text-xs text-muted-foreground">Front</Label>
+            <Textarea
+              value={card.front}
+              onChange={(e) => updateCard(i, "front", e.target.value)}
+              placeholder="Question or term..."
+              rows={2}
+              className="mt-1 text-sm"
+            />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Back</Label>
+            <Textarea
+              value={card.back}
+              onChange={(e) => updateCard(i, "back", e.target.value)}
+              placeholder="Answer or definition..."
+              rows={2}
+              className="mt-1 text-sm"
+            />
+          </div>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" onClick={addCard} className="gap-1.5 self-start">
+        <Plus className="h-3.5 w-3.5" />
+        Add Card
+      </Button>
+      <p className="text-xs text-muted-foreground">{cards.length} card{cards.length !== 1 ? "s" : ""}</p>
+    </div>
+  );
+}
+
+// ─── File upload helper ───────────────────────────────────────────────────────
+
+function FileUploadField({
+  label,
+  value,
+  onChange,
+  accept,
+  orgId,
+  contentType,
+}: {
+  label: string;
+  value: string;
+  onChange: (url: string) => void;
+  accept: string;
+  orgId: number;
+  contentType: string;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const getUploadUrl = trpc.lms.media.getUploadUrl.useMutation();
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { fileUrl } = await getUploadUrl.mutateAsync({
+        orgId,
+        fileName: file.name,
+        contentType: file.type || contentType,
+      });
+      // Upload the actual file bytes to S3
+      await fetch(fileUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type || contentType },
+      });
+      onChange(fileUrl);
+      toast.success("File uploaded");
+    } catch (err: any) {
+      toast.error("Upload failed: " + (err.message ?? "Unknown error"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>{label}</Label>
+      <div className="flex gap-2">
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Paste URL or upload file..."
+          className="flex-1"
+        />
+        <label className="cursor-pointer">
+          <input
+            type="file"
+            accept={accept}
+            className="hidden"
+            onChange={handleFile}
+            disabled={uploading}
+          />
+          <Button type="button" variant="outline" size="sm" disabled={uploading} asChild>
+            <span>
+              <Upload className="h-3.5 w-3.5 mr-1.5" />
+              {uploading ? "Uploading..." : "Upload"}
+            </span>
+          </Button>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+// ─── Lesson type content editors ─────────────────────────────────────────────
+
+function VideoEditor({
+  form,
+  set,
+  orgId,
+}: {
+  form: any;
+  set: (k: string, v: any) => void;
+  orgId: number;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <Label>Video Provider</Label>
+        <Select value={form.videoProvider ?? "youtube"} onValueChange={(v) => set("videoProvider", v)}>
+          <SelectTrigger className="mt-1.5">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="youtube">YouTube</SelectItem>
+            <SelectItem value="vimeo">Vimeo</SelectItem>
+            <SelectItem value="wistia">Wistia</SelectItem>
+            <SelectItem value="upload">Direct Upload / URL</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>
+          {form.videoProvider === "youtube"
+            ? "YouTube URL or Video ID"
+            : form.videoProvider === "vimeo"
+            ? "Vimeo URL or Video ID"
+            : form.videoProvider === "wistia"
+            ? "Wistia Video URL"
+            : "Video URL"}
+        </Label>
+        <Input
+          value={form.videoUrl ?? ""}
+          onChange={(e) => set("videoUrl", e.target.value)}
+          placeholder={
+            form.videoProvider === "youtube"
+              ? "https://www.youtube.com/watch?v=..."
+              : form.videoProvider === "vimeo"
+              ? "https://vimeo.com/..."
+              : form.videoProvider === "wistia"
+              ? "https://fast.wistia.net/embed/iframe/..."
+              : "https://..."
+          }
+          className="mt-1.5"
+        />
+        {(form.videoProvider === "youtube" || form.videoProvider === "vimeo") && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Paste the full URL or just the video ID
+          </p>
+        )}
+      </div>
+      {form.videoUrl && (form.videoProvider === "youtube" || !form.videoProvider) && (
+        <VideoPreview url={form.videoUrl} provider={form.videoProvider ?? "youtube"} />
+      )}
+      {form.videoUrl && form.videoProvider === "vimeo" && (
+        <VideoPreview url={form.videoUrl} provider="vimeo" />
+      )}
+    </div>
+  );
+}
+
+function VideoPreview({ url, provider }: { url: string; provider: string }) {
+  const getEmbedUrl = () => {
+    if (provider === "youtube") {
+      const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+      const id = match?.[1] ?? url;
+      return `https://www.youtube.com/embed/${id}`;
+    }
+    if (provider === "vimeo") {
+      const match = url.match(/vimeo\.com\/(\d+)/);
+      const id = match?.[1] ?? url;
+      return `https://player.vimeo.com/video/${id}`;
+    }
+    return url;
+  };
+
+  return (
+    <div className="rounded-lg overflow-hidden border border-border aspect-video bg-black">
+      <iframe
+        src={getEmbedUrl()}
+        className="w-full h-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    </div>
+  );
+}
+
+function TextEditor({ form, set }: { form: any; set: (k: string, v: any) => void }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>Content</Label>
+      <RichTextEditor
+        value={form.contentJson ?? ""}
+        onChange={(v) => set("contentJson", v)}
+        placeholder="Write your lesson content here..."
+        minHeight={300}
+      />
+    </div>
+  );
+}
+
+function AudioEditor({
+  form,
+  set,
+  orgId,
+}: {
+  form: any;
+  set: (k: string, v: any) => void;
+  orgId: number;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <FileUploadField
+        label="Audio File"
+        value={form.audioUrl ?? ""}
+        onChange={(v) => set("audioUrl", v)}
+        accept="audio/*"
+        orgId={orgId}
+        contentType="audio/mpeg"
+      />
+      {form.audioUrl && (
+        <audio controls className="w-full mt-1">
+          <source src={form.audioUrl} />
+        </audio>
+      )}
+    </div>
+  );
+}
+
+function PdfEditor({
+  form,
+  set,
+  orgId,
+}: {
+  form: any;
+  set: (k: string, v: any) => void;
+  orgId: number;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <FileUploadField
+        label="PDF File"
+        value={form.pdfUrl ?? ""}
+        onChange={(v) => set("pdfUrl", v)}
+        accept=".pdf"
+        orgId={orgId}
+        contentType="application/pdf"
+      />
+      {form.pdfUrl && (
+        <a href={form.pdfUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline">
+          Preview PDF
+        </a>
+      )}
+    </div>
+  );
+}
+
+function ScormEditor({
+  form,
+  set,
+  orgId,
+}: {
+  form: any;
+  set: (k: string, v: any) => void;
+  orgId: number;
+}) {
+  const { data: orgs } = trpc.orgs.myOrgs.useQuery();
+  const { data: packages } = trpc.packages.list.useQuery({ orgId });
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <Label>Select Content Package</Label>
+        <Select
+          value={form.packageId ? String(form.packageId) : ""}
+          onValueChange={(v) => set("packageId", parseInt(v))}
+        >
+          <SelectTrigger className="mt-1.5">
+            <SelectValue placeholder="Choose a SCORM / HTML5 package..." />
+          </SelectTrigger>
+          <SelectContent>
+            {packages?.map((pkg) => (
+              <SelectItem key={pkg.id} value={String(pkg.id)}>
+                {pkg.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">
+          Upload SCORM/HTML5 packages via{" "}
+          <a href="/upload" className="text-primary underline">
+            Upload Content
+          </a>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function WebLinkEditor({ form, set }: { form: any; set: (k: string, v: any) => void }) {
+  const [embedMode, setEmbedMode] = useState(false);
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <Label>URL</Label>
+        <Input
+          value={form.webLinkUrl ?? ""}
+          onChange={(e) => set("webLinkUrl", e.target.value)}
+          placeholder="https://..."
+          className="mt-1.5"
+        />
+      </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium">Embed in iframe</p>
+          <p className="text-xs text-muted-foreground">Show the page inside the course player</p>
+        </div>
+        <Switch checked={embedMode} onCheckedChange={setEmbedMode} />
+      </div>
+      {embedMode && form.webLinkUrl && (
+        <div className="rounded-lg overflow-hidden border border-border" style={{ height: 300 }}>
+          <iframe src={form.webLinkUrl} className="w-full h-full" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DownloadEditor({
+  form,
+  set,
+  orgId,
+}: {
+  form: any;
+  set: (k: string, v: any) => void;
+  orgId: number;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <FileUploadField
+        label="File to Download"
+        value={form.downloadUrl ?? ""}
+        onChange={(v) => set("downloadUrl", v)}
+        accept="*"
+        orgId={orgId}
+        contentType="application/octet-stream"
+      />
+      <div>
+        <Label>Display File Name</Label>
+        <Input
+          value={form.downloadFileName ?? ""}
+          onChange={(e) => set("downloadFileName", e.target.value)}
+          placeholder="e.g. Course Workbook.pdf"
+          className="mt-1.5"
+        />
+      </div>
+    </div>
+  );
+}
+
+function QuizEditor({
+  form,
+  set,
+  orgId,
+}: {
+  form: any;
+  set: (k: string, v: any) => void;
+  orgId: number;
+}) {
+  const { data: quizzes } = trpc.quizzes.list.useQuery({ orgId });
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <Label>Select Quiz</Label>
+        <Select
+          value={form.quizId ? String(form.quizId) : ""}
+          onValueChange={(v) => set("quizId", parseInt(v))}
+        >
+          <SelectTrigger className="mt-1.5">
+            <SelectValue placeholder="Choose a quiz..." />
+          </SelectTrigger>
+          <SelectContent>
+            {quizzes?.map((q) => (
+              <SelectItem key={q.id} value={String(q.id)}>
+                {q.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground mt-1">
+          Create quizzes in the{" "}
+          <a href="/quizzes" className="text-primary underline">
+            Quizzes
+          </a>{" "}
+          section
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ExamEditor({
+  form,
+  set,
+  orgId,
+}: {
+  form: any;
+  set: (k: string, v: any) => void;
+  orgId: number;
+}) {
+  const { data: quizzes } = trpc.quizzes.list.useQuery({ orgId });
+  const liveJson = (() => {
+    try {
+      return JSON.parse(form.liveSessionJson || "{}");
+    } catch {
+      return {};
+    }
+  })();
+  const setLive = (k: string, v: any) => {
+    set("liveSessionJson", JSON.stringify({ ...liveJson, [k]: v }));
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <Label>Select Quiz / Question Bank</Label>
+        <Select
+          value={form.quizId ? String(form.quizId) : ""}
+          onValueChange={(v) => set("quizId", parseInt(v))}
+        >
+          <SelectTrigger className="mt-1.5">
+            <SelectValue placeholder="Choose a quiz..." />
+          </SelectTrigger>
+          <SelectContent>
+            {quizzes?.map((q) => (
+              <SelectItem key={q.id} value={String(q.id)}>
+                {q.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Time Limit (minutes)</Label>
+          <Input
+            type="number"
+            value={liveJson.timeLimit ?? ""}
+            onChange={(e) => setLive("timeLimit", parseInt(e.target.value) || undefined)}
+            placeholder="No limit"
+            className="mt-1.5"
+          />
+        </div>
+        <div>
+          <Label>Passing Score (%)</Label>
+          <Input
+            type="number"
+            value={liveJson.passingScore ?? ""}
+            onChange={(e) => setLive("passingScore", parseInt(e.target.value) || undefined)}
+            placeholder="e.g. 70"
+            className="mt-1.5"
+          />
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium">Shuffle questions</p>
+        </div>
+        <Switch
+          checked={liveJson.shuffleQuestions ?? false}
+          onCheckedChange={(v) => setLive("shuffleQuestions", v)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AssignmentEditor({ form, set }: { form: any; set: (k: string, v: any) => void }) {
+  const liveJson = (() => {
+    try {
+      return JSON.parse(form.liveSessionJson || "{}");
+    } catch {
+      return {};
+    }
+  })();
+  const setLive = (k: string, v: any) => {
+    set("liveSessionJson", JSON.stringify({ ...liveJson, [k]: v }));
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <Label>Assignment Instructions</Label>
+        <RichTextEditor
+          value={form.contentJson ?? ""}
+          onChange={(v) => set("contentJson", v)}
+          placeholder="Describe the assignment..."
+          minHeight={200}
+        />
+      </div>
+      <div>
+        <Label>Submission Type</Label>
+        <Select
+          value={liveJson.submissionType ?? "text"}
+          onValueChange={(v) => setLive("submissionType", v)}
+        >
+          <SelectTrigger className="mt-1.5">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="text">Text response</SelectItem>
+            <SelectItem value="file">File upload</SelectItem>
+            <SelectItem value="link">URL / link</SelectItem>
+            <SelectItem value="any">Any (text, file, or link)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Due Date (optional)</Label>
+        <Input
+          type="date"
+          value={liveJson.dueDate ?? ""}
+          onChange={(e) => setLive("dueDate", e.target.value)}
+          className="mt-1.5"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ZoomEditor({ form, set }: { form: any; set: (k: string, v: any) => void }) {
+  const liveJson = (() => {
+    try {
+      return JSON.parse(form.liveSessionJson || "{}");
+    } catch {
+      return {};
+    }
+  })();
+  const setLive = (k: string, v: any) => {
+    set("liveSessionJson", JSON.stringify({ ...liveJson, [k]: v }));
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <Label>Platform</Label>
+        <Select
+          value={liveJson.platform ?? "zoom"}
+          onValueChange={(v) => setLive("platform", v)}
+        >
+          <SelectTrigger className="mt-1.5">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="zoom">Zoom</SelectItem>
+            <SelectItem value="teams">Microsoft Teams</SelectItem>
+            <SelectItem value="meet">Google Meet</SelectItem>
+            <SelectItem value="webex">Cisco Webex</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Meeting URL</Label>
+        <Input
+          value={liveJson.meetingUrl ?? ""}
+          onChange={(e) => setLive("meetingUrl", e.target.value)}
+          placeholder="https://zoom.us/j/..."
+          className="mt-1.5"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Date & Time</Label>
+          <Input
+            type="datetime-local"
+            value={liveJson.scheduledAt ?? ""}
+            onChange={(e) => setLive("scheduledAt", e.target.value)}
+            className="mt-1.5"
+          />
+        </div>
+        <div>
+          <Label>Duration (minutes)</Label>
+          <Input
+            type="number"
+            value={liveJson.durationMinutes ?? ""}
+            onChange={(e) => setLive("durationMinutes", parseInt(e.target.value) || undefined)}
+            placeholder="60"
+            className="mt-1.5"
+          />
+        </div>
+      </div>
+      <div>
+        <Label>Recurrence</Label>
+        <Select
+          value={liveJson.recurrence ?? "none"}
+          onValueChange={(v) => setLive("recurrence", v)}
+        >
+          <SelectTrigger className="mt-1.5">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No recurrence (one-time)</SelectItem>
+            <SelectItem value="daily">Daily</SelectItem>
+            <SelectItem value="weekly">Weekly</SelectItem>
+            <SelectItem value="biweekly">Bi-weekly</SelectItem>
+            <SelectItem value="monthly">Monthly</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Meeting ID / Passcode (optional)</Label>
+        <Input
+          value={liveJson.meetingId ?? ""}
+          onChange={(e) => setLive("meetingId", e.target.value)}
+          placeholder="Meeting ID or passcode for students"
+          className="mt-1.5"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export function LessonEditorSheet({
+  lesson,
+  open,
+  onClose,
+  onSaved,
+  orgId,
+}: LessonEditorSheetProps) {
+  const utils = trpc.useUtils();
+
+  const [form, setForm] = useState<any>({});
+  const [durationInput, setDurationInput] = useState("");
+
+  useEffect(() => {
+    if (lesson) {
+      setForm({
+        title: lesson.title ?? "",
+        lessonType: lesson.lessonType ?? "text",
+        contentJson: lesson.contentJson ?? "",
+        videoUrl: lesson.videoUrl ?? "",
+        videoProvider: lesson.videoProvider ?? "youtube",
+        packageId: lesson.packageId ?? null,
+        quizId: lesson.quizId ?? null,
+        isFreePreview: lesson.isFreePreview ?? false,
+        isPublished: lesson.isPublished ?? false,
+        durationSeconds: lesson.durationSeconds ?? null,
+        downloadUrl: lesson.downloadUrl ?? "",
+        downloadFileName: lesson.downloadFileName ?? "",
+        pdfUrl: lesson.pdfUrl ?? "",
+        audioUrl: lesson.audioUrl ?? "",
+        webLinkUrl: lesson.webLinkUrl ?? "",
+        richTextAddOn: lesson.richTextAddOn ?? "",
+        liveSessionJson: lesson.liveSessionJson ?? "{}",
+      });
+      setDurationInput(lesson.durationSeconds ? formatSeconds(lesson.durationSeconds) : "");
+    }
+  }, [lesson]);
+
+  const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+
+  const updateLesson = trpc.lms.curriculum.updateLesson.useMutation({
+    onSuccess: () => {
+      utils.lms.curriculum.get.invalidate();
+      toast.success("Lesson saved");
+      onSaved();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleSave = () => {
+    if (!lesson) return;
+    const durationSeconds = parseSeconds(durationInput);
+    updateLesson.mutate({
+      id: lesson.id,
+      ...form,
+      durationSeconds: durationSeconds ?? form.durationSeconds,
+    });
+  };
+
+  if (!lesson) return null;
+
+  const meta = LESSON_TYPE_META[lesson.lessonType] ?? LESSON_TYPE_META.text;
+  const Icon = meta.icon;
+
+  const renderContentEditor = () => {
+    switch (form.lessonType) {
+      case "video":
+        return <VideoEditor form={form} set={set} orgId={orgId} />;
+      case "text":
+        return <TextEditor form={form} set={set} />;
+      case "audio":
+        return <AudioEditor form={form} set={set} orgId={orgId} />;
+      case "pdf":
+        return <PdfEditor form={form} set={set} orgId={orgId} />;
+      case "scorm":
+        return <ScormEditor form={form} set={set} orgId={orgId} />;
+      case "weblink":
+        return <WebLinkEditor form={form} set={set} />;
+      case "download":
+        return <DownloadEditor form={form} set={set} orgId={orgId} />;
+      case "quiz":
+        return <QuizEditor form={form} set={set} orgId={orgId} />;
+      case "flashcard":
+        return (
+          <FlashcardEditor
+            value={form.contentJson ?? "[]"}
+            onChange={(v) => set("contentJson", v)}
+          />
+        );
+      case "exam":
+        return <ExamEditor form={form} set={set} orgId={orgId} />;
+      case "assignment":
+        return <AssignmentEditor form={form} set={set} />;
+      case "zoom":
+        return <ZoomEditor form={form} set={set} />;
+      default:
+        return <TextEditor form={form} set={set} />;
+    }
+  };
+
+  const showRichTextAddOn = !["text", "assignment", "flashcard"].includes(form.lessonType);
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col p-0 overflow-hidden">
+        <SheetHeader className="px-6 py-4 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${meta.color}`}>
+              <Icon className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <SheetTitle className="text-base leading-tight truncate">{form.title || "Untitled Lesson"}</SheetTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">{meta.label}</p>
+            </div>
+          </div>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto">
+          <Tabs defaultValue="content" className="flex flex-col h-full">
+            <TabsList className="mx-6 mt-4 mb-0 self-start">
+              <TabsTrigger value="content">Content</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+              {showRichTextAddOn && <TabsTrigger value="addon">Rich Text Add-on</TabsTrigger>}
+            </TabsList>
+
+            <TabsContent value="content" className="flex-1 px-6 py-4 flex flex-col gap-4 mt-0">
+              {/* Title */}
+              <div>
+                <Label>Lesson Title</Label>
+                <Input
+                  value={form.title}
+                  onChange={(e) => set("title", e.target.value)}
+                  className="mt-1.5"
+                />
+              </div>
+              <Separator />
+              {/* Type-specific content */}
+              {renderContentEditor()}
+            </TabsContent>
+
+            <TabsContent value="settings" className="flex-1 px-6 py-4 flex flex-col gap-5 mt-0">
+              {/* Published */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Published</p>
+                  <p className="text-xs text-muted-foreground">Visible to enrolled students</p>
+                </div>
+                <Switch
+                  checked={form.isPublished ?? false}
+                  onCheckedChange={(v) => set("isPublished", v)}
+                />
+              </div>
+              <Separator />
+              {/* Free preview */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    <Unlock className="h-3.5 w-3.5 text-green-500" />
+                    Free Preview
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Accessible without enrollment (great for marketing)
+                  </p>
+                </div>
+                <Switch
+                  checked={form.isFreePreview ?? false}
+                  onCheckedChange={(v) => set("isFreePreview", v)}
+                />
+              </div>
+              <Separator />
+              {/* Duration */}
+              <div>
+                <Label className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  Duration
+                </Label>
+                <Input
+                  value={durationInput}
+                  onChange={(e) => setDurationInput(e.target.value)}
+                  placeholder="m:ss or seconds (e.g. 5:30 or 330)"
+                  className="mt-1.5"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Shown in the course sidebar next to the lesson title
+                </p>
+              </div>
+              <Separator />
+              {/* Drip */}
+              <div>
+                <Label>Drip Schedule</Label>
+                <Select
+                  value={form.dripType ?? "immediate"}
+                  onValueChange={(v) => set("dripType", v)}
+                >
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="immediate">Available immediately</SelectItem>
+                    <SelectItem value="days_after_enrollment">Days after enrollment</SelectItem>
+                    <SelectItem value="specific_date">Specific date</SelectItem>
+                  </SelectContent>
+                </Select>
+                {form.dripType === "days_after_enrollment" && (
+                  <Input
+                    type="number"
+                    value={form.dripDays ?? ""}
+                    onChange={(e) => set("dripDays", parseInt(e.target.value) || 0)}
+                    placeholder="Number of days"
+                    className="mt-2"
+                  />
+                )}
+                {form.dripType === "specific_date" && (
+                  <Input
+                    type="date"
+                    value={form.dripDate ?? ""}
+                    onChange={(e) => set("dripDate", e.target.value)}
+                    className="mt-2"
+                  />
+                )}
+              </div>
+            </TabsContent>
+
+            {showRichTextAddOn && (
+              <TabsContent value="addon" className="flex-1 px-6 py-4 flex flex-col gap-4 mt-0">
+                <p className="text-sm text-muted-foreground">
+                  Add supplementary rich text content below the main lesson content (e.g., notes,
+                  transcripts, additional resources).
+                </p>
+                <RichTextEditor
+                  value={form.richTextAddOn ?? ""}
+                  onChange={(v) => set("richTextAddOn", v)}
+                  placeholder="Add notes, transcripts, or supplementary content..."
+                  minHeight={250}
+                />
+              </TabsContent>
+            )}
+          </Tabs>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-border flex items-center justify-between flex-shrink-0 bg-background">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={updateLesson.isPending}>
+            {updateLesson.isPending ? "Saving..." : "Save Lesson"}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+export default LessonEditorSheet;

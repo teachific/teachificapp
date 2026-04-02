@@ -390,3 +390,202 @@
 - [ ] Test direct browser-to-S3 upload bypassing proxy entirely
 - [ ] Implement chosen approach end-to-end
 - [ ] Update UploadNewVersion UI for new flow
+
+## LMS Platform Build — Full Feature Set
+
+### Phase 2: LMS Database Schema Extensions
+- [ ] Add `courses` table (title, slug, description, thumbnail_url, promo_video_url, status, org_id, instructor_id, settings JSON, is_private, is_hidden, disable_text_copy)
+- [ ] Add `course_sections` table (course_id, title, sort_order, is_free_preview, description)
+- [ ] Add `course_lessons` table (section_id, course_id, title, lesson_type enum, content JSON, sort_order, duration_seconds, is_free_preview, is_published, drip_days)
+- [ ] Add `course_enrollments` table (course_id, user_id, org_id, enrolled_at, completed_at, progress_pct, last_lesson_id, expires_at)
+- [ ] Add `lesson_progress` table (enrollment_id, lesson_id, user_id, status enum, completed_at, time_spent_seconds, scorm_data JSON)
+- [ ] Add `course_pricing` table (course_id, pricing_type enum, price, sale_price, currency, payment_plan JSON, access_days, is_free)
+- [ ] Add `coupons` table (org_id, code, discount_type, discount_value, max_uses, used_count, expires_at, applies_to JSON)
+- [ ] Add `org_theme` table (org_id, primary_color, accent_color, bg_mode enum, font_family, admin_logo_url, favicon_url, custom_css)
+- [ ] Add `page_builder_pages` table (org_id, course_id, page_type enum, blocks JSON, is_published, updated_at)
+- [ ] Add `certificates` table (enrollment_id, user_id, course_id, issued_at, cert_url, cert_data JSON)
+- [ ] Add `org_subscriptions` table (org_id, plan enum, stripe_subscription_id, status, current_period_end)
+- [ ] Extend `org_members` role enum: org_admin, sub_admin, instructor, member
+- [ ] Add `instructors` table (user_id, org_id, bio, avatar_url, title, social_links JSON)
+- [ ] Add `course_reviews` table (course_id, user_id, rating, review_text, created_at)
+- [ ] Add `drip_schedule` table (course_id, lesson_id, release_type enum, release_days, release_date)
+- [ ] Add `social_sharing` settings to courses (enable_chapter_share, enable_completion_share, share_text)
+- [ ] Run migration SQL via webdev_execute_sql
+
+### Phase 3: LMS Server Procedures
+- [ ] courses.create / update / delete / list / get
+- [ ] courses.publish / unpublish / duplicate
+- [ ] courses.sections.create / update / delete / reorder
+- [ ] courses.lessons.create / update / delete / reorder
+- [ ] courses.enroll / unenroll (admin + student self-enroll)
+- [ ] courses.progress.update / get
+- [ ] courses.pricing.set / get
+- [ ] courses.settings.update (basic, appearance, completion, SEO, drip, social sharing)
+- [ ] org.theme.get / update (role-gated: org_admin, sub_admin, instructor only)
+- [ ] org.branding.update (logo, favicon, colors — role-gated)
+- [ ] pageBuilder.get / save (per course or per page type)
+- [ ] certificates.issue / get / list / download
+- [ ] coupons.create / validate / apply / list
+- [ ] enrollments.list (admin) / myEnrollments (student)
+- [ ] instructors.get / update profile
+- [ ] reviews.create / list / delete
+
+### Phase 4: Admin Dashboard Shell & Theming
+- [ ] Extend DashboardLayout sidebar: add LMS sections (Courses, Students, Analytics, Site Builder, Settings)
+- [ ] Org theme panel: light/dark mode toggle, primary color picker, accent color picker, font selector
+- [ ] Theme panel gated to org_admin, sub_admin, instructor roles only
+- [ ] Persist theme to DB and apply CSS variables dynamically to admin shell
+- [ ] Role-based sidebar item visibility
+- [ ] Update Dashboard home with LMS stats: total courses, active enrollments, revenue, completion rate
+- [ ] Add org branding settings page (logo upload, favicon, school name, custom domain)
+
+### Phase 5: Course Builder (Admin)
+- [ ] Course list page: thumbnail, status badge (Draft/Published), enrollment count, revenue
+- [ ] New course wizard: title, slug, thumbnail upload, description, instructor assignment
+- [ ] Course editor: Teachable-style top tabs — Curriculum / Settings / Pricing / After Purchase / Drip Schedule
+- [ ] Curriculum editor: drag-and-drop sections and lessons, add/remove/reorder
+- [ ] Lesson types: Video, Text/Rich Text, SCORM/ZIP (reuse existing), Quiz (reuse existing), PDF, Audio, Assignment
+- [ ] Course settings sub-nav: Basic Settings, Image & Description, Course Player Appearance, Progress & Completion, Page Code, Drip Schedule, Admins/Revenue Partners/Affiliates, SEO, Social Sharing
+- [ ] Pricing tab: free, one-time, subscription, payment plan, bundle
+- [ ] After Purchase tab: redirect URL, welcome email, upsell funnel
+- [ ] Drip schedule: by enrollment date, specific date, or course start
+- [ ] Design templates selector (multiple layout options)
+- [ ] Course player appearance: theme color, sidebar style, progress bar style
+
+### Phase 6: Thinkific-Style Page Builder
+- [ ] Page builder shell: left block panel, center live preview, header with Desktop/Mobile/Fullscreen toggle, Save/Discard
+- [ ] Block types: Banner (hero), Text, Image, 3-Image grid, Video, Curriculum (auto), Pricing Options, Testimonials, CTA, Instructor Bio, Checklist, FAQ, Countdown Timer
+- [ ] Each block: drag to reorder, click to edit inline, duplicate, delete
+- [ ] Banner block: background image/color, title, subtitle, CTA button, price dropdown
+- [ ] Pricing block: course pricing options with "Get started now" buttons
+- [ ] Curriculum block: auto-renders sections/lessons with free preview badges
+- [ ] Mobile preview mode toggle
+- [ ] Save publishes page builder state to DB
+- [ ] Theme settings tab: colors and fonts from org theme
+
+### Phase 7: Student-Facing Storefront
+- [ ] School home page: rendered from page builder blocks with org branding
+- [ ] Course catalog page: grid/list of published courses with category filters
+- [ ] Course sales page: rendered from page builder blocks, pricing sidebar
+- [ ] Student enrollment/checkout flow
+- [ ] My Enrollments / Student Dashboard
+- [ ] Student profile page
+- [ ] Apply org theme (primary color, font, logo) to all student-facing pages
+
+### Phase 8: Teachable-Style Course Player
+- [ ] Course player layout: minimal top bar (home icon, settings, Previous / Complete & Continue), left sidebar (collapsible sections + lesson list), main content area
+- [ ] Sidebar: search by lesson title, section headers, lesson type icons, completion status circles
+- [ ] Lesson types rendered: video player, rich text, SCORM iframe (reuse proxy), quiz engine, PDF viewer
+- [ ] Progress tracking: mark complete, auto-advance, track time spent
+- [ ] Complete & Continue button advances to next lesson
+- [ ] Course completion: trigger certificate, show completion screen
+- [ ] Notes panel (optional per org settings)
+- [ ] Fullscreen toggle for SCORM/video content
+
+### Phase 9: Stripe Billing
+- [ ] Platform subscription tiers: Free (1 course, 25 students), Starter ($39/mo), Builder ($99/mo), Pro ($199/mo)
+- [ ] Per-org Stripe Connect for student course payments
+- [ ] Coupon/discount code at checkout
+- [ ] Payment plan support (installments)
+- [ ] Subscription management page
+- [ ] Webhook: subscription created/updated/cancelled
+
+### Phase 10: Analytics, Certificates & Reporting
+- [ ] Enrollment analytics: total enrollments, active students, completion rate, revenue
+- [ ] Per-course analytics: lesson completion funnel, quiz scores, time spent
+- [ ] Student progress report
+- [ ] Certificate template builder: org logo, student name, course name, date, signature
+- [ ] Auto-issue certificate on course completion
+- [ ] Certificate PDF download
+- [ ] Export student data as CSV
+
+## LMS Course Player Enhancements
+- [ ] Course player: toggle to show/hide lesson type icons in sidebar (per-course setting, admin/instructor controlled, stored in course settings)
+- [ ] Course publishing: three visibility states — Published (in catalog), Hidden (direct link only, not in catalog), Private (admin-only manual enrollment, no self-enrollment)
+- [ ] Update course status enum to include hidden/private visibility alongside draft/published/archived
+- [ ] Course builder: show visibility selector with descriptions for each option
+- [ ] Storefront catalog: filter out hidden and private courses from public listing
+- [ ] Private courses: block self-enrollment, show "Contact admin to enroll" message
+- [ ] Gate Hidden and Private course visibility to Pro and Enterprise tiers only — show upgrade prompt for lower tiers
+- [ ] Video player controls: default to Teachific teal (#189aa1) scheme, customizable per org via branding settings (playerAccentColor applied to progress bar, play button, and controls)
+- [ ] YouTube and Vimeo embed: available as video lesson type (paste URL, renders inline player) and as embed tool in rich text editor toolbar
+
+## LMS Spec Cross-Reference (Apr 2026)
+- [ ] Add showCompleteButton, enableCertificate, language, trackProgress, requireSequential, copiedFromId to courses schema
+- [ ] DB migration for new courses columns
+- [ ] lms.courses.copy - duplicate a course with all sections and lessons
+- [ ] lms.courses.archive - set status to archived
+- [ ] lms.curriculum.copyLesson - copy lesson to another course/section
+- [ ] lms.curriculum.copySection - copy section to another course
+- [ ] lms.ai.generateCourse - AI course generator (topic to modules and lessons)
+- [ ] lms.ai.generateQuiz - AI quiz generator from topic or lesson content
+- [ ] lms.ai.generateFlashcards - AI flashcard generator
+- [ ] lms.media.getUploadUrl - S3 upload URL for lesson media files
+- [ ] Full lesson editor dialog for all 12 lesson types in CourseBuilderPage
+- [ ] Video lesson editor: URL input (YouTube/Vimeo/Wistia/direct), provider selector, rich text add-on
+- [ ] Text lesson editor: full Tiptap rich text with YouTube/Vimeo embed
+- [ ] Audio lesson editor: file upload or URL, rich text add-on
+- [ ] PDF lesson editor: file upload or URL, rich text add-on
+- [ ] SCORM/ZIP lesson editor: link to existing content package
+- [ ] Web link lesson editor: URL input, embed toggle, rich text add-on
+- [ ] Download lesson editor: file upload or URL, filename, rich text add-on
+- [ ] Quiz lesson editor: link to existing quiz or create new
+- [ ] Flashcard lesson editor: inline flashcard editor (front/back pairs)
+- [ ] Exam lesson editor: link to quiz with exam settings (time limit, pass score)
+- [ ] Assignment lesson editor: instructions (rich text), submission type
+- [ ] Zoom/Teams lesson editor: platform, meeting URL, scheduled datetime, duration, recurrence
+- [ ] Per-lesson settings: isFreePreview, isPublished, durationSeconds, drip settings
+- [ ] CourseBuilderPage Settings - Image and Description: thumbnail upload, promo video URL, description (rich text), short description
+- [ ] CourseBuilderPage Settings - Player Appearance: theme color, sidebar style, show progress, allow notes, show lesson icons
+- [ ] CourseBuilderPage Settings - Progress and Completion: completion type, showCompleteButton, requireSequential, enableCertificate
+- [ ] CourseBuilderPage Settings - After Purchase: redirect URL, welcome email, upsell course selector
+- [ ] CourseBuilderPage Settings - Page Code: header/footer code textareas
+- [ ] CourseBuilderPage Settings - SEO: title, description
+- [ ] CourseBuilderPage Settings - Social Sharing: share toggles, share text
+- [ ] CourseBuilderPage Settings - Language: default language selector
+- [ ] CourseBuilderPage Settings - Design Template: template selector
+- [ ] CoursesPage: Copy/Duplicate course action
+- [ ] CoursesPage: Archive course action
+- [ ] CoursesPage: Status filter tabs (All/Draft/Published/Hidden/Private/Archived)
+- [ ] CoursesPage: AI Course Generator modal
+- [ ] CoursePlayerPage: Lesson icon toggle (respect course.playerShowLessonIcons)
+- [ ] CoursePlayerPage: Sidebar search filter
+- [ ] CoursePlayerPage: Notes panel (when playerAllowNotes is true)
+- [ ] CoursePlayerPage: Completion screen with certificate download
+- [ ] CoursePlayerPage: showCompleteButton respect course setting
+- [ ] CoursePlayerPage: requireSequential lock future lessons
+- [ ] Student My Courses dashboard (/school/my-courses)
+- [ ] Enrollment flow: enroll button, confirm, redirect to player
+- [ ] Free course auto-enrollment on click
+- [ ] Preview access: free preview lessons without enrollment
+- [ ] Private course: show Contact admin to enroll message
+- [ ] Student profile page (/school/profile)
+- [ ] Members: bulk upload via CSV/Excel
+- [ ] Members: manual enrollment of member to course
+- [ ] Members: member detail with courses, progress, certificates
+
+## Media Library Consolidation
+- [x] Create MediaLibraryPage with three tabs: Upload Content (SCORM/HTML5), My Files (uploaded media), Quizzes
+- [x] Remove Upload Content, My Files, and Quizzes from sidebar nav
+- [x] Add single "Media Library" link to sidebar nav in their place
+- [x] Update all internal links/routes to point to /media-library
+
+## Subscription Tier Gating
+- [ ] Define TIER_LIMITS constant with per-plan limits (courses, members, storage, features)
+- [ ] Server: gate course count per org by plan (Free: 3, Starter: 10, Builder: 25, Pro: unlimited, Enterprise: unlimited)
+- [ ] Server: gate member count per org by plan (Free: 50, Starter: 200, Builder: 1000, Pro: 5000, Enterprise: unlimited)
+- [ ] Server: gate AI course generation to Builder+ plans
+- [ ] Server: gate AI quiz/flashcard generation to Builder+ plans
+- [ ] Server: gate custom domain to Pro+ plans
+- [ ] Server: gate drip scheduling to Builder+ plans
+- [ ] Server: gate certificates to Starter+ plans
+- [ ] Server: gate course bundles to Builder+ plans
+- [ ] Server: gate advanced analytics to Pro+ plans
+- [ ] Server: gate Zoom/Teams live sessions to Pro+ plans
+- [ ] Server: gate hidden/private courses to Pro+ (already done)
+- [ ] Server: gate custom CSS/page code to Pro+ plans
+- [ ] Server: gate Zapier/webhook integrations to Pro+ plans
+- [ ] Client: show upgrade prompt UI when hitting tier limits
+- [ ] Client: show current plan badge on org settings page
+- [ ] Client: disable/lock gated features with upgrade CTA
+- [ ] Client: subscription management page for org admins

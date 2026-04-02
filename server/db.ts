@@ -94,6 +94,16 @@ export async function updateUserRole(userId: number, role: "site_owner" | "site_
   if (!db) return;
   await db.update(users).set({ role }).where(eq(users.id, userId));
 }
+export async function updateUser(userId: number, data: { name?: string; email?: string; role?: "site_owner" | "site_admin" | "org_admin" | "user" }) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set(data).where(eq(users.id, userId));
+}
+export async function deleteUser(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(users).where(eq(users.id, userId));
+}
 
 // ─── Organizations ─────────────────────────────────────────────────────────────
 export async function createOrg(data: {

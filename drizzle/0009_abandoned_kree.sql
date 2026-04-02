@@ -1,0 +1,2 @@
+ALTER TABLE `courses` MODIFY COLUMN `status` enum('draft','published','hidden','private','archived') NOT NULL DEFAULT 'draft';--> statement-breakpoint
+ALTER TABLE `courses` ADD `playerShowLessonIcons` boolean DEFAULT true NOT NULL;
