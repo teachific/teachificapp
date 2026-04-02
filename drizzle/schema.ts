@@ -46,6 +46,8 @@ export const organizations = mysqlTable("organizations", {
   maxStorageBytes: bigint("maxStorageBytes", { mode: "number" }).default(10737418240),
   usedStorageBytes: bigint("usedStorageBytes", { mode: "number" }).default(0),
   isActive: boolean("isActive").default(true).notNull(),
+  // Custom domain for Pro+ orgs
+  customDomain: varchar("customDomain", { length: 255 }),
   // Custom sender email for Builder+ orgs
   customSenderEmail: varchar("customSenderEmail", { length: 320 }),
   customSenderName: varchar("customSenderName", { length: 255 }),

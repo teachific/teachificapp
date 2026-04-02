@@ -843,11 +843,16 @@ export function LessonEditorSheet({
   const handleSave = () => {
     if (!lesson) return;
     const durationSeconds = parseSeconds(durationInput);
-    updateLesson.mutate({
+    const rawPayload = {
       id: lesson.id,
       ...form,
       durationSeconds: durationSeconds ?? form.durationSeconds,
-    });
+    };
+    // Strip null values — server expects undefined (omit) for optional numeric fields
+    const payload = Object.fromEntries(
+      Object.entries(rawPayload).filter(([, v]) => v !== null)
+    ) as typeof rawPayload;
+    updateLesson.mutate(payload);
   };
 
   if (!lesson) return null;
@@ -895,7 +900,7 @@ export function LessonEditorSheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col p-0 overflow-hidden">
+      <SheetContent side="right" className="w-full sm:max-w-[72vw] flex flex-col p-0 overflow-hidden">
         <SheetHeader className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${meta.color}`}>

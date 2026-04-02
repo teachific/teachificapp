@@ -46,6 +46,8 @@ import {
   Eye,
   EyeOff,
   Copy,
+  Clipboard,
+  ClipboardPaste,
 } from "lucide-react";
 import { nanoid } from "nanoid";
 
@@ -676,12 +678,13 @@ function BlockSettings({ block, onChange, courses }: {
 
 // ─── Sortable Block Row ───────────────────────────────────────────────────────
 
-function SortableBlock({ block, isSelected, onSelect, onDelete, onDuplicate, onToggleVisible, onChange, courses }: {
+function SortableBlock({ block, isSelected, onSelect, onDelete, onDuplicate, onCopyToClipboard, onToggleVisible, onChange, courses }: {
   block: Block;
   isSelected: boolean;
   onSelect: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onCopyToClipboard: () => void;
   onToggleVisible: () => void;
   onChange: (data: Record<string, any>) => void;
   courses: { id: number; title: string }[];
@@ -706,8 +709,11 @@ function SortableBlock({ block, isSelected, onSelect, onDelete, onDuplicate, onT
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onToggleVisible} title={block.visible ? "Hide" : "Show"}>
             {block.visible ? <Eye size={12} /> : <EyeOff size={12} />}
           </Button>
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDuplicate} title="Duplicate">
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDuplicate} title="Duplicate within page">
             <Copy size={12} />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onCopyToClipboard} title="Copy to clipboard (paste on any page)">
+            <Clipboard size={12} />
           </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={onDelete} title="Delete">
             <Trash2 size={12} />
@@ -785,6 +791,45 @@ export function PageBuilder({ initialBlocks = [], onChange, courses = [] }: Page
     setSelectedId(copy.id);
   };
 
+  // ── Cross-page block clipboard via localStorage ─────────────────────────────────────────────
+  const CLIPBOARD_KEY = "teachific_block_clipboard";
+  const [clipboardLabel, setClipboardLabel] = useState<string | null>(() => {
+    try {
+      const raw = localStorage.getItem(CLIPBOARD_KEY);
+      if (!raw) return null;
+      const b: Block = JSON.parse(raw);
+      return BLOCK_LIBRARY.find(x => x.type === b.type)?.label ?? b.type;
+    } catch { return null; }
+  });
+
+  const copyBlockToClipboard = (id: string) => {
+    const block = blocks.find(b => b.id === id);
+    if (!block) return;
+    try {
+      localStorage.setItem(CLIPBOARD_KEY, JSON.stringify(block));
+      const label = BLOCK_LIBRARY.find(x => x.type === block.type)?.label ?? block.type;
+      setClipboardLabel(label);
+    } catch {}
+  };
+
+  const pasteBlockFromClipboard = () => {
+    try {
+      const raw = localStorage.getItem(CLIPBOARD_KEY);
+      if (!raw) return;
+      const block: Block = JSON.parse(raw);
+      const pasted: Block = { ...block, id: nanoid(8), data: { ...block.data } };
+      const newBlocks = selectedId
+        ? (() => {
+            const idx = blocks.findIndex(b => b.id === selectedId);
+            if (idx === -1) return [...blocks, pasted];
+            return [...blocks.slice(0, idx + 1), pasted, ...blocks.slice(idx + 1)];
+          })()
+        : [...blocks, pasted];
+      updateBlocks(newBlocks);
+      setSelectedId(pasted.id);
+    } catch {}
+  };
+
   const toggleVisible = (id: string) => {
     updateBlocks(blocks.map(b => b.id === id ? { ...b, visible: !b.visible } : b));
   };
@@ -812,9 +857,23 @@ export function PageBuilder({ initialBlocks = [], onChange, courses = [] }: Page
       <div className={`border-r bg-muted/30 flex flex-col transition-all ${showLibrary ? "w-56" : "w-10"}`}>
         <div className="flex items-center justify-between p-3 border-b">
           {showLibrary && <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Blocks</span>}
-          <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => setShowLibrary(v => !v)}>
-            {showLibrary ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-          </Button>
+          <div className="flex items-center gap-1 ml-auto">
+            {showLibrary && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={pasteBlockFromClipboard}
+                title={clipboardLabel ? `Paste "${clipboardLabel}" from clipboard` : "No block in clipboard"}
+                disabled={!clipboardLabel}
+              >
+                <ClipboardPaste size={14} />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowLibrary(v => !v)}>
+              {showLibrary ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            </Button>
+          </div>
         </div>
         {showLibrary && (
           <ScrollArea className="flex-1">
@@ -857,6 +916,7 @@ export function PageBuilder({ initialBlocks = [], onChange, courses = [] }: Page
                   onSelect={() => setSelectedId(selectedId === block.id ? null : block.id)}
                   onDelete={() => deleteBlock(block.id)}
                   onDuplicate={() => duplicateBlock(block.id)}
+                  onCopyToClipboard={() => copyBlockToClipboard(block.id)}
                   onToggleVisible={() => toggleVisible(block.id)}
                   onChange={data => updateBlockData(block.id, data)}
                   courses={courses}

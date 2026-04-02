@@ -223,11 +223,15 @@ function SectionBlock({
     },
   });
   const createLesson = trpc.lms.curriculum.createLesson.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       onRefresh();
       setAddLessonOpen(false);
       setNewLessonTitle("");
       toast.success("Lesson added");
+      // Auto-open the editor for the newly created lesson
+      if (data?.id && onEditLesson) {
+        onEditLesson(data.id);
+      }
     },
     onError: (e) => toast.error(e.message),
   });
@@ -727,6 +731,8 @@ function CourseSettingsTab({
     // Page code
     headerCode: course.headerCode ?? "",
     footerCode: course.footerCode ?? "",
+    // Cover image
+    thumbnailUrl: course.thumbnailUrl ?? "",
   });
 
   const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
@@ -747,6 +753,12 @@ function CourseSettingsTab({
       {/* Basic */}
       <section className="border border-border rounded-xl p-6 flex flex-col gap-5">
         <h2 className="font-semibold text-base">Basic Settings</h2>
+        {/* Course Cover Image */}
+        <CourseThumbnailUpload
+          orgId={orgId}
+          value={form.thumbnailUrl}
+          onChange={(url) => set("thumbnailUrl", url)}
+        />
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
             <Label>Course Name</Label>
@@ -1180,6 +1192,113 @@ function CoursePricingTab({ courseId }: { courseId: number }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ─── Course Thumbnail Upload ──────────────────────────────────────────────────
+function CourseThumbnailUpload({
+  orgId,
+  value,
+  onChange,
+}: {
+  orgId: number;
+  value: string;
+  onChange: (url: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const getUploadUrl = trpc.lms.media.getUploadUrl.useMutation();
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { fileUrl } = await getUploadUrl.mutateAsync({
+        orgId,
+        fileName: file.name,
+        contentType: file.type || "image/jpeg",
+      });
+      await fetch(fileUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type || "image/jpeg" },
+      });
+      // Strip query params to get clean URL
+      const cleanUrl = fileUrl.split("?")[0];
+      onChange(cleanUrl);
+      toast.success("Cover image uploaded");
+    } catch (err: any) {
+      toast.error("Upload failed: " + (err.message ?? "Unknown error"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>Course Cover Image</Label>
+      <div className="flex items-start gap-4">
+        {/* Preview */}
+        <div className="relative w-36 h-24 rounded-lg border border-border bg-muted overflow-hidden flex-shrink-0">
+          {value ? (
+            <img src={value} alt="Cover" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground">
+              <svg className="h-8 w-8 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="text-xs">No image</span>
+            </div>
+          )}
+        </div>
+        {/* Controls */}
+        <div className="flex flex-col gap-2 flex-1">
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading}
+              asChild
+            >
+              <label className="cursor-pointer">
+                {uploading ? "Uploading..." : "Upload Image"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={handleFile}
+                />
+              </label>
+            </Button>
+            {value && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onChange("")}
+              >
+                Remove
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Recommended: 1280×720px (16:9 ratio), JPG or PNG format
+          </p>
+          {value && (
+            <div className="flex gap-2 items-center">
+              <Label className="text-xs">URL</Label>
+              <Input
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="https://..."
+                className="h-7 text-xs"
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

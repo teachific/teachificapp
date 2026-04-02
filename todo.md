@@ -814,3 +814,43 @@
 - [ ] AI generator: prompt input → generates lesson text, summaries, quiz questions, or outlines
 - [ ] AI generator uses invokeLLM server-side via a new tRPC mutation (lms.lessons.generateContent)
 - [ ] Show generated content in a preview/insert dialog before applying to the editor
+
+## Lesson Banner Editor Improvements
+- [ ] Add left/right popout position toggle for the popout banner type (currently only supports left)
+- [ ] Add image upload support for banner images (not just URL entry)
+- [ ] Image upload should use storagePut to upload to S3 and return the public URL
+- [ ] Store the uploaded image URL in the banner config (startBanner.imageUrl, completeBanner.imageUrl)
+
+## Course Builder Right Panel Width
+- [x] Widen the right slide-out lesson editor panel to cover 72vw (was max-w-2xl = 672px)
+- [x] Panel now overlays the curriculum list with proper width for content editing
+
+## Sound Preview Fix in Banner Editor
+- [ ] Fix sound preview buttons — Pixabay CDN URLs are unreliable/blocked
+- [ ] Upload 5 reliable notification sounds to Teachific CDN (chime, bell, success, fanfare, ding)
+- [ ] Replace BANNER_SOUNDS URLs with CDN-hosted versions
+
+## Auto-Open Lesson Editor on New Lesson
+- [ ] When a new lesson is created in CourseBuilderPage, automatically open the lesson editor panel (LessonEditorSheet) for the newly created lesson
+- [ ] No need for the user to click "Edit" after adding a lesson — editor opens immediately
+
+## Bug: Web Link Lesson Save Error
+- [x] Fix updateLesson mutation sending null for packageId, quizId, durationSeconds — should send undefined (omit) instead of null
+- [x] Strip null values from the form payload before calling updateLesson mutation in LessonEditorSheet
+
+## Quiz & Exam Question Type Overhaul
+- [ ] Remove dependency on pre-existing question bank for exams — allow standalone question creation
+- [ ] Add AI question generator: prompt → auto-generate multiple choice, T/F, short answer questions
+- [ ] Support question types: Multiple Choice, Short Answer, Long Answer (essay), True/False, Hotspot (point to area in image), Match Items (words ↔ words, words ↔ images)
+- [ ] Each question can have: image upload, video upload, YouTube/Vimeo URL embed, file link
+- [ ] Hotspot question: upload an image, draw clickable regions on it, student clicks the correct region
+- [ ] Match Items: drag-and-drop pairs, support image thumbnails on either side of the pair
+- [ ] Short/Long Answer: configurable word/character limits, optional rubric for grading
+- [ ] All question types support rich text in the question stem (bold, italic, lists, code)
+- [ ] Quiz/Exam builder: add questions manually, import from question bank, or AI generate
+- [ ] Question bank: tag questions by topic/difficulty, reuse across multiple quizzes/exams
+
+## Feature: Public Page Renderer + Block/Page Clipboard
+- [x] Public page renderer at /p/:slug (published custom pages accessible publicly)
+- [x] Block clipboard in PageBuilder: copy individual blocks to clipboard, paste into any page
+- [x] Full page duplication in CustomPagesPage (duplicate page with all blocks)

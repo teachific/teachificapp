@@ -35,6 +35,8 @@ import SchoolPage from "./pages/lms/SchoolPage";
 import CourseSalesPage from "./pages/lms/CourseSalesPage";
 import CoursePlayerPage from "./pages/lms/CoursePlayerPage";
 import CustomPagesPage from "./pages/admin/CustomPagesPage";
+import OrgSettingsPage from "./pages/OrgSettingsPage";
+import PublicPagePage from "./pages/PublicPagePage";
 // Auth pages (Teachific-branded, no sidebar)
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
@@ -53,6 +55,8 @@ function BareRouter() {
       <Route path="/embed/:id" component={EmbedPage} />
       <Route path="/learn/:courseId" component={CoursePlayerPage} />
       <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
+      {/* Public custom pages (no sidebar) */}
+      <Route path="/p/:slug" component={PublicPagePage} />
       {/* Teachific-branded auth */}
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
@@ -102,6 +106,7 @@ function AdminRouter() {
         <Route path="/lms/page-builder/:pageId" component={PageBuilderPage} />
         <Route path="/lms/courses/:courseId/page-builder" component={PageBuilderPage} />
         <Route path="/lms/custom-pages" component={CustomPagesPage} />
+        <Route path="/lms/settings" component={OrgSettingsPage} />
 
         {/* Student storefront */}
         <Route path="/school" component={SchoolPage} />
@@ -131,6 +136,7 @@ function Router() {
   const isBare =
     path.startsWith("/embed/") ||
     path.startsWith("/learn/") ||
+    path.startsWith("/p/") ||
     AUTH_PATHS.some((p) => path === p || path.startsWith(p + "?"));
   return isBare ? <BareRouter /> : <AdminRouter />;
 }

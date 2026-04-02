@@ -187,8 +187,39 @@ export const appRouter = router({
         .where(eq(orgMembers.userId, ctx.user.id))
         .limit(1);
       if (!rows[0]) return null;
-      return { org: rows[0].org, role: rows[0].role as "org_admin" | "user" };
+      const subscription = await getOrgSubscription(rows[0].org.id);
+      return {
+        org: rows[0].org,
+        role: rows[0].role as "org_admin" | "user",
+        subscription: subscription ?? null,
+      };
     }),
+    // Org admin can update their own org settings
+    updateSettings: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1).optional(),
+        slug: z.string().min(1).optional(),
+        logoUrl: z.string().optional().nullable(),
+        customDomain: z.string().optional().nullable(),
+        customSenderEmail: z.string().email().optional().nullable(),
+        customSenderName: z.string().optional().nullable(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const rows = await db
+          .select({ org: organizations, role: orgMembers.role })
+          .from(orgMembers)
+          .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+          .where(eq(orgMembers.userId, ctx.user.id))
+          .limit(1);
+        if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "No organization found" });
+        if (rows[0].role !== "org_admin" && ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        await updateOrg(rows[0].org.id, input);
+        return { success: true };
+      }),
     // Auto-provision a default org for users who have none (e.g. existing users pre-dating auto-creation)
     ensureDefault: protectedProcedure.mutation(async ({ ctx }) => {
       const existing = await getOrgsByUserId(ctx.user.id);

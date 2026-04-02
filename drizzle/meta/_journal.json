@@ -106,6 +106,13 @@
       "when": 1775117719001,
       "tag": "0014_pale_medusa",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "5",
+      "when": 1775121873004,
+      "tag": "0015_wise_iron_fist",
+      "breakpoints": true
     }
   ]
 }

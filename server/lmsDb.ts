@@ -379,6 +379,35 @@ export async function deletePage(id: number) {
   await db.delete(pageBuilderPages).where(eq(pageBuilderPages.id, id));
 }
 
+export async function getPublishedPageBySlug(slug: string) {
+  const rows = await db
+    .select()
+    .from(pageBuilderPages)
+    .where(
+      and(
+        eq(pageBuilderPages.slug, slug),
+        eq(pageBuilderPages.isPublished, true)
+      )
+    );
+  return rows[0] ?? null;
+}
+
+export async function duplicatePage(id: number) {
+  const original = await getPageById(id);
+  if (!original) return null;
+  const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = original;
+  const newTitle = `${original.title ?? "Untitled"} (Copy)`;
+  const newSlug = `${original.slug ?? "page"}-copy-${Date.now()}`;
+  const result = await db.insert(pageBuilderPages).values({
+    ...rest,
+    title: newTitle,
+    slug: newSlug,
+    isPublished: false,
+  });
+  const newId = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getPageById(Number(newId));
+}
+
 // ─── Instructors ─────────────────────────────────────────────────────────────
 
 export async function getInstructorsByOrg(orgId: number) {

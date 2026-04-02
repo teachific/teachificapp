@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RichTextContent } from "@/components/RichTextEditor";
-import { BANNER_SOUNDS } from "@/components/lms/LessonBannerEditor";
+import { BANNER_SOUNDS } from "@/lib/bannerSounds";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -20,8 +20,8 @@ import {
 
 // ─── Lesson Banner ────────────────────────────────────────────────────────────
 function playBannerSound(soundId: string) {
-  const sound = BANNER_SOUNDS.find((s) => s.id === soundId);
-  if (!sound || !('url' in sound)) return;
+  const sound = BANNER_SOUNDS.find((s: { id: string; url: string }) => s.id === soundId);
+  if (!sound || !sound.url) return;
   try {
     const audio = new Audio(sound.url);
     audio.volume = 0.6;

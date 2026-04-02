@@ -28,8 +28,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RichTextEditor } from "@/components/RichTextEditor";
-import { Plus, Edit, Trash2, Eye, EyeOff, Search, Building2, ChevronDown, X } from "lucide-react";
+import { PageBuilder, Block } from "@/components/PageBuilder";
+import { Plus, Edit, Trash2, Eye, EyeOff, Search, Building2, ChevronDown, X, Layout, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -202,6 +202,13 @@ export default function CustomPagesPage() {
       toast.success("Page deleted");
     },
   });
+  const duplicatePage = trpc.lms.pages.duplicate.useMutation({
+    onSuccess: (copy) => {
+      refetchPages();
+      toast.success("Page duplicated");
+      if (copy) setEditingPage(copy);
+    },
+  });
 
   const handleCreatePage = () => {
     if (!selectedOrgId) {
@@ -342,8 +349,18 @@ export default function CustomPagesPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setEditingPage(page)}
+                        title="Edit"
                       >
                         <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => duplicatePage.mutate({ id: page.id })}
+                        disabled={duplicatePage.isPending}
+                        title="Duplicate"
+                      >
+                        <Copy className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -352,6 +369,7 @@ export default function CustomPagesPage() {
                           setPageToDelete(page.id);
                           setDeleteDialogOpen(true);
                         }}
+                        title="Delete"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -404,15 +422,25 @@ export default function CustomPagesPage() {
               </div>
 
               <div>
-                <Label>Content</Label>
-                <RichTextEditor
-                  value={editingPage.blocksJson}
-                  onChange={(html: string) =>
-                    setEditingPage({ ...editingPage, blocksJson: html })
-                  }
-                  minHeight={300}
-                  placeholder="Write your page content here…"
-                />
+                <Label className="flex items-center gap-2 mb-2">
+                  <Layout className="h-4 w-4" />
+                  Page Content (Drag & Drop Builder)
+                </Label>
+                <div className="border border-border rounded-lg overflow-hidden" style={{ minHeight: 400 }}>
+                  <PageBuilder
+                    initialBlocks={(() => {
+                      try {
+                        const parsed = JSON.parse(editingPage.blocksJson || "[]");
+                        return Array.isArray(parsed) ? parsed : [];
+                      } catch {
+                        return [];
+                      }
+                    })()}
+                    onChange={(blocks: Block[]) =>
+                      setEditingPage({ ...editingPage, blocksJson: JSON.stringify(blocks) })
+                    }
+                  />
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-6">

@@ -26,19 +26,7 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-
-// ─── Sound definitions ────────────────────────────────────────────────────────
-
-export const BANNER_SOUNDS = [
-  { id: "none", label: "No sound", emoji: "🔇" },
-  { id: "chime", label: "Chime", emoji: "🔔", url: "https://cdn.pixabay.com/audio/2022/03/15/audio_1b7e4d5e3e.mp3" },
-  { id: "bell", label: "Bell", emoji: "🛎️", url: "https://cdn.pixabay.com/audio/2022/03/24/audio_c8c8a73467.mp3" },
-  { id: "fanfare", label: "Fanfare", emoji: "🎺", url: "https://cdn.pixabay.com/audio/2021/08/04/audio_0625c1539c.mp3" },
-  { id: "ding", label: "Ding", emoji: "✨", url: "https://cdn.pixabay.com/audio/2022/01/18/audio_d0c6ff1c23.mp3" },
-  { id: "success", label: "Success", emoji: "🎉", url: "https://cdn.pixabay.com/audio/2021/08/09/audio_dc39bde808.mp3" },
-  { id: "levelup", label: "Level Up", emoji: "⬆️", url: "https://cdn.pixabay.com/audio/2022/03/10/audio_270f49d8a6.mp3" },
-  { id: "applause", label: "Applause", emoji: "👏", url: "https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a73467.mp3" },
-] as const;
+import { BANNER_SOUNDS } from "@/lib/bannerSounds";
 
 // ─── Message suggestions ──────────────────────────────────────────────────────
 
@@ -68,7 +56,7 @@ const COMPLETE_SUGGESTIONS = [
 
 export interface BannerConfig {
   enabled: boolean;
-  position: "top" | "bottom" | "left";
+  position: "top" | "bottom" | "left" | "right";
   message: string;
   imageUrl: string;
   sound: string;
@@ -148,7 +136,8 @@ function BannerPanel({
                 { id: "top", icon: ArrowUp, label: "Top bar" },
                 { id: "bottom", icon: ArrowDown, label: "Bottom bar" },
                 { id: "left", icon: PanelLeft, label: "Left popover" },
-              ].map(({ id, icon: Icon, label: lbl }) => (
+                { id: "right", icon: PanelLeft, label: "Right popover", iconClass: "rotate-180" },
+              ].map(({ id, icon: Icon, label: lbl, iconClass }) => (
                 <button
                   key={id}
                   onClick={() => set("position", id)}
@@ -158,14 +147,14 @@ function BannerPanel({
                       : "border-border hover:border-primary/50 text-muted-foreground"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className={`h-4 w-4 ${iconClass || ""}`} />
                   {lbl}
                 </button>
               ))}
             </div>
-            {config.position === "left" && (
+            {(config.position === "left" || config.position === "right") && (
               <p className="text-xs text-muted-foreground mt-1.5">
-                Left popover slides in from the left side — supports an image for visual impact.
+                {config.position === "left" ? "Left" : "Right"} popover slides in from the {config.position} side — supports an image for visual impact.
               </p>
             )}
           </div>
@@ -236,8 +225,8 @@ function BannerPanel({
             )}
           </div>
 
-          {/* Image (only for left popover) */}
-          {config.position === "left" && (
+          {/* Image (for left/right popover) */}
+          {(config.position === "left" || config.position === "right") && (
             <div>
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Popover Image <span className="text-muted-foreground font-normal">(optional)</span>

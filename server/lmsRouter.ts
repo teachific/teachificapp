@@ -36,9 +36,11 @@ import {
   getPagesByOrg,
   getPageById,
   getPageByCourse,
+  getPublishedPageBySlug,
   createPage,
   updatePage,
   deletePage,
+  duplicatePage,
   getInstructorsByOrg,
   upsertInstructor,
   getCouponsByOrg,
@@ -623,6 +625,24 @@ export const lmsRouter = router({
       .mutation(async ({ input }) => {
         await deletePage(input.id);
         return { success: true };
+      }),
+
+    getBySlug: publicProcedure
+      .input(z.object({ slug: z.string() }))
+      .query(async ({ input }) => {
+        const page = await getPublishedPageBySlug(input.slug);
+        if (!page) throw new TRPCError({ code: "NOT_FOUND" });
+        return page;
+      }),
+
+    duplicate: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const original = await getPageById(input.id);
+        if (!original) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, original.orgId);
+        const copy = await duplicatePage(input.id);
+        return copy;
       }),
   }),
 
