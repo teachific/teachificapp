@@ -46,6 +46,8 @@ import {
   DollarSign,
   Calendar,
   CheckCircle,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 import {
   DndContext,
@@ -767,6 +769,27 @@ function CourseSettingsTab({
           <div className="col-span-2">
             <Label>Course URL Slug</Label>
             <Input value={form.slug} onChange={(e) => set("slug", e.target.value)} className="mt-1.5" />
+            {form.slug && (
+              <div className="mt-2 flex items-center gap-2 p-2.5 bg-muted/50 rounded-md border border-border/60">
+                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <code className="text-xs flex-1 break-all text-muted-foreground select-all">
+                  {window.location.origin}/lms/courses/{form.slug}
+                </code>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 h-7 w-7 p-0"
+                  title="Copy course URL"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/lms/courses/${form.slug}`);
+                    toast.success("Course URL copied!");
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
           <div className="col-span-2">
             <Label>Short Description</Label>

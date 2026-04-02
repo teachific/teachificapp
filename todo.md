@@ -854,3 +854,7 @@
 - [x] Public page renderer at /p/:slug (published custom pages accessible publicly)
 - [x] Block clipboard in PageBuilder: copy individual blocks to clipboard, paste into any page
 - [x] Full page duplication in CustomPagesPage (duplicate page with all blocks)
+
+## Feature: Course URL Display in Settings
+- [x] Show full course URL (origin + /lms/courses/:slug) below slug field in Course Settings
+- [x] One-click copy button to copy the full URL to clipboard

@@ -303,12 +303,25 @@ export const quizQuestions = mysqlTable("quiz_questions", {
     "multiple_choice",
     "true_false",
     "short_answer",
+    "long_answer",
     "matching",
     "multiple_select",
+    "hotspot",
   ]).default("multiple_choice").notNull(),
   questionText: text("questionText").notNull(),
   questionHtml: text("questionHtml"),
+  // Media attachments on the question stem
   imageUrl: text("imageUrl"),
+  videoUrl: text("videoUrl"),
+  videoType: varchar("videoType", { length: 20 }),
+  fileUrl: text("fileUrl"),
+  fileLabel: varchar("fileLabel", { length: 255 }),
+  // Short/Long answer config
+  wordLimit: int("wordLimit"),
+  charLimit: int("charLimit"),
+  rubric: text("rubric"),
+  // Hotspot: JSON array of regions [{id,x,y,width,height,label,isCorrect}]
+  hotspotRegionsJson: text("hotspotRegionsJson"),
   explanation: text("explanation"),
   points: float("points").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -325,7 +338,9 @@ export const quizAnswerChoices = mysqlTable("quiz_answer_choices", {
   choiceText: text("choiceText").notNull(),
   choiceHtml: text("choiceHtml"),
   isCorrect: boolean("isCorrect").default(false).notNull(),
-  matchTarget: text("matchTarget"), // for matching questions
+  matchTarget: text("matchTarget"),
+  matchTargetImageUrl: text("matchTargetImageUrl"),
+  choiceImageUrl: text("choiceImageUrl"),
 });
 
 export type QuizAnswerChoice = typeof quizAnswerChoices.$inferSelect;
