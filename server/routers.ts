@@ -53,7 +53,23 @@ import {
   setVersionReplacedAt,
   deleteVersionAssets,
   getOrgIdForUser,
+  getPlatformSettings,
+  updatePlatformSettings,
+  updateUser,
+  deleteUser,
+  updateOrg,
+  upsertUser,
+  getDb,
 } from "./db";
+import { courseEnrollments } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
+import {
+  getOrgSubscription,
+  upsertOrgSubscription,
+  getEnrollmentsByUser,
+  createEnrollment,
+  getCoursesByOrg,
+} from "./lmsDb";
 import {
   getQuizById,
   getQuizzesByOrg,
@@ -127,6 +143,31 @@ export const appRouter = router({
     updateRole: ownerProcedure
       .input(z.object({ userId: z.number(), role: z.enum(["site_owner", "site_admin", "org_admin", "user"]) }))
       .mutation(({ input }) => updateUserRole(input.userId, input.role)),
+    update: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        name: z.string().min(1).optional(),
+        email: z.string().email().optional(),
+        role: z.enum(["site_owner", "site_admin", "org_admin", "user"]).optional(),
+      }))
+      .mutation(({ input }) => { const { userId, ...data } = input; return updateUser(userId, data); }),
+    delete: ownerProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(({ input }) => deleteUser(input.userId)),
+    getEnrollments: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .query(({ input }) => getEnrollmentsByUser(input.userId)),
+    enrollInCourse: adminProcedure
+      .input(z.object({ userId: z.number(), courseId: z.number(), orgId: z.number() }))
+      .mutation(({ input }) => createEnrollment({ userId: input.userId, courseId: input.courseId, orgId: input.orgId, isActive: true, progressPct: 0, certificateIssued: false })),
+    revokeEnrollment: adminProcedure
+      .input(z.object({ enrollmentId: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+        await db.update(courseEnrollments).set({ isActive: false }).where(eq(courseEnrollments.id, input.enrollmentId));
+        return { success: true };
+      }),
   }),
 
   // ── Organizations ─────────────────────────────────────────────────────────
@@ -976,6 +1017,106 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         return { success: true };
       }),
   }),
-});
+  // ── Platform Admin ───────────────────────────────────────────────────────
+  platformAdmin: router({
+    // Platform settings (registration toggle, maintenance mode, etc.)
+    getSettings: ownerProcedure.query(() => getPlatformSettings()),
+    updateSettings: ownerProcedure
+      .input(z.object({
+        allowPublicRegistration: z.boolean().optional(),
+        maintenanceMode: z.boolean().optional(),
+        platformName: z.string().min(1).max(255).optional(),
+        supportEmail: z.string().email().optional().nullable(),
+        maxUploadSizeMb: z.number().int().min(1).max(10000).optional(),
+        enterpriseMaxUploadSizeMb: z.number().int().min(1).max(50000).optional(),
+      }))
+      .mutation(({ input }) => updatePlatformSettings(input)),
 
+    // All users across the platform
+    listUsers: adminProcedure.query(() => getAllUsers()),
+    updateUser: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        name: z.string().min(1).optional(),
+        email: z.string().email().optional(),
+        role: z.enum(["site_owner", "site_admin", "org_admin", "user"]).optional(),
+      }))
+      .mutation(({ input }) => {
+        const { userId, ...data } = input;
+        return updateUser(userId, data);
+      }),
+    deleteUser: ownerProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(({ input }) => deleteUser(input.userId)),
+    bulkAddUsers: adminProcedure
+      .input(z.object({
+        orgId: z.number(),
+        users: z.array(z.object({
+          name: z.string().optional(),
+          email: z.string().email(),
+          role: z.enum(["org_admin", "user"]).default("user"),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        const results: { email: string; status: string; userId?: number }[] = [];
+        for (const u of input.users) {
+          try {
+            // Check if user exists by email
+            const allUsers = await getAllUsers();
+            const existing = allUsers.find((usr) => usr.email === u.email);
+            if (existing) {
+              await addOrgMember(input.orgId, existing.id, u.role);
+              results.push({ email: u.email, status: "added_existing", userId: existing.id });
+            } else {
+              // Create a placeholder user (no openId yet — they'll claim it on first login)
+              const openId = `pending_${nanoid(16)}`;
+              await upsertUser({ openId, name: u.name ?? null, email: u.email, role: "user" });
+              const newUser = (await getAllUsers()).find((usr) => usr.email === u.email);
+              if (newUser) {
+                await addOrgMember(input.orgId, newUser.id, u.role);
+                results.push({ email: u.email, status: "created", userId: newUser.id });
+              }
+            }
+          } catch (err) {
+            results.push({ email: u.email, status: `error: ${(err as Error).message}` });
+          }
+        }
+        return results;
+      }),
+
+    // All organizations
+    listOrgs: adminProcedure.query(() => getAllOrgs()),
+    updateOrg: adminProcedure
+      .input(z.object({
+        orgId: z.number(),
+        name: z.string().min(1).optional(),
+        slug: z.string().min(1).optional(),
+        description: z.string().optional(),
+        domain: z.string().optional().nullable(),
+        logoUrl: z.string().optional().nullable(),
+      }))
+      .mutation(({ input }) => {
+        const { orgId, ...data } = input;
+        return updateOrg(orgId, data);
+      }),
+
+    // Subscription management (manual Enterprise assignment)
+    getOrgSubscription: adminProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(({ input }) => getOrgSubscription(input.orgId)),
+    setOrgPlan: adminProcedure
+      .input(z.object({
+        orgId: z.number(),
+        plan: z.enum(["free", "starter", "builder", "pro", "enterprise"]),
+        customPriceUsd: z.number().int().optional().nullable(), // in cents
+        customPriceLabel: z.string().optional().nullable(),
+        adminNotes: z.string().optional().nullable(),
+        status: z.enum(["active", "trialing", "past_due", "cancelled", "unpaid"]).optional(),
+      }))
+      .mutation(({ input, ctx }) => {
+        const { orgId, ...data } = input;
+        return upsertOrgSubscription(orgId, { ...data, assignedByUserId: ctx.user.id });
+      }),
+  }),
+});
 export type AppRouter = typeof appRouter;

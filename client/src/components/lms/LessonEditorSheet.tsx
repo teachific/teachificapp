@@ -20,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import LessonBannerEditor, { BannerConfig } from "./LessonBannerEditor";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -913,6 +914,7 @@ export function LessonEditorSheet({
               <TabsTrigger value="content">Content</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
               {showRichTextAddOn && <TabsTrigger value="addon">Rich Text Add-on</TabsTrigger>}
+              <TabsTrigger value="banners">Banners</TabsTrigger>
             </TabsList>
 
             <TabsContent value="content" className="flex-1 px-6 py-4 flex flex-col gap-4 mt-0">
@@ -1027,6 +1029,47 @@ export function LessonEditorSheet({
                 />
               </TabsContent>
             )}
+
+            <TabsContent value="banners" className="flex-1 overflow-y-auto mt-0">
+              <LessonBannerEditor
+                lessonId={lesson?.id ?? 0}
+                orgId={orgId}
+                startBanner={{
+                  enabled: form.startBannerEnabled ?? false,
+                  position: form.startBannerPosition ?? "top",
+                  message: form.startBannerMessage ?? "",
+                  imageUrl: form.startBannerImageUrl ?? "",
+                  sound: form.startBannerSound ?? "none",
+                  durationMs: form.startBannerDurationMs ?? 5000,
+                }}
+                completeBanner={{
+                  enabled: form.completeBannerEnabled ?? false,
+                  position: form.completeBannerPosition ?? "bottom",
+                  message: form.completeBannerMessage ?? "",
+                  imageUrl: form.completeBannerImageUrl ?? "",
+                  sound: form.completeBannerSound ?? "none",
+                  durationMs: form.completeBannerDurationMs ?? 5000,
+                }}
+                onSave={(start: BannerConfig, complete: BannerConfig) => {
+                  setForm((f: any) => ({
+                    ...f,
+                    startBannerEnabled: start.enabled,
+                    startBannerPosition: start.position,
+                    startBannerMessage: start.message,
+                    startBannerImageUrl: start.imageUrl,
+                    startBannerSound: start.sound,
+                    startBannerDurationMs: start.durationMs,
+                    completeBannerEnabled: complete.enabled,
+                    completeBannerPosition: complete.position,
+                    completeBannerMessage: complete.message,
+                    completeBannerImageUrl: complete.imageUrl,
+                    completeBannerSound: complete.sound,
+                    completeBannerDurationMs: complete.durationMs,
+                  }));
+                  toast.success("Banner settings updated — click Save Lesson to persist");
+                }}
+              />
+            </TabsContent>
           </Tabs>
         </div>
 

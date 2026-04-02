@@ -589,3 +589,23 @@
 - [ ] Client: show current plan badge on org settings page
 - [ ] Client: disable/lock gated features with upgrade CTA
 - [ ] Client: subscription management page for org admins
+
+## Custom Pages Feature (Session Apr 2, 2026)
+- [x] Update pages.update mutation to include showHeader, showFooter, metaTitle, metaDescription, customCss fields
+- [x] Build CustomPagesPage UI with rich text editor (TipTap), slug input, show/hide header/footer toggles, SEO fields, custom CSS textarea
+- [x] Add Custom Pages route to App.tsx (/lms/custom-pages)
+- [x] Add Custom Pages nav link to Administration section in DashboardLayout
+- [x] Verify showHeader/showFooter/metaTitle/metaDescription/customCss columns exist in DB
+
+## Banner Display in CoursePlayerPage (Session Apr 2, 2026)
+- [x] Import BANNER_SOUNDS from LessonBannerEditor for sound playback
+- [x] Add LessonBanner component with top/bottom bar and left popover positions
+- [x] Add playBannerSound helper function
+- [x] Add activeBanner state and bannerTimerRef to CoursePlayerPage
+- [x] Show start banner when lesson changes (with auto-dismiss)
+- [x] Show completion banner when lesson is marked complete (with auto-dismiss)
+- [x] Render LessonBanner overlay in CoursePlayerPage JSX
+
+## Vimeo Support (Already Implemented)
+- [x] Vimeo URLs already handled in CoursePlayerPage video case (lines 245-248)
+- [x] Converts vimeo.com/{id} to https://player.vimeo.com/video/{id} embed URL

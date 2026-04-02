@@ -601,6 +601,11 @@ export const lmsRouter = router({
           slug: z.string().optional(),
           blocksJson: z.string().optional(),
           isPublished: z.boolean().optional(),
+          showHeader: z.boolean().optional(),
+          showFooter: z.boolean().optional(),
+          metaTitle: z.string().optional(),
+          metaDescription: z.string().optional(),
+          customCss: z.string().optional(),
         })
       )
       .mutation(async ({ input }) => {

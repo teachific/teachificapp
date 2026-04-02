@@ -2,6 +2,7 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
+import { ENV } from "./env";
 import { sdk } from "./sdk";
 
 function getQueryParam(req: Request, key: string): string | undefined {
@@ -65,6 +66,25 @@ export function registerOAuthRoutes(app: Express) {
         res.status(400).json({ error: "openId missing from user info" });
         return;
       }
+
+      // ── Registration gate ─────────────────────────────────────────────────
+      // Check if this is a new user (not yet in our DB)
+      const existingUser = await db.getUserByOpenId(userInfo.openId);
+      const isNewUser = !existingUser;
+      const isSiteOwner = userInfo.openId === ENV.ownerOpenId;
+
+      if (isNewUser && !isSiteOwner) {
+        // Check platform settings — block registration if public registration is off
+        const settings = await db.getPlatformSettings();
+        const registrationOpen = settings?.allowPublicRegistration ?? false;
+        if (!registrationOpen) {
+          console.log(`[OAuth] Registration blocked for new user: ${userInfo.email} (public registration is disabled)`);
+          // Redirect to a friendly error page
+          res.redirect(302, "/?error=registration_closed");
+          return;
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────
 
       await db.upsertUser({
         openId: userInfo.openId,

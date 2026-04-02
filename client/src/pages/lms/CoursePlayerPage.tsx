@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RichTextContent } from "@/components/RichTextEditor";
+import { BANNER_SOUNDS } from "@/components/lms/LessonBannerEditor";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -16,6 +17,71 @@ import {
   Calendar, Home, Menu, X, Maximize2, Settings,
   RotateCcw, Lock, Clock,
 } from "lucide-react";
+
+// ─── Lesson Banner ────────────────────────────────────────────────────────────
+function playBannerSound(soundId: string) {
+  const sound = BANNER_SOUNDS.find((s) => s.id === soundId);
+  if (!sound || !('url' in sound)) return;
+  try {
+    const audio = new Audio(sound.url);
+    audio.volume = 0.6;
+    audio.play().catch(() => {});
+  } catch {}
+}
+
+function LessonBanner({
+  message,
+  imageUrl,
+  position,
+  onDismiss,
+  primaryColor,
+}: {
+  message: string;
+  imageUrl?: string | null;
+  position: "top" | "bottom" | "left";
+  onDismiss: () => void;
+  primaryColor: string;
+}) {
+  if (position === "left") {
+    return (
+      <div
+        className="fixed left-4 top-1/2 -translate-y-1/2 z-50 w-72 rounded-2xl shadow-2xl border border-border bg-background p-4 flex flex-col gap-3 animate-in slide-in-from-left-4"
+        style={{ borderLeftColor: primaryColor, borderLeftWidth: 4 }}
+      >
+        {imageUrl && (
+          <img src={imageUrl} alt="" className="w-full rounded-lg object-cover max-h-32" />
+        )}
+        <p className="text-sm font-medium leading-snug">{message}</p>
+        <button
+          onClick={onDismiss}
+          className="self-end text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Dismiss
+        </button>
+      </div>
+    );
+  }
+
+  const isTop = position === "top";
+  return (
+    <div
+      className={cn(
+        "fixed left-0 right-0 z-50 flex items-center justify-between px-6 py-3 shadow-lg text-white text-sm font-medium",
+        isTop ? "top-14 animate-in slide-in-from-top-2" : "bottom-0 animate-in slide-in-from-bottom-2"
+      )}
+      style={{ backgroundColor: primaryColor }}
+    >
+      <span>{message}</span>
+      <button
+        onClick={onDismiss}
+        className="ml-4 opacity-80 hover:opacity-100 transition-opacity"
+        aria-label="Dismiss"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
 // ─── Lesson type icon ─────────────────────────────────────────────────────────
 function LessonIcon({ type, className }: { type: string; className?: string }) {
@@ -468,6 +534,14 @@ export default function CoursePlayerPage() {
   const [currentLessonId, setCurrentLessonId] = useState<number | null>(
     params.lessonId ? parseInt(params.lessonId) : null
   );
+  const [activeBanner, setActiveBanner] = useState<{
+    message: string;
+    imageUrl?: string | null;
+    position: "top" | "bottom" | "left";
+    sound?: string | null;
+    durationMs: number;
+  } | null>(null);
+  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: course } = trpc.lms.courses.get.useQuery({ id: courseId });
   const { data: curriculum } = trpc.lms.curriculum.get.useQuery({ courseId });
@@ -510,6 +584,38 @@ export default function CoursePlayerPage() {
   const getLessonStatus = (lessonId: number) =>
     lessonProgress.find((p: any) => p.lessonId === lessonId)?.status || "not_started";
 
+  // Show a banner and auto-dismiss after durationMs
+  const showBanner = useCallback((banner: typeof activeBanner) => {
+    if (!banner) return;
+    setActiveBanner(banner);
+    if (banner.sound) playBannerSound(banner.sound);
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    bannerTimerRef.current = setTimeout(() => setActiveBanner(null), banner.durationMs || 5000);
+  }, []);
+
+  const dismissBanner = useCallback(() => {
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    setActiveBanner(null);
+  }, []);
+
+  // Show start banner when lesson changes
+  useEffect(() => {
+    if (!currentLesson) return;
+    dismissBanner();
+    if (currentLesson.startBannerEnabled && currentLesson.startBannerMessage) {
+      showBanner({
+        message: currentLesson.startBannerMessage,
+        imageUrl: currentLesson.startBannerImageUrl,
+        position: currentLesson.startBannerPosition || "top",
+        sound: currentLesson.startBannerSound,
+        durationMs: currentLesson.startBannerDurationMs || 5000,
+      });
+    }
+    return () => {
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    };
+  }, [currentLesson?.id]);
+
   const handleComplete = useCallback(async () => {
     if (!currentLesson) return;
     try {
@@ -519,14 +625,25 @@ export default function CoursePlayerPage() {
         status: "completed",
       });
       utils.lms.enrollments.progress.invalidate({ courseId });
-      toast.success("Lesson marked as complete!");
+      // Show completion banner if configured
+      if (currentLesson.completeBannerEnabled && currentLesson.completeBannerMessage) {
+        showBanner({
+          message: currentLesson.completeBannerMessage,
+          imageUrl: currentLesson.completeBannerImageUrl,
+          position: currentLesson.completeBannerPosition || "bottom",
+          sound: currentLesson.completeBannerSound,
+          durationMs: currentLesson.completeBannerDurationMs || 5000,
+        });
+      } else {
+        toast.success("Lesson marked as complete!");
+      }
       if (nextLesson) {
-        setCurrentLessonId(nextLesson.id);
+        setTimeout(() => setCurrentLessonId(nextLesson.id), 1200);
       }
     } catch {
       toast.error("Failed to update progress.");
     }
-  }, [currentLesson, courseId, nextLesson, updateProgress, utils]);
+  }, [currentLesson, courseId, nextLesson, updateProgress, utils, showBanner]);
 
   const handleLessonClick = (lessonId: number) => {
     setCurrentLessonId(lessonId);
@@ -561,6 +678,16 @@ export default function CoursePlayerPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col" style={{ "--player-color": primaryColor } as React.CSSProperties}>
+      {/* Lesson banner overlay */}
+      {activeBanner && (
+        <LessonBanner
+          message={activeBanner.message}
+          imageUrl={activeBanner.imageUrl}
+          position={activeBanner.position}
+          onDismiss={dismissBanner}
+          primaryColor={primaryColor}
+        />
+      )}
       {/* Top bar */}
       <header className="h-14 border-b border-border bg-background flex items-center justify-between px-4 shrink-0 z-30 sticky top-0">
         <div className="flex items-center gap-3">

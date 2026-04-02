@@ -388,6 +388,11 @@ export const orgSubscriptions = mysqlTable("org_subscriptions", {
   currentPeriodStart: timestamp("currentPeriodStart"),
   currentPeriodEnd: timestamp("currentPeriodEnd"),
   cancelAtPeriodEnd: boolean("cancelAtPeriodEnd").default(false).notNull(),
+  // Manual Enterprise pricing set by site admin/owner
+  customPriceUsd: int("customPriceUsd"), // price in cents, null = use standard pricing
+  customPriceLabel: varchar("customPriceLabel", { length: 100 }), // e.g. "$499/mo"
+  adminNotes: text("adminNotes"), // internal notes about this org's subscription
+  assignedByUserId: int("assignedByUserId"), // who manually assigned this plan
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -683,3 +688,17 @@ export const courseReviews = mysqlTable("course_reviews", {
 });
 export type CourseReview = typeof courseReviews.$inferSelect;
 export type InsertCourseReview = typeof courseReviews.$inferInsert;
+
+// ─── Platform Settings ────────────────────────────────────────────────────────
+// Singleton table (always id=1) for global platform configuration
+export const platformSettings = mysqlTable("platform_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  allowPublicRegistration: boolean("allowPublicRegistration").default(false).notNull(),
+  maintenanceMode: boolean("maintenanceMode").default(false).notNull(),
+  platformName: varchar("platformName", { length: 255 }).default("Teachific").notNull(),
+  supportEmail: varchar("supportEmail", { length: 320 }),
+  maxUploadSizeMb: int("maxUploadSizeMb").default(500).notNull(),
+  enterpriseMaxUploadSizeMb: int("enterpriseMaxUploadSizeMb").default(5000).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type PlatformSettings = typeof platformSettings.$inferSelect;

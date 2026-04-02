@@ -11,7 +11,6 @@ import {
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -30,7 +29,7 @@ import {
   BookOpen,
   Building2,
   ChevronRight,
-  FileArchive,
+  FileText,
   GraduationCap,
   LayoutDashboard,
   Library,
@@ -38,8 +37,9 @@ import {
   Palette,
   PanelLeft,
   Settings,
-  Shield,
-  Upload,
+  Crown,
+  ShieldCheck,
+  User,
   Users,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -63,10 +63,11 @@ const navGroups = [
     items: [
       { icon: Building2, label: "Organizations", path: "/admin/orgs" },
       { icon: Users, label: "Users", path: "/admin/users" },
-      { icon: Shield, label: "Permissions", path: "/admin/permissions" },
       { icon: BarChart3, label: "Analytics", path: "/lms/analytics" },
       { icon: Palette, label: "Branding", path: "/lms/branding" },
+      { icon: FileText, label: "Custom Pages", path: "/lms/custom-pages" },
       { icon: Settings, label: "Settings", path: "/admin/settings" },
+      { icon: Crown, label: "Platform Admin", path: "/platform-admin", ownerOnly: true },
     ],
   },
 ];
@@ -90,6 +91,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) return <DashboardLayoutSkeleton />;
 
   if (!user) {
+    const searchParams = new URLSearchParams(window.location.search);
+    const errorCode = searchParams.get("error");
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full bg-white/5 backdrop-blur rounded-2xl border border-white/10 shadow-2xl">
@@ -99,9 +102,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span className="text-white">teach</span><span style={{ color: '#189aa1' }}>ific</span><span className="text-white" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '2px' }}>&#8482;</span>
               </span>
             </div>
-            <p className="text-sm text-slate-400 text-center max-w-sm">
-              Sign in to access your content library, manage SCORM packages, and track learner progress.
-            </p>
+            {errorCode === "registration_closed" ? (
+              <div className="flex flex-col items-center gap-2 text-center">
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-4 py-3 text-sm text-amber-300">
+                  <p className="font-semibold mb-1">Registration is currently closed</p>
+                  <p className="text-xs text-amber-400/80">New accounts are not being accepted at this time. Please contact the platform administrator to request access.</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 text-center max-w-sm">
+                Sign in to access your content library, manage SCORM packages, and track learner progress.
+              </p>
+            )}
           </div>
           <Button
             onClick={() => { window.location.href = getLoginUrl(); }}
@@ -139,6 +151,7 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const isAdmin = user?.role === "site_admin" || user?.role === "site_owner";
+  const isOwner = user?.role === "site_owner";
   const isOrgAdmin = user?.role === "org_admin";
 
   useEffect(() => {
@@ -202,13 +215,13 @@ function DashboardLayoutContent({
               if (group.adminOnly && !isAdmin) return null;
               return (
                 <SidebarGroup key={group.label || "main"} className="py-1">
-                    {group.label && (
-                      <SidebarGroupLabel className="px-4 text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1">
-                        {group.label}
-                      </SidebarGroupLabel>
-                    )}
+                  {group.label && (
+                    <SidebarGroupLabel className="px-4 text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1">
+                      {group.label}
+                    </SidebarGroupLabel>
+                  )}
                   <SidebarMenu className="px-2">
-                    {group.items.map((item) => {
+                    {group.items.filter((item) => !(item as any).ownerOnly || isOwner).map((item) => {
                       const isActive = item.path === "/" ? location === "/" : location.startsWith(item.path);
                       return (
                         <SidebarMenuItem key={item.path}>
@@ -232,50 +245,7 @@ function DashboardLayoutContent({
               );
             })}
           </SidebarContent>
-
-          {/* Footer */}
-          <SidebarFooter className="p-3 border-t border-border/50">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/50 transition-colors w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Avatar className="h-8 w-8 border shrink-0">
-                    <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-                      {user?.name?.charAt(0).toUpperCase() ?? "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  {!isCollapsed && (
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-xs font-medium truncate leading-none">{user?.name || "User"}</p>
-                        {(isAdmin || isOrgAdmin) && (
-                          <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 shrink-0">
-                            {user?.role === "site_owner" ? "Owner" : user?.role === "site_admin" ? "Site Admin" : "Org Admin"}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate mt-1">{user?.email || ""}</p>
-                    </div>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setLocation("/admin/settings")} className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarFooter>
+          {/* No footer — profile is in top-right header */}
         </Sidebar>
 
         {/* Resize handle */}
@@ -287,15 +257,92 @@ function DashboardLayoutContent({
       </div>
 
       <SidebarInset>
-        {isMobile && (
-          <div className="flex border-b h-14 items-center justify-between bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="h-9 w-9 rounded-lg" />
-              <span className="font-medium text-sm">{activeItem?.label ?? "Teachific™"}</span>
-            </div>
+        {/* Top header bar with profile menu */}
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/50 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
+          <div className="flex items-center gap-3">
+            {isMobile && <SidebarTrigger className="h-9 w-9 rounded-lg" />}
+            <span className="font-medium text-sm text-muted-foreground">
+              {activeItem?.label ?? "Teachific™"}
+            </span>
           </div>
-        )}
-        <main className="flex-1 min-h-screen">{children}</main>
+
+          <div className="flex items-center gap-2">
+            {/* Platform Admin button — site owner and site admins only */}
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLocation("/platform-admin")}
+                className={`gap-1.5 text-xs h-8 px-3 ${location.startsWith("/platform-admin") ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {!isMobile && "Platform Admin"}
+              </Button>
+            )}
+
+            {/* Profile dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Avatar className="h-7 w-7 border shrink-0">
+                    <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                      {user?.name?.charAt(0).toUpperCase() ?? "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  {!isMobile && (
+                    <div className="flex flex-col items-start min-w-0 max-w-[140px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium truncate leading-none">{user?.name || "User"}</span>
+                        {(isAdmin || isOrgAdmin) && (
+                          <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 shrink-0">
+                            {isOwner ? "Owner" : user?.role === "site_admin" ? "Admin" : "Org Admin"}
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground truncate mt-0.5 w-full">{user?.email || ""}</span>
+                    </div>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">{user?.name}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  {(isAdmin || isOrgAdmin) && (
+                    <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0">
+                      {isOwner ? "Site Owner" : user?.role === "site_admin" ? "Site Admin" : "Org Admin"}
+                    </Badge>
+                  )}
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setLocation("/profile")} className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  My Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLocation("/admin/settings")} className="cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setLocation("/platform-admin")} className="cursor-pointer">
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Platform Admin
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
+
+        <main className="flex-1 min-h-[calc(100vh-3.5rem)]">{children}</main>
       </SidebarInset>
     </>
   );

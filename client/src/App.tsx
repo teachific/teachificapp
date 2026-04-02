@@ -23,6 +23,7 @@ import AdminOrgsPage from "./pages/admin/AdminOrgsPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminPermissionsPage from "./pages/admin/AdminPermissionsPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
+import PlatformAdminPage from "./pages/admin/PlatformAdminPage";
 // LMS pages
 import CoursesPage from "./pages/lms/CoursesPage";
 import CourseBuilderPage from "./pages/lms/CourseBuilderPage";
@@ -33,6 +34,7 @@ import PageBuilderPage from "./pages/lms/PageBuilderPage";
 import SchoolPage from "./pages/lms/SchoolPage";
 import CourseSalesPage from "./pages/lms/CourseSalesPage";
 import CoursePlayerPage from "./pages/lms/CoursePlayerPage";
+import CustomPagesPage from "./pages/admin/CustomPagesPage";
 // Bare routes (no admin sidebar) — used for share links and external embedss
 function BareRouter() {
   return (
@@ -77,6 +79,7 @@ function AdminRouter() {
         <Route path="/lms/branding" component={BrandingPage} />
         <Route path="/lms/page-builder/:pageId" component={PageBuilderPage} />
         <Route path="/lms/courses/:courseId/page-builder" component={PageBuilderPage} />
+        <Route path="/lms/custom-pages" component={CustomPagesPage} />
         {/* Student storefront */}
         <Route path="/school" component={SchoolPage} />
         <Route path="/school/courses/:courseId" component={CourseSalesPage} />
@@ -88,6 +91,7 @@ function AdminRouter() {
         <Route path="/admin/users" component={AdminUsersPage} />
         <Route path="/admin/permissions" component={AdminPermissionsPage} />
         <Route path="/admin/settings" component={AdminSettingsPage} />
+        <Route path="/platform-admin" component={PlatformAdminPage} />
 
         {/* 404 */}
         <Route path="/404" component={NotFound} />

@@ -12,6 +12,7 @@ import {
   organizations,
   permissions,
   playSessions,
+  platformSettings,
   scormData,
   users,
 } from "../drizzle/schema";
@@ -103,6 +104,18 @@ export async function deleteUser(userId: number) {
   const db = await getDb();
   if (!db) return;
   await db.delete(users).where(eq(users.id, userId));
+}
+export async function getPlatformSettings() {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(platformSettings).where(eq(platformSettings.id, 1)).limit(1);
+  return rows[0] ?? null;
+}
+export async function updatePlatformSettings(data: Partial<typeof platformSettings.$inferInsert>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(platformSettings).set(data).where(eq(platformSettings.id, 1));
+  return getPlatformSettings();
 }
 
 // ─── Organizations ─────────────────────────────────────────────────────────────
