@@ -1170,3 +1170,7 @@
 
 ## Website Preview Button (Apr 2, 2026)
 - [x] Add Preview button to Website marketing page → opens org storefront preview in new tab (works in draft mode)
+
+## Settings Nav Simplification (Apr 2, 2026)
+- [x] Remove all sub-items under Settings accordion in sidebar
+- [x] Make Settings a direct link to /lms/settings (general settings page)
