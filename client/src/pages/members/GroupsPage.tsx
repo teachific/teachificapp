@@ -1,88 +1,136 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Users, Plus, Settings, UserPlus } from "lucide-react";
-
-interface Group { id: number; name: string; manager: string; seats: number; used: number; org: string; expires: string; }
-
-const MOCK: Group[] = [
-  { id: 1, name: "Echo Fundamentals — Batch 1", manager: "Dr. Lara Williams", seats: 25, used: 18, org: "All About Ultrasound", expires: "2026-12-31" },
-  { id: 2, name: "POCUS Essentials — City Med", manager: "Admin Team", seats: 10, used: 10, org: "City Medical Center", expires: "2026-06-30" },
-  { id: 3, name: "Advanced Echo — Regional", manager: "HR Dept", seats: 50, used: 12, org: "Regional Hospital", expires: "2027-01-01" },
-];
+import { Users, Plus, MoreVertical, Edit, Trash2, UserPlus } from "lucide-react";
 
 export default function GroupsPage() {
-  const [groups, setGroups] = useState<Group[]>(MOCK);
-  const [show, setShow] = useState(false);
-  const [name, setName] = useState(""); const [manager, setManager] = useState(""); const [seats, setSeats] = useState(""); const [org, setOrg] = useState(""); const [expires, setExpires] = useState("");
-  const create = () => {
-    if (!name.trim() || !seats) { toast.error("Name and seats required"); return; }
-    setGroups(p => [{ id: Date.now(), name, manager, seats: parseInt(seats), used: 0, org, expires }, ...p]);
-    setShow(false); setName(""); setManager(""); setSeats(""); setOrg(""); setExpires("");
-    toast.success("Group created");
+  const { orgId, ready } = useOrgScope();
+  const utils = trpc.useUtils();
+  const { data: groups, isLoading } = trpc.lms.groups.list.useQuery({ orgId: orgId! }, { enabled: ready && !!orgId });
+  const createMut = trpc.lms.groups.create.useMutation({
+    onSuccess: () => { utils.lms.groups.list.invalidate(); toast.success("Group created"); setCreateOpen(false); resetForm(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateMut = trpc.lms.groups.update.useMutation({
+    onSuccess: () => { utils.lms.groups.list.invalidate(); toast.success("Group updated"); setEditOpen(false); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteMut = trpc.lms.groups.delete.useMutation({
+    onSuccess: () => { utils.lms.groups.list.invalidate(); toast.success("Group deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const addMemberMut = trpc.lms.groups.addMember.useMutation({
+    onSuccess: () => { utils.lms.groups.list.invalidate(); toast.success("Member added"); setAddMemberOpen(false); setMemberEmail(""); setMemberName(""); },
+    onError: (e) => toast.error(e.message),
+  });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [addMemberGroupId, setAddMemberGroupId] = useState<number | null>(null);
+  const [name, setName] = useState(""); const [managerName, setManagerName] = useState(""); const [seats, setSeats] = useState("10"); const [notes, setNotes] = useState("");
+  const [memberEmail, setMemberEmail] = useState(""); const [memberName, setMemberName] = useState("");
+  const resetForm = () => { setName(""); setManagerName(""); setSeats("10"); setNotes(""); };
+  const handleCreate = () => {
+    if (!name.trim()) { toast.error("Name is required"); return; }
+    createMut.mutate({ orgId: orgId!, name, managerName: managerName || undefined, seats: parseInt(seats) || 10, notes: notes || undefined });
   };
+  const openEdit = (g: any) => { setEditId(g.id); setName(g.name); setManagerName(g.managerName ?? ""); setSeats(String(g.seats)); setNotes(g.notes ?? ""); setEditOpen(true); };
+  const handleUpdate = () => {
+    if (!editId || !name.trim()) return;
+    updateMut.mutate({ id: editId, name, managerName: managerName || undefined, seats: parseInt(seats) || 10, notes: notes || undefined });
+  };
+  const totalSeats = groups?.reduce((s, g) => s + g.seats, 0) ?? 0;
+  const usedSeats = groups?.reduce((s, g) => s + g.usedSeats, 0) ?? 0;
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Users className="h-6 w-6 text-primary" />Groups</h1>
-          <p className="text-muted-foreground mt-0.5">Manage group seat registrations and seat assignments</p>
-        </div>
-        <Button className="gap-2" onClick={() => setShow(true)}><Plus className="h-4 w-4" />New Group</Button>
+        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Users className="h-6 w-6 text-primary" />Groups</h1><p className="text-muted-foreground mt-0.5">Manage group seat registrations and member assignments</p></div>
+        <Button className="gap-2" onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4" />New Group</Button>
       </div>
       <div className="grid grid-cols-3 gap-4">
-        {[{ l: "Total Groups", v: groups.length }, { l: "Total Seats", v: groups.reduce((s, g) => s + g.seats, 0) }, { l: "Seats Used", v: groups.reduce((s, g) => s + g.used, 0) }].map(s => (
+        {[{ l: "Total Groups", v: groups?.length ?? 0 }, { l: "Total Seats", v: totalSeats }, { l: "Seats Used", v: usedSeats }].map(s => (
           <Card key={s.l}><CardContent className="pt-6"><p className="text-sm text-muted-foreground">{s.l}</p><p className="text-3xl font-bold">{s.v}</p></CardContent></Card>
         ))}
       </div>
-      <div className="grid gap-4">
-        {groups.map(g => (
-          <Card key={g.id}>
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-base">{g.name}</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">{g.org} · Manager: {g.manager}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="gap-1" onClick={() => toast.info("Assign seats coming soon")}><UserPlus className="h-3.5 w-3.5" />Assign Seats</Button>
-                  <Button variant="ghost" size="sm" onClick={() => toast.info("Settings coming soon")}><Settings className="h-4 w-4" /></Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-muted-foreground">Seat usage</span>
-                <span className="font-medium">{g.used} / {g.seats} seats</span>
-              </div>
-              <Progress value={(g.used / g.seats) * 100} className="h-2" />
-              <div className="flex items-center justify-between mt-3">
-                <Badge variant={g.used >= g.seats ? "destructive" : "secondary"} className="text-xs">{g.used >= g.seats ? "Full" : `${g.seats - g.used} seats available`}</Badge>
-                <span className="text-xs text-muted-foreground">Expires {g.expires}</span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <Dialog open={show} onOpenChange={setShow}>
+      {isLoading ? <div className="grid gap-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}</div>
+        : !groups?.length ? (
+          <Card><CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+            <Users className="h-12 w-12 text-muted-foreground/40" />
+            <p className="text-muted-foreground">No groups yet. Create a group to manage seat-based enrollments.</p>
+            <Button onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Create Group</Button>
+          </CardContent></Card>
+        ) : (
+          <div className="grid gap-4">
+            {groups.map(g => (
+              <Card key={g.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1"><CardTitle className="text-base">{g.name}</CardTitle>{g.managerName && <p className="text-xs text-muted-foreground mt-0.5">Manager: {g.managerName}</p>}</div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="gap-1" onClick={() => { setAddMemberGroupId(g.id); setAddMemberOpen(true); }}><UserPlus className="h-3.5 w-3.5" />Add Member</Button>
+                      <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(g)}><Edit className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { if (confirm("Delete this group?")) deleteMut.mutate({ id: g.id }); }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between text-sm mb-2"><span className="text-muted-foreground">Seat usage</span><span className="font-medium">{g.usedSeats} / {g.seats} seats</span></div>
+                  <Progress value={(g.usedSeats / g.seats) * 100} className="h-2" />
+                  <div className="flex items-center justify-between mt-3">
+                    <Badge variant={g.usedSeats >= g.seats ? "destructive" : "secondary"} className="text-xs">{g.usedSeats >= g.seats ? "Full" : `${g.seats - g.usedSeats} seats available`}</Badge>
+                    {g.expiresAt && <span className="text-xs text-muted-foreground">Expires {new Date(g.expiresAt).toLocaleDateString()}</span>}
+                  </div>
+                  {g.notes && <p className="text-xs text-muted-foreground mt-2 italic">{g.notes}</p>}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent><DialogHeader><DialogTitle>New Group</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Group Name</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Echo Fundamentals — Batch 1" /></div>
-            <div className="space-y-2"><Label>Organization</Label><Input value={org} onChange={e => setOrg(e.target.value)} placeholder="City Medical Center" /></div>
-            <div className="space-y-2"><Label>Group Seat Manager</Label><Input value={manager} onChange={e => setManager(e.target.value)} placeholder="HR Department" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Number of Seats</Label><Input type="number" min="1" value={seats} onChange={e => setSeats(e.target.value)} placeholder="25" /></div>
-              <div className="space-y-2"><Label>Expiry Date</Label><Input type="date" value={expires} onChange={e => setExpires(e.target.value)} /></div>
-            </div>
+            <div className="space-y-2"><Label>Group Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Echo Fundamentals — Batch 1" /></div>
+            <div className="space-y-2"><Label>Group Manager</Label><Input value={managerName} onChange={e => setManagerName(e.target.value)} placeholder="HR Department" /></div>
+            <div className="space-y-2"><Label>Number of Seats</Label><Input type="number" min="1" value={seats} onChange={e => setSeats(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes" rows={2} /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setShow(false)}>Cancel</Button><Button onClick={create}>Create Group</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button><Button onClick={handleCreate} disabled={createMut.isPending}>{createMut.isPending ? "Creating..." : "Create Group"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent><DialogHeader><DialogTitle>Edit Group</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2"><Label>Group Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Group Manager</Label><Input value={managerName} onChange={e => setManagerName(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Number of Seats</Label><Input type="number" min="1" value={seats} onChange={e => setSeats(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button><Button onClick={handleUpdate} disabled={updateMut.isPending}>{updateMut.isPending ? "Saving..." : "Save Changes"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
+        <DialogContent><DialogHeader><DialogTitle>Add Member to Group</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2"><Label>Email *</Label><Input type="email" value={memberEmail} onChange={e => setMemberEmail(e.target.value)} placeholder="member@example.com" /></div>
+            <div className="space-y-2"><Label>Name</Label><Input value={memberName} onChange={e => setMemberName(e.target.value)} placeholder="Optional" /></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setAddMemberOpen(false)}>Cancel</Button><Button onClick={() => { if (!memberEmail.trim() || !addMemberGroupId) return; addMemberMut.mutate({ groupId: addMemberGroupId, email: memberEmail, name: memberName || undefined }); }} disabled={addMemberMut.isPending}>{addMemberMut.isPending ? "Adding..." : "Add Member"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

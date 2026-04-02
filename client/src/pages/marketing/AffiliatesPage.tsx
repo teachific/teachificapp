@@ -1,69 +1,127 @@
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Share2, Plus, Copy, DollarSign } from "lucide-react";
-
-interface Affiliate { id: number; name: string; email: string; commission: number; clicks: number; conversions: number; earned: number; status: "active" | "pending"; }
-
-const MOCK: Affiliate[] = [
-  { id: 1, name: "Dr. Sarah Chen", email: "sarah@example.com", commission: 20, clicks: 234, conversions: 18, earned: 2340, status: "active" },
-  { id: 2, name: "Echo Academy", email: "info@echoacademy.com", commission: 15, clicks: 89, conversions: 7, earned: 735, status: "active" },
-  { id: 3, name: "James Wilson", email: "james@example.com", commission: 20, clicks: 12, conversions: 0, earned: 0, status: "pending" },
-];
+import { Share2, Plus, MoreVertical, Edit, Trash2, Copy } from "lucide-react";
 
 export default function AffiliatesPage() {
-  const [affiliates, setAffiliates] = useState<Affiliate[]>(MOCK);
-  const [show, setShow] = useState(false);
-  const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [commission, setCommission] = useState("20");
-  const create = () => {
-    if (!name.trim() || !email.trim()) { toast.error("Name and email required"); return; }
-    setAffiliates(p => [{ id: Date.now(), name, email, commission: parseInt(commission), clicks: 0, conversions: 0, earned: 0, status: "pending" }, ...p]);
-    setShow(false); setName(""); setEmail(""); setCommission("20"); toast.success("Affiliate added");
-  };
+  const { orgId, ready } = useOrgScope();
+  const utils = trpc.useUtils();
+  const { data: affiliates, isLoading } = trpc.lms.affiliates.list.useQuery({ orgId: orgId! }, { enabled: ready && !!orgId });
+  const createMut = trpc.lms.affiliates.create.useMutation({
+    onSuccess: () => { utils.lms.affiliates.list.invalidate(); toast.success("Affiliate created"); setCreateOpen(false); resetForm(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateMut = trpc.lms.affiliates.update.useMutation({
+    onSuccess: () => { utils.lms.affiliates.list.invalidate(); toast.success("Updated"); setEditOpen(false); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteMut = trpc.lms.affiliates.delete.useMutation({
+    onSuccess: () => { utils.lms.affiliates.list.invalidate(); toast.success("Deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [commissionType, setCommissionType] = useState<"percentage"|"fixed">("percentage"); const [commissionValue, setCommissionValue] = useState(""); const [isActive, setIsActive] = useState(true);
+  const resetForm = () => { setName(""); setEmail(""); setCommissionType("percentage"); setCommissionValue(""); setIsActive(true); };
+  const openEdit = (a: any) => { setEditId(a.id); setName(a.name); setEmail(a.email ?? ""); setCommissionType(a.commissionType ?? "percentage"); setCommissionValue(String(a.commissionValue ?? "")); setIsActive(a.isActive !== false); setEditOpen(true); };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Share2 className="h-6 w-6 text-primary" />Affiliates</h1><p className="text-muted-foreground mt-0.5">Manage affiliate partners and track referral performance</p></div>
-        <Button className="gap-2" onClick={() => setShow(true)}><Plus className="h-4 w-4" />Add Affiliate</Button>
+        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Share2 className="h-6 w-6 text-primary" />Affiliates</h1><p className="text-muted-foreground mt-0.5">Manage affiliate partners who promote your courses</p></div>
+        <Button className="gap-2" onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4" />Add Affiliate</Button>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[{ l: "Affiliates", v: affiliates.length }, { l: "Total Clicks", v: affiliates.reduce((s, a) => s + a.clicks, 0) }, { l: "Conversions", v: affiliates.reduce((s, a) => s + a.conversions, 0) }, { l: "Total Paid", v: "$" + affiliates.reduce((s, a) => s + a.earned, 0).toLocaleString() }].map(s => (
-          <Card key={s.l}><CardContent className="pt-6"><p className="text-sm text-muted-foreground">{s.l}</p><p className="text-3xl font-bold">{s.v}</p></CardContent></Card>
-        ))}
-      </div>
-      <Card><CardContent className="p-0">
-        <Table>
-          <TableHeader><TableRow><TableHead>Affiliate</TableHead><TableHead>Commission</TableHead><TableHead>Clicks</TableHead><TableHead>Conversions</TableHead><TableHead>Earned</TableHead><TableHead>Status</TableHead><TableHead></TableHead></TableRow></TableHeader>
-          <TableBody>{affiliates.map(a => (
-            <TableRow key={a.id}>
-              <TableCell><div><p className="font-medium text-sm">{a.name}</p><p className="text-xs text-muted-foreground">{a.email}</p></div></TableCell>
-              <TableCell className="font-medium">{a.commission}%</TableCell>
-              <TableCell className="text-sm">{a.clicks}</TableCell>
-              <TableCell className="text-sm">{a.conversions}</TableCell>
-              <TableCell className="font-medium">${a.earned.toLocaleString()}</TableCell>
-              <TableCell><Badge variant={a.status === "active" ? "default" : "secondary"} className="text-xs capitalize">{a.status}</Badge></TableCell>
-              <TableCell><div className="flex gap-1">
-                <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(`https://teachific.app/?ref=${a.id}`); toast.success("Link copied!"); }}><Copy className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="sm" onClick={() => toast.info("Payout coming soon")}><DollarSign className="h-4 w-4" /></Button>
-              </div></TableCell>
-            </TableRow>
-          ))}</TableBody>
-        </Table>
-      </CardContent></Card>
-      <Dialog open={show} onOpenChange={setShow}>
+
+      {isLoading ? <div className="grid gap-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+        : !affiliates?.length ? (
+          <Card><CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+            <Share2 className="h-12 w-12 text-muted-foreground/40" />
+            <p className="text-muted-foreground">No affiliates yet. Add your first affiliate partner.</p>
+            <Button onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Add Affiliate</Button>
+          </CardContent></Card>
+        ) : (
+          <Card><CardContent className="p-0">
+            <div className="divide-y">
+              {affiliates.map((a: any) => (
+                <div key={a.id} className="flex items-center gap-4 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2"><span className="font-medium text-sm">{a.name}</span><Badge variant={a.isActive !== false ? "default" : "outline"} className="text-xs">{a.isActive !== false ? "Active" : "Inactive"}</Badge></div>
+                    <p className="text-xs text-muted-foreground">{a.email}</p>
+                    <p className="text-xs text-muted-foreground">{a.commissionType === "percentage" ? `${a.commissionValue}% commission` : `$${a.commissionValue} per sale`}</p>
+                  </div>
+                  {a.referralCode && (
+                    <button className="text-xs text-muted-foreground font-mono hover:text-foreground flex items-center gap-1" onClick={() => { navigator.clipboard.writeText(a.referralCode); toast.success("Code copied"); }}>
+                      {a.referralCode}<Copy className="h-3 w-3" />
+                    </button>
+                  )}
+                  <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(a)}><Edit className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { if (confirm("Delete?")) deleteMut.mutate({ id: a.id }); }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
+            </div>
+          </CardContent></Card>
+        )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent><DialogHeader><DialogTitle>Add Affiliate</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Dr. Sarah Chen" /></div>
-            <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="sarah@example.com" /></div>
-            <div className="space-y-2"><Label>Commission Rate (%)</Label><Input type="number" min="1" max="99" value={commission} onChange={e => setCommission(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="John Smith" /></div>
+            <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="john@example.com" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Commission Type</Label>
+                <Select value={commissionType} onValueChange={(v) => setCommissionType(v as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="percentage">Percentage</SelectItem><SelectItem value="fixed">Fixed Amount</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2"><Label>Value {commissionType === "percentage" ? "(%)" : "($)"}</Label><Input type="number" min="0" value={commissionValue} onChange={e => setCommissionValue(e.target.value)} placeholder={commissionType === "percentage" ? "20" : "50"} /></div>
+            </div>
+            <div className="flex items-center justify-between"><Label>Active</Label><Switch checked={isActive} onCheckedChange={setIsActive} /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setShow(false)}>Cancel</Button><Button onClick={create}>Add Affiliate</Button></DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={() => { if (!name.trim()) { toast.error("Name required"); return; } createMut.mutate({ orgId: orgId!, name, email, commissionType, commissionValue: commissionValue ? parseFloat(commissionValue) : undefined }); }} disabled={createMut.isPending}>{createMut.isPending ? "Adding..." : "Add Affiliate"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent><DialogHeader><DialogTitle>Edit Affiliate</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2"><Label>Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Commission Type</Label>
+                <Select value={commissionType} onValueChange={(v) => setCommissionType(v as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="percentage">Percentage</SelectItem><SelectItem value="fixed">Fixed Amount</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2"><Label>Value</Label><Input type="number" min="0" value={commissionValue} onChange={e => setCommissionValue(e.target.value)} /></div>
+            </div>
+            <div className="flex items-center justify-between"><Label>Active</Label><Switch checked={isActive} onCheckedChange={setIsActive} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={() => { if (!editId) return; updateMut.mutate({ id: editId, name, commissionType, commissionValue: commissionValue ? parseFloat(commissionValue) : undefined, isActive }); }} disabled={updateMut.isPending}>{updateMut.isPending ? "Saving..." : "Save Changes"}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -1,71 +1,115 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Package, Plus, ShoppingCart } from "lucide-react";
-
-interface Bundle { id: number; name: string; price: number; items: string[]; sales: number; active: boolean; description: string; }
-
-const MOCK: Bundle[] = [
-  { id: 1, name: "Echo Mastery Bundle", price: 299, items: ["Echo Fundamentals", "Advanced Echo", "Echo Certification Prep"], sales: 42, active: true, description: "Complete echo training path" },
-  { id: 2, name: "POCUS Starter Pack", price: 149, items: ["POCUS Essentials", "Probe Guide PDF"], sales: 28, active: true, description: "Everything to get started with POCUS" },
-];
+import { Package, Plus, MoreVertical, Edit, Trash2 } from "lucide-react";
 
 export default function BundlesPage() {
-  const [bundles, setBundles] = useState<Bundle[]>(MOCK);
-  const [show, setShow] = useState(false);
-  const [name, setName] = useState(""); const [price, setPrice] = useState(""); const [desc, setDesc] = useState("");
-  const create = () => {
-    if (!name.trim() || !price) { toast.error("Name and price required"); return; }
-    setBundles(p => [{ id: Date.now(), name, price: parseFloat(price), items: [], sales: 0, active: true, description: desc }, ...p]);
-    setShow(false); setName(""); setPrice(""); setDesc(""); toast.success("Bundle created");
-  };
+  const { orgId, ready } = useOrgScope();
+  const utils = trpc.useUtils();
+  const { data: bundles, isLoading } = trpc.lms.bundles.list.useQuery({ orgId: orgId! }, { enabled: ready && !!orgId });
+  const createMut = trpc.lms.bundles.create.useMutation({
+    onSuccess: () => { utils.lms.bundles.list.invalidate(); toast.success("Bundle created"); setCreateOpen(false); resetForm(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateMut = trpc.lms.bundles.update.useMutation({
+    onSuccess: () => { utils.lms.bundles.list.invalidate(); toast.success("Updated"); setEditOpen(false); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteMut = trpc.lms.bundles.delete.useMutation({
+    onSuccess: () => { utils.lms.bundles.list.invalidate(); toast.success("Bundle deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
+  const [isActive, setIsActive] = useState(true);
+  const resetForm = () => { setName(""); setDescription(""); setPrice(""); setIsActive(true); };
+  const openEdit = (b: any) => { setEditId(b.id); setName(b.name); setDescription(b.description ?? ""); setPrice(String(b.price ?? "")); setIsActive(b.isActive !== false); setEditOpen(true); };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Package className="h-6 w-6 text-primary" />Bundles</h1><p className="text-muted-foreground mt-0.5">Group courses and products into discounted bundles</p></div>
-        <Button className="gap-2" onClick={() => setShow(true)}><Plus className="h-4 w-4" />New Bundle</Button>
+        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Package className="h-6 w-6 text-primary" />Bundles</h1><p className="text-muted-foreground mt-0.5">Package multiple courses together at a discounted price</p></div>
+        <Button className="gap-2" onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4" />New Bundle</Button>
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        {[{ l: "Bundles", v: bundles.length }, { l: "Total Sales", v: bundles.reduce((s, b) => s + b.sales, 0) }, { l: "Revenue", v: "$" + bundles.reduce((s, b) => s + b.price * b.sales, 0).toLocaleString() }].map(s => (
-          <Card key={s.l}><CardContent className="pt-6"><p className="text-sm text-muted-foreground">{s.l}</p><p className="text-3xl font-bold">{s.v}</p></CardContent></Card>
-        ))}
-      </div>
-      <div className="grid md:grid-cols-2 gap-4">
-        {bundles.map(b => (
-          <Card key={b.id} className={!b.active ? "opacity-60" : ""}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div><CardTitle className="text-base">{b.name}</CardTitle><CardDescription>{b.description}</CardDescription></div>
-                <Switch checked={b.active} onCheckedChange={() => { setBundles(p => p.map(x => x.id === b.id ? { ...x, active: !x.active } : x)); toast.success("Updated"); }} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold mb-3">${b.price}</div>
-              <div className="flex flex-wrap gap-1 mb-3">{b.items.map(item => <Badge key={item} variant="secondary" className="text-xs">{item}</Badge>)}</div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><ShoppingCart className="h-4 w-4" />{b.sales} sales</div>
-                <Button variant="outline" size="sm" onClick={() => toast.info("Bundle editor coming soon")}>Edit Bundle</Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <Dialog open={show} onOpenChange={setShow}>
+
+      {isLoading ? <div className="grid gap-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>
+        : !bundles?.length ? (
+          <Card><CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+            <Package className="h-12 w-12 text-muted-foreground/40" />
+            <p className="text-muted-foreground">No bundles yet. Create your first course bundle.</p>
+            <Button onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Create Bundle</Button>
+          </CardContent></Card>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {bundles.map((b: any) => (
+              <Card key={b.id} className="relative">
+                <CardContent className="pt-5 pb-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-sm truncate">{b.name}</span>
+                        <Badge variant={b.isActive !== false ? "default" : "outline"} className="text-xs shrink-0">{b.isActive !== false ? "Active" : "Inactive"}</Badge>
+                      </div>
+                      {b.description && <p className="text-xs text-muted-foreground line-clamp-2">{b.description}</p>}
+                      <p className="text-lg font-bold mt-2">${Number(b.price ?? 0).toFixed(2)}</p>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(b)}><Edit className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { if (confirm("Delete this bundle?")) deleteMut.mutate({ id: b.id }); }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent><DialogHeader><DialogTitle>New Bundle</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Bundle Name</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Echo Mastery Bundle" /></div>
-            <div className="space-y-2"><Label>Description</Label><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2} placeholder="What's included..." /></div>
-            <div className="space-y-2"><Label>Bundle Price ($)</Label><Input type="number" min="0" step="0.01" value={price} onChange={e => setPrice(e.target.value)} placeholder="299" /></div>
-            <p className="text-xs text-muted-foreground">After creating the bundle, add courses and products from the bundle editor.</p>
+            <div className="space-y-2"><Label>Bundle Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Echo Mastery Bundle" /></div>
+            <div className="space-y-2"><Label>Description</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} /></div>
+            <div className="space-y-2"><Label>Price ($) *</Label><Input type="number" min="0" step="0.01" value={price} onChange={e => setPrice(e.target.value)} placeholder="299.00" /></div>
+            <div className="flex items-center justify-between"><Label>Active</Label><Switch checked={isActive} onCheckedChange={setIsActive} /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setShow(false)}>Cancel</Button><Button onClick={create}>Create Bundle</Button></DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={() => { if (!name.trim() || !price) { toast.error("Name and price required"); return; } createMut.mutate({ orgId: orgId!, name, description: description || undefined, price: parseFloat(price), courseIds: "" }); }} disabled={createMut.isPending}>{createMut.isPending ? "Creating..." : "Create Bundle"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent><DialogHeader><DialogTitle>Edit Bundle</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2"><Label>Bundle Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Description</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} /></div>
+            <div className="space-y-2"><Label>Price ($) *</Label><Input type="number" min="0" step="0.01" value={price} onChange={e => setPrice(e.target.value)} /></div>
+            <div className="flex items-center justify-between"><Label>Active</Label><Switch checked={isActive} onCheckedChange={setIsActive} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={() => { if (!editId) return; updateMut.mutate({ id: editId, name, description: description || undefined, price: parseFloat(price), isActive }); }} disabled={updateMut.isPending}>{updateMut.isPending ? "Saving..." : "Save Changes"}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

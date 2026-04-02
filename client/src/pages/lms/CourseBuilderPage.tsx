@@ -715,6 +715,7 @@ function CourseSettingsTab({
     playerThemeColor: course.playerThemeColor ?? "",
     playerSidebarStyle: course.playerSidebarStyle ?? "full",
     playerShowProgress: course.playerShowProgress ?? true,
+    playerShowProgressPercent: course.playerShowProgressPercent ?? true,
     playerAllowNotes: course.playerAllowNotes ?? false,
     playerShowLessonIcons: course.playerShowLessonIcons ?? true,
     // Completion
@@ -887,6 +888,13 @@ function CourseSettingsTab({
               <p className="text-xs text-muted-foreground">Display overall completion % in the player</p>
             </div>
             <Switch checked={form.playerShowProgress} onCheckedChange={(v) => set("playerShowProgress", v)} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Show progress percentage</p>
+              <p className="text-xs text-muted-foreground">Display the numeric completion percentage alongside the progress bar</p>
+            </div>
+            <Switch checked={form.playerShowProgressPercent} onCheckedChange={(v) => set("playerShowProgressPercent", v)} />
           </div>
           <div className="flex items-center justify-between">
             <div>

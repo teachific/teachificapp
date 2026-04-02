@@ -102,6 +102,67 @@ import {
   deleteEmailCampaign,
   getEmailCampaignStats,
   getMembersWithEnrollments,
+  getCategoriesByOrg,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getCourseCategories,
+  setCourseCategories,
+  getGroupsByOrg,
+  getGroupById,
+  createGroup,
+  updateGroup,
+  deleteGroup,
+  getGroupMembers,
+  addGroupMember,
+  removeGroupMember,
+  getDiscussionsByOrg,
+  getDiscussionById,
+  createDiscussion,
+  updateDiscussion,
+  deleteDiscussion,
+  getRepliesByDiscussion,
+  createDiscussionReply,
+  deleteDiscussionReply,
+  getAssignmentsByOrg,
+  getAssignmentById,
+  createAssignment,
+  updateAssignment,
+  deleteAssignment,
+  getSubmissionsByAssignment,
+  createSubmission,
+  gradeSubmission,
+  getCertificateTemplatesByOrg,
+  getCertificateTemplateById,
+  createCertificateTemplate,
+  updateCertificateTemplate,
+  deleteCertificateTemplate,
+  getAffiliatesByOrg,
+  getAffiliateById,
+  createAffiliate,
+  updateAffiliate,
+  deleteAffiliate,
+  getRevenuePartnersByOrg,
+  getRevenuePartnerById,
+  createRevenuePartner,
+  updateRevenuePartner,
+  deleteRevenuePartner,
+  getCourseOrdersByOrg,
+  getCourseOrderById,
+  createCourseOrder,
+  updateCourseOrder,
+  getCourseOrderStats,
+  getMembershipsByOrg,
+  getMembershipById,
+  createMembership,
+  updateMembership,
+  deleteMembership,
+  getBundlesByOrg,
+  getBundleById,
+  createBundle,
+  updateBundle,
+  deleteBundle,
 } from "./lmsDb";
 import { copyCourse, copyLessonToSection, copySectionToCourse } from "./lmsDbCopy";
 import { nanoid } from "nanoid";
@@ -196,6 +257,7 @@ export const lmsRouter = router({
           playerThemeColor: z.string().optional(),
           playerSidebarStyle: z.enum(["full", "minimal", "hidden"]).optional(),
           playerShowProgress: z.boolean().optional(),
+          playerShowProgressPercent: z.boolean().optional(),
           playerAllowNotes: z.boolean().optional(),
           playerShowLessonIcons: z.boolean().optional(),
           completionType: z.enum(["all_lessons", "percentage", "quiz_pass"]).optional(),
@@ -1827,4 +1889,405 @@ export const lmsRouter = router({
         return { key, fileUrl, uploadUrl: url };
       }),
   }),
+  // ── Categories ────────────────────────────────────────────────────────────
+  categories: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getCategoriesByOrg(input.orgId);
+      }),
+    create: protectedProcedure
+      .input(z.object({ orgId: z.number(), name: z.string().min(1), color: z.string().optional(), description: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const slug = input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        return createCategory({ ...input, slug });
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().optional(), color: z.string().optional(), description: z.string().optional(), sortOrder: z.number().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const cat = await getCategoryById(input.id);
+        if (!cat) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, cat.orgId);
+        const { id, ...data } = input;
+        if (data.name) (data as any).slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        return updateCategory(id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const cat = await getCategoryById(input.id);
+        if (!cat) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, cat.orgId);
+        await deleteCategory(input.id);
+        return { ok: true };
+      }),
+    getCourseCategories: protectedProcedure
+      .input(z.object({ courseId: z.number() }))
+      .query(async ({ input }) => getCourseCategories(input.courseId)),
+    setCourseCategories: protectedProcedure
+      .input(z.object({ courseId: z.number(), categoryIds: z.array(z.number()) }))
+      .mutation(async ({ input }) => {
+        await setCourseCategories(input.courseId, input.categoryIds);
+        return { ok: true };
+      }),
+  }),
+  // ── Groups ────────────────────────────────────────────────────────────────
+  groups: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getGroupsByOrg(input.orgId);
+      }),
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const g = await getGroupById(input.id);
+        if (!g) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, g.orgId);
+        const members = await getGroupMembers(input.id);
+        return { ...g, members };
+      }),
+    create: protectedProcedure
+      .input(z.object({ orgId: z.number(), name: z.string().min(1), managerName: z.string().optional(), seats: z.number().default(10), courseId: z.number().optional(), notes: z.string().optional(), expiresAt: z.date().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return createGroup({ ...input, managerId: ctx.user.id });
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().optional(), managerName: z.string().optional(), seats: z.number().optional(), courseId: z.number().optional().nullable(), notes: z.string().optional(), expiresAt: z.date().optional().nullable() }))
+      .mutation(async ({ input, ctx }) => {
+        const g = await getGroupById(input.id);
+        if (!g) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, g.orgId);
+        const { id, ...data } = input;
+        return updateGroup(id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const g = await getGroupById(input.id);
+        if (!g) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, g.orgId);
+        await deleteGroup(input.id);
+        return { ok: true };
+      }),
+    addMember: protectedProcedure
+      .input(z.object({ groupId: z.number(), email: z.string().email(), name: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const g = await getGroupById(input.groupId);
+        if (!g) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, g.orgId);
+        if (g.usedSeats >= g.seats) throw new TRPCError({ code: "BAD_REQUEST", message: "No seats available" });
+        return addGroupMember({ groupId: input.groupId, email: input.email, name: input.name, status: 'active' });
+      }),
+    removeMember: protectedProcedure
+      .input(z.object({ memberId: z.number() }))
+      .mutation(async ({ input }) => {
+        await removeGroupMember(input.memberId);
+        return { ok: true };
+      }),
+  }),
+  // ── Discussions ───────────────────────────────────────────────────────────
+  discussions: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number(), courseId: z.number().optional() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getDiscussionsByOrg(input.orgId, input.courseId);
+      }),
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const d = await getDiscussionById(input.id);
+        if (!d) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, d.orgId);
+        const replies = await getRepliesByDiscussion(input.id);
+        return { ...d, replies };
+      }),
+    create: protectedProcedure
+      .input(z.object({ orgId: z.number(), courseId: z.number().optional(), title: z.string().min(1), body: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return createDiscussion({ ...input, authorId: ctx.user.id, authorName: ctx.user.name ?? ctx.user.email ?? 'Unknown' });
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), title: z.string().optional(), body: z.string().optional(), isPinned: z.boolean().optional(), status: z.enum(['open','resolved','closed']).optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const d = await getDiscussionById(input.id);
+        if (!d) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, d.orgId);
+        const { id, ...data } = input;
+        return updateDiscussion(id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const d = await getDiscussionById(input.id);
+        if (!d) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, d.orgId);
+        await deleteDiscussion(input.id);
+        return { ok: true };
+      }),
+    reply: protectedProcedure
+      .input(z.object({ discussionId: z.number(), body: z.string().min(1), isInstructorReply: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const d = await getDiscussionById(input.discussionId);
+        if (!d) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, d.orgId);
+        return createDiscussionReply({ ...input, authorId: ctx.user.id, authorName: ctx.user.name ?? ctx.user.email ?? 'Unknown' });
+      }),
+    deleteReply: protectedProcedure
+      .input(z.object({ replyId: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteDiscussionReply(input.replyId);
+        return { ok: true };
+      }),
+  }),
+  // ── Assignments ───────────────────────────────────────────────────────────
+  assignments: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getAssignmentsByOrg(input.orgId);
+      }),
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const a = await getAssignmentById(input.id);
+        if (!a) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, a.orgId);
+        const submissions = await getSubmissionsByAssignment(input.id);
+        return { ...a, submissions };
+      }),
+    create: protectedProcedure
+      .input(z.object({ orgId: z.number(), courseId: z.number().optional(), title: z.string().min(1), description: z.string().optional(), dueDate: z.date().optional(), maxScore: z.number().optional(), allowFileUpload: z.boolean().optional(), allowTextSubmission: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return createAssignment({ ...input, status: 'draft' });
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), title: z.string().optional(), description: z.string().optional(), dueDate: z.date().optional().nullable(), maxScore: z.number().optional(), status: z.enum(['draft','active','closed']).optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const a = await getAssignmentById(input.id);
+        if (!a) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, a.orgId);
+        const { id, ...data } = input;
+        return updateAssignment(id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const a = await getAssignmentById(input.id);
+        if (!a) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, a.orgId);
+        await deleteAssignment(input.id);
+        return { ok: true };
+      }),
+    grade: protectedProcedure
+      .input(z.object({ submissionId: z.number(), grade: z.string(), score: z.number().optional().nullable(), feedback: z.string().optional().nullable() }))
+      .mutation(async ({ input }) => {
+        return gradeSubmission(input.submissionId, input.grade, input.score ?? null, input.feedback ?? null);
+      }),
+  }),
+  // ── Certificate Templates ─────────────────────────────────────────────────
+  certificateTemplates: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getCertificateTemplatesByOrg(input.orgId);
+      }),
+    create: protectedProcedure
+      .input(z.object({ orgId: z.number(), name: z.string().min(1), htmlTemplate: z.string().optional(), isDefault: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return createCertificateTemplate(input);
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().optional(), htmlTemplate: z.string().optional(), isDefault: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const t = await getCertificateTemplateById(input.id);
+        if (!t) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, t.orgId!);
+        const { id, ...data } = input;
+        return updateCertificateTemplate(id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const t = await getCertificateTemplateById(input.id);
+        if (!t) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, t.orgId!);
+        await deleteCertificateTemplate(input.id);
+        return { ok: true };
+      }),
+  }),
+  // ── Affiliates ────────────────────────────────────────────────────────────
+  affiliates: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return getAffiliatesByOrg(input.orgId);
+      }),
+    create: protectedProcedure
+      .input(z.object({ orgId: z.number(), name: z.string().min(1), email: z.string().email(), commissionType: z.enum(['percentage','fixed']).optional(), commissionValue: z.number().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const code = nanoid(8).toUpperCase();
+        return createAffiliate({ ...input, code });
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().optional(), commissionType: z.enum(['percentage','fixed']).optional(), commissionValue: z.number().optional(), isActive: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const a = await getAffiliateById(input.id);
+        if (!a) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, a.orgId);
+        const { id, ...data } = input;
+        return updateAffiliate(id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const a = await getAffiliateById(input.id);
+        if (!a) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, a.orgId);
+        await deleteAffiliate(input.id);
+        return { ok: true };
+      }),
+  }),
+  // ── Revenue Partners ──────────────────────────────────────────────────────
+  revenuePartners: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return getRevenuePartnersByOrg(input.orgId);
+      }),
+    create: protectedProcedure
+      .input(z.object({ orgId: z.number(), name: z.string().min(1), email: z.string().email(), shareType: z.enum(['percentage','fixed']).optional(), shareValue: z.number().optional(), appliesTo: z.enum(['all','specific']).optional(), courseIds: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return createRevenuePartner(input);
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().optional(), shareType: z.enum(['percentage','fixed']).optional(), shareValue: z.number().optional(), appliesTo: z.enum(['all','specific']).optional(), courseIds: z.string().optional(), isActive: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const rp = await getRevenuePartnerById(input.id);
+        if (!rp) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, rp.orgId);
+        const { id, ...data } = input;
+        return updateRevenuePartner(id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const rp = await getRevenuePartnerById(input.id);
+        if (!rp) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, rp.orgId);
+        await deleteRevenuePartner(input.id);
+        return { ok: true };
+      }),
+  }),
+  // ── Course Orders ─────────────────────────────────────────────────────────
+  courseOrders: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return getCourseOrdersByOrg(input.orgId);
+      }),
+    stats: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return getCourseOrderStats(input.orgId);
+      }),
+    create: protectedProcedure
+      .input(z.object({ orgId: z.number(), customerEmail: z.string().email(), customerName: z.string().optional(), courseId: z.number().optional(), productName: z.string().optional(), productType: z.enum(['course','bundle','membership','digital']).optional(), amount: z.number(), status: z.enum(['pending','completed','refunded','failed']).optional(), couponCode: z.string().optional(), discountAmount: z.number().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return createCourseOrder({ ...input, userId: ctx.user.id });
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), status: z.enum(['pending','completed','refunded','failed']).optional(), notes: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const o = await getCourseOrderById(input.id);
+        if (!o) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, o.orgId);
+        const { id, ...data } = input;
+        return updateCourseOrder(id, data);
+      }),
+  }),
+  // ── Memberships ───────────────────────────────────────────────────────────
+  memberships: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getMembershipsByOrg(input.orgId);
+      }),
+    create: protectedProcedure
+      .input(z.object({ orgId: z.number(), name: z.string().min(1), description: z.string().optional(), price: z.number(), billingInterval: z.enum(['monthly','yearly','one_time']).optional(), trialDays: z.number().optional(), courseAccess: z.enum(['all','specific']).optional(), courseIds: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return createMembership(input);
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().optional(), description: z.string().optional(), price: z.number().optional(), billingInterval: z.enum(['monthly','yearly','one_time']).optional(), trialDays: z.number().optional(), isActive: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const m = await getMembershipById(input.id);
+        if (!m) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, m.orgId);
+        const { id, ...data } = input;
+        return updateMembership(id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const m = await getMembershipById(input.id);
+        if (!m) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, m.orgId);
+        await deleteMembership(input.id);
+        return { ok: true };
+      }),
+  }),
+  // ── Bundles ───────────────────────────────────────────────────────────────
+  bundles: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getBundlesByOrg(input.orgId);
+      }),
+    create: protectedProcedure
+      .input(z.object({ orgId: z.number(), name: z.string().min(1), description: z.string().optional(), price: z.number(), salePrice: z.number().optional(), courseIds: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return createBundle(input);
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().optional(), description: z.string().optional(), price: z.number().optional(), salePrice: z.number().optional().nullable(), courseIds: z.string().optional(), isActive: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const b = await getBundleById(input.id);
+        if (!b) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, b.orgId);
+        const { id, ...data } = input;
+        return updateBundle(id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const b = await getBundleById(input.id);
+        if (!b) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, b.orgId);
+        await deleteBundle(input.id);
+        return { ok: true };
+      }),
+  }),
+
 });

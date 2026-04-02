@@ -1,87 +1,111 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Handshake, Plus, Percent, DollarSign } from "lucide-react";
-
-interface Partner { id: number; name: string; email: string; share: number; courses: string[]; totalEarned: number; status: "active" | "inactive"; }
-
-const MOCK: Partner[] = [
-  { id: 1, name: "Dr. Sarah Chen", email: "sarah@example.com", share: 30, courses: ["Advanced Cardiology", "ECG Mastery"], totalEarned: 4820, status: "active" },
-  { id: 2, name: "Prof. James Wright", email: "james@example.com", share: 25, courses: ["Leadership Fundamentals"], totalEarned: 1250, status: "active" },
-  { id: 3, name: "Maria Lopez", email: "maria@example.com", share: 20, courses: ["Spanish for Healthcare"], totalEarned: 680, status: "inactive" },
-];
+import { Handshake, Plus, MoreVertical, Edit, Trash2 } from "lucide-react";
 
 export default function RevenuePartnersPage() {
-  const [partners, setPartners] = useState<Partner[]>(MOCK);
-  const [showAdd, setShowAdd] = useState(false);
-  const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [share, setShare] = useState("");
+  const { orgId, ready } = useOrgScope();
+  const utils = trpc.useUtils();
+  const { data: partners, isLoading } = trpc.lms.revenuePartners.list.useQuery({ orgId: orgId! }, { enabled: ready && !!orgId });
+  const createMut = trpc.lms.revenuePartners.create.useMutation({
+    onSuccess: () => { utils.lms.revenuePartners.list.invalidate(); toast.success("Partner added"); setCreateOpen(false); resetForm(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateMut = trpc.lms.revenuePartners.update.useMutation({
+    onSuccess: () => { utils.lms.revenuePartners.list.invalidate(); toast.success("Updated"); setEditOpen(false); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteMut = trpc.lms.revenuePartners.delete.useMutation({
+    onSuccess: () => { utils.lms.revenuePartners.list.invalidate(); toast.success("Deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
 
-  const handleCreate = () => {
-    if (!name || !email || !share) { toast.error("All fields required"); return; }
-    setPartners(prev => [...prev, { id: Date.now(), name, email, share: Number(share), courses: [], totalEarned: 0, status: "active" }]);
-    setName(""); setEmail(""); setShare(""); setShowAdd(false);
-    toast.success("Revenue partner added");
-  };
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [shareType, setShareType] = useState<"percentage"|"fixed">("percentage"); const [shareValue, setShareValue] = useState(""); const [appliesTo, setAppliesTo] = useState<"all"|"specific">("all"); const [isActive, setIsActive] = useState(true);
+  const resetForm = () => { setName(""); setEmail(""); setShareType("percentage"); setShareValue(""); setAppliesTo("all"); setIsActive(true); };
+  const openEdit = (p: any) => { setEditId(p.id); setName(p.name ?? ""); setShareType(p.shareType ?? "percentage"); setShareValue(String(p.shareValue ?? "")); setAppliesTo(p.appliesTo ?? "all"); setIsActive(p.isActive !== false); setEditOpen(true); };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Handshake className="w-6 h-6 text-teal-600" /> Revenue Partners</h1>
-          <p className="text-muted-foreground mt-1">Share revenue with instructors and content partners on specific course sales</p>
-        </div>
-        <Button onClick={() => setShowAdd(true)} className="bg-teal-600 hover:bg-teal-700 text-white"><Plus className="w-4 h-4 mr-2" /> Add Partner</Button>
+        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Handshake className="h-6 w-6 text-primary" />Revenue Partners</h1><p className="text-muted-foreground mt-0.5">Share revenue with co-instructors and content partners</p></div>
+        <Button className="gap-2" onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4" />Add Partner</Button>
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold">{partners.filter(p => p.status === "active").length}</p><p className="text-sm text-muted-foreground">Active Partners</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold">${partners.reduce((s, p) => s + p.totalEarned, 0).toLocaleString()}</p><p className="text-sm text-muted-foreground">Total Paid Out</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold">{partners.reduce((s, p) => s + p.courses.length, 0)}</p><p className="text-sm text-muted-foreground">Courses Shared</p></CardContent></Card>
-      </div>
-      <div className="grid gap-4">
-        {partners.map(p => (
-          <Card key={p.id}>
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold">{p.name}</span>
-                    <Badge className={p.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}>{p.status}</Badge>
+
+      {isLoading ? <div className="grid gap-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+        : !partners?.length ? (
+          <Card><CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+            <Handshake className="h-12 w-12 text-muted-foreground/40" />
+            <p className="text-muted-foreground">No revenue partners yet. Add your first partner.</p>
+            <Button onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Add Partner</Button>
+          </CardContent></Card>
+        ) : (
+          <Card><CardContent className="p-0">
+            <div className="divide-y">
+              {partners.map((p: any) => (
+                <div key={p.id} className="flex items-center gap-4 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2"><span className="font-medium text-sm">{p.name}</span><Badge variant={p.isActive !== false ? "default" : "outline"} className="text-xs">{p.isActive !== false ? "Active" : "Inactive"}</Badge></div>
+                    {p.email && <p className="text-xs text-muted-foreground">{p.email}</p>}
+                    <p className="text-xs text-muted-foreground">{p.shareType === "percentage" ? `${p.shareValue}% revenue share` : `$${p.shareValue} per sale`} · Applies to: {p.appliesTo === "all" ? "All courses" : "Specific courses"}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">{p.email}</p>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {p.courses.map(c => <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>)}
-                    {p.courses.length === 0 && <span className="text-xs text-muted-foreground">No courses assigned</span>}
-                  </div>
+                  <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(p)}><Edit className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { if (confirm("Delete?")) deleteMut.mutate({ id: p.id }); }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="flex items-center gap-1 text-lg font-bold text-teal-600"><Percent className="w-4 h-4" />{p.share}% share</div>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground"><DollarSign className="w-3 h-3" />${p.totalEarned.toLocaleString()} earned</div>
-                  <Button size="sm" variant="outline" className="mt-2" onClick={() => toast.info("Opening partner settings...")}>Manage</Button>
+              ))}
+            </div>
+          </CardContent></Card>
+        )}
+
+      {[{ open: createOpen, setOpen: setCreateOpen, title: "Add Revenue Partner", onSave: () => { if (!name.trim()) { toast.error("Name required"); return; } createMut.mutate({ orgId: orgId!, name, email, shareType, shareValue: shareValue ? parseFloat(shareValue) : undefined, appliesTo }); }, isPending: createMut.isPending, btnLabel: "Add Partner" },
+        { open: editOpen, setOpen: setEditOpen, title: "Edit Revenue Partner", onSave: () => { if (!editId) return; updateMut.mutate({ id: editId, name, shareType, shareValue: shareValue ? parseFloat(shareValue) : undefined, appliesTo, isActive }); }, isPending: updateMut.isPending, btnLabel: "Save Changes" }
+      ].map(({ open, setOpen, title, onSave, isPending, btnLabel }) => (
+        <Dialog key={title} open={open} onOpenChange={setOpen}>
+          <DialogContent><DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2"><Label>Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Jane Doe" /></div>
+              <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2"><Label>Share Type</Label>
+                  <Select value={shareType} onValueChange={(v) => setShareType(v as any)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="percentage">Percentage</SelectItem><SelectItem value="fixed">Fixed Amount</SelectItem></SelectContent>
+                  </Select>
                 </div>
+                <div className="space-y-2"><Label>Value {shareType === "percentage" ? "(%)" : "($)"}</Label><Input type="number" min="0" value={shareValue} onChange={e => setShareValue(e.target.value)} /></div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add Revenue Partner</DialogTitle></DialogHeader>
-          <div className="space-y-3 py-2">
-            <div><Label>Full Name</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Dr. Jane Smith" className="mt-1" /></div>
-            <div><Label>Email Address</Label><Input value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" className="mt-1" /></div>
-            <div><Label>Revenue Share (%)</Label><Input type="number" min="1" max="99" value={share} onChange={e => setShare(e.target.value)} placeholder="30" className="mt-1" /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={handleCreate} className="bg-teal-600 hover:bg-teal-700 text-white">Add Partner</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <div className="space-y-2"><Label>Applies To</Label>
+                <Select value={appliesTo} onValueChange={(v) => setAppliesTo(v as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="all">All Courses</SelectItem><SelectItem value="specific">Specific Courses</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between"><Label>Active</Label><Switch checked={isActive} onCheckedChange={setIsActive} /></div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button onClick={onSave} disabled={isPending}>{isPending ? "Saving..." : btnLabel}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ))}
     </div>
   );
 }

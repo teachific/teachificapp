@@ -477,6 +477,7 @@ export const courses = mysqlTable("courses", {
   playerThemeColor: varchar("playerThemeColor", { length: 32 }),
   playerSidebarStyle: mysqlEnum("playerSidebarStyle", ["full", "minimal", "hidden"]).default("full").notNull(),
   playerShowProgress: boolean("playerShowProgress").default(true).notNull(),
+  playerShowProgressPercent: boolean("playerShowProgressPercent").default(true).notNull(),
   playerAllowNotes: boolean("playerAllowNotes").default(false).notNull(),
   playerShowLessonIcons: boolean("playerShowLessonIcons").default(true).notNull(),
   // Completion
@@ -1041,3 +1042,234 @@ export type Webinar = typeof webinars.$inferSelect;
 export type WebinarRegistration = typeof webinarRegistrations.$inferSelect;
 export type WebinarSession = typeof webinarSessions.$inferSelect;
 export type WebinarFunnelStep = typeof webinarFunnelSteps.$inferSelect;
+
+// ─── Categories ───────────────────────────────────────────────────────────────
+export const categories = mysqlTable("categories", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull(),
+  description: text("description"),
+  color: varchar("color", { length: 32 }).default("#0ea5e9"),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Category = typeof categories.$inferSelect;
+export type InsertCategory = typeof categories.$inferInsert;
+
+// ─── Course Categories (many-to-many) ─────────────────────────────────────────
+export const courseCategories = mysqlTable("course_categories", {
+  id: int("id").autoincrement().primaryKey(),
+  courseId: int("courseId").notNull(),
+  categoryId: int("categoryId").notNull(),
+});
+export type CourseCategory = typeof courseCategories.$inferSelect;
+
+// ─── Groups ───────────────────────────────────────────────────────────────────
+export const groups = mysqlTable("groups", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  managerId: int("managerId"),
+  managerName: varchar("managerName", { length: 255 }),
+  seats: int("seats").default(10).notNull(),
+  usedSeats: int("usedSeats").default(0).notNull(),
+  courseId: int("courseId"),
+  notes: text("notes"),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Group = typeof groups.$inferSelect;
+export type InsertGroup = typeof groups.$inferInsert;
+
+// ─── Group Members ────────────────────────────────────────────────────────────
+export const groupMembers = mysqlTable("group_members", {
+  id: int("id").autoincrement().primaryKey(),
+  groupId: int("groupId").notNull(),
+  userId: int("userId"),
+  email: varchar("email", { length: 320 }).notNull(),
+  name: varchar("name", { length: 255 }),
+  status: mysqlEnum("status", ["invited", "active", "removed"]).default("invited").notNull(),
+  enrolledAt: timestamp("enrolledAt").defaultNow().notNull(),
+});
+export type GroupMember = typeof groupMembers.$inferSelect;
+export type InsertGroupMember = typeof groupMembers.$inferInsert;
+
+// ─── Discussions ──────────────────────────────────────────────────────────────
+export const discussions = mysqlTable("discussions", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  courseId: int("courseId"),
+  title: varchar("title", { length: 500 }).notNull(),
+  body: text("body"),
+  authorId: int("authorId").notNull(),
+  authorName: varchar("authorName", { length: 255 }),
+  isPinned: boolean("isPinned").default(false).notNull(),
+  status: mysqlEnum("status", ["open", "resolved", "closed"]).default("open").notNull(),
+  replyCount: int("replyCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Discussion = typeof discussions.$inferSelect;
+export type InsertDiscussion = typeof discussions.$inferInsert;
+
+// ─── Discussion Replies ───────────────────────────────────────────────────────
+export const discussionReplies = mysqlTable("discussion_replies", {
+  id: int("id").autoincrement().primaryKey(),
+  discussionId: int("discussionId").notNull(),
+  authorId: int("authorId").notNull(),
+  authorName: varchar("authorName", { length: 255 }),
+  body: text("body").notNull(),
+  isInstructorReply: boolean("isInstructorReply").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type DiscussionReply = typeof discussionReplies.$inferSelect;
+export type InsertDiscussionReply = typeof discussionReplies.$inferInsert;
+
+// ─── Assignments ──────────────────────────────────────────────────────────────
+export const assignments = mysqlTable("assignments", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  courseId: int("courseId"),
+  title: varchar("title", { length: 500 }).notNull(),
+  description: text("description"),
+  dueDate: timestamp("dueDate"),
+  maxScore: int("maxScore").default(100),
+  status: mysqlEnum("status", ["draft", "active", "closed"]).default("draft").notNull(),
+  allowFileUpload: boolean("allowFileUpload").default(true).notNull(),
+  allowTextSubmission: boolean("allowTextSubmission").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Assignment = typeof assignments.$inferSelect;
+export type InsertAssignment = typeof assignments.$inferInsert;
+
+// ─── Assignment Submissions ───────────────────────────────────────────────────
+export const assignmentSubmissions = mysqlTable("assignment_submissions", {
+  id: int("id").autoincrement().primaryKey(),
+  assignmentId: int("assignmentId").notNull(),
+  userId: int("userId").notNull(),
+  userName: varchar("userName", { length: 255 }),
+  userEmail: varchar("userEmail", { length: 320 }),
+  body: text("body"),
+  fileUrl: text("fileUrl"),
+  fileKey: text("fileKey"),
+  grade: varchar("grade", { length: 32 }),
+  score: int("score"),
+  feedback: text("feedback"),
+  status: mysqlEnum("status", ["pending", "graded", "returned"]).default("pending").notNull(),
+  submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+  gradedAt: timestamp("gradedAt"),
+});
+export type AssignmentSubmission = typeof assignmentSubmissions.$inferSelect;
+export type InsertAssignmentSubmission = typeof assignmentSubmissions.$inferInsert;
+
+// ─── Certificate Templates ────────────────────────────────────────────────────
+export const certificateTemplates = mysqlTable("certificate_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  htmlTemplate: text("htmlTemplate"),
+  previewImageUrl: text("previewImageUrl"),
+  isDefault: boolean("isDefault").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CertificateTemplate = typeof certificateTemplates.$inferSelect;
+export type InsertCertificateTemplate = typeof certificateTemplates.$inferInsert;
+
+// ─── Affiliates ───────────────────────────────────────────────────────────────
+export const affiliates = mysqlTable("affiliates", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  userId: int("userId"),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  code: varchar("code", { length: 64 }).notNull().unique(),
+  commissionType: mysqlEnum("commissionType", ["percentage", "fixed"]).default("percentage").notNull(),
+  commissionValue: float("commissionValue").default(20).notNull(),
+  totalClicks: int("totalClicks").default(0).notNull(),
+  totalSales: int("totalSales").default(0).notNull(),
+  totalEarned: float("totalEarned").default(0).notNull(),
+  totalPaid: float("totalPaid").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Affiliate = typeof affiliates.$inferSelect;
+export type InsertAffiliate = typeof affiliates.$inferInsert;
+
+// ─── Revenue Partners ─────────────────────────────────────────────────────────
+export const revenuePartners = mysqlTable("revenue_partners", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  shareType: mysqlEnum("shareType", ["percentage", "fixed"]).default("percentage").notNull(),
+  shareValue: float("shareValue").default(10).notNull(),
+  appliesTo: mysqlEnum("appliesTo", ["all", "specific"]).default("all").notNull(),
+  courseIds: text("courseIds"),
+  totalEarned: float("totalEarned").default(0).notNull(),
+  totalPaid: float("totalPaid").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type RevenuePartner = typeof revenuePartners.$inferSelect;
+export type InsertRevenuePartner = typeof revenuePartners.$inferInsert;
+
+// ─── Course Orders (LMS) ──────────────────────────────────────────────────────
+export const courseOrders = mysqlTable("course_orders", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  userId: int("userId"),
+  customerName: varchar("customerName", { length: 255 }),
+  customerEmail: varchar("customerEmail", { length: 320 }).notNull(),
+  courseId: int("courseId"),
+  pricingId: int("pricingId"),
+  productType: mysqlEnum("productType", ["course", "bundle", "membership", "digital"]).default("course").notNull(),
+  productName: varchar("productName", { length: 255 }),
+  amount: float("amount").default(0).notNull(),
+  currency: varchar("currency", { length: 3 }).default("USD").notNull(),
+  status: mysqlEnum("status", ["pending", "completed", "refunded", "failed"]).default("pending").notNull(),
+  couponId: int("couponId"),
+  couponCode: varchar("couponCode", { length: 64 }),
+  discountAmount: float("discountAmount").default(0),
+  stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CourseOrder = typeof courseOrders.$inferSelect;
+export type InsertCourseOrder = typeof courseOrders.$inferInsert;
+
+// ─── Memberships ──────────────────────────────────────────────────────────────
+export const memberships = mysqlTable("memberships", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  price: float("price").default(0).notNull(),
+  billingInterval: mysqlEnum("billingInterval", ["monthly", "yearly", "one_time"]).default("monthly").notNull(),
+  trialDays: int("trialDays").default(0),
+  courseAccess: mysqlEnum("courseAccess", ["all", "specific"]).default("all").notNull(),
+  courseIds: text("courseIds"),
+  isActive: boolean("isActive").default(true).notNull(),
+  memberCount: int("memberCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Membership = typeof memberships.$inferSelect;
+export type InsertMembership = typeof memberships.$inferInsert;
+
+// ─── Bundles ──────────────────────────────────────────────────────────────────
+export const bundles = mysqlTable("bundles", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  thumbnailUrl: text("thumbnailUrl"),
+  price: float("price").default(0).notNull(),
+  salePrice: float("salePrice"),
+  courseIds: text("courseIds").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  totalEnrollments: int("totalEnrollments").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Bundle = typeof bundles.$inferSelect;
+export type InsertBundle = typeof bundles.$inferInsert;

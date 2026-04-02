@@ -1,0 +1,1 @@
+ALTER TABLE `courses` ADD `playerShowProgressPercent` boolean DEFAULT true NOT NULL;

@@ -25,6 +25,22 @@ import {
   webinarSessions,
   webinarFunnelSteps,
   orgMembers,
+  emailCampaigns,
+  emailCampaignRecipients,
+  categories,
+  courseCategories,
+  groups,
+  groupMembers,
+  discussions,
+  discussionReplies,
+  assignments,
+  assignmentSubmissions,
+  certificateTemplates,
+  affiliates,
+  revenuePartners,
+  courseOrders,
+  memberships,
+  bundles,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1139,13 +1155,6 @@ export async function getMembersWithEnrollments(orgId: number) {
   );
   return results;
 }
-
-// ─── Email Campaigns ─────────────────────────────────────────────────────────
-import {
-  emailCampaigns,
-  emailCampaignRecipients,
-} from "../drizzle/schema";
-
 export async function listEmailCampaigns(orgId: number) {
   return db
     .select()
@@ -1183,4 +1192,305 @@ export async function getEmailCampaignStats(orgId: number) {
   const openRate = totalSent > 0 ? Math.round((totalOpens / totalSent) * 100) : 0;
   const clickRate = totalSent > 0 ? Math.round((totalClicks / totalSent) * 100) : 0;
   return { totalCampaigns: campaigns.length, totalSent, totalOpens, totalClicks, openRate, clickRate };
+}
+
+// ─── Categories ──────────────────────────────────────────────────────────────
+
+export async function getCategoriesByOrg(orgId: number) {
+  return db.select().from(categories).where(eq(categories.orgId, orgId)).orderBy(asc(categories.sortOrder));
+}
+export async function getCategoryById(id: number) {
+  const rows = await db.select().from(categories).where(eq(categories.id, id));
+  return rows[0] ?? null;
+}
+export async function createCategory(data: typeof categories.$inferInsert) {
+  const result = await db.insert(categories).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getCategoryById(Number(id));
+}
+export async function updateCategory(id: number, data: Partial<typeof categories.$inferInsert>) {
+  await db.update(categories).set(data).where(eq(categories.id, id));
+  return getCategoryById(id);
+}
+export async function deleteCategory(id: number) {
+  await db.delete(courseCategories).where(eq(courseCategories.categoryId, id));
+  await db.delete(categories).where(eq(categories.id, id));
+}
+export async function getCourseCategories(courseId: number) {
+  return db.select().from(courseCategories).where(eq(courseCategories.courseId, courseId));
+}
+export async function setCourseCategories(courseId: number, categoryIds: number[]) {
+  await db.delete(courseCategories).where(eq(courseCategories.courseId, courseId));
+  if (categoryIds.length > 0) {
+    await db.insert(courseCategories).values(categoryIds.map(cid => ({ courseId, categoryId: cid })));
+  }
+}
+
+// ─── Groups ──────────────────────────────────────────────────────────────────
+
+export async function getGroupsByOrg(orgId: number) {
+  return db.select().from(groups).where(eq(groups.orgId, orgId)).orderBy(desc(groups.createdAt));
+}
+export async function getGroupById(id: number) {
+  const rows = await db.select().from(groups).where(eq(groups.id, id));
+  return rows[0] ?? null;
+}
+export async function createGroup(data: typeof groups.$inferInsert) {
+  const result = await db.insert(groups).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getGroupById(Number(id));
+}
+export async function updateGroup(id: number, data: Partial<typeof groups.$inferInsert>) {
+  await db.update(groups).set(data).where(eq(groups.id, id));
+  return getGroupById(id);
+}
+export async function deleteGroup(id: number) {
+  await db.delete(groupMembers).where(eq(groupMembers.groupId, id));
+  await db.delete(groups).where(eq(groups.id, id));
+}
+export async function getGroupMembers(groupId: number) {
+  return db.select().from(groupMembers).where(eq(groupMembers.groupId, groupId)).orderBy(asc(groupMembers.enrolledAt));
+}
+export async function addGroupMember(data: typeof groupMembers.$inferInsert) {
+  const result = await db.insert(groupMembers).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  const rows = await db.select().from(groupMembers).where(eq(groupMembers.id, Number(id)));
+  // Update usedSeats count
+  const count = await db.select({ cnt: sql<number>`count(*)` }).from(groupMembers)
+    .where(and(eq(groupMembers.groupId, data.groupId!), eq(groupMembers.status, 'active')));
+  await db.update(groups).set({ usedSeats: count[0]?.cnt ?? 0 }).where(eq(groups.id, data.groupId!));
+  return rows[0];
+}
+export async function removeGroupMember(id: number) {
+  const rows = await db.select().from(groupMembers).where(eq(groupMembers.id, id));
+  if (rows[0]) {
+    await db.update(groupMembers).set({ status: 'removed' }).where(eq(groupMembers.id, id));
+    const count = await db.select({ cnt: sql<number>`count(*)` }).from(groupMembers)
+      .where(and(eq(groupMembers.groupId, rows[0].groupId), eq(groupMembers.status, 'active')));
+    await db.update(groups).set({ usedSeats: count[0]?.cnt ?? 0 }).where(eq(groups.id, rows[0].groupId));
+  }
+}
+
+// ─── Discussions ─────────────────────────────────────────────────────────────
+
+export async function getDiscussionsByOrg(orgId: number, courseId?: number) {
+  const cond = courseId
+    ? and(eq(discussions.orgId, orgId), eq(discussions.courseId, courseId))
+    : eq(discussions.orgId, orgId);
+  return db.select().from(discussions).where(cond).orderBy(desc(discussions.isPinned), desc(discussions.createdAt));
+}
+export async function getDiscussionById(id: number) {
+  const rows = await db.select().from(discussions).where(eq(discussions.id, id));
+  return rows[0] ?? null;
+}
+export async function createDiscussion(data: typeof discussions.$inferInsert) {
+  const result = await db.insert(discussions).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getDiscussionById(Number(id));
+}
+export async function updateDiscussion(id: number, data: Partial<typeof discussions.$inferInsert>) {
+  await db.update(discussions).set(data).where(eq(discussions.id, id));
+  return getDiscussionById(id);
+}
+export async function deleteDiscussion(id: number) {
+  await db.delete(discussionReplies).where(eq(discussionReplies.discussionId, id));
+  await db.delete(discussions).where(eq(discussions.id, id));
+}
+export async function getRepliesByDiscussion(discussionId: number) {
+  return db.select().from(discussionReplies).where(eq(discussionReplies.discussionId, discussionId)).orderBy(asc(discussionReplies.createdAt));
+}
+export async function createDiscussionReply(data: typeof discussionReplies.$inferInsert) {
+  const result = await db.insert(discussionReplies).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  // Increment reply count
+  await db.update(discussions).set({ replyCount: sql`${discussions.replyCount} + 1` }).where(eq(discussions.id, data.discussionId!));
+  const rows = await db.select().from(discussionReplies).where(eq(discussionReplies.id, Number(id)));
+  return rows[0];
+}
+export async function deleteDiscussionReply(id: number) {
+  const rows = await db.select().from(discussionReplies).where(eq(discussionReplies.id, id));
+  if (rows[0]) {
+    await db.update(discussions).set({ replyCount: sql`GREATEST(${discussions.replyCount} - 1, 0)` }).where(eq(discussions.id, rows[0].discussionId));
+  }
+  await db.delete(discussionReplies).where(eq(discussionReplies.id, id));
+}
+
+// ─── Assignments ─────────────────────────────────────────────────────────────
+
+export async function getAssignmentsByOrg(orgId: number) {
+  return db.select().from(assignments).where(eq(assignments.orgId, orgId)).orderBy(desc(assignments.createdAt));
+}
+export async function getAssignmentById(id: number) {
+  const rows = await db.select().from(assignments).where(eq(assignments.id, id));
+  return rows[0] ?? null;
+}
+export async function createAssignment(data: typeof assignments.$inferInsert) {
+  const result = await db.insert(assignments).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getAssignmentById(Number(id));
+}
+export async function updateAssignment(id: number, data: Partial<typeof assignments.$inferInsert>) {
+  await db.update(assignments).set(data).where(eq(assignments.id, id));
+  return getAssignmentById(id);
+}
+export async function deleteAssignment(id: number) {
+  await db.delete(assignmentSubmissions).where(eq(assignmentSubmissions.assignmentId, id));
+  await db.delete(assignments).where(eq(assignments.id, id));
+}
+export async function getSubmissionsByAssignment(assignmentId: number) {
+  return db.select().from(assignmentSubmissions).where(eq(assignmentSubmissions.assignmentId, assignmentId)).orderBy(desc(assignmentSubmissions.submittedAt));
+}
+export async function createSubmission(data: typeof assignmentSubmissions.$inferInsert) {
+  const result = await db.insert(assignmentSubmissions).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  const rows = await db.select().from(assignmentSubmissions).where(eq(assignmentSubmissions.id, Number(id)));
+  return rows[0];
+}
+export async function gradeSubmission(id: number, grade: string, score: number | null, feedback: string | null) {
+  await db.update(assignmentSubmissions).set({ grade, score: score ?? undefined, feedback: feedback ?? undefined, status: 'graded', gradedAt: new Date() }).where(eq(assignmentSubmissions.id, id));
+  const rows = await db.select().from(assignmentSubmissions).where(eq(assignmentSubmissions.id, id));
+  return rows[0];
+}
+
+// ─── Certificate Templates ────────────────────────────────────────────────────
+
+export async function getCertificateTemplatesByOrg(orgId: number) {
+  return db.select().from(certificateTemplates).where(eq(certificateTemplates.orgId, orgId)).orderBy(desc(certificateTemplates.isDefault), asc(certificateTemplates.name));
+}
+export async function getCertificateTemplateById(id: number) {
+  const rows = await db.select().from(certificateTemplates).where(eq(certificateTemplates.id, id));
+  return rows[0] ?? null;
+}
+export async function createCertificateTemplate(data: typeof certificateTemplates.$inferInsert) {
+  if (data.isDefault) {
+    await db.update(certificateTemplates).set({ isDefault: false }).where(eq(certificateTemplates.orgId, data.orgId!));
+  }
+  const result = await db.insert(certificateTemplates).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getCertificateTemplateById(Number(id));
+}
+export async function updateCertificateTemplate(id: number, data: Partial<typeof certificateTemplates.$inferInsert>) {
+  if (data.isDefault) {
+    const t = await getCertificateTemplateById(id);
+    if (t) await db.update(certificateTemplates).set({ isDefault: false }).where(eq(certificateTemplates.orgId, t.orgId!));
+  }
+  await db.update(certificateTemplates).set(data).where(eq(certificateTemplates.id, id));
+  return getCertificateTemplateById(id);
+}
+export async function deleteCertificateTemplate(id: number) {
+  await db.delete(certificateTemplates).where(eq(certificateTemplates.id, id));
+}
+
+// ─── Affiliates ──────────────────────────────────────────────────────────────
+
+export async function getAffiliatesByOrg(orgId: number) {
+  return db.select().from(affiliates).where(eq(affiliates.orgId, orgId)).orderBy(desc(affiliates.createdAt));
+}
+export async function getAffiliateById(id: number) {
+  const rows = await db.select().from(affiliates).where(eq(affiliates.id, id));
+  return rows[0] ?? null;
+}
+export async function createAffiliate(data: typeof affiliates.$inferInsert) {
+  const result = await db.insert(affiliates).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getAffiliateById(Number(id));
+}
+export async function updateAffiliate(id: number, data: Partial<typeof affiliates.$inferInsert>) {
+  await db.update(affiliates).set(data).where(eq(affiliates.id, id));
+  return getAffiliateById(id);
+}
+export async function deleteAffiliate(id: number) {
+  await db.delete(affiliates).where(eq(affiliates.id, id));
+}
+
+// ─── Revenue Partners ─────────────────────────────────────────────────────────
+
+export async function getRevenuePartnersByOrg(orgId: number) {
+  return db.select().from(revenuePartners).where(eq(revenuePartners.orgId, orgId)).orderBy(desc(revenuePartners.createdAt));
+}
+export async function getRevenuePartnerById(id: number) {
+  const rows = await db.select().from(revenuePartners).where(eq(revenuePartners.id, id));
+  return rows[0] ?? null;
+}
+export async function createRevenuePartner(data: typeof revenuePartners.$inferInsert) {
+  const result = await db.insert(revenuePartners).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getRevenuePartnerById(Number(id));
+}
+export async function updateRevenuePartner(id: number, data: Partial<typeof revenuePartners.$inferInsert>) {
+  await db.update(revenuePartners).set(data).where(eq(revenuePartners.id, id));
+  return getRevenuePartnerById(id);
+}
+export async function deleteRevenuePartner(id: number) {
+  await db.delete(revenuePartners).where(eq(revenuePartners.id, id));
+}
+
+// ─── Course Orders ────────────────────────────────────────────────────────────
+
+export async function getCourseOrdersByOrg(orgId: number) {
+  return db.select().from(courseOrders).where(eq(courseOrders.orgId, orgId)).orderBy(desc(courseOrders.createdAt));
+}
+export async function getCourseOrderById(id: number) {
+  const rows = await db.select().from(courseOrders).where(eq(courseOrders.id, id));
+  return rows[0] ?? null;
+}
+export async function createCourseOrder(data: typeof courseOrders.$inferInsert) {
+  const result = await db.insert(courseOrders).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getCourseOrderById(Number(id));
+}
+export async function updateCourseOrder(id: number, data: Partial<typeof courseOrders.$inferInsert>) {
+  await db.update(courseOrders).set(data).where(eq(courseOrders.id, id));
+  return getCourseOrderById(id);
+}
+export async function getCourseOrderStats(orgId: number) {
+  const orders = await getCourseOrdersByOrg(orgId);
+  const completed = orders.filter(o => o.status === 'completed');
+  const totalRevenue = completed.reduce((sum, o) => sum + (o.amount ?? 0), 0);
+  const refunded = orders.filter(o => o.status === 'refunded').length;
+  return { total: orders.length, completed: completed.length, refunded, totalRevenue };
+}
+
+// ─── Memberships ──────────────────────────────────────────────────────────────
+
+export async function getMembershipsByOrg(orgId: number) {
+  return db.select().from(memberships).where(eq(memberships.orgId, orgId)).orderBy(asc(memberships.name));
+}
+export async function getMembershipById(id: number) {
+  const rows = await db.select().from(memberships).where(eq(memberships.id, id));
+  return rows[0] ?? null;
+}
+export async function createMembership(data: typeof memberships.$inferInsert) {
+  const result = await db.insert(memberships).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getMembershipById(Number(id));
+}
+export async function updateMembership(id: number, data: Partial<typeof memberships.$inferInsert>) {
+  await db.update(memberships).set(data).where(eq(memberships.id, id));
+  return getMembershipById(id);
+}
+export async function deleteMembership(id: number) {
+  await db.delete(memberships).where(eq(memberships.id, id));
+}
+
+// ─── Bundles ──────────────────────────────────────────────────────────────────
+
+export async function getBundlesByOrg(orgId: number) {
+  return db.select().from(bundles).where(eq(bundles.orgId, orgId)).orderBy(desc(bundles.createdAt));
+}
+export async function getBundleById(id: number) {
+  const rows = await db.select().from(bundles).where(eq(bundles.id, id));
+  return rows[0] ?? null;
+}
+export async function createBundle(data: typeof bundles.$inferInsert) {
+  const result = await db.insert(bundles).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getBundleById(Number(id));
+}
+export async function updateBundle(id: number, data: Partial<typeof bundles.$inferInsert>) {
+  await db.update(bundles).set(data).where(eq(bundles.id, id));
+  return getBundleById(id);
+}
+export async function deleteBundle(id: number) {
+  await db.delete(bundles).where(eq(bundles.id, id));
 }

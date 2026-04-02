@@ -733,10 +733,14 @@ export default function CoursePlayerPage() {
           <span className="text-sm font-medium truncate max-w-[200px]">{course.title}</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2">
-            <Progress value={overallProgress} className="w-24 h-1.5" />
-            <span className="text-xs text-muted-foreground">{overallProgress}%</span>
-          </div>
+          {(course.playerShowProgress !== false) && (
+            <div className="hidden sm:flex items-center gap-2">
+              <Progress value={overallProgress} className="w-24 h-1.5" />
+              {(course.playerShowProgressPercent !== false) && (
+                <span className="text-xs text-muted-foreground">{overallProgress}%</span>
+              )}
+            </div>
+          )}
           {prevLesson && (
             <Button variant="outline" size="sm" onClick={() => handleLessonClick(prevLesson.id)}>
               <ChevronLeft className="h-4 w-4" />
@@ -781,10 +785,14 @@ export default function CoursePlayerPage() {
           <div className="p-4 border-b border-border">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Course</p>
             <p className="font-semibold text-sm leading-snug">{course.title}</p>
-            <div className="flex items-center gap-2 mt-2">
-              <Progress value={overallProgress} className="flex-1 h-1.5" />
-              <span className="text-xs text-muted-foreground shrink-0">{overallProgress}%</span>
-            </div>
+            {(course.playerShowProgress !== false) && (
+              <div className="flex items-center gap-2 mt-2">
+                <Progress value={overallProgress} className="flex-1 h-1.5" />
+                {(course.playerShowProgressPercent !== false) && (
+                  <span className="text-xs text-muted-foreground shrink-0">{overallProgress}%</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Sections & Lessons */}

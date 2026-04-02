@@ -1174,3 +1174,49 @@
 ## Settings Nav Simplification (Apr 2, 2026)
 - [x] Remove all sub-items under Settings accordion in sidebar
 - [x] Make Settings a direct link to /lms/settings (general settings page)
+
+## Full Feature Build-Out (Apr 2, 2026)
+
+### Schema & Migrations
+- [ ] Add categories table (id, orgId, name, slug, color, sortOrder, description)
+- [ ] Add groups table (id, orgId, name, managerId, seats, courseId, expiresAt, notes)
+- [ ] Add group_members table (id, groupId, userId, email, enrolledAt, status)
+- [ ] Add discussions table (id, orgId, courseId, title, body, authorId, isPinned, status, createdAt)
+- [ ] Add discussion_replies table (id, discussionId, authorId, body, createdAt)
+- [ ] Add assignments table (id, orgId, courseId, title, description, dueDate, status)
+- [ ] Add assignment_submissions table (id, assignmentId, userId, body, fileUrl, grade, gradedAt, status)
+- [ ] Add certificate_templates table (id, orgId, name, htmlTemplate, isDefault)
+- [ ] Add showProgressBar and showProgressPercent columns to courses table
+- [ ] Apply all migrations via webdev_execute_sql
+
+### Backend Procedures
+- [ ] categories: list, create, update, delete, reorder
+- [ ] groups: list, create, update, delete, addMember, removeMember
+- [ ] discussions: list, create, reply, pin, delete
+- [ ] assignments: list, create, update, delete, submit, grade
+- [ ] certificateTemplates: list, create, update, delete
+- [ ] courses.updateDisplaySettings: showProgressBar, showProgressPercent
+- [ ] orders: list by org with pagination and filters
+- [ ] subscriptions: list by org
+- [ ] invoices: list by org, generate PDF
+- [ ] revenuePartners: list, create, update
+- [ ] affiliates: list, create, update
+- [ ] analytics: real enrollment chart data for dashboard
+
+### Frontend Pages
+- [ ] CategoriesPage: real CRUD wired to backend (create, edit, delete, reorder)
+- [ ] GroupsPage: real CRUD with seat management wired to backend
+- [ ] MemberCertificatesPage: list issued certificates, certificate templates CRUD
+- [ ] DiscussionsPage: real forum list wired to backend with reply/pin/delete
+- [ ] AssignmentsPage: real CRUD wired to backend with submission grading
+- [ ] EmailCampaignsPage: real CRUD wired to backend with send/schedule
+- [ ] OrdersPage: real orders list from backend with filters and export
+- [ ] CouponsPage: real CRUD wired to backend
+- [ ] SubscriptionsPage: real list from backend
+- [ ] InvoicesPage: real list from backend
+- [ ] RevenuePartnersPage: real CRUD wired to backend
+- [ ] AffiliatesPage: real CRUD wired to backend
+- [ ] Course player: respect showProgressBar and showProgressPercent flags
+- [ ] Course settings: toggle for showProgressBar and showProgressPercent
+- [ ] Dashboard enrollment chart: real Recharts bar chart with enrollment data
+- [ ] Analytics pages: real data with Recharts visualizations

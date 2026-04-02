@@ -1,117 +1,124 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Mail, Plus, Send, Zap } from "lucide-react";
+import { Mail, Plus, MoreVertical, Edit, Trash2, Send, Eye, BarChart2 } from "lucide-react";
 
-const CAMPAIGNS = [
-  { id: 1, name: "April Newsletter", subject: "New courses this month!", status: "sent", sent: 342, opens: 198, clicks: 45, date: "2026-04-01" },
-  { id: 2, name: "POCUS Launch Announcement", subject: "Introducing POCUS Essentials", status: "draft", sent: 0, opens: 0, clicks: 0, date: "2026-04-05" },
-];
-
-const AUTOMATIONS = [
-  { id: 1, name: "Welcome Email", trigger: "New member signup", active: true, sent: 89 },
-  { id: 2, name: "Course Enrollment Confirmation", trigger: "Course enrollment", active: true, sent: 234 },
-  { id: 3, name: "Course Completion", trigger: "Course completed", active: true, sent: 142 },
-  { id: 4, name: "Abandoned Cart", trigger: "Cart abandoned 24h", active: false, sent: 12 },
-];
-
-const TEMPLATES = [
-  { id: 1, name: "Welcome Email", category: "Transactional" },
-  { id: 2, name: "Course Enrollment", category: "Transactional" },
-  { id: 3, name: "Newsletter", category: "Marketing" },
-  { id: 4, name: "Promotional", category: "Marketing" },
-];
+const STATUS_VARIANT: Record<string, any> = { draft: "outline", scheduled: "secondary", sending: "default", sent: "default", failed: "destructive" };
 
 export default function EmailCampaignsPage() {
-  const [automations, setAutomations] = useState(AUTOMATIONS);
-  const [showNew, setShowNew] = useState(false);
-  const [campaignName, setCampaignName] = useState(""); const [subject, setSubject] = useState(""); const [body, setBody] = useState("");
+  const { orgId, ready } = useOrgScope();
+  const utils = trpc.useUtils();
+  const { data: campaigns, isLoading } = trpc.lms.emailMarketing.list.useQuery({ orgId: orgId! }, { enabled: ready && !!orgId });
+  const { data: stats } = trpc.lms.emailMarketing.stats.useQuery({ orgId: orgId! }, { enabled: ready && !!orgId });
+
+  const createMut = trpc.lms.emailMarketing.create.useMutation({
+    onSuccess: () => { utils.lms.emailMarketing.list.invalidate(); toast.success("Campaign created"); setCreateOpen(false); resetForm(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateMut = trpc.lms.emailMarketing.update.useMutation({
+    onSuccess: () => { utils.lms.emailMarketing.list.invalidate(); toast.success("Updated"); setEditOpen(false); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteMut = trpc.lms.emailMarketing.delete.useMutation({
+    onSuccess: () => { utils.lms.emailMarketing.list.invalidate(); toast.success("Deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [name, setName] = useState(""); const [subject, setSubject] = useState(""); const [htmlBody, setHtmlBody] = useState(""); const [textBody, setTextBody] = useState("");
+
+  const resetForm = () => { setName(""); setSubject(""); setHtmlBody(""); setTextBody(""); };
+  const openEdit = (c: any) => { setEditId(c.id); setName(c.name); setSubject(c.subject); setHtmlBody(c.htmlBody ?? ""); setTextBody(c.textBody ?? ""); setEditOpen(true); };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Mail className="h-6 w-6 text-primary" />Email Campaigns</h1><p className="text-muted-foreground mt-0.5">Send campaigns, manage templates, and set up automation workflows</p></div>
-        <Button className="gap-2" onClick={() => setShowNew(true)}><Plus className="h-4 w-4" />New Campaign</Button>
+        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Mail className="h-6 w-6 text-primary" />Email Campaigns</h1><p className="text-muted-foreground mt-0.5">Create and send email campaigns to your learners</p></div>
+        <Button className="gap-2" onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4" />New Campaign</Button>
       </div>
-      <Tabs defaultValue="campaigns">
-        <TabsList><TabsTrigger value="campaigns">Campaigns</TabsTrigger><TabsTrigger value="automations">Automations</TabsTrigger><TabsTrigger value="templates">Templates</TabsTrigger></TabsList>
-        <TabsContent value="campaigns" className="mt-4">
-          <div className="grid gap-4">
-            {CAMPAIGNS.map(c => (
-              <Card key={c.id}>
-                <CardContent className="py-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-sm">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">{c.subject} · {c.date}</p>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[{ l: "Total Campaigns", v: stats?.totalCampaigns ?? 0 }, { l: "Sent", v: stats?.totalSent ?? 0 }, { l: "Total Opens", v: stats?.totalOpens ?? 0 }, { l: "Open Rate", v: stats?.openRate ? `${stats.openRate.toFixed(1)}%` : "—" }].map(s => (
+          <Card key={s.l}><CardContent className="pt-6"><p className="text-sm text-muted-foreground">{s.l}</p><p className="text-2xl font-bold">{s.v}</p></CardContent></Card>
+        ))}
+      </div>
+
+      {isLoading ? <div className="grid gap-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+        : !campaigns?.length ? (
+          <Card><CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+            <Mail className="h-12 w-12 text-muted-foreground/40" />
+            <p className="text-muted-foreground">No campaigns yet. Create your first email campaign.</p>
+            <Button onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Create Campaign</Button>
+          </CardContent></Card>
+        ) : (
+          <Card><CardContent className="p-0">
+            <div className="divide-y">
+              {campaigns.map(c => (
+                <div key={c.id} className="flex items-center gap-4 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2"><span className="font-medium text-sm">{c.name}</span><Badge variant={STATUS_VARIANT[c.status ?? "draft"]} className="text-xs">{c.status ?? "draft"}</Badge></div>
+                    <p className="text-xs text-muted-foreground">{c.subject}</p>
+                    {c.status === "sent" && <p className="text-xs text-muted-foreground">{c.sentCount ?? 0} sent · {c.openCount ?? 0} opens · {c.clickCount ?? 0} clicks</p>}
                   </div>
-                  <div className="flex items-center gap-4">
-                    {c.status === "sent" && <div className="text-right text-xs text-muted-foreground"><p>{c.sent} sent · {c.opens} opens</p><p>{c.clicks} clicks</p></div>}
-                    <Badge variant={c.status === "sent" ? "default" : "secondary"} className="text-xs capitalize">{c.status}</Badge>
-                    <Button variant="outline" size="sm" onClick={() => toast.info(c.status === "draft" ? "Campaign editor coming soon" : "Campaign report coming soon")}>{c.status === "draft" ? "Edit" : "Report"}</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-        <TabsContent value="automations" className="mt-4">
-          <div className="grid gap-3">
-            {automations.map(a => (
-              <Card key={a.id}>
-                <CardContent className="py-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Zap className="h-5 w-5 text-primary shrink-0" />
-                    <div>
-                      <p className="font-medium text-sm">{a.name}</p>
-                      <p className="text-xs text-muted-foreground">Trigger: {a.trigger} · {a.sent} sent</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Switch checked={a.active} onCheckedChange={() => { setAutomations(p => p.map(x => x.id === a.id ? { ...x, active: !x.active } : x)); toast.success("Updated"); }} />
-                    <Button variant="outline" size="sm" onClick={() => toast.info("Workflow editor coming soon")}>Edit</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-        <TabsContent value="templates" className="mt-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            {TEMPLATES.map(t => (
-              <Card key={t.id}>
-                <CardContent className="py-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-sm">{t.name}</p>
-                    <Badge variant="outline" className="text-xs mt-1">{t.category}</Badge>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => toast.info("Template editor coming soon")}>Edit</Button>
-                </CardContent>
-              </Card>
-            ))}
-            <Card className="border-dashed"><CardContent className="py-4 flex items-center justify-center">
-              <Button variant="ghost" className="gap-2" onClick={() => toast.info("New template coming soon")}><Plus className="h-4 w-4" />New Template</Button>
-            </CardContent></Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-      <Dialog open={showNew} onOpenChange={setShowNew}>
-        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>New Email Campaign</DialogTitle></DialogHeader>
+                  <div className="text-xs text-muted-foreground shrink-0">{new Date(c.createdAt).toLocaleDateString()}</div>
+                  <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(c)}><Edit className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
+                      {c.status === "draft" && <DropdownMenuItem onClick={() => updateMut.mutate({ id: c.id, status: "sending" })}><Send className="h-4 w-4 mr-2" />Send Now</DropdownMenuItem>}
+                      <DropdownMenuItem onClick={() => { if (confirm("Delete?")) deleteMut.mutate({ id: c.id }); }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
+            </div>
+          </CardContent></Card>
+        )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>New Email Campaign</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Campaign Name</Label><Input value={campaignName} onChange={e => setCampaignName(e.target.value)} placeholder="April Newsletter" /></div>
-            <div className="space-y-2"><Label>Subject Line</Label><Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="New courses this month!" /></div>
-            <div className="space-y-2"><Label>Email Body</Label><Textarea value={body} onChange={e => setBody(e.target.value)} rows={5} placeholder="Write your email content..." /></div>
+            <div className="space-y-2"><Label>Campaign Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="April Newsletter" /></div>
+            <div className="space-y-2"><Label>Subject Line *</Label><Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="New courses this month!" /></div>
+            <Tabs defaultValue="html">
+              <TabsList><TabsTrigger value="html">HTML Body</TabsTrigger><TabsTrigger value="text">Plain Text</TabsTrigger></TabsList>
+              <TabsContent value="html"><Textarea value={htmlBody} onChange={e => setHtmlBody(e.target.value)} rows={8} placeholder="<p>Hello {{first_name}},</p>" className="font-mono text-xs" /></TabsContent>
+              <TabsContent value="text"><Textarea value={textBody} onChange={e => setTextBody(e.target.value)} rows={8} placeholder="Hello {{first_name}}, ..." /></TabsContent>
+            </Tabs>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNew(false)}>Cancel</Button>
-            <Button variant="secondary" onClick={() => { if (!campaignName.trim()) { toast.error("Name required"); return; } setShowNew(false); toast.success("Saved as draft"); }}>Save Draft</Button>
-            <Button className="gap-2" onClick={() => { if (!campaignName.trim() || !subject.trim()) { toast.error("Name and subject required"); return; } setShowNew(false); toast.success("Campaign sent!"); }}><Send className="h-4 w-4" />Send Now</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={() => { if (!name.trim() || !subject.trim()) { toast.error("Name and subject required"); return; } createMut.mutate({ orgId: orgId!, name, subject, htmlBody: htmlBody || "<p></p>", textBody: textBody || undefined }); }} disabled={createMut.isPending}>{createMut.isPending ? "Creating..." : "Create Campaign"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>Edit Campaign</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2"><Label>Campaign Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Subject Line *</Label><Input value={subject} onChange={e => setSubject(e.target.value)} /></div>
+            <Tabs defaultValue="html">
+              <TabsList><TabsTrigger value="html">HTML Body</TabsTrigger><TabsTrigger value="text">Plain Text</TabsTrigger></TabsList>
+              <TabsContent value="html"><Textarea value={htmlBody} onChange={e => setHtmlBody(e.target.value)} rows={8} className="font-mono text-xs" /></TabsContent>
+              <TabsContent value="text"><Textarea value={textBody} onChange={e => setTextBody(e.target.value)} rows={8} /></TabsContent>
+            </Tabs>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={() => { if (!editId) return; updateMut.mutate({ id: editId, name, subject, htmlBody, textBody: textBody || undefined }); }} disabled={updateMut.isPending}>{updateMut.isPending ? "Saving..." : "Save Changes"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
