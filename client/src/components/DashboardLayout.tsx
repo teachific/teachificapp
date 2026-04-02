@@ -21,45 +21,57 @@ import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   Activity,
-  Award,
   BarChart3,
   BookOpen,
+  Box,
   Building2,
   ChevronDown,
-  ChevronRight,
+  ClipboardList,
+  Code2,
+  CreditCard,
   Download,
   FileText,
   FolderOpen,
+  Globe,
   GraduationCap,
   LayoutDashboard,
+  Link2,
   LogOut,
   Mail,
-  Palette,
+  MessageSquare,
+  Package,
   PanelLeft,
+  PenTool,
+  Receipt,
   Settings,
-  ShieldCheck,
+  Share2,
+  ShoppingCart,
+  Star,
   Tag,
+  Ticket,
+  TrendingUp,
   User,
+  UserCheck,
   UserCog,
   Users,
   Video,
+  Wallet,
+  Webhook,
+  Zap,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
-// ─── Nav definition ──────────────────────────────────────────────────────────
-// Items can have sub-items for accordion expansion.
-// adminOnly: true  → only site_admin / site_owner see this
-// ownerOnly: true  → only site_owner sees this
+// ─── Types ────────────────────────────────────────────────────────────────────
 type NavSubItem = { label: string; path: string };
 type NavItem = {
   icon: React.ElementType;
   label: string;
   path: string;
-  ownerOnly?: boolean;
   adminOnly?: boolean;
+  ownerOnly?: boolean;
   subItems?: NavSubItem[];
 };
 type NavGroup = {
@@ -69,83 +81,125 @@ type NavGroup = {
   items: NavItem[];
 };
 
+// ─── Nav Definition ───────────────────────────────────────────────────────────
 const navGroups: NavGroup[] = [
+  // ── Top level ──
   {
     items: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/lms" },
-      { icon: FolderOpen, label: "Media Library", path: "/media-library" },
     ],
   },
+
+  // ── Members ──
   {
     dividerBefore: true,
     items: [
       {
-        icon: GraduationCap,
-        label: "Courses",
-        path: "/lms/courses",
+        icon: Users,
+        label: "Members",
+        path: "/members",
         subItems: [
-          { label: "All Courses", path: "/lms/courses" },
-          { label: "Course Builder", path: "/lms/courses" },
-          { label: "Certificates", path: "/lms/courses" },
-          { label: "Coupons", path: "/lms/courses" },
+          { label: "All Users", path: "/members/users" },
+          { label: "Groups", path: "/members/groups" },
+          { label: "Certificates", path: "/members/certificates" },
+          { label: "Discussions", path: "/members/discussions" },
+          { label: "Assignments", path: "/members/assignments" },
         ],
       },
-      { icon: Download, label: "Digital Downloads", path: "/admin/downloads" },
-      { icon: Video, label: "Webinars", path: "/lms/webinars" },
     ],
   },
+
+  // ── Products ──
   {
     dividerBefore: true,
     items: [
-      { icon: Users, label: "Members", path: "/lms/members" },
-    ],
-  },
-  {
-    label: "Administration",
-    dividerBefore: true,
-    adminOnly: true,
-    items: [
-      { icon: Building2, label: "Organizations", path: "/admin/orgs" },
       {
-        icon: UserCog,
-        label: "Users",
-        path: "/admin/users",
-        adminOnly: true,
+        icon: Package,
+        label: "Products",
+        path: "/products",
         subItems: [
-          { label: "All Users", path: "/admin/users" },
-          { label: "Roles & Permissions", path: "/admin/users" },
-          { label: "Invitations", path: "/admin/users" },
+          { label: "Courses", path: "/lms/courses" },
+          { label: "Digital Downloads", path: "/admin/downloads" },
+          { label: "Webinars", path: "/lms/webinars" },
+          { label: "Memberships", path: "/products/memberships" },
+          { label: "Bundles", path: "/products/bundles" },
+          { label: "Community", path: "/products/community" },
+          { label: "Categories", path: "/products/categories" },
+          { label: "Media Library", path: "/media-library" },
         ],
       },
+    ],
+  },
+
+  // ── Marketing ──
+  {
+    dividerBefore: true,
+    items: [
+      {
+        icon: TrendingUp,
+        label: "Marketing",
+        path: "/marketing",
+        subItems: [
+          { label: "Website", path: "/marketing/website" },
+          { label: "Email Campaigns", path: "/marketing/email" },
+          { label: "Funnels", path: "/marketing/funnels" },
+          { label: "Affiliates", path: "/marketing/affiliates" },
+        ],
+      },
+    ],
+  },
+
+  // ── Sales ──
+  {
+    dividerBefore: true,
+    items: [
+      {
+        icon: ShoppingCart,
+        label: "Sales",
+        path: "/sales",
+        subItems: [
+          { label: "Orders", path: "/sales/orders" },
+          { label: "Subscriptions", path: "/sales/subscriptions" },
+          { label: "Group Orders", path: "/sales/group-orders" },
+          { label: "Coupons", path: "/sales/coupons" },
+          { label: "Invoices", path: "/sales/invoices" },
+          { label: "Revenue Partners", path: "/sales/revenue-partners" },
+        ],
+      },
+    ],
+  },
+
+  // ── Analytics ──
+  {
+    dividerBefore: true,
+    items: [
       {
         icon: BarChart3,
         label: "Analytics",
-        path: "/lms/analytics",
+        path: "/analytics-hub",
         subItems: [
-          { label: "Overview", path: "/lms/analytics" },
-          { label: "Activity Log", path: "/lms/activity" },
-          { label: "Downloads Reports", path: "/admin/downloads/reports" },
-          { label: "Webinar Reports", path: "/lms/webinars/reports" },
+          { label: "Revenue", path: "/analytics/revenue" },
+          { label: "Engagement", path: "/analytics/engagement" },
+          { label: "Marketing", path: "/analytics/marketing" },
+          { label: "Custom Reports", path: "/analytics/custom-reports" },
         ],
       },
     ],
   },
+
+  // ── Integrations ──
   {
-    adminOnly: true,
+    dividerBefore: true,
     items: [
-      { icon: Palette, label: "Branding", path: "/lms/branding" },
-      { icon: FileText, label: "Custom Pages", path: "/lms/custom-pages" },
-      { icon: Mail, label: "Email Marketing", path: "/lms/email-marketing" },
       {
-        icon: Settings,
-        label: "Settings",
-        path: "/lms/settings",
+        icon: Zap,
+        label: "Integrations",
+        path: "/integrations",
+        adminOnly: true,
         subItems: [
-          { label: "General", path: "/lms/settings" },
-          { label: "Learning Content", path: "/lms/settings" },
-          { label: "Payments", path: "/lms/settings" },
-          { label: "Integrations", path: "/lms/settings" },
-          { label: "Code & Analytics", path: "/lms/settings" },
+          { label: "Apps & Integrations", path: "/integrations" },
+          { label: "API", path: "/integrations/api" },
+          { label: "Webhooks", path: "/integrations/webhooks" },
         ],
       },
     ],
@@ -177,17 +231,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full bg-white/5 backdrop-blur rounded-2xl border border-white/10 shadow-2xl">
           <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center justify-center">
-              <span className="text-4xl font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.03em' }}>
-                <span className="text-white">teach</span><span style={{ color: '#15a4b7' }}>ific</span><span className="text-white" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '2px' }}>&#8482;</span>
-              </span>
-            </div>
+            <span className="text-4xl font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.03em" }}>
+              <span className="text-white">teach</span>
+              <span style={{ color: "#15a4b7" }}>ific</span>
+              <span className="text-white" style={{ fontSize: "0.45em", verticalAlign: "super", marginLeft: "2px" }}>™</span>
+            </span>
             {errorCode === "registration_closed" ? (
-              <div className="flex flex-col items-center gap-2 text-center">
-                <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-4 py-3 text-sm text-amber-300">
-                  <p className="font-semibold mb-1">Registration is currently closed</p>
-                  <p className="text-xs text-amber-400/80">New accounts are not being accepted at this time. Please contact the platform administrator to request access.</p>
-                </div>
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-4 py-3 text-sm text-amber-300 text-center">
+                <p className="font-semibold mb-1">Registration is currently closed</p>
+                <p className="text-xs text-amber-400/80">Contact the platform administrator to request access.</p>
               </div>
             ) : (
               <p className="text-sm text-slate-400 text-center max-w-sm">
@@ -195,11 +247,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </p>
             )}
           </div>
-          <Button
-            onClick={() => { window.location.href = getLoginUrl(); }}
-            size="lg"
-            className="w-full shadow-lg hover:shadow-xl transition-all"
-          >
+          <Button onClick={() => { window.location.href = getLoginUrl(); }} size="lg" className="w-full">
             Sign in to continue
           </Button>
         </div>
@@ -232,16 +280,17 @@ function DashboardLayoutContent({
   const isMobile = useIsMobile();
   const isAdmin = user?.role === "site_admin" || user?.role === "site_owner";
   const isOwner = user?.role === "site_owner";
-  const isOrgAdmin = user?.role === "org_admin";
 
-  // Track which accordion groups are open (by item path)
+  // Determine which accordion groups are open
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
-    // Auto-open the group that contains the current active path
     const initial = new Set<string>();
     for (const group of navGroups) {
       for (const item of group.items) {
-        if (item.subItems && item.subItems.some((s) => location.startsWith(s.path) && s.path !== item.path)) {
-          initial.add(item.path);
+        if (item.subItems) {
+          const anyActive = item.subItems.some(
+            (s) => location === s.path || (s.path !== "/" && location.startsWith(s.path))
+          );
+          if (anyActive) initial.add(item.path);
         }
       }
     }
@@ -283,26 +332,28 @@ function DashboardLayoutContent({
     };
   }, [isResizing, setSidebarWidth]);
 
-  // Determine the active top-level item for the header breadcrumb
-  const allItems = navGroups.flatMap((g) => g.items);
-  const activeItem = allItems.find((i) => {
-    if (i.path === "/lms") return location === "/lms" || location === "/";
-    return location.startsWith(i.path) && i.path !== "/lms";
-  }) ?? allItems.find((i) => i.path === "/lms");
-
   const isItemActive = (item: NavItem) => {
     if (item.path === "/lms") return location === "/lms" || location === "/";
     return location.startsWith(item.path);
   };
 
-  const isSubItemActive = (sub: NavSubItem) => location === sub.path || (sub.path !== "/" && location.startsWith(sub.path));
+  const isSubItemActive = (sub: NavSubItem) =>
+    location === sub.path || (sub.path !== "/" && location.startsWith(sub.path));
+
+  // Find active item for header breadcrumb
+  const allItems = navGroups.flatMap((g) => g.items);
+  const activeItem =
+    allItems.find((i) => {
+      if (i.path === "/lms") return location === "/lms" || location === "/";
+      return location.startsWith(i.path) && i.path !== "/lms";
+    }) ?? allItems.find((i) => i.path === "/lms");
 
   return (
     <>
       <div className="relative" ref={sidebarRef}>
-        <Sidebar collapsible="icon" className="border-r border-border/40" disableTransition={isResizing}>
-          {/* Header */}
-          <SidebarHeader className="h-16 justify-center border-b border-border/40 px-3">
+        <Sidebar collapsible="icon" className="border-r border-border/40">
+          {/* Logo header */}
+          <SidebarHeader className="h-14 justify-center border-b border-border/40 px-3">
             <div className="flex items-center gap-2.5 w-full">
               <button
                 onClick={toggleSidebar}
@@ -312,37 +363,27 @@ function DashboardLayoutContent({
                 <PanelLeft className="h-4 w-4 text-sidebar-foreground/50" />
               </button>
               {!isCollapsed && (
-                <span className="text-[22px] font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
+                <span className="text-[21px] font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.02em" }}>
                   <span className="text-sidebar-foreground">teach</span>
-                  <span style={{ color: '#15a4b7' }}>ific</span>
-                  <span className="text-sidebar-foreground" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
+                  <span style={{ color: "#15a4b7" }}>ific</span>
+                  <span className="text-sidebar-foreground" style={{ fontSize: "0.45em", verticalAlign: "super", marginLeft: "1px" }}>™</span>
                 </span>
               )}
               {isCollapsed && (
-                <span className="text-[22px] font-bold select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#15a4b7' }}>t</span>
+                <span className="text-[21px] font-bold select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#15a4b7" }}>t</span>
               )}
             </div>
           </SidebarHeader>
 
-          {/* Navigation */}
-          <SidebarContent className="py-3 px-0 overflow-y-auto">
+          {/* Nav items */}
+          <SidebarContent className="py-2 px-0 overflow-y-auto">
             {navGroups.map((group, groupIdx) => {
               if (group.adminOnly && !isAdmin) return null;
               return (
                 <div key={groupIdx}>
-                  {/* Divider + optional section label */}
                   {group.dividerBefore && (
-                    <div className="mx-3 my-2 border-t border-border/30" />
+                    <div className="mx-3 my-1.5 border-t border-border/25" />
                   )}
-                  {group.label && !isCollapsed && (
-                    <div className="px-4 pt-1 pb-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40 select-none">
-                        {group.label}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Items */}
                   <div className="px-2 space-y-0.5">
                     {group.items
                       .filter((item) => {
@@ -357,7 +398,6 @@ function DashboardLayoutContent({
 
                         return (
                           <div key={item.path}>
-                            {/* Top-level nav item */}
                             <button
                               onClick={() => {
                                 if (hasSubItems && !isCollapsed) {
@@ -367,44 +407,53 @@ function DashboardLayoutContent({
                                 }
                               }}
                               title={isCollapsed ? item.label : undefined}
-                              className={`
-                                w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 group
-                                ${active
+                              className={[
+                                "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 group",
+                                active
                                   ? "bg-primary text-primary-foreground font-medium shadow-sm"
-                                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                                }
-                                ${isCollapsed ? "justify-center px-2" : ""}
-                              `}
+                                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                                isCollapsed ? "justify-center px-2" : "",
+                              ].join(" ")}
                             >
-                              <item.icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-primary-foreground" : "text-sidebar-foreground/60 group-hover:text-sidebar-foreground"}`} />
+                              <item.icon
+                                className={[
+                                  "h-[17px] w-[17px] shrink-0",
+                                  active
+                                    ? "text-primary-foreground"
+                                    : "text-sidebar-foreground/55 group-hover:text-sidebar-foreground",
+                                ].join(" ")}
+                              />
                               {!isCollapsed && (
                                 <>
                                   <span className="flex-1 text-left leading-none">{item.label}</span>
-                                  {hasSubItems ? (
-                                    <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-0" : "-rotate-90"} ${active ? "text-primary-foreground/70" : "text-sidebar-foreground/40"}`} />
-                                  ) : active ? (
-                                    <ChevronRight className="h-3 w-3 shrink-0 opacity-60 text-primary-foreground" />
-                                  ) : null}
+                                  {hasSubItems && (
+                                    <ChevronDown
+                                      className={[
+                                        "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
+                                        isOpen ? "rotate-0" : "-rotate-90",
+                                        active ? "text-primary-foreground/70" : "text-sidebar-foreground/35",
+                                      ].join(" ")}
+                                    />
+                                  )}
                                 </>
                               )}
                             </button>
 
-                            {/* Sub-items (accordion) */}
+                            {/* Sub-items */}
                             {hasSubItems && !isCollapsed && isOpen && (
-                              <div className="ml-4 mt-0.5 mb-1 pl-3 border-l-2 border-primary/30 space-y-0.5">
+                              <div className="ml-4 mt-0.5 mb-1 pl-3 border-l-2 border-primary/25 space-y-0.5">
                                 {item.subItems!.map((sub) => {
                                   const subActive = isSubItemActive(sub);
                                   return (
                                     <button
-                                      key={sub.path + sub.label}
+                                      key={sub.label + sub.path}
                                       onClick={() => setLocation(sub.path)}
-                                      className={`
-                                        w-full text-left px-2 py-1.5 rounded-md text-[13px] transition-all duration-150
-                                        ${subActive
+                                      className={[
+                                        "w-full text-left px-2 py-1.5 rounded-md text-[13px] transition-all duration-150",
+                                        subActive
                                           ? "text-primary font-medium bg-primary/8"
-                                          : "text-sidebar-foreground/65 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
-                                        }
-                                      `}
+                                          : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
+                                      ].join(" ")}
                                     >
                                       {sub.label}
                                     </button>
@@ -423,91 +472,74 @@ function DashboardLayoutContent({
         </Sidebar>
 
         {/* Resize handle */}
-        <div
-          className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors ${isCollapsed ? "hidden" : ""}`}
-          onMouseDown={() => { if (!isCollapsed) setIsResizing(true); }}
-          style={{ zIndex: 50 }}
-        />
+        {!isCollapsed && (
+          <div
+            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors z-50"
+            onMouseDown={() => setIsResizing(true)}
+          />
+        )}
       </div>
 
       <SidebarInset>
-        {/* Top header bar */}
+        {/* Top header */}
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
           <div className="flex items-center gap-3">
             {isMobile && <SidebarTrigger className="h-9 w-9 rounded-lg" />}
-            {activeItem ? (
+            {activeItem && (
               <div className="flex items-center gap-2">
                 <activeItem.icon className="h-4 w-4 text-muted-foreground" />
                 <span className="font-semibold text-sm">{activeItem.label}</span>
               </div>
-            ) : (
-              <span className="text-xl font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
-                <span className="text-foreground">teach</span><span style={{ color: '#15a4b7' }}>ific</span><span className="text-foreground" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '2px' }}>&#8482;</span>
-              </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {/* Profile dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Avatar className="h-7 w-7 border shrink-0">
-                    <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-                      {user?.name?.charAt(0).toUpperCase() ?? "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  {!isMobile && (
-                    <div className="hidden sm:flex flex-col items-start min-w-0 max-w-[140px]">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-medium truncate leading-none">{user?.name || "User"}</span>
-                        {(isAdmin || isOrgAdmin) && (
-                          <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 shrink-0">
-                            {isOwner ? "Owner" : user?.role === "site_admin" ? "Admin" : "Org Admin"}
-                          </Badge>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-muted-foreground truncate mt-0.5 w-full">{user?.email || ""}</span>
+
+          {/* Profile dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <Avatar className="h-7 w-7 border shrink-0">
+                  <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                    {user?.name?.charAt(0).toUpperCase() ?? "U"}
+                  </AvatarFallback>
+                </Avatar>
+                {!isMobile && (
+                  <div className="hidden sm:flex flex-col items-start min-w-0 max-w-[140px]">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-medium truncate leading-none">{user?.name || "User"}</span>
+                      {(isAdmin || user?.role === "org_admin") && (
+                        <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 shrink-0">
+                          {isOwner ? "Owner" : user?.role === "site_admin" ? "Admin" : "Org Admin"}
+                        </Badge>
+                      )}
                     </div>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
-                  {(isAdmin || isOrgAdmin) && (
-                    <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0">
-                      {isOwner ? "Site Owner" : user?.role === "site_admin" ? "Site Admin" : "Org Admin"}
-                    </Badge>
-                  )}
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setLocation("/profile")} className="cursor-pointer">
-                  <User className="mr-2 h-4 w-4" />
-                  My Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLocation("/lms/settings")} className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Organization Settings
-                </DropdownMenuItem>
-                {isAdmin && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setLocation("/platform-admin")} className="cursor-pointer">
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                      Platform Admin
-                    </DropdownMenuItem>
-                  </>
+                    <span className="text-[10px] text-muted-foreground truncate mt-0.5 w-full">{user?.email || ""}</span>
+                  </div>
                 )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <div className="px-2 py-1.5">
+                <p className="text-sm font-medium truncate">{user?.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setLocation("/profile")} className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                My Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLocation("/billing")} className="cursor-pointer">
+                <CreditCard className="mr-2 h-4 w-4" />
+                Billing
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
+
         <main className="flex-1 min-h-[calc(100vh-3.5rem)]">{children}</main>
       </SidebarInset>
     </>

@@ -1039,3 +1039,44 @@
 - [x] Polish active state: teal background + white text for active item
 - [x] Add hover state: subtle gray background
 - [x] Improve section label styling: uppercase, small, muted
+
+## Full Nav Restructure & New Pages (Apr 2, 2026)
+
+### Nav Structure
+- [x] Rewrite DashboardLayout navGroups: Dashboard, Members, Products, Marketing, Sales, Analytics, Integrations
+- [x] Members group: All Users, Groups, Certificates, Discussions, Assignments
+- [x] Products group: Courses, Digital Downloads, Webinars, Memberships, Bundles, Community, Categories, Media Library
+- [x] Marketing group: Website, Email Campaigns, Funnels, Affiliates
+- [x] Sales group: Orders, Subscriptions, Group Orders, Coupons, Invoices, Revenue Partners
+- [x] Analytics group: Revenue, Engagement, Marketing, Custom Reports
+- [x] Integrations group: Integrations, API, Webhooks
+- [x] Profile dropdown: My Profile, Billing, Sign Out (remove extra items)
+
+### New Pages (stubs)
+- [x] /members/groups - Group Seat Manager tool
+- [x] /members/certificates - Certificate template builder + automated flows
+- [x] /members/discussions - Discussion forum management per course
+- [x] /members/assignments - Assignment creator + management
+- [x] /products/memberships - Membership plans page
+- [x] /products/bundles - Bundle builder page
+- [x] /products/community - Community builder tool
+- [x] /products/categories - Category management page
+- [x] /marketing/website - Website builder (home, landing pages, custom pages, tracking)
+- [x] /marketing/email - Email campaigns, templates, automation workflows
+- [x] /marketing/funnels - Funnel page builder
+- [x] /marketing/affiliates - Affiliate management
+- [x] /sales/orders - Orders management
+- [x] /sales/subscriptions - Subscriptions (cancel, refund, transactions)
+- [x] /sales/group-orders - Group registration management
+- [x] /sales/coupons - Coupon/discount code builder
+- [x] /sales/invoices - Invoice templates + automation
+- [x] /sales/revenue-partners - Revenue partner setup
+- [x] /analytics/revenue - Revenue analytics
+- [x] /analytics/engagement - Engagement analytics
+- [x] /analytics/marketing - Marketing analytics
+- [x] /analytics/custom-reports - Custom reports builder
+- [x] /integrations - Integrations/apps marketplace
+- [x] /integrations/api - API key management
+- [x] /integrations/webhooks - Webhook configuration
+- [x] /profile - My Profile page
+- [x] /billing - Billing page

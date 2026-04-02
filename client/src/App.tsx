@@ -6,7 +6,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
-// Pages
+// Core pages
 import Dashboard from "./pages/Dashboard";
 import FilesPage from "./pages/FilesPage";
 import UploadPage from "./pages/UploadPage";
@@ -24,6 +24,7 @@ import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminPermissionsPage from "./pages/admin/AdminPermissionsPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import PlatformAdminPage from "./pages/admin/PlatformAdminPage";
+
 // LMS pages
 import CoursesPage from "./pages/lms/CoursesPage";
 import CourseBuilderPage from "./pages/lms/CourseBuilderPage";
@@ -50,7 +51,49 @@ import LmsDashboardPage from "./pages/lms/LmsDashboardPage";
 import MyCoursesPage from "./pages/lms/MyCoursesPage";
 import EmailMarketingPage from "./pages/lms/EmailMarketingPage";
 import PublicPagePage from "./pages/PublicPagePage";
-// Auth pages (Teachific-branded, no sidebar)
+
+// Members section
+import GroupsPage from "./pages/members/GroupsPage";
+import MemberCertificatesPage from "./pages/members/MemberCertificatesPage";
+import DiscussionsPage from "./pages/members/DiscussionsPage";
+import AssignmentsPage from "./pages/members/AssignmentsPage";
+
+// Products section
+import MembershipsPage from "./pages/products/MembershipsPage";
+import BundlesPage from "./pages/products/BundlesPage";
+import CommunityPage from "./pages/products/CommunityPage";
+import CategoriesPage from "./pages/products/CategoriesPage";
+
+// Marketing section
+import WebsitePage from "./pages/marketing/WebsitePage";
+import EmailCampaignsPage from "./pages/marketing/EmailCampaignsPage";
+import FunnelsPage from "./pages/marketing/FunnelsPage";
+import AffiliatesPage from "./pages/marketing/AffiliatesPage";
+
+// Sales section
+import OrdersPage from "./pages/sales/OrdersPage";
+import SubscriptionsPage from "./pages/sales/SubscriptionsPage";
+import GroupOrdersPage from "./pages/sales/GroupOrdersPage";
+import CouponsPage from "./pages/sales/CouponsPage";
+import InvoicesPage from "./pages/sales/InvoicesPage";
+import RevenuePartnersPage from "./pages/sales/RevenuePartnersPage";
+
+// Analytics section
+import RevenueAnalyticsPage from "./pages/analytics/RevenueAnalyticsPage";
+import EngagementAnalyticsPage from "./pages/analytics/EngagementAnalyticsPage";
+import MarketingAnalyticsPage from "./pages/analytics/MarketingAnalyticsPage";
+import CustomReportsPage from "./pages/analytics/CustomReportsPage";
+
+// Integrations section
+import IntegrationsPage from "./pages/integrations/IntegrationsPage";
+import ApiPage from "./pages/integrations/ApiPage";
+import WebhooksPage from "./pages/integrations/WebhooksPage";
+
+// Profile section
+import ProfilePage from "./pages/profile/ProfilePage";
+import BillingPage from "./pages/profile/BillingPage";
+
+// Auth pages (no sidebar)
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
@@ -64,18 +107,13 @@ const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"
 function BareRouter() {
   return (
     <Switch>
-      {/* Embeds & player */}
       <Route path="/embed/:id" component={EmbedPage} />
       <Route path="/learn/:courseId" component={CoursePlayerPage} />
       <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
-      {/* Public custom pages (no sidebar) */}
       <Route path="/p/:slug" component={PublicPagePage} />
-      {/* Public webinar pages */}
       <Route path="/webinar/:slug/register" component={WebinarRegisterPage} />
       <Route path="/webinar/:slug/watch" component={WebinarWatchPage} />
-      {/* Public digital product sales pages */}
       <Route path="/shop/:slug" component={DigitalProductSalesPage} />
-      {/* Teachific-branded auth */}
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
@@ -90,29 +128,23 @@ function AdminRouter() {
   return (
     <DashboardLayout>
       <Switch>
-        {/* Main */}
+        {/* Root → Dashboard */}
         <Route path="/">{() => { window.location.replace("/lms"); return null; }}</Route>
-        <Route path="/media-library" component={MediaLibraryPage} />
-        {/* Legacy routes — redirect to media library with correct tab */}
-        <Route path="/upload">{() => { window.location.replace("/media-library#upload"); return null; }}</Route>
-        <Route path="/files">{() => { window.location.replace("/media-library#files"); return null; }}</Route>
-        <Route path="/files/:id" component={FileDetailPage} />
-        <Route path="/quizzes">{() => { window.location.replace("/media-library#quizzes"); return null; }}</Route>
-        <Route path="/play/:id" component={PlayerPage} />
 
-        {/* Quiz sub-routes */}
-        <Route path="/quizzes/new" component={QuizBuilderPage} />
-        <Route path="/quizzes/:id/edit" component={QuizBuilderPage} />
-        <Route path="/quizzes/:id/play" component={QuizPlayerPage} />
-        <Route path="/quizzes/:id/results/:attemptId" component={QuizResultsPage} />
-
-        {/* Analytics */}
-        <Route path="/analytics" component={AnalyticsPage} />
-
-        {/* LMS */}
+        {/* Dashboard */}
         <Route path="/lms" component={LmsDashboardPage} />
         <Route path="/lms/dashboard" component={LmsDashboardPage} />
-        <Route path="/lms/my-courses" component={MyCoursesPage} />
+
+        {/* ── Members ── */}
+        <Route path="/members/users" component={MembersPage} />
+        <Route path="/members/groups" component={GroupsPage} />
+        <Route path="/members/certificates" component={MemberCertificatesPage} />
+        <Route path="/members/discussions" component={DiscussionsPage} />
+        <Route path="/members/assignments" component={AssignmentsPage} />
+        {/* Legacy /lms/members redirect */}
+        <Route path="/lms/members">{() => { window.location.replace("/members/users"); return null; }}</Route>
+
+        {/* ── Products ── */}
         <Route path="/lms/courses" component={CoursesPage} />
         <Route path="/lms/courses/new" component={CourseBuilderPage} />
         <Route path="/lms/courses/:id/curriculum" component={CourseBuilderPage} />
@@ -121,41 +153,82 @@ function AdminRouter() {
         <Route path="/lms/courses/:id/drip" component={CourseBuilderPage} />
         <Route path="/lms/courses/:id/after_purchase" component={CourseBuilderPage} />
         <Route path="/lms/courses/:id" component={CourseBuilderPage} />
-        <Route path="/lms/members" component={MembersPage} />
-        <Route path="/lms/analytics" component={LmsAnalyticsPage} />
-        <Route path="/lms/branding" component={BrandingPage} />
-        <Route path="/lms/page-builder/:pageId" component={PageBuilderPage} />
-        <Route path="/lms/courses/:courseId/page-builder" component={PageBuilderPage} />
-        <Route path="/lms/custom-pages" component={CustomPagesPage} />
-        <Route path="/lms/settings" component={OrgSettingsPage} />
-        <Route path="/lms/activity" component={StudentLogReportsPage} />
-        <Route path="/lms/email-marketing" component={EmailMarketingPage} />
-
-        {/* Student storefront */}
-        <Route path="/school" component={SchoolPage} />
-        <Route path="/school/courses/:courseId" component={CourseSalesPage} />
-
-        {/* Course player (inside dashboard shell for authenticated users) */}
-        <Route path="/learn/:courseId" component={CoursePlayerPage} />
-        <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
-
-        {/* Digital Downloads */}
         <Route path="/admin/downloads" component={DigitalProductsPage} />
         <Route path="/admin/downloads/reports" component={DigitalDownloadsReportsPage} />
         <Route path="/admin/downloads/new" component={DigitalProductEditorPage} />
         <Route path="/admin/downloads/:id" component={DigitalProductEditorPage} />
-
-        {/* Webinars */}
         <Route path="/lms/webinars" component={WebinarsPage} />
         <Route path="/lms/webinars/reports" component={WebinarReportsPage} />
         <Route path="/lms/webinars/:id/edit" component={WebinarEditorPage} />
+        <Route path="/products/memberships" component={MembershipsPage} />
+        <Route path="/products/bundles" component={BundlesPage} />
+        <Route path="/products/community" component={CommunityPage} />
+        <Route path="/products/categories" component={CategoriesPage} />
+        <Route path="/media-library" component={MediaLibraryPage} />
 
-        {/* Platform admin */}
+        {/* ── Marketing ── */}
+        <Route path="/marketing/website" component={WebsitePage} />
+        <Route path="/marketing/email" component={EmailCampaignsPage} />
+        <Route path="/marketing/funnels" component={FunnelsPage} />
+        <Route path="/marketing/affiliates" component={AffiliatesPage} />
+        {/* Legacy email marketing redirect */}
+        <Route path="/lms/email-marketing">{() => { window.location.replace("/marketing/email"); return null; }}</Route>
+
+        {/* ── Sales ── */}
+        <Route path="/sales/orders" component={OrdersPage} />
+        <Route path="/sales/subscriptions" component={SubscriptionsPage} />
+        <Route path="/sales/group-orders" component={GroupOrdersPage} />
+        <Route path="/sales/coupons" component={CouponsPage} />
+        <Route path="/sales/invoices" component={InvoicesPage} />
+        <Route path="/sales/revenue-partners" component={RevenuePartnersPage} />
+
+        {/* ── Analytics ── */}
+        <Route path="/analytics/revenue" component={RevenueAnalyticsPage} />
+        <Route path="/analytics/engagement" component={EngagementAnalyticsPage} />
+        <Route path="/analytics/marketing" component={MarketingAnalyticsPage} />
+        <Route path="/analytics/custom-reports" component={CustomReportsPage} />
+        <Route path="/analytics-hub" component={RevenueAnalyticsPage} />
+        {/* Legacy analytics redirects */}
+        <Route path="/analytics" component={AnalyticsPage} />
+        <Route path="/lms/analytics" component={LmsAnalyticsPage} />
+        <Route path="/lms/activity" component={StudentLogReportsPage} />
+
+        {/* ── Integrations ── */}
+        <Route path="/integrations" component={IntegrationsPage} />
+        <Route path="/integrations/api" component={ApiPage} />
+        <Route path="/integrations/webhooks" component={WebhooksPage} />
+
+        {/* ── Profile ── */}
+        <Route path="/profile" component={ProfilePage} />
+        <Route path="/billing" component={BillingPage} />
+
+        {/* ── Platform Admin ── */}
         <Route path="/admin/orgs" component={AdminOrgsPage} />
         <Route path="/admin/users" component={AdminUsersPage} />
         <Route path="/admin/permissions" component={AdminPermissionsPage} />
         <Route path="/admin/settings" component={AdminSettingsPage} />
         <Route path="/platform-admin" component={PlatformAdminPage} />
+
+        {/* ── Misc / Legacy ── */}
+        <Route path="/upload">{() => { window.location.replace("/media-library#upload"); return null; }}</Route>
+        <Route path="/files">{() => { window.location.replace("/media-library#files"); return null; }}</Route>
+        <Route path="/files/:id" component={FileDetailPage} />
+        <Route path="/quizzes">{() => { window.location.replace("/media-library#quizzes"); return null; }}</Route>
+        <Route path="/play/:id" component={PlayerPage} />
+        <Route path="/quizzes/new" component={QuizBuilderPage} />
+        <Route path="/quizzes/:id/edit" component={QuizBuilderPage} />
+        <Route path="/quizzes/:id/play" component={QuizPlayerPage} />
+        <Route path="/quizzes/:id/results/:attemptId" component={QuizResultsPage} />
+        <Route path="/lms/my-courses" component={MyCoursesPage} />
+        <Route path="/lms/branding" component={BrandingPage} />
+        <Route path="/lms/page-builder/:pageId" component={PageBuilderPage} />
+        <Route path="/lms/courses/:courseId/page-builder" component={PageBuilderPage} />
+        <Route path="/lms/custom-pages" component={CustomPagesPage} />
+        <Route path="/lms/settings" component={OrgSettingsPage} />
+        <Route path="/school" component={SchoolPage} />
+        <Route path="/school/courses/:courseId" component={CourseSalesPage} />
+        <Route path="/learn/:courseId" component={CoursePlayerPage} />
+        <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
 
         {/* 404 */}
         <Route path="/404" component={NotFound} />
