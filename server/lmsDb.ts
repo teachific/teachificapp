@@ -565,18 +565,18 @@ export async function getRevenueChartData(
 ) {
   const db = await getDb();
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  // SQLite strftime() requires the format to be a literal, not a bound param — use sql.raw()
-  const fmt = groupBy === 'day' ? '%Y-%m-%d' : groupBy === 'week' ? '%Y-%W' : '%Y-%m';
+  // MySQL/TiDB: DATE_FORMAT() — use sql.raw() to inline the format literal so Drizzle doesn't parameterize it
+  const fmt = groupBy === 'day' ? '%Y-%m-%d' : groupBy === 'week' ? '%Y-%u' : '%Y-%m';
   return db
     .select({
-      date: sql<string>`strftime('${sql.raw(fmt)}', ${courseEnrollments.enrolledAt})`,
+      date: sql<string>`DATE_FORMAT(${courseEnrollments.enrolledAt}, ${sql.raw("'" + fmt + "'")})`,
       revenue: sql<number>`COALESCE(SUM(${courseEnrollments.amountPaid}), 0)`,
       enrollments: sql<number>`COUNT(*)`,
     })
     .from(courseEnrollments)
     .where(and(eq(courseEnrollments.orgId, orgId), gte(courseEnrollments.enrolledAt, cutoff)))
-    .groupBy(sql`strftime('${sql.raw(fmt)}', ${courseEnrollments.enrolledAt})`)
-    .orderBy(sql`strftime('${sql.raw(fmt)}', ${courseEnrollments.enrolledAt})`);
+    .groupBy(sql.raw(`DATE_FORMAT(\`course_enrollments\`.\`enrolledAt\`, '${fmt}')`))
+    .orderBy(sql.raw(`DATE_FORMAT(\`course_enrollments\`.\`enrolledAt\`, '${fmt}')`));
 }
 
 export async function getRecentActivity(orgId: number, limit: number = 20) {
