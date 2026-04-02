@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import {
   Settings, Building2, Palette, Globe, CreditCard,
-  Check, AlertCircle, Crown, Zap, Rocket, Bell, Upload, ImageIcon, X,
+  Check, AlertCircle, Crown, Zap, Rocket, Bell, Upload, ImageIcon, X, FileText,
 } from "lucide-react";
 
 export default function OrgSettingsPage() {
@@ -161,7 +162,7 @@ export default function OrgSettingsPage() {
 
       <Tabs defaultValue="general" className="w-full">
         <div className="overflow-x-auto pb-1">
-          <TabsList className="flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-5 gap-0">
+          <TabsList className="flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-6 gap-0">
             <TabsTrigger value="general" className="gap-1.5 whitespace-nowrap">
               <Building2 className="h-4 w-4" /> General
             </TabsTrigger>
@@ -176,6 +177,9 @@ export default function OrgSettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="subscription" className="gap-1.5 whitespace-nowrap">
               <CreditCard className="h-4 w-4" /> Subscription
+            </TabsTrigger>
+            <TabsTrigger value="policies" className="gap-1.5 whitespace-nowrap">
+              <FileText className="h-4 w-4" /> Site Policies
             </TabsTrigger>
           </TabsList>
         </div>
@@ -444,7 +448,116 @@ export default function OrgSettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Site Policies Tab */}
+        <SitePoliciesTab orgId={orgCtx?.org?.id} />
+
       </Tabs>
     </div>
+  );
+}
+
+function SitePoliciesTab({ orgId }: { orgId?: number }) {
+  const utils = trpc.useUtils();
+  const [termsHtml, setTermsHtml] = useState("");
+  const [privacyHtml, setPrivacyHtml] = useState("");
+  const [requireAgreement, setRequireAgreement] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+
+  const { data: legalDocs, isLoading } = trpc.orgs.getLegalDocs.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId }
+  );
+
+  useEffect(() => {
+    if (legalDocs && !initialized) {
+      setTermsHtml(legalDocs.termsOfService ?? "");
+      setPrivacyHtml(legalDocs.privacyPolicy ?? "");
+      setRequireAgreement(legalDocs.requireTermsAgreement ?? false);
+      setInitialized(true);
+    }
+  }, [legalDocs, initialized]);
+
+  const updateLegalDocs = trpc.orgs.updateLegalDocs.useMutation({
+    onSuccess: () => {
+      toast.success("Site policies saved");
+      utils.orgs.getLegalDocs.invalidate({ orgId: orgId! });
+      utils.orgs.publicLegalDocs.invalidate({ orgId: orgId! });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  if (!orgId || isLoading) return (
+    <TabsContent value="policies" className="space-y-4">
+      <Skeleton className="h-64 w-full" />
+    </TabsContent>
+  );
+
+  return (
+    <TabsContent value="policies" className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Site Policies</CardTitle>
+          <CardDescription>
+            Set your Terms of Service and Privacy Policy. When enabled, learners must agree before completing a purchase.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div>
+              <p className="font-medium text-sm">Require agreement at checkout</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Learners must check a box agreeing to your policies before purchasing a course or membership.
+              </p>
+            </div>
+            <Switch checked={requireAgreement} onCheckedChange={setRequireAgreement} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Terms of Service
+          </CardTitle>
+          <CardDescription>Displayed to learners at checkout when agreement is required.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RichTextEditor
+            value={termsHtml}
+            onChange={setTermsHtml}
+            placeholder="Enter your Terms of Service here..."
+            minHeight={300}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Privacy Policy
+          </CardTitle>
+          <CardDescription>Displayed alongside Terms of Service at checkout.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RichTextEditor
+            value={privacyHtml}
+            onChange={setPrivacyHtml}
+            placeholder="Enter your Privacy Policy here..."
+            minHeight={300}
+          />
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button
+          onClick={() => updateLegalDocs.mutate({ orgId: orgId!, termsOfService: termsHtml, privacyPolicy: privacyHtml, requireTermsAgreement: requireAgreement })}
+          disabled={updateLegalDocs.isPending}
+          className="gap-2"
+        >
+          {updateLegalDocs.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Policies</>}
+        </Button>
+      </div>
+    </TabsContent>
   );
 }

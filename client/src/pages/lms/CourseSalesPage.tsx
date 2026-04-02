@@ -4,6 +4,9 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import {
@@ -20,13 +23,21 @@ import {
   Award,
 } from "lucide-react";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+type LegalDocs = {
+  termsOfService?: string | null;
+  privacyPolicy?: string | null;
+  requireTermsAgreement?: boolean | null;
+} | null | undefined;
+
 // ─── Block Renderer (student-facing, read-only) ───────────────────────────────
 
-function RenderBlock({ block, primaryColor, curriculum, pricing }: {
+function RenderBlock({ block, primaryColor, curriculum, pricing, legalDocs }: {
   block: any;
   primaryColor: string;
   curriculum: any[];
   pricing: any[];
+  legalDocs?: LegalDocs;
 }) {
   const d = block.data;
   const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({});
@@ -141,7 +152,11 @@ function RenderBlock({ block, primaryColor, curriculum, pricing }: {
       );
     }
 
-    case "pricing":
+    case "pricing": {
+      const requireAgreement = legalDocs?.requireTermsAgreement;
+      const [agreed, setAgreed] = useState(false);
+      const [termsOpen, setTermsOpen] = useState(false);
+      const [privacyOpen, setPrivacyOpen] = useState(false);
       return (
         <div id="pricing">
           <h2 className="text-2xl font-bold mb-2">{d.heading || "Pricing Options"}</h2>
@@ -149,31 +164,87 @@ function RenderBlock({ block, primaryColor, curriculum, pricing }: {
           {pricing.length === 0 ? (
             <p className="text-muted-foreground text-sm">Pricing options coming soon.</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {pricing.map((p: any) => (
-                <div key={p.id} className="border-2 border-border rounded-xl p-6 hover:border-primary transition-colors">
-                  <p className="font-semibold text-lg">{p.name || "Standard"}</p>
-                  <div className="mt-2 mb-4">
-                    <span className="text-3xl font-bold" style={{ color: primaryColor }}>
-                      ${p.price}
-                    </span>
-                    {p.billingInterval && (
-                      <span className="text-muted-foreground text-sm ml-1">/{p.billingInterval}</span>
+            <div className="space-y-4">
+              {requireAgreement && (
+                <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-xl border border-border">
+                  <Checkbox
+                    id="policy-agree"
+                    checked={agreed}
+                    onCheckedChange={(v) => setAgreed(!!v)}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="policy-agree" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
+                    I have read and agree to the{" "}
+                    {legalDocs?.termsOfService && (
+                      <button
+                        type="button"
+                        onClick={() => setTermsOpen(true)}
+                        className="underline text-foreground hover:text-primary font-medium"
+                      >
+                        Terms of Service
+                      </button>
                     )}
-                  </div>
-                  {p.description && <p className="text-sm text-muted-foreground mb-4">{p.description}</p>}
-                  <Button
-                    className="w-full text-white"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    Get Started
-                  </Button>
+                    {legalDocs?.termsOfService && legalDocs?.privacyPolicy && " and "}
+                    {legalDocs?.privacyPolicy && (
+                      <button
+                        type="button"
+                        onClick={() => setPrivacyOpen(true)}
+                        className="underline text-foreground hover:text-primary font-medium"
+                      >
+                        Privacy Policy
+                      </button>
+                    )}
+                    {!legalDocs?.termsOfService && !legalDocs?.privacyPolicy && " site policies"}
+                  </label>
                 </div>
-              ))}
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pricing.map((p: any) => (
+                  <div key={p.id} className="border-2 border-border rounded-xl p-6 hover:border-primary transition-colors">
+                    <p className="font-semibold text-lg">{p.name || "Standard"}</p>
+                    <div className="mt-2 mb-4">
+                      <span className="text-3xl font-bold" style={{ color: primaryColor }}>
+                        ${p.price}
+                      </span>
+                      {p.billingInterval && (
+                        <span className="text-muted-foreground text-sm ml-1">/{p.billingInterval}</span>
+                      )}
+                    </div>
+                    {p.description && <p className="text-sm text-muted-foreground mb-4">{p.description}</p>}
+                    <Button
+                      className="w-full text-white"
+                      style={{ backgroundColor: primaryColor }}
+                      disabled={requireAgreement ? !agreed : false}
+                      title={requireAgreement && !agreed ? "Please agree to the policies above to continue" : undefined}
+                    >
+                      Get Started
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+          {/* Terms of Service Dialog */}
+          <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader><DialogTitle>Terms of Service</DialogTitle></DialogHeader>
+              <ScrollArea className="max-h-[60vh]">
+                <div className="prose prose-sm max-w-none p-1" dangerouslySetInnerHTML={{ __html: legalDocs?.termsOfService || "" }} />
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
+          {/* Privacy Policy Dialog */}
+          <Dialog open={privacyOpen} onOpenChange={setPrivacyOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader><DialogTitle>Privacy Policy</DialogTitle></DialogHeader>
+              <ScrollArea className="max-h-[60vh]">
+                <div className="prose prose-sm max-w-none p-1" dangerouslySetInnerHTML={{ __html: legalDocs?.privacyPolicy || "" }} />
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
         </div>
       );
+    }
 
     case "testimonials":
       return (
@@ -281,16 +352,20 @@ export default function CourseSalesPage() {
   const { user } = useAuth();
   const courseId = parseInt(params.courseId);
 
-  const { data: orgs } = trpc.orgs.myOrgs.useQuery();
-  const orgId = orgs?.[0]?.id;
-
   const { data: course, isLoading: courseLoading } = trpc.lms.courses.get.useQuery({ id: courseId });
   const { data: curriculum } = trpc.lms.curriculum.get.useQuery({ courseId });
   const { data: pricing } = trpc.lms.pricing.list.useQuery({ courseId });
   const { data: page } = trpc.lms.pages.getByCourse.useQuery({ courseId });
+
+  // Fetch legal docs using the course's orgId once course is loaded
+  const { data: legalDocs } = trpc.orgs.publicLegalDocs.useQuery(
+    { orgId: course?.orgId ?? 0 },
+    { enabled: !!course?.orgId }
+  );
+
   const { data: theme } = trpc.lms.themes.get.useQuery(
-    { orgId: orgId! },
-    { enabled: !!orgId }
+    { orgId: course?.orgId ?? 0 },
+    { enabled: !!course?.orgId }
   );
   const { data: enrollments } = trpc.lms.enrollments.myEnrollments.useQuery(
     undefined,
@@ -372,6 +447,7 @@ export default function CourseSalesPage() {
                 primaryColor={primaryColor}
                 curriculum={curriculum || []}
                 pricing={pricing || []}
+                legalDocs={legalDocs}
               />
             </div>
           ))}
@@ -404,6 +480,7 @@ export default function CourseSalesPage() {
               primaryColor={primaryColor}
               curriculum={curriculum}
               pricing={pricing || []}
+              legalDocs={legalDocs}
             />
           )}
 
@@ -414,6 +491,7 @@ export default function CourseSalesPage() {
               primaryColor={primaryColor}
               curriculum={curriculum || []}
               pricing={pricing}
+              legalDocs={legalDocs}
             />
           )}
         </div>

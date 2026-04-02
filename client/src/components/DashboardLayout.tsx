@@ -45,6 +45,7 @@ import {
   Receipt,
   Settings,
   Share2,
+  Shield,
   ShoppingCart,
   Star,
   Tag,
@@ -189,23 +190,6 @@ const navGroups: NavGroup[] = [
     ],
   },
 
-  // ── Integrations ──
-  {
-    dividerBefore: true,
-    items: [
-      {
-        icon: Zap,
-        label: "Integrations",
-        path: "/integrations",
-        adminOnly: true,
-        subItems: [
-          { label: "Apps & Integrations", path: "/integrations" },
-          { label: "API", path: "/integrations/api" },
-          { label: "Webhooks", path: "/integrations/webhooks" },
-        ],
-      },
-    ],
-  },
   // ── Settings ──
   {
     dividerBefore: true,
@@ -214,6 +198,19 @@ const navGroups: NavGroup[] = [
         icon: Settings,
         label: "Settings",
         path: "/lms/settings",
+        adminOnly: true,
+      },
+    ],
+  },
+  // ── Platform Admin ──
+  {
+    dividerBefore: true,
+    adminOnly: true,
+    items: [
+      {
+        icon: Shield,
+        label: "Platform Admin",
+        path: "/platform-admin",
         adminOnly: true,
       },
     ],

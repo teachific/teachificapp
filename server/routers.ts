@@ -352,6 +352,49 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    // Get and update legal documents (Terms of Service, Privacy Policy)
+    getLegalDocs: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const rows = await db.select({ org: organizations, role: orgMembers.role })
+          .from(orgMembers).innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+          .where(eq(orgMembers.userId, ctx.user.id)).limit(1);
+        const org = rows.find(r => r.org.id === input.orgId)?.org;
+        if (!org && ctx.user.role !== 'site_owner' && ctx.user.role !== 'site_admin') {
+          throw new TRPCError({ code: 'FORBIDDEN' });
+        }
+        const target = org ?? await getOrgById(input.orgId);
+        return { termsOfService: target?.termsOfService ?? '', privacyPolicy: target?.privacyPolicy ?? '', requireTermsAgreement: target?.requireTermsAgreement ?? false };
+      }),
+    updateLegalDocs: protectedProcedure
+      .input(z.object({ orgId: z.number(), termsOfService: z.string().optional(), privacyPolicy: z.string().optional(), requireTermsAgreement: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const rows = await db.select({ org: organizations, role: orgMembers.role })
+          .from(orgMembers).innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+          .where(eq(orgMembers.userId, ctx.user.id)).limit(1);
+        const row = rows.find(r => r.org.id === input.orgId);
+        if (!row && ctx.user.role !== 'site_owner' && ctx.user.role !== 'site_admin') {
+          throw new TRPCError({ code: 'FORBIDDEN' });
+        }
+        if (row && row.role !== 'org_admin' && ctx.user.role !== 'site_owner' && ctx.user.role !== 'site_admin') {
+          throw new TRPCError({ code: 'FORBIDDEN' });
+        }
+        const { orgId, ...data } = input;
+        await updateOrg(orgId, data);
+        return { success: true };
+      }),
+    // Public endpoint: fetch legal docs for checkout display (no auth required)
+    publicLegalDocs: publicProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input }) => {
+        const org = await getOrgById(input.orgId);
+        if (!org) return { termsOfService: '', privacyPolicy: '', requireTermsAgreement: false };
+        return { termsOfService: org.termsOfService ?? '', privacyPolicy: org.privacyPolicy ?? '', requireTermsAgreement: org.requireTermsAgreement ?? false };
+      }),
     members: router({
       list: protectedProcedure.input(z.object({ orgId: z.number() })).query(async ({ input, ctx }) => {
         const members = await getOrgMembers(input.orgId);
@@ -1266,6 +1309,48 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         const { orgId, ...data } = input;
         return upsertOrgSubscription(orgId, { ...data, assignedByUserId: ctx.user.id });
       }),
+
+    // Platform-wide analytics overview
+    platformStats: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return { totalUsers: 0, totalOrgs: 0, totalCourses: 0, totalEnrollments: 0, totalRevenue: 0, planBreakdown: {}, recentOrgs: [], recentUsers: [], analytics: { totalPlays: 0, totalDownloads: 0, totalCompletions: 0 } };
+      const { sql, count, desc } = await import("drizzle-orm");
+      const { users, organizations: orgsTable, orgSubscriptions } = await import("../drizzle/schema");
+      const { courses: lmsCourses, courseEnrollments: enrollTable, courseOrders } = await import("../drizzle/schema");
+
+      const [userCount] = await db.select({ count: count() }).from(users);
+      const [orgCount] = await db.select({ count: count() }).from(orgsTable);
+      const [courseCount] = await db.select({ count: count() }).from(lmsCourses);
+      const [enrollCount] = await db.select({ count: count() }).from(enrollTable);
+
+      // Revenue from paid orders
+      const revenueRows = await db.select({ total: sql<number>`COALESCE(SUM(amount_cents), 0)` }).from(courseOrders).where(sql`status = 'completed'`);
+      const totalRevenue = revenueRows[0]?.total ?? 0;
+
+      // Plan breakdown
+      const planRows = await db.select({ plan: orgSubscriptions.plan, count: count() }).from(orgSubscriptions).groupBy(orgSubscriptions.plan);
+      const planBreakdown = Object.fromEntries(planRows.map(r => [r.plan, r.count]));
+
+      // Recent orgs
+      const recentOrgs = await db.select({ id: orgsTable.id, name: orgsTable.name, slug: orgsTable.slug, createdAt: orgsTable.createdAt }).from(orgsTable).orderBy(desc(orgsTable.createdAt)).limit(5);
+
+      // Recent users
+      const recentUsers = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role, createdAt: users.createdAt }).from(users).orderBy(desc(users.createdAt)).limit(5);
+
+      const analytics = await getAnalyticsSummary();
+
+      return {
+        totalUsers: userCount.count,
+        totalOrgs: orgCount.count,
+        totalCourses: courseCount.count,
+        totalEnrollments: enrollCount.count,
+        totalRevenue,
+        planBreakdown,
+        recentOrgs,
+        recentUsers,
+        analytics,
+      };
+    }),
   }),
 });
 export type AppRouter = typeof appRouter;

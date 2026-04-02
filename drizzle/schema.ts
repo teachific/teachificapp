@@ -53,6 +53,10 @@ export const organizations = mysqlTable("organizations", {
   customSenderName: varchar("customSenderName", { length: 255 }),
   senderDomainVerified: boolean("senderDomainVerified").default(false).notNull(),
   senderDomainVerifiedAt: timestamp("senderDomainVerifiedAt"),
+  // Legal documents
+  termsOfService: text("termsOfService"),
+  privacyPolicy: text("privacyPolicy"),
+  requireTermsAgreement: boolean("requireTermsAgreement").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

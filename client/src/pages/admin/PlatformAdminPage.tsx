@@ -68,7 +68,20 @@ import {
   AlertTriangle,
   CheckCircle,
   Download,
+  BarChart3,
+  BookOpen,
+  GraduationCap,
+  Activity,
+  Copy,
+  Plus,
+  Search,
+  Zap,
+  Webhook,
+  Code2,
+  FileText,
+  Layout,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // ─── Plan badge ──────────────────────────────────────────────────────────────
 const PLAN_COLORS: Record<string, string> = {
@@ -672,6 +685,216 @@ function UsersTab() {
   );
 }
 
+// ─── Overview Tab ───────────────────────────────────────────────────────────
+function OverviewTab() {
+  const { data: stats, isLoading } = trpc.platformAdmin.platformStats.useQuery();
+  const statCards = [
+    { label: "Total Users", value: stats?.totalUsers ?? 0, icon: Users, color: "text-blue-400", bg: "bg-blue-500/10" },
+    { label: "Organizations", value: stats?.totalOrgs ?? 0, icon: Building2, color: "text-teal-400", bg: "bg-teal-500/10" },
+    { label: "Total Courses", value: stats?.totalCourses ?? 0, icon: BookOpen, color: "text-violet-400", bg: "bg-violet-500/10" },
+    { label: "Total Enrollments", value: stats?.totalEnrollments ?? 0, icon: GraduationCap, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+    { label: "Content Plays", value: (stats?.analytics as any)?.totalPlays ?? 0, icon: Activity, color: "text-amber-400", bg: "bg-amber-500/10" },
+    { label: "Completions", value: (stats?.analytics as any)?.totalCompletions ?? 0, icon: CheckCircle, color: "text-green-400", bg: "bg-green-500/10" },
+    { label: "Downloads", value: (stats?.analytics as any)?.totalDownloads ?? 0, icon: Download, color: "text-pink-400", bg: "bg-pink-500/10" },
+    { label: "Revenue (USD)", value: stats ? `$${((stats.totalRevenue ?? 0) / 100).toFixed(2)}` : "$0.00", icon: CreditCard, color: "text-orange-400", bg: "bg-orange-500/10" },
+  ];
+  const planBreakdown = (stats?.planBreakdown ?? {}) as Record<string, number>;
+  const planOrder = ["enterprise", "pro", "builder", "starter", "free"];
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {statCards.map((s) => (
+          <Card key={s.label} className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-4">
+              {isLoading ? <div className="h-12 w-full rounded bg-slate-700 animate-pulse" /> : (
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-2 rounded-lg", s.bg)}><s.icon className={cn("w-4 h-4", s.color)} /></div>
+                  <div><p className="text-xl font-bold text-white">{s.value}</p><p className="text-xs text-slate-400">{s.label}</p></div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardHeader className="pb-3"><CardTitle className="text-white text-sm flex items-center gap-2"><CreditCard className="w-4 h-4 text-teal-400" /> Subscription Plan Breakdown</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {isLoading ? Array.from({length:4}).map((_,i)=><div key={i} className="h-8 w-full rounded bg-slate-700 animate-pulse mb-1"/>) : planOrder.map((plan) => {
+              const count = planBreakdown[plan] ?? 0;
+              const total = Object.values(planBreakdown).reduce((a,b)=>a+b,0)||1;
+              const pct = Math.round((count/total)*100);
+              return (
+                <div key={plan} className="flex items-center gap-3">
+                  <PlanBadge plan={plan} />
+                  <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-teal-500 rounded-full" style={{width:`${pct}%`}} />
+                  </div>
+                  <span className="text-xs text-slate-300 w-8 text-right">{count}</span>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardHeader className="pb-3"><CardTitle className="text-white text-sm flex items-center gap-2"><Building2 className="w-4 h-4 text-teal-400" /> Recently Created Organizations</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {(stats?.recentOrgs??[]).map((org)=>(
+                <div key={org.id} className="flex items-center justify-between py-1.5 border-b border-slate-700 last:border-0">
+                  <div><p className="text-sm text-white font-medium">{org.name}</p><p className="text-xs text-slate-400 font-mono">{org.slug}</p></div>
+                  <span className="text-xs text-slate-500">{org.createdAt ? new Date(org.createdAt as unknown as string).toLocaleDateString() : "—"}</span>
+                </div>
+              ))}
+              {(stats?.recentOrgs??[]).length===0 && <p className="text-sm text-slate-500 text-center py-4">No organizations yet</p>}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader className="pb-3"><CardTitle className="text-white text-sm flex items-center gap-2"><Users className="w-4 h-4 text-teal-400" /> Recently Joined Users</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-slate-700 hover:bg-transparent">
+                <TableHead className="text-slate-400">Name</TableHead><TableHead className="text-slate-400">Email</TableHead><TableHead className="text-slate-400">Role</TableHead><TableHead className="text-slate-400">Joined</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(stats?.recentUsers??[]).map((u)=>(
+                <TableRow key={u.id} className="border-slate-700 hover:bg-slate-700/30">
+                  <TableCell className="text-white font-medium">{u.name||"—"}</TableCell>
+                  <TableCell className="text-slate-300">{u.email||"—"}</TableCell>
+                  <TableCell><Badge variant="outline" className="text-xs capitalize border-slate-600 text-slate-300">{u.role?.replace("_"," ")}</Badge></TableCell>
+                  <TableCell className="text-slate-400 text-xs">{u.createdAt ? new Date(u.createdAt as unknown as string).toLocaleDateString() : "—"}</TableCell>
+                </TableRow>
+              ))}
+              {(stats?.recentUsers??[]).length===0 && (
+                <TableRow className="border-slate-700"><TableCell colSpan={4} className="text-center text-slate-500 py-6">No users yet</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Page Creator Tab ─────────────────────────────────────────────────────────
+function PageCreatorTab() {
+  const { data: orgs = [] } = trpc.platformAdmin.listOrgs.useQuery();
+  const [selectedOrgId, setSelectedOrgId] = useState<number|null>(null);
+  const { data: pages = [], refetch } = trpc.lms.pages.list.useQuery({orgId:selectedOrgId??0},{enabled:!!selectedOrgId});
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newPage, setNewPage] = useState({title:"",slug:"",isPublished:false});
+  const createPage = trpc.lms.pages.create.useMutation({onSuccess:()=>{refetch();setCreateOpen(false);setNewPage({title:"",slug:"",isPublished:false});toast.success("Page created");},onError:(e)=>toast.error(e.message)});
+  const deletePage = trpc.lms.pages.delete.useMutation({onSuccess:()=>{refetch();toast.success("Page deleted");},onError:(e)=>toast.error(e.message)});
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <Select value={selectedOrgId?.toString()??""} onValueChange={(v)=>setSelectedOrgId(parseInt(v))}>
+          <SelectTrigger className="w-64 bg-slate-800 border-slate-600 text-white"><SelectValue placeholder="Select organization..."/></SelectTrigger>
+          <SelectContent className="bg-slate-800 border-slate-700">{orgs.map(o=><SelectItem key={o.id} value={o.id.toString()} className="text-white focus:bg-slate-700">{o.name}</SelectItem>)}</SelectContent>
+        </Select>
+        {selectedOrgId && <Button size="sm" className="gap-1.5 bg-teal-600 hover:bg-teal-700 ml-auto" onClick={()=>setCreateOpen(true)}><Plus className="w-3.5 h-3.5"/> New Page</Button>}
+      </div>
+      {!selectedOrgId ? (
+        <Card className="bg-slate-800/50 border-slate-700"><CardContent className="py-12 text-center"><Layout className="w-8 h-8 text-slate-500 mx-auto mb-3"/><p className="text-slate-400">Select an organization to manage its pages</p></CardContent></Card>
+      ) : (
+        <Card className="bg-slate-800/50 border-slate-700">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-slate-700 hover:bg-transparent">
+                <TableHead className="text-slate-400">Title</TableHead><TableHead className="text-slate-400">Slug</TableHead><TableHead className="text-slate-400">Status</TableHead><TableHead className="text-slate-400 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pages.map((page)=>(
+                <TableRow key={page.id} className="border-slate-700 hover:bg-slate-700/30">
+                  <TableCell className="text-white font-medium">{page.title}</TableCell>
+                  <TableCell className="text-slate-400 font-mono text-xs">/{page.slug}</TableCell>
+                  <TableCell><Badge variant="outline" className={page.isPublished?"border-green-500/40 text-green-300":"border-slate-600 text-slate-400"}>{page.isPublished?"Published":"Draft"}</Badge></TableCell>
+                  <TableCell className="text-right"><Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-300" onClick={()=>{if(confirm("Delete this page?"))deletePage.mutate({id:page.id});}}><Trash2 className="w-3.5 h-3.5"/></Button></TableCell>
+                </TableRow>
+              ))}
+              {pages.length===0&&<TableRow className="border-slate-700"><TableCell colSpan={4} className="text-center text-slate-500 py-8">No pages yet — create one above</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white">
+          <DialogHeader><DialogTitle>Create New Page</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5"><Label className="text-slate-300">Page Title</Label><Input value={newPage.title} onChange={(e)=>setNewPage(p=>({...p,title:e.target.value,slug:e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")}))} placeholder="About Us" className="bg-slate-800 border-slate-600 text-white"/></div>
+            <div className="space-y-1.5"><Label className="text-slate-300">URL Slug</Label><Input value={newPage.slug} onChange={(e)=>setNewPage(p=>({...p,slug:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,"")}))} placeholder="about-us" className="bg-slate-800 border-slate-600 text-white font-mono"/></div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800 border border-slate-700"><Label className="text-slate-300">Publish immediately</Label><Switch checked={newPage.isPublished} onCheckedChange={(v)=>setNewPage(p=>({...p,isPublished:v}))}/></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setCreateOpen(false)} className="border-slate-600 text-slate-300">Cancel</Button>
+            <Button onClick={()=>selectedOrgId&&createPage.mutate({orgId:selectedOrgId,title:newPage.title,slug:newPage.slug})} disabled={createPage.isPending||!newPage.title||!newPage.slug} className="bg-teal-600 hover:bg-teal-700">{createPage.isPending?"Creating...":"Create Page"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Integrations Tab ─────────────────────────────────────────────────────────
+function IntegrationsTab() {
+  const integrations = [
+    { name: "Stripe", desc: "Payment processing for course sales and subscriptions", icon: CreditCard, status: "not_configured", color: "text-violet-400" },
+    { name: "SendGrid", desc: "Transactional and marketing email delivery", icon: FileText, status: "configured", color: "text-blue-400" },
+    { name: "Zapier", desc: "Automate workflows with 5,000+ apps", icon: Zap, status: "not_configured", color: "text-orange-400" },
+    { name: "Webhooks", desc: "Send real-time event data to external services", icon: Webhook, status: "not_configured", color: "text-teal-400" },
+    { name: "REST API", desc: "Programmatic access to your platform data", icon: Code2, status: "configured", color: "text-green-400" },
+  ];
+  const [apiKeyVisible, setApiKeyVisible] = useState(false);
+  const apiKey = "sk_live_teachific_platform_key_demo";
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {integrations.map((intg)=>(
+          <Card key={intg.name} className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-4 flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-slate-700/50 shrink-0"><intg.icon className={cn("w-5 h-5",intg.color)}/></div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-white font-medium text-sm">{intg.name}</p>
+                  <Badge variant="outline" className={intg.status==="configured"?"border-green-500/40 text-green-300 text-xs":"border-slate-600 text-slate-400 text-xs"}>{intg.status==="configured"?"Active":"Not configured"}</Badge>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">{intg.desc}</p>
+              </div>
+              <Button size="sm" variant="outline" className="border-slate-600 text-slate-300 hover:text-white shrink-0" onClick={()=>toast.info("Integration configuration coming soon")}>{intg.status==="configured"?"Manage":"Configure"}</Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader className="pb-3"><CardTitle className="text-white text-sm flex items-center gap-2"><Code2 className="w-4 h-4 text-teal-400"/> Platform API Key</CardTitle><CardDescription className="text-slate-400">Use this key to authenticate server-to-server API requests</CardDescription></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Input value={apiKeyVisible ? apiKey : "•".repeat(40)} readOnly className="bg-slate-900 border-slate-600 text-white font-mono text-xs"/>
+            <Button size="icon" variant="outline" className="border-slate-600 text-slate-300 hover:text-white shrink-0" onClick={()=>setApiKeyVisible(v=>!v)}><Search className="w-4 h-4"/></Button>
+            <Button size="icon" variant="outline" className="border-slate-600 text-slate-300 hover:text-white shrink-0" onClick={()=>{navigator.clipboard.writeText(apiKey);toast.success("API key copied");}}><Copy className="w-4 h-4"/></Button>
+          </div>
+          <p className="text-xs text-slate-500">Keep this key secret — it grants full API access to your platform.</p>
+        </CardContent>
+      </Card>
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader className="pb-3"><CardTitle className="text-white text-sm flex items-center gap-2"><Webhook className="w-4 h-4 text-teal-400"/> Webhook Endpoints</CardTitle><CardDescription className="text-slate-400">Configure URLs to receive real-time event notifications</CardDescription></CardHeader>
+        <CardContent>
+          <div className="text-center py-6">
+            <Webhook className="w-8 h-8 text-slate-600 mx-auto mb-2"/>
+            <p className="text-slate-400 text-sm">No webhook endpoints configured</p>
+            <Button size="sm" variant="outline" className="mt-3 border-slate-600 text-slate-300 hover:text-white gap-1.5" onClick={()=>toast.info("Webhook management coming soon")}><Plus className="w-3.5 h-3.5"/> Add Endpoint</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function PlatformAdminPage() {
   const { user } = useAuth();
@@ -708,27 +931,44 @@ export default function PlatformAdminPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="settings" className="space-y-4">
-        <TabsList className="bg-slate-800 border border-slate-700">
-          <TabsTrigger value="settings" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400">
-            <Settings className="w-3.5 h-3.5 mr-1.5" /> Settings
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="bg-slate-800 border border-slate-700 flex flex-wrap h-auto gap-0.5 p-1">
+          <TabsTrigger value="overview" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+            <BarChart3 className="w-3.5 h-3.5" /> Overview
           </TabsTrigger>
-          <TabsTrigger value="orgs" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400">
-            <Building2 className="w-3.5 h-3.5 mr-1.5" /> Organizations
+          <TabsTrigger value="orgs" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+            <Building2 className="w-3.5 h-3.5" /> Organizations
           </TabsTrigger>
-          <TabsTrigger value="users" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400">
-            <Users className="w-3.5 h-3.5 mr-1.5" /> Users
+          <TabsTrigger value="users" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+            <Users className="w-3.5 h-3.5" /> Users
+          </TabsTrigger>
+          <TabsTrigger value="pages" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+            <Layout className="w-3.5 h-3.5" /> Page Creator
+          </TabsTrigger>
+          <TabsTrigger value="integrations" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+            <Zap className="w-3.5 h-3.5" /> Integrations
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+            <Settings className="w-3.5 h-3.5" /> System Settings
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="settings">
-          <SettingsTab />
+        <TabsContent value="overview">
+          <OverviewTab />
         </TabsContent>
         <TabsContent value="orgs">
           <OrgsTab />
         </TabsContent>
         <TabsContent value="users">
           <UsersTab />
+        </TabsContent>
+        <TabsContent value="pages">
+          <PageCreatorTab />
+        </TabsContent>
+        <TabsContent value="integrations">
+          <IntegrationsTab />
+        </TabsContent>
+        <TabsContent value="settings">
+          <SettingsTab />
         </TabsContent>
       </Tabs>
     </div>
