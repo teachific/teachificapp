@@ -16,7 +16,7 @@ export default function AdminOrgsPage() {
   const [slug, setSlug] = useState("");
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-5">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">Organizations</h1><p className="text-muted-foreground text-sm mt-0.5">{orgs?.length ?? 0} organizations</p></div>
         <Dialog open={open} onOpenChange={setOpen}>

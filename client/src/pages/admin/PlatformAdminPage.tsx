@@ -154,7 +154,7 @@ function SettingsTab() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-slate-300">Platform Name</Label>
               <Input
@@ -174,7 +174,7 @@ function SettingsTab() {
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-slate-300">Standard Max Upload Size (MB)</Label>
               <Input
@@ -689,7 +689,7 @@ export default function PlatformAdminPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-teal-600/20 border border-teal-500/30">

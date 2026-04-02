@@ -9,9 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import {
   Settings, Building2, Palette, Globe, Mail, CreditCard,
-  Check, AlertCircle, Crown, Zap, Rocket,
+  Check, AlertCircle, Crown, Zap, Rocket, Bell, FileText,
 } from "lucide-react";
 
 export default function OrgSettingsPage() {
@@ -31,6 +32,13 @@ export default function OrgSettingsPage() {
   const [senderName, setSenderName] = useState("");
   const [senderEmail, setSenderEmail] = useState("");
   const [initialized, setInitialized] = useState(false);
+
+  // Notification settings state
+  const [notifEnrollment, setNotifEnrollment] = useState(true);
+  const [notifCompletion, setNotifCompletion] = useState(true);
+  const [notifQuizResult, setNotifQuizResult] = useState(true);
+  const [notifReminder, setNotifReminder] = useState(false);
+  const [notifAnnouncement, setNotifAnnouncement] = useState(true);
 
   // Initialize form when org loads
   useEffect(() => {
@@ -93,23 +101,31 @@ export default function OrgSettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="general" className="gap-1.5">
-            <Building2 className="h-4 w-4" /> General
-          </TabsTrigger>
-          <TabsTrigger value="branding" className="gap-1.5">
-            <Palette className="h-4 w-4" /> Branding
-          </TabsTrigger>
-          <TabsTrigger value="domain" className="gap-1.5">
-            <Globe className="h-4 w-4" /> Domain
-          </TabsTrigger>
-          <TabsTrigger value="email" className="gap-1.5">
-            <Mail className="h-4 w-4" /> Email Sender
-          </TabsTrigger>
-          <TabsTrigger value="subscription" className="gap-1.5">
-            <CreditCard className="h-4 w-4" /> Subscription
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-1">
+          <TabsList className="flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-7 gap-0">
+            <TabsTrigger value="general" className="gap-1.5 whitespace-nowrap">
+              <Building2 className="h-4 w-4" /> General
+            </TabsTrigger>
+            <TabsTrigger value="branding" className="gap-1.5 whitespace-nowrap">
+              <Palette className="h-4 w-4" /> Branding
+            </TabsTrigger>
+            <TabsTrigger value="domain" className="gap-1.5 whitespace-nowrap">
+              <Globe className="h-4 w-4" /> Domain
+            </TabsTrigger>
+            <TabsTrigger value="email" className="gap-1.5 whitespace-nowrap">
+              <Mail className="h-4 w-4" /> Email Sender
+            </TabsTrigger>
+            <TabsTrigger value="email-templates" className="gap-1.5 whitespace-nowrap">
+              <FileText className="h-4 w-4" /> Email Templates
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-1.5 whitespace-nowrap">
+              <Bell className="h-4 w-4" /> Notifications
+            </TabsTrigger>
+            <TabsTrigger value="subscription" className="gap-1.5 whitespace-nowrap">
+              <CreditCard className="h-4 w-4" /> Subscription
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* General Tab */}
         <TabsContent value="general" className="space-y-4">
@@ -276,6 +292,91 @@ export default function OrgSettingsPage() {
               >
                 {updateSettings.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Sender</>}
               </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Email Templates Tab */}
+        <TabsContent value="email-templates" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Email Templates</CardTitle>
+              <CardDescription>Customize the automated emails sent to your students</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {[
+                { key: "welcome", label: "Welcome Email", desc: "Sent when a new member joins your organization", icon: "👋" },
+                { key: "enrollment", label: "Course Enrollment", desc: "Sent when a student enrolls in a course", icon: "📚" },
+                { key: "completion", label: "Course Completion", desc: "Sent when a student completes a course", icon: "🎓" },
+                { key: "quiz_result", label: "Quiz Result", desc: "Sent after a student submits a quiz", icon: "📝" },
+                { key: "reminder", label: "Course Reminder", desc: "Periodic reminder to continue learning", icon: "⏰" },
+                { key: "announcement", label: "Announcement", desc: "Broadcast message to all members", icon: "📢" },
+              ].map((tmpl) => (
+                <div key={tmpl.key} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{tmpl.icon}</span>
+                    <div>
+                      <p className="font-medium text-sm">{tmpl.label}</p>
+                      <p className="text-xs text-muted-foreground">{tmpl.desc}</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => toast.info("Email template editor coming soon")}>
+                    <FileText className="h-3.5 w-3.5 mr-1.5" /> Edit
+                  </Button>
+                </div>
+              ))}
+              <div className="pt-2 border-t">
+                <p className="text-xs text-muted-foreground">
+                  Templates support variables like <code className="bg-muted px-1 rounded">&#123;&#123;firstName&#125;&#125;</code>,{" "}
+                  <code className="bg-muted px-1 rounded">&#123;&#123;courseName&#125;&#125;</code>,{" "}
+                  <code className="bg-muted px-1 rounded">&#123;&#123;orgName&#125;&#125;</code>. Full template editor coming soon.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Notifications Tab */}
+        <TabsContent value="notifications" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notification Settings</CardTitle>
+              <CardDescription>Control which automated notifications are sent to your students</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {[
+                { label: "Enrollment Confirmation", desc: "Notify students when they enroll in a course", value: notifEnrollment, set: setNotifEnrollment },
+                { label: "Course Completion", desc: "Celebrate when a student completes a course", value: notifCompletion, set: setNotifCompletion },
+                { label: "Quiz Results", desc: "Send quiz score and feedback after submission", value: notifQuizResult, set: setNotifQuizResult },
+                { label: "Learning Reminders", desc: "Nudge inactive students to continue their courses", value: notifReminder, set: setNotifReminder },
+                { label: "Announcements", desc: "Allow sending broadcast announcements to members", value: notifAnnouncement, set: setNotifAnnouncement },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center justify-between py-3 border-b last:border-0">
+                  <div>
+                    <p className="font-medium text-sm">{item.label}</p>
+                    <p className="text-xs text-muted-foreground">{item.desc}</p>
+                  </div>
+                  <Switch checked={item.value} onCheckedChange={item.set} />
+                </div>
+              ))}
+              <Button
+                className="gap-2 mt-2"
+                onClick={() => toast.success("Notification settings saved")}
+              >
+                <Check className="h-4 w-4" /> Save Notification Settings
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Course-Level Overrides</CardTitle>
+              <CardDescription>Override notification settings for individual courses in the Course Settings panel</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Each course can inherit these org-wide defaults or override them individually. Go to a course's Settings tab to configure per-course notification behavior.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>

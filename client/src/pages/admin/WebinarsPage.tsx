@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -92,8 +92,7 @@ export default function WebinarsPage() {
   });
 
   return (
-    <DashboardLayout>
-      <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -127,131 +126,151 @@ export default function WebinarsPage() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Registrations</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!webinars || webinars.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-16 text-muted-foreground">
-                    <Video className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">No webinars yet</p>
-                    <p className="text-sm mt-1">Create your first webinar to get started.</p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                webinars.map((w) => (
-                  <TableRow key={w.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
+        {/* Empty state */}
+        {(!webinars || webinars.length === 0) && (
+          <Card className="border-dashed">
+            <CardContent className="py-16 text-center">
+              <Video className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">No webinars yet</p>
+              <p className="text-sm text-muted-foreground mt-1">Create your first webinar to get started.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Mobile cards */}
+        {webinars && webinars.length > 0 && (
+          <>
+            <div className="sm:hidden space-y-3">
+              {webinars.map((w) => (
+                <Card key={w.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
                         {w.thumbnailUrl ? (
-                          <img
-                            src={w.thumbnailUrl}
-                            alt={w.title}
-                            className="w-10 h-10 rounded object-cover"
-                          />
+                          <img src={w.thumbnailUrl} alt={w.title} className="w-10 h-10 rounded object-cover shrink-0" />
                         ) : (
-                          <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center shrink-0">
                             <Video className="w-5 h-5 text-primary" />
                           </div>
                         )}
-                        <div>
-                          <p className="font-medium">{w.title}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{w.title}</p>
                           <p className="text-xs text-muted-foreground">/{w.slug}</p>
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                            <Badge variant="outline" className="text-xs">{w.type === "live" ? "🔴 Live" : "♻️ Evergreen"}</Badge>
+                            {w.isPublished ? (
+                              <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Published</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground text-xs">Draft</Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {w.type === "live" ? "🔴 Live" : "♻️ Evergreen"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {w.isPublished ? (
-                        <Badge className="bg-green-100 text-green-700 border-green-200">
-                          <Globe className="w-3 h-3 mr-1" />
-                          Published
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-muted-foreground">
-                          <EyeOff className="w-3 h-3 mr-1" />
-                          Draft
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Users className="w-3.5 h-3.5" />
-                        —
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" className="shrink-0">
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/lms/webinars/${w.id}/edit`}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </Link>
+                            <Link href={`/lms/webinars/${w.id}/edit`}><Edit className="w-4 h-4 mr-2" />Edit</Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => togglePublish.mutate({ id: w.id, isPublished: !w.isPublished })}>
+                            {w.isPublished ? <><EyeOff className="w-4 h-4 mr-2" />Unpublish</> : <><Globe className="w-4 h-4 mr-2" />Publish</>}
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href={`/lms/webinars/${w.id}/reports`}>
-                              <BarChart2 className="w-4 h-4 mr-2" />
-                              Reports
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              togglePublish.mutate({ id: w.id, isPublished: !w.isPublished })
-                            }
-                          >
-                            {w.isPublished ? (
-                              <><EyeOff className="w-4 h-4 mr-2" />Unpublish</>
-                            ) : (
-                              <><Globe className="w-4 h-4 mr-2" />Publish</>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <a
-                              href={`/webinar/${w.slug}/register`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              View Registration Page
+                            <a href={`/webinar/${w.slug}/register`} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="w-4 h-4 mr-2" />View Page
                             </a>
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => setDeleteId(w.id)}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
+                          <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(w.id)}>
+                            <Trash2 className="w-4 h-4 mr-2" />Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden sm:block border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Registrations</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+                </TableHeader>
+                <TableBody>
+                  {webinars.map((w) => (
+                    <TableRow key={w.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {w.thumbnailUrl ? (
+                            <img src={w.thumbnailUrl} alt={w.title} className="w-10 h-10 rounded object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
+                              <Video className="w-5 h-5 text-primary" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-medium">{w.title}</p>
+                            <p className="text-xs text-muted-foreground">/{w.slug}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">{w.type === "live" ? "🔴 Live" : "♻️ Evergreen"}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {w.isPublished ? (
+                          <Badge className="bg-green-100 text-green-700 border-green-200"><Globe className="w-3 h-3 mr-1" />Published</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground"><EyeOff className="w-3 h-3 mr-1" />Draft</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground"><Users className="w-3.5 h-3.5" />—</div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/lms/webinars/${w.id}/edit`}><Edit className="w-4 h-4 mr-2" />Edit</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/lms/webinars/${w.id}/reports`}><BarChart2 className="w-4 h-4 mr-2" />Reports</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => togglePublish.mutate({ id: w.id, isPublished: !w.isPublished })}>
+                              {w.isPublished ? <><EyeOff className="w-4 h-4 mr-2" />Unpublish</> : <><Globe className="w-4 h-4 mr-2" />Publish</>}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <a href={`/webinar/${w.slug}/register`} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="w-4 h-4 mr-2" />View Registration Page
+                              </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(w.id)}>
+                              <Trash2 className="w-4 h-4 mr-2" />Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
 
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -343,6 +362,6 @@ export default function WebinarsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </div>
   );
 }

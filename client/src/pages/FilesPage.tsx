@@ -559,9 +559,9 @@ export default function FilesPage() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-full min-h-0">
+      <div className="flex flex-col md:flex-row h-full min-h-0">
         {/* ── Folder Sidebar ── */}
-        <aside className="w-56 shrink-0 border-r border-border/60 flex flex-col bg-muted/20 overflow-y-auto">
+        <aside className="md:w-56 shrink-0 border-b md:border-b-0 md:border-r border-border/60 flex flex-col bg-muted/20 md:overflow-y-auto">
           <div className="flex items-center justify-between px-3 pt-4 pb-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Folders</span>
             <button

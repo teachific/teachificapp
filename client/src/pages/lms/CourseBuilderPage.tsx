@@ -551,13 +551,13 @@ export default function CourseBuilderPage() {
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex items-center gap-0 px-6 border-b border-border bg-background">
+      {/* Tab bar — scrollable on mobile */}
+      <div className="flex items-center gap-0 px-2 sm:px-6 border-b border-border bg-background overflow-x-auto scrollbar-none">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${
               activeTab === tab.id
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -761,7 +761,7 @@ function CourseSettingsTab({
           value={form.thumbnailUrl}
           onChange={(url) => set("thumbnailUrl", url)}
         />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="col-span-2">
             <Label>Course Name</Label>
             <Input value={form.title} onChange={(e) => set("title", e.target.value)} className="mt-1.5" />
@@ -850,7 +850,7 @@ function CourseSettingsTab({
       {/* Player Appearance */}
       <section className="border border-border rounded-xl p-6 flex flex-col gap-5">
         <h2 className="font-semibold text-base">Player Appearance</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label>Theme Color</Label>
             <div className="flex items-center gap-2 mt-1.5">

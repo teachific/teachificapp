@@ -3,7 +3,7 @@ import { Shield, Lock, Globe, Users } from "lucide-react";
 
 export default function AdminPermissionsPage() {
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-5">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-5">
       <div><h1 className="text-2xl font-bold">Permissions</h1><p className="text-muted-foreground text-sm mt-0.5">Role-based access control overview</p></div>
       <div className="grid gap-4">
         {[

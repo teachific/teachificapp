@@ -84,7 +84,7 @@ function PriceEditor({
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <Label className="text-xs">Label (shown to buyer)</Label>
           <Input
@@ -106,7 +106,7 @@ function PriceEditor({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <Label className="text-xs">Amount (USD)</Label>
           <Input
@@ -129,7 +129,7 @@ function PriceEditor({
       </div>
 
       {price.type === "payment_plan" && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <Label className="text-xs">Installments</Label>
             <Input
@@ -447,7 +447,7 @@ export default function DigitalProductEditorPage() {
 
         {/* ── Details & File ─────────────────────────────────────────────── */}
         <TabsContent value="details" className="space-y-6">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label>Product Title *</Label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Ultimate Study Guide" />
@@ -629,7 +629,7 @@ export default function DigitalProductEditorPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label>Access Duration (days)</Label>
               <Input

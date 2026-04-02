@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -222,17 +221,14 @@ export default function WebinarEditorPage() {
 
   if (!webinar) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64 text-muted-foreground">
-          Loading webinar...
-        </div>
-      </DashboardLayout>
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        Loading webinar...
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -311,14 +307,14 @@ export default function WebinarEditorPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="details">
-          <TabsList className="grid grid-cols-6 w-full max-w-3xl">
+          <div className="overflow-x-auto pb-1"><TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-6 sm:w-full sm:max-w-3xl">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="video">Video</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="ai-viewers">AI Viewers</TabsTrigger>
             <TabsTrigger value="sales-page">Sales Page</TabsTrigger>
             <TabsTrigger value="funnel">Funnel</TabsTrigger>
-          </TabsList>
+          </TabsList></div>
 
           {/* ── Details ── */}
           <TabsContent value="details" className="space-y-4 mt-4">
@@ -327,7 +323,7 @@ export default function WebinarEditorPage() {
                 <CardTitle>Webinar Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label>Title</Label>
                     <Input
@@ -352,7 +348,7 @@ export default function WebinarEditorPage() {
                     placeholder="What will attendees learn?"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label>Type</Label>
                     <Select
@@ -629,7 +625,7 @@ export default function WebinarEditorPage() {
                   <Label>Enable AI viewer count</Label>
                 </div>
                 {form.aiViewersEnabled && (
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
                       <Label>Minimum viewers</Label>
                       <Input
@@ -731,7 +727,7 @@ export default function WebinarEditorPage() {
                         </Button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label>Step Type</Label>
                         <Select
@@ -775,7 +771,7 @@ export default function WebinarEditorPage() {
                             rows={4}
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <Label>Trigger</Label>
                             <Select
@@ -823,7 +819,6 @@ export default function WebinarEditorPage() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
-    </DashboardLayout>
+    </div>
   );
 }

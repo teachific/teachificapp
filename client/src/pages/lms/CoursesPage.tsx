@@ -146,7 +146,7 @@ export default function CoursesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -176,7 +176,7 @@ export default function CoursesPage() {
 
       {/* Stats row */}
       {courses && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
             <CardContent className="flex items-center gap-3 p-4">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -423,7 +423,7 @@ export default function CoursesPage() {
                 autoFocus
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Number of Modules</Label>
                 <Input

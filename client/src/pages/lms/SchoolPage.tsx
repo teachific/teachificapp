@@ -193,7 +193,7 @@ export default function SchoolPage() {
 
       {/* Stats bar */}
       <section className="border-y border-border bg-muted/30">
-        <div className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-3 gap-6 text-center">
+        <div className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
           <div>
             <p className="text-2xl font-bold" style={{ color: primaryColor }}>{(courses || []).filter((c: any) => c.status === "published").length}</p>
             <p className="text-xs text-muted-foreground">Courses Available</p>
@@ -308,7 +308,7 @@ export default function SchoolPage() {
             <span className="text-sm font-medium">{schoolName}</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Powered by <span className="font-semibold" style={{ color: primaryColor }}>Teachific™</span>
+            &copy; {new Date().getFullYear()} {schoolName}. All rights reserved.
           </p>
         </div>
       </footer>

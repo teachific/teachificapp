@@ -23,7 +23,7 @@ export default function MembersPage() {
   const completionRate = (analytics as any)?.completionRate ?? 0;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto flex flex-col gap-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Members</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
@@ -32,7 +32,7 @@ export default function MembersPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">

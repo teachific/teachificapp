@@ -926,3 +926,40 @@
 - [ ] Post-webinar funnel: CTA to product, custom URL, or thank-you page
 - [ ] Webinar Reports page: registrations, attendance, funnel conversion, drop-off
 - [ ] Wire routes and sidebar nav for webinars
+
+## Feature: Mobile Responsiveness (All Admin & Org Pages)
+- [ ] DashboardLayout: collapsible drawer sidebar on mobile, hamburger menu button
+- [ ] OrganizationsPage: card/list layout on mobile instead of table
+- [ ] UsersPage: card/list layout on mobile
+- [ ] MembersPage: card/list layout on mobile
+- [ ] AnalyticsPage: responsive stat cards and charts
+- [ ] BrandingPage: responsive form layout
+- [ ] CustomPagesPage: responsive table/list
+- [ ] OrgSettingsPage: responsive tabs
+- [ ] CourseBuilderPage: scrollable tab bar on mobile (done), responsive content
+- [ ] MediaLibraryPage: stacked layout on mobile (no two-panel split)
+- [ ] QuizBuilderPage: responsive question list
+- [ ] WebinarsPage: responsive card/list
+- [ ] DigitalProductsPage: responsive card/list
+
+## Session: Mobile Responsiveness + New Features (Apr 2, 2026)
+- [x] DigitalProductsPage: mobile card layout with dropdown actions
+- [x] WebinarsPage: mobile card layout with dropdown actions
+- [x] AdminUsersPage: mobile card row layout (hidden desktop columns on mobile)
+- [x] MembersPage: responsive stats grid (1 col on mobile, 3 on sm+)
+- [x] AdminOrgsPage, AdminPermissionsPage, AdminSettingsPage, PlatformAdminPage: responsive padding
+- [x] DigitalProductEditorPage: all 2-col and 3-col grids responsive
+- [x] WebinarEditorPage: all 2-col and 3-col grids responsive, tabs scrollable on mobile
+- [x] CourseBuilderPage: all 2-col grids responsive
+- [x] CoursesPage: stats grid and form grids responsive
+- [x] BrandingPage, LmsAnalyticsPage: responsive padding
+- [x] SchoolPage: stats grid responsive
+- [x] OrgSettingsPage: tab bar scrollable on mobile (overflow-x-auto)
+- [x] Digital Downloads route wired to /admin/downloads in App.tsx
+- [x] Webinars route wired to /lms/webinars in App.tsx
+- [x] Activity Log route wired to /lms/activity in App.tsx
+- [x] DashboardLayout sidebar: Digital Downloads, Webinars, Activity Log nav items added
+- [x] WebinarEditorPage: removed self-wrapping DashboardLayout
+- [x] OrgSettingsPage: Email Templates tab added (list of 6 template types with Edit buttons)
+- [x] OrgSettingsPage: Notifications tab added (5 toggle switches + course-level override info)
+- [x] StudentLogReportsPage: built at /lms/activity with org picker, filters (student, course, event type, date range, search), summary stats, mobile card + desktop table layout, CSV export, pagination

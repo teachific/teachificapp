@@ -423,7 +423,7 @@ export default function CourseSalesPage() {
       <footer className="border-t border-border mt-12">
         <div className="max-w-6xl mx-auto px-4 py-6 text-center">
           <p className="text-xs text-muted-foreground">
-            Powered by <span className="font-semibold" style={{ color: primaryColor }}>Teachific™</span>
+            &copy; {new Date().getFullYear()} {course?.title}. All rights reserved.
           </p>
         </div>
       </footer>

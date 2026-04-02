@@ -35,7 +35,15 @@ import SchoolPage from "./pages/lms/SchoolPage";
 import CourseSalesPage from "./pages/lms/CourseSalesPage";
 import CoursePlayerPage from "./pages/lms/CoursePlayerPage";
 import CustomPagesPage from "./pages/admin/CustomPagesPage";
+import DigitalProductsPage from "./pages/admin/DigitalProductsPage";
+import DigitalProductEditorPage from "./pages/admin/DigitalProductEditorPage";
+import DigitalProductSalesPage from "./pages/DigitalProductSalesPage";
+import WebinarsPage from "./pages/admin/WebinarsPage";
+import WebinarEditorPage from "./pages/admin/WebinarEditorPage";
+import WebinarRegisterPage from "./pages/WebinarRegisterPage";
+import WebinarWatchPage from "./pages/WebinarWatchPage";
 import OrgSettingsPage from "./pages/OrgSettingsPage";
+import StudentLogReportsPage from "./pages/lms/StudentLogReportsPage";
 import PublicPagePage from "./pages/PublicPagePage";
 // Auth pages (Teachific-branded, no sidebar)
 import LoginPage from "./pages/auth/LoginPage";
@@ -57,6 +65,11 @@ function BareRouter() {
       <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
       {/* Public custom pages (no sidebar) */}
       <Route path="/p/:slug" component={PublicPagePage} />
+      {/* Public webinar pages */}
+      <Route path="/webinar/:slug/register" component={WebinarRegisterPage} />
+      <Route path="/webinar/:slug/watch" component={WebinarWatchPage} />
+      {/* Public digital product sales pages */}
+      <Route path="/shop/:slug" component={DigitalProductSalesPage} />
       {/* Teachific-branded auth */}
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
@@ -107,6 +120,7 @@ function AdminRouter() {
         <Route path="/lms/courses/:courseId/page-builder" component={PageBuilderPage} />
         <Route path="/lms/custom-pages" component={CustomPagesPage} />
         <Route path="/lms/settings" component={OrgSettingsPage} />
+        <Route path="/lms/activity" component={StudentLogReportsPage} />
 
         {/* Student storefront */}
         <Route path="/school" component={SchoolPage} />
@@ -115,6 +129,15 @@ function AdminRouter() {
         {/* Course player (inside dashboard shell for authenticated users) */}
         <Route path="/learn/:courseId" component={CoursePlayerPage} />
         <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
+
+        {/* Digital Downloads */}
+        <Route path="/admin/downloads" component={DigitalProductsPage} />
+        <Route path="/admin/downloads/new" component={DigitalProductEditorPage} />
+        <Route path="/admin/downloads/:id" component={DigitalProductEditorPage} />
+
+        {/* Webinars */}
+        <Route path="/lms/webinars" component={WebinarsPage} />
+        <Route path="/lms/webinars/:id/edit" component={WebinarEditorPage} />
 
         {/* Platform admin */}
         <Route path="/admin/orgs" component={AdminOrgsPage} />
@@ -137,6 +160,8 @@ function Router() {
     path.startsWith("/embed/") ||
     path.startsWith("/learn/") ||
     path.startsWith("/p/") ||
+    path.startsWith("/webinar/") ||
+    path.startsWith("/shop/") ||
     AUTH_PATHS.some((p) => path === p || path.startsWith(p + "?"));
   return isBare ? <BareRouter /> : <AdminRouter />;
 }

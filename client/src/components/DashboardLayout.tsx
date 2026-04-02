@@ -25,10 +25,12 @@ import {
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
+  Activity,
   BarChart3,
   BookOpen,
   Building2,
   ChevronRight,
+  Download,
   FileText,
   GraduationCap,
   LayoutDashboard,
@@ -41,6 +43,7 @@ import {
   ShieldCheck,
   User,
   Users,
+  Video,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -66,6 +69,9 @@ const navGroups = [
       { icon: BarChart3, label: "Analytics", path: "/lms/analytics" },
       { icon: Palette, label: "Branding", path: "/lms/branding" },
       { icon: FileText, label: "Custom Pages", path: "/lms/custom-pages" },
+      { icon: Download, label: "Digital Downloads", path: "/admin/downloads" },
+      { icon: Video, label: "Webinars", path: "/lms/webinars" },
+      { icon: Activity, label: "Activity Log", path: "/lms/activity" },
     ],
   },
   {
@@ -103,7 +109,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex flex-col items-center gap-4">
             <div className="flex items-center justify-center">
               <span className="text-4xl font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.03em' }}>
-                <span className="text-white">teach</span><span style={{ color: '#189aa1' }}>ific</span><span className="text-white" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '2px' }}>&#8482;</span>
+                <span className="text-white">teach</span><span style={{ color: '#15a4b7' }}>ific</span><span className="text-white" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '2px' }}>&#8482;</span>
               </span>
             </div>
             {errorCode === "registration_closed" ? (
@@ -204,10 +210,10 @@ function DashboardLayoutContent({
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
               {isCollapsed ? (
-                <span className="text-2xl font-bold select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#189aa1' }}>t</span>
+                <span className="text-2xl font-bold select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#15a4b7' }}>t</span>
               ) : (
                 <span className="text-2xl font-bold tracking-tight select-none pl-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
-                  <span className="text-white">teach</span><span style={{ color: '#189aa1' }}>ific</span><span className="text-white" style={{ fontSize: '0.5em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
+                  <span className="text-white">teach</span><span style={{ color: '#15a4b7' }}>ific</span><span className="text-white" style={{ fontSize: '0.5em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
                 </span>
               )}
             </div>
@@ -281,7 +287,7 @@ function DashboardLayoutContent({
                     </AvatarFallback>
                   </Avatar>
                   {!isMobile && (
-                    <div className="flex flex-col items-start min-w-0 max-w-[140px]">
+                    <div className="hidden sm:flex flex-col items-start min-w-0 max-w-[140px]">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-medium truncate leading-none">{user?.name || "User"}</span>
                         {(isAdmin || isOrgAdmin) && (

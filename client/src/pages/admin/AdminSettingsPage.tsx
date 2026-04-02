@@ -14,7 +14,7 @@ export default function AdminSettingsPage() {
   const [maxUploadMb, setMaxUploadMb] = useState("500");
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-5">
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-5">
       <div><h1 className="text-2xl font-bold">Platform Settings</h1><p className="text-muted-foreground text-sm mt-0.5">Global configuration for the Teachific™ platform</p></div>
 
       <Card className="shadow-sm border-border/60">
