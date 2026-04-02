@@ -395,10 +395,24 @@ export const lmsRouter = router({
           completeBannerImageUrl: z.string().optional(),
           completeBannerSound: z.string().optional(),
           completeBannerDurationMs: z.number().optional(),
+          // Prerequisite / gating settings
+          isPrerequisite: z.boolean().optional(),
+          requiresCompletion: z.boolean().optional(),
+          passingScore: z.number().nullish(),
+          allowSkip: z.boolean().optional(),
+          estimatedMinutes: z.number().nullish(),
+          // Drip
+          dripDays: z.number().nullish(),
+          dripDate: z.string().nullish(),
+          dripType: z.enum(["immediate", "days_after_enrollment", "specific_date"]).optional(),
         })
       )
       .mutation(async ({ input }) => {
-        const { id, ...data } = input;
+        const { id, dripDate, ...rest } = input;
+        const data = {
+          ...rest,
+          ...(dripDate !== undefined ? { dripDate: dripDate ? new Date(dripDate) : null } : {}),
+        };
         return updateLesson(id, data);
       }),
 

@@ -584,6 +584,22 @@ export default function CoursePlayerPage() {
   const getLessonStatus = (lessonId: number) =>
     lessonProgress.find((p: any) => p.lessonId === lessonId)?.status || "not_started";
 
+  // ── Prerequisite gating ──────────────────────────────────────────────────
+  // A lesson is locked if any earlier lesson in the flat list has isPrerequisite=true
+  // and that prerequisite lesson has NOT been completed yet.
+  const isLessonLocked = (lessonId: number): boolean => {
+    const idx = allLessons.findIndex((l: any) => l.id === lessonId);
+    if (idx <= 0) return false; // first lesson is never locked
+    // Walk backwards through all lessons before this one
+    for (let i = 0; i < idx; i++) {
+      const prev = allLessons[i] as any;
+      if (!prev.isPrerequisite) continue;
+      const prevStatus = getLessonStatus(prev.id);
+      if (prevStatus !== "completed") return true; // prerequisite not met
+    }
+    return false;
+  };
+
   // Show a banner and auto-dismiss after durationMs
   const showBanner = useCallback((banner: typeof activeBanner) => {
     if (!banner) return;
@@ -646,6 +662,15 @@ export default function CoursePlayerPage() {
   }, [currentLesson, courseId, nextLesson, updateProgress, utils, showBanner]);
 
   const handleLessonClick = (lessonId: number) => {
+    // Block navigation to locked lessons
+    if (isLessonLocked(lessonId)) {
+      const lockedLesson = allLessons.find((l: any) => l.id === lessonId) as any;
+      // Find the blocking prerequisite
+      const idx = allLessons.findIndex((l: any) => l.id === lessonId);
+      const blocker = allLessons.slice(0, idx).reverse().find((l: any) => (l as any).isPrerequisite && getLessonStatus((l as any).id) !== "completed") as any;
+      toast.error(`Complete "${blocker?.title || 'previous lesson'}" first to unlock "${lockedLesson?.title || 'this lesson'}".`);
+      return;
+    }
     setCurrentLessonId(lessonId);
     // Mark as in_progress if not started
     const status = getLessonStatus(lessonId);
@@ -791,19 +816,24 @@ export default function CoursePlayerPage() {
                       {(section.lessons || []).map((lesson: any) => {
                         const status = getLessonStatus(lesson.id);
                         const isActive = lesson.id === currentLesson?.id;
+                        const locked = isLessonLocked(lesson.id);
                         return (
                           <button
                             key={lesson.id}
                             className={cn(
                               "w-full flex items-center gap-2.5 px-4 py-2.5 pl-10 text-left transition-colors border-l-2",
-                              isActive
-                                ? "bg-primary/10 border-l-primary"
-                                : "hover:bg-muted/40 border-l-transparent"
+                              locked
+                                ? "opacity-50 cursor-not-allowed border-l-transparent"
+                                : isActive
+                                  ? "bg-primary/10 border-l-primary"
+                                  : "hover:bg-muted/40 border-l-transparent"
                             )}
-                            style={isActive ? { borderLeftColor: primaryColor, backgroundColor: primaryColor + "15" } : {}}
+                            style={!locked && isActive ? { borderLeftColor: primaryColor, backgroundColor: primaryColor + "15" } : {}}
                             onClick={() => handleLessonClick(lesson.id)}
                           >
-                            {status === "completed" ? (
+                            {locked ? (
+                              <Lock className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+                            ) : status === "completed" ? (
                               <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
                             ) : status === "in_progress" ? (
                               <div className="h-4 w-4 shrink-0 rounded-full border-2 border-primary flex items-center justify-center" style={{ borderColor: primaryColor }}>
@@ -812,11 +842,17 @@ export default function CoursePlayerPage() {
                             ) : (
                               <Circle className="h-4 w-4 shrink-0 text-muted-foreground/50" />
                             )}
-                            <LessonIcon type={lesson.lessonType} className={isActive ? "text-primary" : "text-muted-foreground"} />
-                            <span className={cn("text-xs flex-1 leading-snug", isActive ? "font-medium" : "text-muted-foreground")}>
+                            <LessonIcon type={lesson.lessonType} className={locked ? "text-muted-foreground/40" : isActive ? "text-primary" : "text-muted-foreground"} />
+                            <span className={cn("text-xs flex-1 leading-snug", locked ? "text-muted-foreground/50" : isActive ? "font-medium" : "text-muted-foreground")}>
                               {lesson.title}
                             </span>
-                            {lesson.isFreePreview && (
+                            {locked && (
+                              <span className="text-[9px] text-muted-foreground/60 shrink-0 font-medium uppercase tracking-wide">Locked</span>
+                            )}
+                            {!locked && lesson.isPrerequisite && status !== "completed" && (
+                              <span className="text-[9px] text-amber-600 shrink-0 font-medium uppercase tracking-wide">Gate</span>
+                            )}
+                            {!locked && lesson.isFreePreview && (
                               <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0">Free</Badge>
                             )}
                           </button>
@@ -842,17 +878,49 @@ export default function CoursePlayerPage() {
                   {currentLesson.isFreePreview && (
                     <Badge variant="outline" className="text-xs">Free Preview</Badge>
                   )}
+                  {(currentLesson as any).isPrerequisite && getLessonStatus(currentLesson.id) !== "completed" && (
+                    <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">Prerequisite</Badge>
+                  )}
                 </div>
                 <h1 className="text-2xl font-bold">{currentLesson.title}</h1>
               </div>
 
-              {/* Lesson content */}
-              <LessonContent
-                lesson={currentLesson}
-                primaryColor={primaryColor}
-                onComplete={handleComplete}
-                packageProxyBase="/api/embed"
-              />
+              {/* Locked lesson overlay */}
+              {isLessonLocked(currentLesson.id) ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+                    <Lock className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <h2 className="text-xl font-semibold mb-2">This lesson is locked</h2>
+                  <p className="text-muted-foreground max-w-sm mb-6">
+                    Complete the required prerequisite lesson before you can access this content.
+                  </p>
+                  {(() => {
+                    const idx = allLessons.findIndex((l: any) => l.id === currentLesson.id);
+                    const blocker = allLessons.slice(0, idx).reverse().find((l: any) => (l as any).isPrerequisite && getLessonStatus((l as any).id) !== "completed") as any;
+                    return blocker ? (
+                      <button
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+                        style={{ backgroundColor: primaryColor }}
+                        onClick={() => handleLessonClick(blocker.id)}
+                      >
+                        <PlayCircle className="h-4 w-4" />
+                        Go to: {blocker.title}
+                      </button>
+                    ) : null;
+                  })()}
+                </div>
+              ) : null}
+
+              {/* Lesson content (hidden when locked) */}
+              {!isLessonLocked(currentLesson.id) && (
+                <LessonContent
+                  lesson={currentLesson}
+                  primaryColor={primaryColor}
+                  onComplete={handleComplete}
+                  packageProxyBase="/api/embed"
+                />
+              )}
 
               {/* Bottom navigation */}
               <div className="flex items-center justify-between mt-10 pt-6 border-t border-border">

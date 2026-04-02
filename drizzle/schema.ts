@@ -578,6 +578,12 @@ export const courseLessons = mysqlTable("course_lessons", {
   durationSeconds: int("durationSeconds"),
   isFreePreview: boolean("isFreePreview").default(false).notNull(),
   isPublished: boolean("isPublished").default(true).notNull(),
+  // Prerequisite / gating
+  isPrerequisite: boolean("isPrerequisite").default(false).notNull(), // this lesson must be completed before subsequent lessons unlock
+  requiresCompletion: boolean("requiresCompletion").default(true).notNull(), // must be fully completed (vs just opened)
+  passingScore: int("passingScore"), // minimum quiz/exam score % to count as passed (null = any completion)
+  allowSkip: boolean("allowSkip").default(false).notNull(), // learner can skip without completing
+  estimatedMinutes: int("estimatedMinutes"), // shown in sidebar as estimated reading/watch time
   // Drip
   dripDays: int("dripDays"), // null = available immediately
   dripDate: timestamp("dripDate"), // specific release date

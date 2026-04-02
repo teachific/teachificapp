@@ -984,3 +984,21 @@
 - [x] lmsDb: getMembersWithEnrollments, email campaign CRUD helpers added
 - [x] lmsRouter: emailMarketing router, members.listWithEnrollments, members.manualEnroll added
 - [x] routers.ts: orgs.delete procedure added
+
+## Lesson-Level Settings + Prerequisite Gating (Apr 2, 2026)
+- [x] Add lesson settings columns to DB: isPrerequisite, requiresCompletion, passingScore, allowSkip, estimatedMinutes
+- [x] Generate and apply migration SQL (0021_giant_blo...)
+- [x] Update updateLesson procedure to accept all new fields (lmsRouter.ts)
+- [x] Add prerequisite gating section to LessonEditorSheet Settings tab
+  - Prerequisite Gate toggle (isPrerequisite) with explanation
+  - Require Completion toggle (requiresCompletion)
+  - Allow Skip toggle (allowSkip)
+  - Passing Score input (passingScore, for quiz/exam lessons)
+  - Estimated Time input (estimatedMinutes)
+- [x] Enforce gating in CoursePlayerPage: isLessonLocked() checks all prior prerequisite lessons
+- [x] Show lock icon + 'Locked' label in lesson sidebar for gated lessons
+- [x] Show 'Gate' badge on prerequisite lessons that are not yet completed
+- [x] Show 'Prerequisite' badge in lesson header when lesson is a gate
+- [x] Show locked overlay in main content area with link to prerequisite lesson
+- [x] Block handleLessonClick for locked lessons with toast error naming the blocking lesson
+- [x] Save checkpoint

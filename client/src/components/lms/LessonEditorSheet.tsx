@@ -66,6 +66,16 @@ interface Lesson {
   webLinkUrl?: string | null;
   richTextAddOn?: string | null;
   liveSessionJson?: string | null;
+  // Prerequisite / gating
+  isPrerequisite?: boolean | null;
+  requiresCompletion?: boolean | null;
+  passingScore?: number | null;
+  allowSkip?: boolean | null;
+  estimatedMinutes?: number | null;
+  // Drip
+  dripDays?: number | null;
+  dripDate?: Date | string | null;
+  dripType?: string | null;
 }
 
 interface LessonEditorSheetProps {
@@ -824,6 +834,16 @@ export function LessonEditorSheet({
         webLinkUrl: lesson.webLinkUrl ?? "",
         richTextAddOn: lesson.richTextAddOn ?? "",
         liveSessionJson: lesson.liveSessionJson ?? "{}",
+        // Prerequisite / gating
+        isPrerequisite: lesson.isPrerequisite ?? false,
+        requiresCompletion: lesson.requiresCompletion ?? true,
+        passingScore: lesson.passingScore ?? null,
+        allowSkip: lesson.allowSkip ?? false,
+        estimatedMinutes: lesson.estimatedMinutes ?? null,
+        // Drip
+        dripDays: lesson.dripDays ?? null,
+        dripDate: lesson.dripDate ? new Date(lesson.dripDate).toISOString().split("T")[0] : "",
+        dripType: lesson.dripType ?? "immediate",
       });
       setDurationInput(lesson.durationSeconds ? formatSeconds(lesson.durationSeconds) : "");
     }
@@ -967,6 +987,71 @@ export function LessonEditorSheet({
                 />
               </div>
               <Separator />
+              {/* ── Prerequisite / Gating ── */}
+              <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-4 flex flex-col gap-4">
+                <div className="flex items-start gap-2">
+                  <Lock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Course Prerequisite</p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                      When enabled, all lessons <strong>below</strong> this one are locked until this lesson is completed.
+                      Students must finish this lesson before they can access subsequent lessons.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Mark as Prerequisite Gate</p>
+                    <p className="text-xs text-muted-foreground">Locks lessons below until this is completed</p>
+                  </div>
+                  <Switch
+                    checked={form.isPrerequisite ?? false}
+                    onCheckedChange={(v) => set("isPrerequisite", v)}
+                  />
+                </div>
+                {form.isPrerequisite && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Requires Full Completion</p>
+                        <p className="text-xs text-muted-foreground">Must be fully completed (not just opened)</p>
+                      </div>
+                      <Switch
+                        checked={form.requiresCompletion ?? true}
+                        onCheckedChange={(v) => set("requiresCompletion", v)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Allow Skip</p>
+                        <p className="text-xs text-muted-foreground">Students can skip this lesson without completing it</p>
+                      </div>
+                      <Switch
+                        checked={form.allowSkip ?? false}
+                        onCheckedChange={(v) => set("allowSkip", v)}
+                      />
+                    </div>
+                    {(form.lessonType === "quiz" || form.lessonType === "exam") && (
+                      <div>
+                        <Label className="text-sm">Minimum Passing Score (%)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={form.passingScore ?? ""}
+                          onChange={(e) => set("passingScore", e.target.value ? parseInt(e.target.value) : null)}
+                          placeholder="e.g. 70 (leave blank for any score)"
+                          className="mt-1.5"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Students must score at least this % to unlock the next lesson
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <Separator />
               {/* Duration */}
               <div>
                 <Label className="flex items-center gap-1.5">
@@ -981,6 +1066,23 @@ export function LessonEditorSheet({
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Shown in the course sidebar next to the lesson title
+                </p>
+              </div>
+              <div>
+                <Label className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  Estimated Time (minutes)
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.estimatedMinutes ?? ""}
+                  onChange={(e) => set("estimatedMinutes", e.target.value ? parseInt(e.target.value) : null)}
+                  placeholder="e.g. 15"
+                  className="mt-1.5"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Displayed in the course outline as estimated reading/watch time
                 </p>
               </div>
               <Separator />
