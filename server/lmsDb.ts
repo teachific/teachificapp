@@ -24,6 +24,7 @@ import {
   webinarRegistrations,
   webinarSessions,
   webinarFunnelSteps,
+  orgMembers,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1076,4 +1077,90 @@ export async function getWebinarStats(webinarId: number) {
     conversionRate: registrations.length > 0 ? Math.round((converted / registrations.length) * 100) : 0,
     avgWatchMinutes: sessions.length > 0 ? Math.round(totalWatchSeconds / sessions.length / 60) : 0,
   };
+}
+
+// ─── Members with Enrollment Data ────────────────────────────────────────────
+export async function getMembersWithEnrollments(orgId: number) {
+  // Get all org members with user info
+  const members = await db
+    .select({
+      userId: orgMembers.userId,
+      role: orgMembers.role,
+      joinedAt: orgMembers.joinedAt,
+      name: users.name,
+      email: users.email,
+    })
+    .from(orgMembers)
+    .innerJoin(users, eq(orgMembers.userId, users.id))
+    .where(eq(orgMembers.orgId, orgId))
+    .orderBy(desc(orgMembers.joinedAt));
+
+  // For each member, get their enrollment stats
+  const results = await Promise.all(
+    members.map(async (m) => {
+      const enrollmentStats = await db
+        .select({
+          total: sql<number>`COUNT(*)`,
+          completed: sql<number>`SUM(CASE WHEN ${courseEnrollments.completedAt} IS NOT NULL THEN 1 ELSE 0 END)`,
+          avgProgress: sql<number>`COALESCE(AVG(${courseEnrollments.progressPct}), 0)`,
+          lastAccess: sql<Date | null>`MAX(${courseEnrollments.lastAccessedAt})`,
+        })
+        .from(courseEnrollments)
+        .where(and(eq(courseEnrollments.userId, m.userId), eq(courseEnrollments.orgId, orgId)));
+      const stats = enrollmentStats[0];
+      return {
+        ...m,
+        totalEnrollments: Number(stats?.total ?? 0),
+        completedCourses: Number(stats?.completed ?? 0),
+        avgProgress: Math.round(Number(stats?.avgProgress ?? 0)),
+        lastAccess: stats?.lastAccess ?? null,
+      };
+    })
+  );
+  return results;
+}
+
+// ─── Email Campaigns ─────────────────────────────────────────────────────────
+import {
+  emailCampaigns,
+  emailCampaignRecipients,
+} from "../drizzle/schema";
+
+export async function listEmailCampaigns(orgId: number) {
+  return db
+    .select()
+    .from(emailCampaigns)
+    .where(eq(emailCampaigns.orgId, orgId))
+    .orderBy(desc(emailCampaigns.createdAt));
+}
+
+export async function getEmailCampaignById(id: number) {
+  const rows = await db.select().from(emailCampaigns).where(eq(emailCampaigns.id, id));
+  return rows[0] ?? null;
+}
+
+export async function createEmailCampaign(data: typeof emailCampaigns.$inferInsert) {
+  const result = await db.insert(emailCampaigns).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getEmailCampaignById(Number(id));
+}
+
+export async function updateEmailCampaign(id: number, data: Partial<typeof emailCampaigns.$inferInsert>) {
+  await db.update(emailCampaigns).set(data).where(eq(emailCampaigns.id, id));
+  return getEmailCampaignById(id);
+}
+
+export async function deleteEmailCampaign(id: number) {
+  await db.delete(emailCampaignRecipients).where(eq(emailCampaignRecipients.campaignId, id));
+  await db.delete(emailCampaigns).where(eq(emailCampaigns.id, id));
+}
+
+export async function getEmailCampaignStats(orgId: number) {
+  const campaigns = await listEmailCampaigns(orgId);
+  const totalSent = campaigns.reduce((sum, c) => sum + (c.sentCount ?? 0), 0);
+  const totalOpens = campaigns.reduce((sum, c) => sum + (c.openCount ?? 0), 0);
+  const totalClicks = campaigns.reduce((sum, c) => sum + (c.clickCount ?? 0), 0);
+  const openRate = totalSent > 0 ? Math.round((totalOpens / totalSent) * 100) : 0;
+  const clickRate = totalSent > 0 ? Math.round((totalClicks / totalSent) * 100) : 0;
+  return { totalCampaigns: campaigns.length, totalSent, totalOpens, totalClicks, openRate, clickRate };
 }

@@ -51,6 +51,7 @@ export default function CoursesPage() {
   const utils = trpc.useUtils();
 
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published" | "archived">("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
@@ -135,9 +136,11 @@ export default function CoursesPage() {
     }
   };
 
-  const filtered = courses?.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = courses?.filter((c) => {
+    const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const statusColor: Record<string, string> = {
     draft: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -216,6 +219,26 @@ export default function CoursesPage() {
           </Card>
         </div>
       )}
+
+      {/* Status Filter Tabs */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-wrap">
+        {(["all", "published", "draft", "archived"] as const).map((s) => {
+          const count = s === "all" ? (courses?.length ?? 0) : (courses?.filter(c => c.status === s).length ?? 0);
+          return (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                statusFilter === s
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {s.charAt(0).toUpperCase() + s.slice(1)} ({count})
+            </button>
+          );
+        })}
+      </div>
 
       {/* Search */}
       <div className="relative max-w-sm">

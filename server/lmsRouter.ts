@@ -95,6 +95,13 @@ import {
   getWebinarFunnelSteps,
   upsertWebinarFunnelSteps,
   getWebinarStats,
+  listEmailCampaigns,
+  getEmailCampaignById,
+  createEmailCampaign,
+  updateEmailCampaign,
+  deleteEmailCampaign,
+  getEmailCampaignStats,
+  getMembersWithEnrollments,
 } from "./lmsDb";
 import { copyCourse, copyLessonToSection, copySectionToCourse } from "./lmsDbCopy";
 import { nanoid } from "nanoid";
@@ -992,7 +999,39 @@ export const lmsRouter = router({
       }),
   }),
 
-  // ── Activity Tracking ─────────────────────────────────────────────────
+  // ── Members ───────────────────────────────────────────────
+
+  members: router({
+    listWithEnrollments: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const { getMembersWithEnrollments } = await import("./lmsDb");
+        return getMembersWithEnrollments(input.orgId);
+      }),
+    manualEnroll: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        courseId: z.number(),
+        email: z.string().email(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const { getUserByEmail } = await import("./db");
+        const user = await getUserByEmail(input.email);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "No user found with that email address" });
+        const existing = await getEnrollment(input.courseId, user.id);
+        if (existing) return existing;
+        return createEnrollment({
+          courseId: input.courseId,
+          userId: user.id,
+          orgId: input.orgId,
+          amountPaid: 0,
+        });
+      }),
+  }),
+
+  // ── Activity Tracking ───────────────────────────────────────────────
 
   activity: router({
     // Batch ingest events from the client tracker (protected — must be logged in)
@@ -1650,6 +1689,68 @@ export const lmsRouter = router({
       }),
   }),
 
+  // ── Email Marketing ─────────────────────────────────────────────────────
+  emailMarketing: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return listEmailCampaigns(input.orgId);
+      }),
+    stats: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return getEmailCampaignStats(input.orgId);
+      }),
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const c = await getEmailCampaignById(input.id);
+        if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, c.orgId!);
+        return c;
+      }),
+    create: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        name: z.string().min(1),
+        subject: z.string().min(1),
+        htmlBody: z.string(),
+        textBody: z.string().optional(),
+        scheduledAt: z.date().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return createEmailCampaign({ ...input, createdBy: ctx.user.id });
+      }),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        subject: z.string().optional(),
+        htmlBody: z.string().optional(),
+        textBody: z.string().optional(),
+        status: z.enum(["draft", "scheduled", "sending", "sent", "failed"]).optional(),
+        scheduledAt: z.date().optional().nullable(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const c = await getEmailCampaignById(input.id);
+        if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, c.orgId!);
+        const { id, ...data } = input;
+        return updateEmailCampaign(id, data);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const c = await getEmailCampaignById(input.id);
+        if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, c.orgId!);
+        await deleteEmailCampaign(input.id);
+        return { ok: true };
+      }),
+  }),
   // ── Media Upload ────────────────────────────────────────────────────────
   media: router({
     getUploadUrl: protectedProcedure

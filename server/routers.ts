@@ -58,6 +58,7 @@ import {
   updateUser,
   deleteUser,
   updateOrg,
+  deleteOrg,
   upsertUser,
   getDb,
 } from "./db";
@@ -247,6 +248,26 @@ export const appRouter = router({
         const org = await getOrgBySlug(input.slug);
         if (org) await addOrgMember(org.id, ctx.user.id, "org_admin");
         return org;
+      }),
+
+    update: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        slug: z.string().min(1).optional(),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await updateOrg(id, data);
+        return { success: true };
+      }),
+
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteOrg(input.id);
+        return { success: true };
       }),
 
     members: router({

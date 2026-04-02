@@ -84,6 +84,13 @@ export async function getUserById(id: number) {
   return result[0];
 }
 
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result[0];
+}
+
 export async function getAllUsers() {
   const db = await getDb();
   if (!db) return [];
@@ -155,6 +162,14 @@ export async function updateOrg(id: number, data: Partial<typeof organizations.$
   const db = await getDb();
   if (!db) return;
   await db.update(organizations).set(data).where(eq(organizations.id, id));
+}
+
+export async function deleteOrg(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  // Remove all members first, then delete the org
+  await db.delete(orgMembers).where(eq(orgMembers.orgId, id));
+  await db.delete(organizations).where(eq(organizations.id, id));
 }
 
 export async function getOrgsByUserId(userId: number) {

@@ -39,6 +39,33 @@ export default function OrgSettingsPage() {
   const [notifQuizResult, setNotifQuizResult] = useState(true);
   const [notifReminder, setNotifReminder] = useState(false);
   const [notifAnnouncement, setNotifAnnouncement] = useState(true);
+  const [notifWeeklyDigest, setNotifWeeklyDigest] = useState(false);
+  // Email branding state
+  const [emailLogoUrl, setEmailLogoUrl] = useState("");
+  const [emailPrimaryColor, setEmailPrimaryColor] = useState("#189aa1");
+  const [emailFooterText, setEmailFooterText] = useState("");
+  const [emailSenderNameBranding, setEmailSenderNameBranding] = useState("");
+
+  // Fetch notification settings from backend
+  const { data: notifSettings } = trpc.lms.notifications.getOrgSettings.useQuery(
+    { orgId: orgCtx?.org?.id! },
+    { enabled: !!orgCtx?.org?.id }
+  );
+  // Fetch email branding from backend
+  const { data: emailBrandingData } = trpc.lms.emailBranding.get.useQuery(
+    { orgId: orgCtx?.org?.id! },
+    { enabled: !!orgCtx?.org?.id }
+  );
+  // Notification update mutation
+  const updateNotifSettings = trpc.lms.notifications.updateOrgSettings.useMutation({
+    onSuccess: () => toast.success("Notification settings saved"),
+    onError: (e) => toast.error(e.message),
+  });
+  // Email branding update mutation
+  const updateEmailBranding = trpc.lms.emailBranding.update.useMutation({
+    onSuccess: () => toast.success("Email branding saved"),
+    onError: (e) => toast.error(e.message),
+  });
 
   // Initialize form when org loads
   useEffect(() => {
@@ -52,6 +79,26 @@ export default function OrgSettingsPage() {
       setInitialized(true);
     }
   }, [orgCtx, initialized]);
+  // Sync notification settings when loaded
+  useEffect(() => {
+    if (notifSettings) {
+      setNotifEnrollment(notifSettings.enrollment ?? true);
+      setNotifCompletion(notifSettings.completion ?? true);
+      setNotifQuizResult(notifSettings.quizResult ?? true);
+      setNotifReminder(notifSettings.reminder ?? false);
+      setNotifAnnouncement(notifSettings.announcement ?? true);
+      setNotifWeeklyDigest(notifSettings.weeklyDigest ?? false);
+    }
+  }, [notifSettings]);
+  // Sync email branding when loaded
+  useEffect(() => {
+    if (emailBrandingData) {
+      setEmailLogoUrl(emailBrandingData.logoUrl ?? "");
+      setEmailPrimaryColor(emailBrandingData.primaryColor ?? "#189aa1");
+      setEmailFooterText(emailBrandingData.footerText ?? "");
+      setEmailSenderNameBranding(emailBrandingData.senderName ?? "");
+    }
+  }, [emailBrandingData]);
 
   // Mutation
   const updateSettings = trpc.orgs.updateSettings.useMutation({
@@ -298,12 +345,77 @@ export default function OrgSettingsPage() {
 
         {/* Email Templates Tab */}
         <TabsContent value="email-templates" className="space-y-4">
+          {/* Email Branding */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Email Branding</CardTitle>
+              <CardDescription>Customize how your emails look — logo, colors, footer, and sender name</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Logo URL</Label>
+                <Input
+                  value={emailLogoUrl}
+                  onChange={(e) => setEmailLogoUrl(e.target.value)}
+                  placeholder="https://example.com/logo.png"
+                />
+                <p className="text-xs text-muted-foreground">Shown in the email header. Recommended: 200×50 px, transparent PNG.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Primary Color</Label>
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg border border-border shrink-0" style={{ backgroundColor: emailPrimaryColor }} />
+                  <Input
+                    value={emailPrimaryColor}
+                    onChange={(e) => setEmailPrimaryColor(e.target.value)}
+                    placeholder="#189aa1"
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Sender Display Name</Label>
+                <Input
+                  value={emailSenderNameBranding}
+                  onChange={(e) => setEmailSenderNameBranding(e.target.value)}
+                  placeholder="All About Ultrasound Academy"
+                />
+                <p className="text-xs text-muted-foreground">Overrides the default "Teachific" sender name in email headers.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Footer Text</Label>
+                <textarea
+                  value={emailFooterText}
+                  onChange={(e) => setEmailFooterText(e.target.value)}
+                  placeholder="© 2025 All About Ultrasound, Inc. · Unsubscribe"
+                  className="w-full h-20 text-sm bg-muted/30 border border-border rounded-lg p-3 resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <Button
+                className="gap-2"
+                disabled={updateEmailBranding.isPending}
+                onClick={() => {
+                  if (!org?.id) return;
+                  updateEmailBranding.mutate({
+                    orgId: org.id,
+                    logoUrl: emailLogoUrl || undefined,
+                    primaryColor: emailPrimaryColor || undefined,
+                    footerText: emailFooterText || undefined,
+                    senderName: emailSenderNameBranding || undefined,
+                  });
+                }}
+              >
+                {updateEmailBranding.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Email Branding</>}
+              </Button>
+            </CardContent>
+          </Card>
+          {/* Email Template List */}
           <Card>
             <CardHeader>
               <CardTitle>Email Templates</CardTitle>
-              <CardDescription>Customize the automated emails sent to your students</CardDescription>
+              <CardDescription>Automated emails sent to your students. Templates support <code className="bg-muted px-1 rounded text-xs">&#123;&#123;firstName&#125;&#125;</code>, <code className="bg-muted px-1 rounded text-xs">&#123;&#123;courseName&#125;&#125;</code>, <code className="bg-muted px-1 rounded text-xs">&#123;&#123;orgName&#125;&#125;</code>.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-2">
               {[
                 { key: "welcome", label: "Welcome Email", desc: "Sent when a new member joins your organization", icon: "👋" },
                 { key: "enrollment", label: "Course Enrollment", desc: "Sent when a student enrolls in a course", icon: "📚" },
@@ -312,26 +424,19 @@ export default function OrgSettingsPage() {
                 { key: "reminder", label: "Course Reminder", desc: "Periodic reminder to continue learning", icon: "⏰" },
                 { key: "announcement", label: "Announcement", desc: "Broadcast message to all members", icon: "📢" },
               ].map((tmpl) => (
-                <div key={tmpl.key} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                <div key={tmpl.key} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{tmpl.icon}</span>
+                    <span className="text-xl">{tmpl.icon}</span>
                     <div>
                       <p className="font-medium text-sm">{tmpl.label}</p>
                       <p className="text-xs text-muted-foreground">{tmpl.desc}</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => toast.info("Email template editor coming soon")}>
-                    <FileText className="h-3.5 w-3.5 mr-1.5" /> Edit
+                  <Button variant="outline" size="sm" onClick={() => toast.info("Full template editor coming soon — email branding above applies to all templates")}>
+                    <FileText className="h-3.5 w-3.5 mr-1.5" /> Preview
                   </Button>
                 </div>
               ))}
-              <div className="pt-2 border-t">
-                <p className="text-xs text-muted-foreground">
-                  Templates support variables like <code className="bg-muted px-1 rounded">&#123;&#123;firstName&#125;&#125;</code>,{" "}
-                  <code className="bg-muted px-1 rounded">&#123;&#123;courseName&#125;&#125;</code>,{" "}
-                  <code className="bg-muted px-1 rounded">&#123;&#123;orgName&#125;&#125;</code>. Full template editor coming soon.
-                </p>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -350,6 +455,7 @@ export default function OrgSettingsPage() {
                 { label: "Quiz Results", desc: "Send quiz score and feedback after submission", value: notifQuizResult, set: setNotifQuizResult },
                 { label: "Learning Reminders", desc: "Nudge inactive students to continue their courses", value: notifReminder, set: setNotifReminder },
                 { label: "Announcements", desc: "Allow sending broadcast announcements to members", value: notifAnnouncement, set: setNotifAnnouncement },
+                { label: "Weekly Digest", desc: "Send a weekly summary of course activity to students", value: notifWeeklyDigest, set: setNotifWeeklyDigest },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between py-3 border-b last:border-0">
                   <div>
@@ -361,9 +467,21 @@ export default function OrgSettingsPage() {
               ))}
               <Button
                 className="gap-2 mt-2"
-                onClick={() => toast.success("Notification settings saved")}
+                disabled={updateNotifSettings.isPending}
+                onClick={() => {
+                  if (!org?.id) return;
+                  updateNotifSettings.mutate({
+                    orgId: org.id,
+                    enrollment: notifEnrollment,
+                    completion: notifCompletion,
+                    quizResult: notifQuizResult,
+                    reminder: notifReminder,
+                    announcement: notifAnnouncement,
+                    weeklyDigest: notifWeeklyDigest,
+                  });
+                }}
               >
-                <Check className="h-4 w-4" /> Save Notification Settings
+                {updateNotifSettings.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Notification Settings</>}
               </Button>
             </CardContent>
           </Card>

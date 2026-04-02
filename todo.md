@@ -963,3 +963,24 @@
 - [x] OrgSettingsPage: Email Templates tab added (list of 6 template types with Edit buttons)
 - [x] OrgSettingsPage: Notifications tab added (5 toggle switches + course-level override info)
 - [x] StudentLogReportsPage: built at /lms/activity with org picker, filters (student, course, event type, date range, search), summary stats, mobile card + desktop table layout, CSV export, pagination
+
+## Bug Fixes Reported Apr 2, 2026 (Mobile Screenshots)
+- [x] BrandingPage: remove "Admin Dashboard" tab - branding should only affect student-facing school, not admin UI
+- [x] BrandingPage: fix page description to say "student school" not "admin dashboard and student school"
+- [x] BrandingPage: add org logo upload section (PNG/JPG/SVG, max 2MB, stored in S3, shown on school page and course player)
+- [x] DashboardLayout sidebar: restore styled "teach" + "ific" teal + "™" text lockup
+- [x] DashboardLayout mobile header: styled Teachific™ logo lockup when no active page
+- [x] Notification Settings wired to backend (lms.notifications procedures)
+- [x] Email Templates tab wired to emailBranding backend (logo, color, footer, sender name)
+- [x] LMS Dashboard page at /lms with metrics, revenue chart, recent activity, recent courses
+- [x] My Courses (Learner Dashboard) page at /lms/my-courses
+- [x] MembersPage rebuilt with full enrollment data, CSV export, manual enrollment dialog
+- [x] AdminOrgsPage: edit/delete org actions with confirmation dialogs
+- [x] CoursesPage: status filter tabs (All, Published, Draft, Archived)
+- [x] Digital Downloads Reports page at /admin/downloads/reports
+- [x] Webinar Reports page at /lms/webinars/reports
+- [x] Email Marketing page at /lms/email-marketing with campaign CRUD and stats
+- [x] Sidebar: Downloads Reports, Webinar Reports, Email Marketing links added
+- [x] lmsDb: getMembersWithEnrollments, email campaign CRUD helpers added
+- [x] lmsRouter: emailMarketing router, members.listWithEnrollments, members.manualEnroll added
+- [x] routers.ts: orgs.delete procedure added

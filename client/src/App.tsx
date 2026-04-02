@@ -38,12 +38,17 @@ import CustomPagesPage from "./pages/admin/CustomPagesPage";
 import DigitalProductsPage from "./pages/admin/DigitalProductsPage";
 import DigitalProductEditorPage from "./pages/admin/DigitalProductEditorPage";
 import DigitalProductSalesPage from "./pages/DigitalProductSalesPage";
+import DigitalDownloadsReportsPage from "./pages/admin/DigitalDownloadsReportsPage";
 import WebinarsPage from "./pages/admin/WebinarsPage";
 import WebinarEditorPage from "./pages/admin/WebinarEditorPage";
+import WebinarReportsPage from "./pages/admin/WebinarReportsPage";
 import WebinarRegisterPage from "./pages/WebinarRegisterPage";
 import WebinarWatchPage from "./pages/WebinarWatchPage";
 import OrgSettingsPage from "./pages/OrgSettingsPage";
 import StudentLogReportsPage from "./pages/lms/StudentLogReportsPage";
+import LmsDashboardPage from "./pages/lms/LmsDashboardPage";
+import MyCoursesPage from "./pages/lms/MyCoursesPage";
+import EmailMarketingPage from "./pages/lms/EmailMarketingPage";
 import PublicPagePage from "./pages/PublicPagePage";
 // Auth pages (Teachific-branded, no sidebar)
 import LoginPage from "./pages/auth/LoginPage";
@@ -105,6 +110,9 @@ function AdminRouter() {
         <Route path="/analytics" component={AnalyticsPage} />
 
         {/* LMS */}
+        <Route path="/lms" component={LmsDashboardPage} />
+        <Route path="/lms/dashboard" component={LmsDashboardPage} />
+        <Route path="/lms/my-courses" component={MyCoursesPage} />
         <Route path="/lms/courses" component={CoursesPage} />
         <Route path="/lms/courses/new" component={CourseBuilderPage} />
         <Route path="/lms/courses/:id/curriculum" component={CourseBuilderPage} />
@@ -121,6 +129,7 @@ function AdminRouter() {
         <Route path="/lms/custom-pages" component={CustomPagesPage} />
         <Route path="/lms/settings" component={OrgSettingsPage} />
         <Route path="/lms/activity" component={StudentLogReportsPage} />
+        <Route path="/lms/email-marketing" component={EmailMarketingPage} />
 
         {/* Student storefront */}
         <Route path="/school" component={SchoolPage} />
@@ -132,11 +141,13 @@ function AdminRouter() {
 
         {/* Digital Downloads */}
         <Route path="/admin/downloads" component={DigitalProductsPage} />
+        <Route path="/admin/downloads/reports" component={DigitalDownloadsReportsPage} />
         <Route path="/admin/downloads/new" component={DigitalProductEditorPage} />
         <Route path="/admin/downloads/:id" component={DigitalProductEditorPage} />
 
         {/* Webinars */}
         <Route path="/lms/webinars" component={WebinarsPage} />
+        <Route path="/lms/webinars/reports" component={WebinarReportsPage} />
         <Route path="/lms/webinars/:id/edit" component={WebinarEditorPage} />
 
         {/* Platform admin */}

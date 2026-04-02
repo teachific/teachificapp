@@ -36,11 +36,13 @@ import {
   LayoutDashboard,
   Library,
   LogOut,
+  Mail,
   Palette,
   PanelLeft,
   Settings,
   Crown,
   ShieldCheck,
+  TrendingUp,
   User,
   Users,
   Video,
@@ -56,7 +58,9 @@ const navGroups = [
     items: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/" },
       { icon: Library, label: "Media Library", path: "/media-library" },
-      { icon: GraduationCap, label: "Courses", path: "/lms/courses" },
+      { icon: LayoutDashboard, label: "LMS Dashboard", path: "/lms" },
+      { icon: GraduationCap, label: "My Courses", path: "/lms/my-courses" },
+      { icon: BookOpen, label: "Courses", path: "/lms/courses" },
       { icon: Users, label: "Members", path: "/lms/members" },
     ],
   },
@@ -70,7 +74,10 @@ const navGroups = [
       { icon: Palette, label: "Branding", path: "/lms/branding" },
       { icon: FileText, label: "Custom Pages", path: "/lms/custom-pages" },
       { icon: Download, label: "Digital Downloads", path: "/admin/downloads" },
+      { icon: TrendingUp, label: "Downloads Reports", path: "/admin/downloads/reports" },
       { icon: Video, label: "Webinars", path: "/lms/webinars" },
+      { icon: BarChart3, label: "Webinar Reports", path: "/lms/webinars/reports" },
+      { icon: Mail, label: "Email Marketing", path: "/lms/email-marketing" },
       { icon: Activity, label: "Activity Log", path: "/lms/activity" },
     ],
   },
@@ -271,9 +278,13 @@ function DashboardLayoutContent({
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/50 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
           <div className="flex items-center gap-3">
             {isMobile && <SidebarTrigger className="h-9 w-9 rounded-lg" />}
-            <span className="font-medium text-sm text-muted-foreground">
-              {activeItem?.label ?? "Teachific™"}
-            </span>
+            {activeItem ? (
+              <span className="font-medium text-sm text-muted-foreground">{activeItem.label}</span>
+            ) : (
+              <span className="text-xl font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
+                <span className="text-foreground">teach</span><span style={{ color: '#15a4b7' }}>ific</span><span className="text-foreground" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '2px' }}>&#8482;</span>
+              </span>
+            )}
           </div>
 
            <div className="flex items-center gap-2">
