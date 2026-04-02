@@ -401,6 +401,10 @@ export const orgThemes = mysqlTable("org_themes", {
   // Student-facing colors (derived from primary/accent but can be overridden)
   studentPrimaryColor: varchar("studentPrimaryColor", { length: 32 }),
   studentAccentColor: varchar("studentAccentColor", { length: 32 }),
+  // Notification settings (JSON): { enrollment, completion, quizResult, reminder, announcement, weeklyDigest }
+  notificationSettings: text("notificationSettings"),
+  // Email template overrides (JSON): { logoUrl, primaryColor, footerText, senderName }
+  emailBranding: text("emailBranding"),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type OrgTheme = typeof orgThemes.$inferSelect;
@@ -496,6 +500,8 @@ export const courses = mysqlTable("courses", {
   requireSequential: boolean("requireSequential").default(false).notNull(),
   language: varchar("language", { length: 16 }).default("en"),
   copiedFromId: int("copiedFromId"),
+  // Notification overrides at course level (JSON): { enrollment, completion, quizResult, reminder } — null = inherit from org
+  notificationOverrides: text("notificationOverrides"),
   // Counters
   totalEnrollments: int("totalEnrollments").default(0).notNull(),
   totalCompletions: int("totalCompletions").default(0).notNull(),
@@ -810,3 +816,56 @@ export type InsertEmailUnsubscribe = typeof emailUnsubscribes.$inferInsert;
 // emailVerificationExpiry: expiry timestamp for verification token
 // resetToken: token for password reset
 // resetTokenExpiry: expiry timestamp for reset token
+
+// ─── Member Activity Events ───────────────────────────────────────────────────
+// Tracks every meaningful user interaction: page views, video events, clicks, sessions
+export const memberActivityEvents = mysqlTable("member_activity_events", {
+  id: bigint("id", { mode: "number" }).autoincrement().primaryKey(),
+  // Who
+  userId: int("userId"),                        // null = anonymous / embed
+  orgId: int("orgId"),
+  sessionKey: varchar("sessionKey", { length: 64 }), // client-generated session UUID
+  // What
+  eventType: mysqlEnum("eventType", [
+    "page_view",
+    "page_exit",
+    "session_start",
+    "session_heartbeat",
+    "session_end",
+    "video_play",
+    "video_pause",
+    "video_seek",
+    "video_complete",
+    "video_progress",
+    "lesson_start",
+    "lesson_complete",
+    "quiz_start",
+    "quiz_submit",
+    "download",
+    "link_click",
+    "button_click",
+    "search",
+    "enrollment",
+    "course_complete",
+  ]).notNull(),
+  // Context
+  pageUrl: varchar("pageUrl", { length: 2048 }),
+  pageTitle: varchar("pageTitle", { length: 500 }),
+  courseId: int("courseId"),
+  lessonId: int("lessonId"),
+  quizId: int("quizId"),
+  // Timing
+  durationMs: int("durationMs"),
+  videoPositionSec: float("videoPositionSec"),
+  videoDurationSec: float("videoDurationSec"),
+  // Extra metadata (JSON)
+  metadata: text("metadata"),
+  // Device / browser context
+  userAgent: varchar("userAgent", { length: 512 }),
+  referrer: varchar("referrer", { length: 2048 }),
+  // Timestamp
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type MemberActivityEvent = typeof memberActivityEvents.$inferSelect;
+export type InsertMemberActivityEvent = typeof memberActivityEvents.$inferInsert;

@@ -15,6 +15,7 @@ import {
   coupons,
   courseReviews,
   users,
+  memberActivityEvents,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -651,4 +652,169 @@ export async function getLmsAnalyticsByOrg(orgId: number) {
     totalCompletions: Number(completionCount?.count ?? 0),
     totalCourses: Number(courseCount?.count ?? 0),
   };
+}
+
+// ─── Member Activity Events ───────────────────────────────────────────────────
+
+export async function insertActivityEvents(events: typeof memberActivityEvents.$inferInsert[]) {
+  if (!events.length) return;
+  await db.insert(memberActivityEvents).values(events as any);
+}
+
+export async function getActivityEventsByOrg(
+  orgId: number,
+  opts: {
+    userId?: number;
+    courseId?: number;
+    eventType?: string;
+    dateFrom?: Date;
+    dateTo?: Date;
+    limit?: number;
+    offset?: number;
+  } = {}
+) {
+  const conditions = [eq(memberActivityEvents.orgId, orgId)];
+  if (opts.userId) conditions.push(eq(memberActivityEvents.userId, opts.userId));
+  if (opts.courseId) conditions.push(eq(memberActivityEvents.courseId, opts.courseId));
+  if (opts.eventType) conditions.push(eq(memberActivityEvents.eventType, opts.eventType as any));
+  if (opts.dateFrom) conditions.push(gte(memberActivityEvents.createdAt, opts.dateFrom));
+  if (opts.dateTo) conditions.push(sql`${memberActivityEvents.createdAt} <= ${opts.dateTo}`);
+
+  return db
+    .select()
+    .from(memberActivityEvents)
+    .where(and(...conditions))
+    .orderBy(desc(memberActivityEvents.createdAt))
+    .limit(opts.limit ?? 200)
+    .offset(opts.offset ?? 0);
+}
+
+export async function getActivitySummaryByUser(orgId: number, userId: number) {
+  // Total session time (sum of session_heartbeat durationMs + page_exit durationMs)
+  const [timeRow] = await db
+    .select({ totalMs: sql<number>`COALESCE(SUM(${memberActivityEvents.durationMs}), 0)` })
+    .from(memberActivityEvents)
+    .where(
+      and(
+        eq(memberActivityEvents.orgId, orgId),
+        eq(memberActivityEvents.userId, userId),
+        sql`${memberActivityEvents.eventType} IN ('session_heartbeat', 'page_exit')`
+      )
+    );
+  const [pageViewRow] = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(memberActivityEvents)
+    .where(
+      and(
+        eq(memberActivityEvents.orgId, orgId),
+        eq(memberActivityEvents.userId, userId),
+        eq(memberActivityEvents.eventType, "page_view")
+      )
+    );
+  const [videoRow] = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(memberActivityEvents)
+    .where(
+      and(
+        eq(memberActivityEvents.orgId, orgId),
+        eq(memberActivityEvents.userId, userId),
+        eq(memberActivityEvents.eventType, "video_complete")
+      )
+    );
+  const [lessonRow] = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(memberActivityEvents)
+    .where(
+      and(
+        eq(memberActivityEvents.orgId, orgId),
+        eq(memberActivityEvents.userId, userId),
+        eq(memberActivityEvents.eventType, "lesson_complete")
+      )
+    );
+  return {
+    totalTimeMs: Number(timeRow?.totalMs ?? 0),
+    pageViews: Number(pageViewRow?.count ?? 0),
+    videosCompleted: Number(videoRow?.count ?? 0),
+    lessonsCompleted: Number(lessonRow?.count ?? 0),
+  };
+}
+
+export async function getActivityMemberList(orgId: number) {
+  // Get distinct users who have activity in this org
+  const rows = await db
+    .selectDistinct({ userId: memberActivityEvents.userId })
+    .from(memberActivityEvents)
+    .where(and(eq(memberActivityEvents.orgId, orgId), sql`${memberActivityEvents.userId} IS NOT NULL`));
+  return rows.map((r) => r.userId).filter(Boolean) as number[];
+}
+
+// ─── Notification Settings ────────────────────────────────────────────────────
+
+export type NotificationSettings = {
+  enrollment: boolean;
+  completion: boolean;
+  quizResult: boolean;
+  reminder: boolean;
+  announcement: boolean;
+  weeklyDigest: boolean;
+};
+
+export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  enrollment: true,
+  completion: true,
+  quizResult: true,
+  reminder: false,
+  announcement: true,
+  weeklyDigest: false,
+};
+
+export async function getOrgNotificationSettings(orgId: number): Promise<NotificationSettings> {
+  const theme = await getOrgTheme(orgId);
+  if (!theme?.notificationSettings) return { ...DEFAULT_NOTIFICATION_SETTINGS };
+  try {
+    return { ...DEFAULT_NOTIFICATION_SETTINGS, ...JSON.parse(theme.notificationSettings) };
+  } catch {
+    return { ...DEFAULT_NOTIFICATION_SETTINGS };
+  }
+}
+
+export async function updateOrgNotificationSettings(orgId: number, settings: Partial<NotificationSettings>) {
+  const current = await getOrgNotificationSettings(orgId);
+  const merged = { ...current, ...settings };
+  await upsertOrgTheme(orgId, { notificationSettings: JSON.stringify(merged) });
+  return merged;
+}
+
+export async function getCourseNotificationOverrides(courseId: number) {
+  const course = await getCourseById(courseId);
+  if (!course?.notificationOverrides) return null;
+  try { return JSON.parse(course.notificationOverrides); }
+  catch { return null; }
+}
+
+export async function updateCourseNotificationOverrides(courseId: number, overrides: Partial<NotificationSettings> | null) {
+  await updateCourse(courseId, {
+    notificationOverrides: overrides ? JSON.stringify(overrides) : null,
+  });
+}
+
+// ─── Email Branding ───────────────────────────────────────────────────────────
+
+export type EmailBranding = {
+  logoUrl?: string;
+  primaryColor?: string;
+  footerText?: string;
+  senderName?: string;
+};
+
+export async function getOrgEmailBranding(orgId: number): Promise<EmailBranding> {
+  const theme = await getOrgTheme(orgId);
+  if (!theme?.emailBranding) return {};
+  try { return JSON.parse(theme.emailBranding); }
+  catch { return {}; }
+}
+
+export async function updateOrgEmailBranding(orgId: number, branding: EmailBranding) {
+  await upsertOrgTheme(orgId, { emailBranding: JSON.stringify(branding) });
+  return branding;
 }

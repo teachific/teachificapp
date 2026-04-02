@@ -65,7 +65,12 @@ export type BlockType =
   | "checklist"
   | "html"
   | "spacer"
-  | "divider";
+  | "divider"
+  | "bg_section"
+  | "button"
+  | "icon_list"
+  | "numbered_steps"
+  | "feature_grid";
 
 export interface Block {
   id: string;
@@ -185,6 +190,60 @@ const BLOCK_DEFAULTS: Record<BlockType, Record<string, any>> = {
     margin: 40,
     backgroundColor: "#ffffff",
   },
+  bg_section: {
+    headline: "Our Mission",
+    body: "We believe in empowering learners with the best education possible.",
+    backgroundImageUrl: "",
+    overlay: true,
+    overlayOpacity: 0.6,
+    textColor: "#ffffff",
+    alignment: "center",
+    paddingY: 80,
+  },
+  button: {
+    text: "Get Started",
+    url: "#",
+    variant: "primary",
+    size: "medium",
+    alignment: "center",
+    backgroundColor: "#ffffff",
+  },
+  icon_list: {
+    headline: "Key Features",
+    items: [
+      { id: nanoid(4), icon: "check", text: "Easy to use interface" },
+      { id: nanoid(4), icon: "star", text: "Expert instructors" },
+      { id: nanoid(4), icon: "zap", text: "Fast and efficient" },
+    ],
+    iconColor: "#6366f1",
+    backgroundColor: "#ffffff",
+    textColor: "#1e293b",
+    columns: 1,
+  },
+  numbered_steps: {
+    headline: "How It Works",
+    steps: [
+      { id: nanoid(4), title: "Sign Up", description: "Create your free account in seconds" },
+      { id: nanoid(4), title: "Choose a Course", description: "Browse our catalog and pick what interests you" },
+      { id: nanoid(4), title: "Start Learning", description: "Access your course materials immediately" },
+    ],
+    numberColor: "#6366f1",
+    backgroundColor: "#f8fafc",
+    textColor: "#1e293b",
+  },
+  feature_grid: {
+    headline: "Why Choose Us",
+    features: [
+      { id: nanoid(4), icon: "book", title: "Comprehensive Content", description: "Everything you need to succeed" },
+      { id: nanoid(4), icon: "users", title: "Community Support", description: "Learn alongside thousands of students" },
+      { id: nanoid(4), icon: "award", title: "Certification", description: "Earn recognized certificates" },
+      { id: nanoid(4), icon: "clock", title: "Lifetime Access", description: "Learn at your own pace, forever" },
+    ],
+    iconColor: "#6366f1",
+    backgroundColor: "#ffffff",
+    textColor: "#1e293b",
+    columns: 2,
+  },
 };
 
 // ─── Block Library ────────────────────────────────────────────────────────────
@@ -202,6 +261,11 @@ const BLOCK_LIBRARY: { type: BlockType; label: string; icon: React.ComponentType
   { type: "html", label: "HTML Block", icon: Code, description: "Raw HTML / custom code" },
   { type: "spacer", label: "Spacer", icon: Type, description: "Vertical whitespace" },
   { type: "divider", label: "Divider", icon: Type, description: "Horizontal rule" },
+  { type: "bg_section", label: "Background Image Section", icon: Image, description: "Full-width section with background image and text overlay" },
+  { type: "button", label: "Button", icon: MousePointer, description: "Standalone styled button with link" },
+  { type: "icon_list", label: "Icon List", icon: AlignLeft, description: "Pre-formatted list with custom icons" },
+  { type: "numbered_steps", label: "Numbered Steps", icon: Type, description: "Ordered steps with styled numbers" },
+  { type: "feature_grid", label: "Feature Grid", icon: Layout, description: "Grid of feature cards with icons" },
 ];
 
 // ─── Block Preview Renderers ──────────────────────────────────────────────────
@@ -414,6 +478,118 @@ function PricingPreview({ data }: { data: Record<string, any> }) {
   );
 }
 
+// ─── New Block Previews ───────────────────────────────────────────────────────
+
+function BgSectionPreview({ data }: { data: Record<string, any> }) {
+  const bg = data.backgroundImageUrl
+    ? { backgroundImage: `url(${data.backgroundImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+    : { backgroundColor: "#334155" };
+  return (
+    <div style={{ ...bg, position: "relative", padding: `${data.paddingY || 80}px 60px`, textAlign: data.alignment || "center" }}>
+      {data.overlay && data.backgroundImageUrl && (
+        <div style={{ position: "absolute", inset: 0, backgroundColor: `rgba(0,0,0,${data.overlayOpacity || 0.6})` }} />
+      )}
+      <div style={{ position: "relative", zIndex: 1, maxWidth: "800px", margin: "0 auto" }}>
+        {data.headline && <h2 style={{ color: data.textColor || "#fff", fontSize: "2rem", fontWeight: 700, marginBottom: "16px" }}>{data.headline}</h2>}
+        {data.body && <p style={{ color: data.textColor || "#fff", fontSize: "1.125rem", lineHeight: 1.7, opacity: 0.9 }}>{data.body}</p>}
+      </div>
+    </div>
+  );
+}
+
+function ButtonPreview({ data }: { data: Record<string, any> }) {
+  const styles: Record<string, React.CSSProperties> = {
+    primary: { backgroundColor: "#6366f1", color: "#fff", border: "none" },
+    secondary: { backgroundColor: "#e2e8f0", color: "#1e293b", border: "none" },
+    outline: { backgroundColor: "transparent", color: "#6366f1", border: "2px solid #6366f1" },
+    ghost: { backgroundColor: "transparent", color: "#6366f1", border: "none" },
+  };
+  const sizes: Record<string, React.CSSProperties> = {
+    small: { padding: "8px 20px", fontSize: "0.875rem" },
+    medium: { padding: "12px 28px", fontSize: "1rem" },
+    large: { padding: "16px 40px", fontSize: "1.125rem" },
+  };
+  const align = data.alignment === "left" ? "flex-start" : data.alignment === "right" ? "flex-end" : "center";
+  return (
+    <div style={{ backgroundColor: data.backgroundColor || "#fff", padding: "40px", display: "flex", justifyContent: align }}>
+      <a href={data.url || "#"} style={{ ...styles[data.variant || "primary"], ...sizes[data.size || "medium"], borderRadius: "8px", textDecoration: "none", fontWeight: 600, display: "inline-block", cursor: "pointer" }}>
+        {data.text || "Button"}
+      </a>
+    </div>
+  );
+}
+
+const ICON_SVG: Record<string, string> = {
+  check: "M20 6 9 17 4 12",
+  star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
+  zap: "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+  book: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20",
+  users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2",
+  award: "M12 15l-2 5 2-1 2 1-2-5",
+  clock: "M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z",
+  arrow: "M5 12h14M12 5l7 7-7 7",
+};
+
+function IconListPreview({ data }: { data: Record<string, any> }) {
+  return (
+    <div style={{ backgroundColor: data.backgroundColor || "#fff", padding: "60px 40px" }}>
+      {data.headline && <h2 style={{ color: data.textColor || "#1e293b", fontSize: "1.875rem", fontWeight: 700, textAlign: "center", marginBottom: "32px" }}>{data.headline}</h2>}
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${data.columns || 1}, 1fr)`, gap: "20px", maxWidth: "900px", margin: "0 auto" }}>
+        {(data.items || []).map((item: any) => (
+          <div key={item.id} style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "8px", backgroundColor: data.iconColor || "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points={ICON_SVG[item.icon || "check"] || ICON_SVG.check} />
+              </svg>
+            </div>
+            <span style={{ color: data.textColor || "#1e293b", lineHeight: 1.6, paddingTop: "6px" }}>{item.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NumberedStepsPreview({ data }: { data: Record<string, any> }) {
+  return (
+    <div style={{ backgroundColor: data.backgroundColor || "#f8fafc", padding: "60px 40px" }}>
+      {data.headline && <h2 style={{ color: data.textColor || "#1e293b", fontSize: "1.875rem", fontWeight: 700, textAlign: "center", marginBottom: "40px" }}>{data.headline}</h2>}
+      <div style={{ maxWidth: "700px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "32px" }}>
+        {(data.steps || []).map((step: any, i: number) => (
+          <div key={step.id} style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: data.numberColor || "#6366f1", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "1.25rem", flexShrink: 0 }}>{i + 1}</div>
+            <div>
+              <h3 style={{ color: data.textColor || "#1e293b", fontWeight: 700, fontSize: "1.125rem", marginBottom: "6px" }}>{step.title}</h3>
+              <p style={{ color: data.textColor || "#1e293b", opacity: 0.75, lineHeight: 1.6 }}>{step.description}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FeatureGridPreview({ data }: { data: Record<string, any> }) {
+  return (
+    <div style={{ backgroundColor: data.backgroundColor || "#fff", padding: "60px 40px" }}>
+      {data.headline && <h2 style={{ color: data.textColor || "#1e293b", fontSize: "1.875rem", fontWeight: 700, textAlign: "center", marginBottom: "40px" }}>{data.headline}</h2>}
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${data.columns || 2}, 1fr)`, gap: "24px", maxWidth: "1000px", margin: "0 auto" }}>
+        {(data.features || []).map((f: any) => (
+          <div key={f.id} style={{ backgroundColor: "#f8fafc", borderRadius: "12px", padding: "28px", border: "1px solid #e2e8f0" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "10px", backgroundColor: data.iconColor || "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "16px" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points={ICON_SVG[f.icon || "star"] || ICON_SVG.star} />
+              </svg>
+            </div>
+            <h3 style={{ color: data.textColor || "#1e293b", fontWeight: 700, fontSize: "1.0625rem", marginBottom: "8px" }}>{f.title}</h3>
+            <p style={{ color: data.textColor || "#1e293b", opacity: 0.75, lineHeight: 1.6, fontSize: "0.9375rem" }}>{f.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function renderBlockPreview(block: Block) {
   switch (block.type) {
     case "banner": return <BannerPreview data={block.data} />;
@@ -428,6 +604,11 @@ export function renderBlockPreview(block: Block) {
     case "html": return <HtmlPreview data={block.data} />;
     case "spacer": return <SpacerPreview data={block.data} />;
     case "divider": return <DividerPreview data={block.data} />;
+    case "bg_section": return <BgSectionPreview data={block.data} />;
+    case "button": return <ButtonPreview data={block.data} />;
+    case "icon_list": return <IconListPreview data={block.data} />;
+    case "numbered_steps": return <NumberedStepsPreview data={block.data} />;
+    case "feature_grid": return <FeatureGridPreview data={block.data} />;
     default: return null;
   }
 }
@@ -669,6 +850,132 @@ function BlockSettings({ block, onChange, courses }: {
           <NumberField label="Thickness (px)" field="thickness" min={1} max={10} />
           <NumberField label="Margin (px)" field="margin" min={0} max={200} />
           <ColorField label="Background Color" field="backgroundColor" />
+        </div>
+      );
+    case "bg_section":
+      return (
+        <div className="space-y-3">
+          <TextField label="Headline" field="headline" />
+          <TextField label="Body Text" field="body" multiline />
+          <TextField label="Background Image URL" field="backgroundImageUrl" placeholder="https://..." />
+          <div className="flex items-center gap-2">
+            <Switch checked={!!d.overlay} onCheckedChange={v => set("overlay", v)} />
+            <Label className="text-xs">Dark overlay on image</Label>
+          </div>
+          {d.overlay && <NumberField label="Overlay Opacity (0-1)" field="overlayOpacity" min={0} max={1} />}
+          <SelectField label="Text Alignment" field="alignment" options={[{ value: "left", label: "Left" }, { value: "center", label: "Center" }, { value: "right", label: "Right" }]} />
+          <NumberField label="Vertical Padding (px)" field="paddingY" min={20} max={300} />
+          <ColorField label="Text Color" field="textColor" />
+        </div>
+      );
+    case "button":
+      return (
+        <div className="space-y-3">
+          <TextField label="Button Text" field="text" />
+          <TextField label="URL" field="url" placeholder="https://..." />
+          <SelectField label="Style" field="variant" options={[
+            { value: "primary", label: "Primary (filled)" },
+            { value: "secondary", label: "Secondary" },
+            { value: "outline", label: "Outline" },
+            { value: "ghost", label: "Ghost" },
+          ]} />
+          <SelectField label="Size" field="size" options={[
+            { value: "small", label: "Small" },
+            { value: "medium", label: "Medium" },
+            { value: "large", label: "Large" },
+          ]} />
+          <SelectField label="Alignment" field="alignment" options={[
+            { value: "left", label: "Left" },
+            { value: "center", label: "Center" },
+            { value: "right", label: "Right" },
+          ]} />
+          <ColorField label="Section Background" field="backgroundColor" />
+        </div>
+      );
+    case "icon_list":
+      return (
+        <div className="space-y-3">
+          <TextField label="Headline" field="headline" />
+          <SelectField label="Columns" field="columns" options={[
+            { value: "1", label: "1 column" },
+            { value: "2", label: "2 columns" },
+            { value: "3", label: "3 columns" },
+          ]} />
+          <ColorField label="Icon Color" field="iconColor" />
+          <Separator />
+          <Label className="text-xs font-semibold">List Items</Label>
+          {(d.items || []).map((item: any, i: number) => (
+            <div key={item.id} className="flex gap-2 items-start">
+              <select value={item.icon || "check"} onChange={e => { const items = [...d.items]; items[i] = { ...item, icon: e.target.value }; set("items", items); }} className="h-8 text-xs border rounded px-1 bg-background w-24">
+                {["check", "star", "zap", "book", "users", "award", "clock", "arrow"].map(ic => <option key={ic} value={ic}>{ic}</option>)}
+              </select>
+              <Input value={item.text} onChange={e => { const items = [...d.items]; items[i] = { ...item, text: e.target.value }; set("items", items); }} className="h-8 text-xs flex-1" />
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => set("items", d.items.filter((_: any, j: number) => j !== i))}><Trash2 size={12} /></Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" className="w-full" onClick={() => set("items", [...(d.items || []), { id: nanoid(4), icon: "check", text: "New item" }])}>
+            <Plus size={14} className="mr-1" /> Add Item
+          </Button>
+          <Separator />
+          <ColorField label="Background Color" field="backgroundColor" />
+          <ColorField label="Text Color" field="textColor" />
+        </div>
+      );
+    case "numbered_steps":
+      return (
+        <div className="space-y-3">
+          <TextField label="Headline" field="headline" />
+          <ColorField label="Number Color" field="numberColor" />
+          <Separator />
+          <Label className="text-xs font-semibold">Steps</Label>
+          {(d.steps || []).map((step: any, i: number) => (
+            <div key={step.id} className="space-y-1 border rounded p-2">
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-bold text-muted-foreground w-5">{i + 1}.</span>
+                <Input value={step.title} onChange={e => { const steps = [...d.steps]; steps[i] = { ...step, title: e.target.value }; set("steps", steps); }} className="h-7 text-xs flex-1" placeholder="Step title" />
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => set("steps", d.steps.filter((_: any, j: number) => j !== i))}><Trash2 size={12} /></Button>
+              </div>
+              <Textarea value={step.description} onChange={e => { const steps = [...d.steps]; steps[i] = { ...step, description: e.target.value }; set("steps", steps); }} className="text-xs min-h-[56px]" placeholder="Step description" />
+            </div>
+          ))}
+          <Button variant="outline" size="sm" className="w-full" onClick={() => set("steps", [...(d.steps || []), { id: nanoid(4), title: "New Step", description: "" }])}>
+            <Plus size={14} className="mr-1" /> Add Step
+          </Button>
+          <Separator />
+          <ColorField label="Background Color" field="backgroundColor" />
+          <ColorField label="Text Color" field="textColor" />
+        </div>
+      );
+    case "feature_grid":
+      return (
+        <div className="space-y-3">
+          <TextField label="Headline" field="headline" />
+          <SelectField label="Columns" field="columns" options={[
+            { value: "2", label: "2 columns" },
+            { value: "3", label: "3 columns" },
+            { value: "4", label: "4 columns" },
+          ]} />
+          <ColorField label="Icon Color" field="iconColor" />
+          <Separator />
+          <Label className="text-xs font-semibold">Features</Label>
+          {(d.features || []).map((f: any, i: number) => (
+            <div key={f.id} className="space-y-1 border rounded p-2">
+              <div className="flex items-center gap-1">
+                <select value={f.icon || "star"} onChange={e => { const features = [...d.features]; features[i] = { ...f, icon: e.target.value }; set("features", features); }} className="h-7 text-xs border rounded px-1 bg-background w-20">
+                  {["check", "star", "zap", "book", "users", "award", "clock", "arrow"].map(ic => <option key={ic} value={ic}>{ic}</option>)}
+                </select>
+                <Input value={f.title} onChange={e => { const features = [...d.features]; features[i] = { ...f, title: e.target.value }; set("features", features); }} className="h-7 text-xs flex-1" placeholder="Feature title" />
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => set("features", d.features.filter((_: any, j: number) => j !== i))}><Trash2 size={12} /></Button>
+              </div>
+              <Input value={f.description} onChange={e => { const features = [...d.features]; features[i] = { ...f, description: e.target.value }; set("features", features); }} className="h-7 text-xs" placeholder="Short description" />
+            </div>
+          ))}
+          <Button variant="outline" size="sm" className="w-full" onClick={() => set("features", [...(d.features || []), { id: nanoid(4), icon: "star", title: "New Feature", description: "" }])}>
+            <Plus size={14} className="mr-1" /> Add Feature
+          </Button>
+          <Separator />
+          <ColorField label="Background Color" field="backgroundColor" />
+          <ColorField label="Text Color" field="textColor" />
         </div>
       );
     default:

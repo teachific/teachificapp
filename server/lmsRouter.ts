@@ -324,11 +324,11 @@ export const lmsRouter = router({
           contentJson: z.string().optional(),
           videoUrl: z.string().optional(),
           videoProvider: z.enum(["upload", "youtube", "vimeo", "wistia"]).optional(),
-          packageId: z.number().optional(),
-          quizId: z.number().optional(),
+          packageId: z.number().nullish(),
+          quizId: z.number().nullish(),
           isFreePreview: z.boolean().optional(),
           isPublished: z.boolean().optional(),
-          durationSeconds: z.number().optional(),
+          durationSeconds: z.number().nullish(),
           sortOrder: z.number().optional(),
           downloadUrl: z.string().optional(),
           downloadFileName: z.string().optional(),
@@ -951,6 +951,197 @@ export const lmsRouter = router({
     enrolledCourses: protectedProcedure
       .query(async ({ ctx }) => {
         return getEnrolledCoursesForUser(ctx.user.id);
+      }),
+  }),
+
+  // ── Activity Tracking ─────────────────────────────────────────────────
+
+  activity: router({
+    // Batch ingest events from the client tracker (protected — must be logged in)
+    ingest: protectedProcedure
+      .input(
+        z.object({
+          orgId: z.number(),
+          events: z.array(
+            z.object({
+              sessionKey: z.string(),
+              eventType: z.enum([
+                "page_view", "page_exit", "session_start", "session_heartbeat", "session_end",
+                "video_play", "video_pause", "video_seek", "video_complete", "video_progress",
+                "lesson_start", "lesson_complete", "quiz_start", "quiz_submit",
+                "download", "link_click", "button_click", "search", "enrollment", "course_complete",
+              ]),
+              pageUrl: z.string().optional(),
+              pageTitle: z.string().optional(),
+              courseId: z.number().nullish(),
+              lessonId: z.number().nullish(),
+              quizId: z.number().nullish(),
+              durationMs: z.number().nullish(),
+              videoPositionSec: z.number().nullish(),
+              videoDurationSec: z.number().nullish(),
+              metadata: z.string().nullish(),
+              referrer: z.string().optional(),
+            })
+          ),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const { insertActivityEvents } = await import("./lmsDb");
+        await insertActivityEvents(
+          input.events.map((e) => ({
+            ...e,
+            userId: ctx.user.id,
+            orgId: input.orgId,
+            userAgent: undefined,
+          }))
+        );
+        return { ok: true };
+      }),
+
+    // Query events for a specific org (admin only)
+    list: protectedProcedure
+      .input(
+        z.object({
+          orgId: z.number(),
+          userId: z.number().optional(),
+          courseId: z.number().optional(),
+          eventType: z.string().optional(),
+          dateFrom: z.string().optional(),
+          dateTo: z.string().optional(),
+          limit: z.number().default(200),
+          offset: z.number().default(0),
+        })
+      )
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const { getActivityEventsByOrg } = await import("./lmsDb");
+        return getActivityEventsByOrg(input.orgId, {
+          userId: input.userId,
+          courseId: input.courseId,
+          eventType: input.eventType,
+          dateFrom: input.dateFrom ? new Date(input.dateFrom) : undefined,
+          dateTo: input.dateTo ? new Date(input.dateTo) : undefined,
+          limit: input.limit,
+          offset: input.offset,
+        });
+      }),
+
+    // Summary stats for a specific user
+    userSummary: protectedProcedure
+      .input(z.object({ orgId: z.number(), userId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const { getActivitySummaryByUser } = await import("./lmsDb");
+        return getActivitySummaryByUser(input.orgId, input.userId);
+      }),
+
+    // List all members who have activity
+    memberList: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const { getActivityMemberList } = await import("./lmsDb");
+        const userIds = await getActivityMemberList(input.orgId);
+        // Fetch user details for each
+        const { getUserById } = await import("./db");
+        const members = await Promise.all(
+          userIds.map(async (uid) => {
+            const u = await getUserById(uid);
+            return u ? { id: u.id, name: u.name, email: u.email } : null;
+          })
+        );
+        return members.filter(Boolean);
+      }),
+  }),
+
+  // ── Notification Settings ────────────────────────────────────────────────
+
+  notifications: router({
+    getOrgSettings: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const { getOrgNotificationSettings } = await import("./lmsDb");
+        return getOrgNotificationSettings(input.orgId);
+      }),
+
+    updateOrgSettings: protectedProcedure
+      .input(
+        z.object({
+          orgId: z.number(),
+          enrollment: z.boolean().optional(),
+          completion: z.boolean().optional(),
+          quizResult: z.boolean().optional(),
+          reminder: z.boolean().optional(),
+          announcement: z.boolean().optional(),
+          weeklyDigest: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const { updateOrgNotificationSettings } = await import("./lmsDb");
+        const { orgId, ...settings } = input;
+        return updateOrgNotificationSettings(orgId, settings);
+      }),
+
+    getCourseOverrides: protectedProcedure
+      .input(z.object({ courseId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const course = await getCourseById(input.courseId);
+        if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, course.orgId);
+        const { getCourseNotificationOverrides } = await import("./lmsDb");
+        return getCourseNotificationOverrides(input.courseId);
+      }),
+
+    updateCourseOverrides: protectedProcedure
+      .input(
+        z.object({
+          courseId: z.number(),
+          overrides: z.object({
+            enrollment: z.boolean().optional(),
+            completion: z.boolean().optional(),
+            quizResult: z.boolean().optional(),
+            reminder: z.boolean().optional(),
+          }).nullable(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const course = await getCourseById(input.courseId);
+        if (!course) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, course.orgId);
+        const { updateCourseNotificationOverrides } = await import("./lmsDb");
+        await updateCourseNotificationOverrides(input.courseId, input.overrides);
+        return { ok: true };
+      }),
+  }),
+
+  // ── Email Branding ───────────────────────────────────────────────────────
+
+  emailBranding: router({
+    get: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const { getOrgEmailBranding } = await import("./lmsDb");
+        return getOrgEmailBranding(input.orgId);
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          orgId: z.number(),
+          logoUrl: z.string().optional(),
+          primaryColor: z.string().optional(),
+          footerText: z.string().optional(),
+          senderName: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const { updateOrgEmailBranding } = await import("./lmsDb");
+        const { orgId, ...branding } = input;
+        return updateOrgEmailBranding(orgId, branding);
       }),
   }),
 

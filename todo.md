@@ -858,3 +858,44 @@
 ## Feature: Course URL Display in Settings
 - [x] Show full course URL (origin + /lms/courses/:slug) below slug field in Course Settings
 - [x] One-click copy button to copy the full URL to clipboard
+
+## Feature: Comprehensive Member Activity Tracking
+- [ ] Add member_activity_events table (eventType, userId, orgId, courseId, lessonId, pageUrl, metadata, sessionId, durationMs, createdAt)
+- [ ] Backend batch-insert procedure for activity events (fire-and-forget, no auth required for embed)
+- [ ] useActivityTracker hook: auto page view on route change, session heartbeat every 30s, video play/pause/complete, click tracking
+- [ ] Wire tracker into LMS DashboardLayout so it runs on every authenticated member page
+- [ ] Member Activity analytics page: per-member timeline, page views, video events, session durations
+- [ ] Admin can filter by member, date range, course, event type
+
+## Feature: Student Log Reports
+- [ ] member_activity_events table with full event taxonomy (page_view, video_play/pause/complete, session_heartbeat, lesson_start/complete, quiz_start/submit, click, download, enrollment, course_complete)
+- [ ] Batch-insert tRPC procedure for activity events (fire-and-forget)
+- [ ] useActivityTracker hook: auto page view, 30s heartbeat, video instrumentation, click tracking
+- [ ] Wire tracker into LMS DashboardLayout for all authenticated pages
+- [ ] Student Log Reports page: filterable by student, date range, course, event type
+- [ ] Per-student timeline view with event icons and timestamps
+- [ ] Summary stats: total time, pages visited, videos watched, lessons completed
+- [ ] CSV export of raw event log
+
+## Feature: Email Templates Editor (Org Settings)
+- [ ] email_templates table: orgId, templateKey (welcome, enrollment, completion, quiz_result, reminder, announcement), subject, htmlBody, isEnabled, logoUrl, primaryColor, footerText
+- [ ] Backend CRUD procedures for email templates
+- [ ] Email Templates tab in Org Settings with template list
+- [ ] Rich HTML editor for each template with variable placeholders ({{firstName}}, {{courseName}}, etc.)
+- [ ] Theme customization: primary color, logo upload, footer text
+- [ ] Live email preview panel (rendered HTML)
+
+## Feature: Notification Toggles (Org-wide + Per-course)
+- [ ] Add notificationSettings JSON column to org_themes (or organizations): toggles for enrollment, completion, quiz_result, reminder, announcement
+- [ ] Add courseNotificationOverrides JSON column to courses table
+- [ ] Notifications tab in Org Settings: org-wide on/off toggles per notification type
+- [ ] Notification overrides section in Course Settings: inherit from org or override per course
+- [ ] Backend procedures to get/update org notification settings and course overrides
+
+## Feature: Web Design Blocks in Course Lesson Content
+- [ ] Background Image Section block (full-width section with bg image, overlay, text overlay)
+- [ ] Banner Image block (image with optional caption and link)
+- [ ] CTA Section block (headline, subtext, primary button, secondary button, background color)
+- [ ] Button block (single styled button with URL, style variants: primary/secondary/outline/ghost)
+- [ ] Pre-formatted List blocks: Checklist (checkmarks), Icon List (custom icons), Numbered Steps, Feature Grid
+- [ ] All new blocks available in PageBuilder block library and renderable in lesson content

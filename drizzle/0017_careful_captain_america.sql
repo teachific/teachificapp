@@ -1,0 +1,20 @@
+CREATE TABLE `member_activity_events` (
+	`id` bigint AUTO_INCREMENT NOT NULL,
+	`userId` int,
+	`orgId` int,
+	`sessionKey` varchar(64),
+	`eventType` enum('page_view','page_exit','session_start','session_heartbeat','session_end','video_play','video_pause','video_seek','video_complete','video_progress','lesson_start','lesson_complete','quiz_start','quiz_submit','download','link_click','button_click','search','enrollment','course_complete') NOT NULL,
+	`pageUrl` varchar(2048),
+	`pageTitle` varchar(500),
+	`courseId` int,
+	`lessonId` int,
+	`quizId` int,
+	`durationMs` int,
+	`videoPositionSec` float,
+	`videoDurationSec` float,
+	`metadata` text,
+	`userAgent` varchar(512),
+	`referrer` varchar(2048),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `member_activity_events_id` PRIMARY KEY(`id`)
+);
