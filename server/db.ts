@@ -91,6 +91,28 @@ export async function getUserByEmail(email: string) {
   return result[0];
 }
 
+export async function createManualUser(data: {
+  openId: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  role: "site_admin" | "org_admin" | "user";
+  loginMethod: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  await db.insert(users).values({
+    openId: data.openId,
+    name: data.name,
+    email: data.email,
+    passwordHash: data.passwordHash,
+    role: data.role,
+    loginMethod: data.loginMethod,
+    emailVerified: true,
+    lastSignedIn: new Date(),
+  });
+}
+
 export async function getAllUsers() {
   const db = await getDb();
   if (!db) return [];

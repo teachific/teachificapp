@@ -10,10 +10,11 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Search, Users, BookOpen, TrendingUp, Download, UserPlus,
-  ChevronDown, ChevronUp, MoreVertical
+  ChevronDown, ChevronUp, MoreVertical, Eye, EyeOff, Plus
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -30,6 +31,15 @@ export default function MembersPage() {
   const [enrollEmail, setEnrollEmail] = useState("");
   const [enrollCourseId, setEnrollCourseId] = useState<string>("");
 
+  // Add Member dialog state
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [addForm, setAddForm] = useState({
+    name: "", email: "", password: "",
+    role: "user" as "org_admin" | "user",
+    courseIds: [] as number[],
+  });
+  const [showAddPassword, setShowAddPassword] = useState(false);
+
   const { data: orgs } = trpc.orgs.myOrgs.useQuery();
   const orgId = orgs?.[0]?.id;
 
@@ -42,6 +52,16 @@ export default function MembersPage() {
     { orgId: orgId! },
     { enabled: !!orgId }
   );
+
+  const createAndAdd = trpc.lms.members.createAndAdd.useMutation({
+    onSuccess: () => {
+      toast.success("Member added successfully");
+      setAddMemberOpen(false);
+      setAddForm({ name: "", email: "", password: "", role: "user", courseIds: [] });
+      refetch();
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   const manualEnroll = trpc.lms.members.manualEnroll.useMutation({
     onSuccess: () => {
@@ -123,8 +143,11 @@ export default function MembersPage() {
           <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5">
             <Download className="h-4 w-4" /> Export CSV
           </Button>
-          <Button size="sm" onClick={() => setEnrollDialogOpen(true)} className="gap-1.5">
-            <UserPlus className="h-4 w-4" /> Enroll Student
+          <Button variant="outline" size="sm" onClick={() => setEnrollDialogOpen(true)} className="gap-1.5">
+            <UserPlus className="h-4 w-4" /> Enroll Existing
+          </Button>
+          <Button size="sm" onClick={() => setAddMemberOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" /> Add Member
           </Button>
         </div>
       </div>
@@ -373,6 +396,113 @@ export default function MembersPage() {
               }}
             >
               {manualEnroll.isPending ? "Enrolling..." : "Enroll"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Member Dialog */}
+      <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" /> Add New Member
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label>Full Name <span className="text-destructive">*</span></Label>
+                <Input
+                  placeholder="Jane Smith"
+                  value={addForm.name}
+                  onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label>Email Address <span className="text-destructive">*</span></Label>
+                <Input
+                  type="email"
+                  placeholder="jane@example.com"
+                  value={addForm.email}
+                  onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
+                />
+              </div>
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label>Temporary Password <span className="text-destructive">*</span></Label>
+                <div className="relative">
+                  <Input
+                    type={showAddPassword ? "text" : "password"}
+                    placeholder="Min. 6 characters"
+                    value={addForm.password}
+                    onChange={(e) => setAddForm((f) => ({ ...f, password: e.target.value }))}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowAddPassword((v) => !v)}
+                  >
+                    {showAddPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Role</Label>
+                <Select value={addForm.role} onValueChange={(v) => setAddForm((f) => ({ ...f, role: v as any }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Student</SelectItem>
+                    <SelectItem value="org_admin">Org Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {courses && courses.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <Label>Enroll in Courses (optional)</Label>
+                <div className="rounded-lg border border-border/60 divide-y divide-border/40 max-h-48 overflow-y-auto">
+                  {courses.map((c) => (
+                    <label key={c.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/30">
+                      <Checkbox
+                        checked={addForm.courseIds.includes(c.id)}
+                        onCheckedChange={(checked) =>
+                          setAddForm((f) => ({
+                            ...f,
+                            courseIds: checked
+                              ? [...f.courseIds, c.id]
+                              : f.courseIds.filter((id) => id !== c.id),
+                          }))
+                        }
+                      />
+                      <span className="text-sm">{c.title}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddMemberOpen(false)}>Cancel</Button>
+            <Button
+              disabled={!addForm.name || !addForm.email || !addForm.password || createAndAdd.isPending || !orgId}
+              onClick={() => {
+                if (!orgId) return;
+                createAndAdd.mutate({
+                  orgId,
+                  name: addForm.name,
+                  email: addForm.email,
+                  password: addForm.password,
+                  role: addForm.role,
+                  courseIds: addForm.courseIds.length > 0 ? addForm.courseIds : undefined,
+                });
+              }}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              {createAndAdd.isPending ? "Adding..." : "Add Member"}
             </Button>
           </DialogFooter>
         </DialogContent>

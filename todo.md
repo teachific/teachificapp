@@ -1014,3 +1014,16 @@
 - [x] Add "Reports" button/link inside WebinarsPage → /lms/webinars/reports
 - [x] Add report links to AnalyticsPage (Downloads Reports, Webinar Reports, Activity Log)
 - [x] Keep final nav order: Dashboard, Media Library, [CONTENT: Courses, Digital Downloads, Webinars], Members, [ADMINISTRATION: Organizations, Users, Analytics, Branding, Custom Pages, Email Marketing, Settings]
+
+## User Management Enhancements (Apr 2, 2026)
+- [x] Backend: createUser procedure (name, email, password, role, orgId)
+- [x] Backend: updateUser procedure (role, org assignment, name, email)
+- [x] Backend: listUsersWithOrg procedure (includes org name column, searchable by org for platform admins)
+- [x] Backend: assignUserToOrg procedure (platform admin only)
+- [x] Backend: enrollUserInCourses procedure (bulk enroll user in selected courses)
+- [x] AdminUsersPage: Add User button + dialog (name, email, temp password, role, org assignment for platform admins)
+- [x] AdminUsersPage: Edit User sheet/dialog (role, org, enroll in courses)
+- [x] AdminUsersPage: search includes organization column for platform admins
+- [x] AdminUsersPage: org filter dropdown for platform admins
+- [x] MembersPage: Add Member button + dialog (name, email, role, course enrollment)
+- [x] MembersPage: Edit Member sheet (role change, course enrollment)

@@ -1023,6 +1023,49 @@ export const lmsRouter = router({
         const { getMembersWithEnrollments } = await import("./lmsDb");
         return getMembersWithEnrollments(input.orgId);
       }),
+    // Org admin creates a new user and adds them to the org, optionally enrolling in courses
+    createAndAdd: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        name: z.string().min(1),
+        email: z.string().email(),
+        password: z.string().min(6),
+        role: z.enum(["org_admin", "user"]).default("user"),
+        courseIds: z.array(z.number()).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        const { getUserByEmail, createManualUser, addOrgMember, getOrgMember: getOrgMemberDb, updateOrgMemberRole } = await import("./db");
+        const existing = await getUserByEmail(input.email);
+        let userId: number;
+        if (existing) {
+          userId = existing.id;
+        } else {
+          const bcrypt = await import("bcryptjs");
+          const { nanoid: nid } = await import("nanoid");
+          const passwordHash = await bcrypt.default.hash(input.password, 10);
+          const openId = `manual_${nid(20)}`;
+          await createManualUser({ openId, name: input.name, email: input.email, loginMethod: "email", role: input.role === "org_admin" ? "org_admin" : "user", passwordHash });
+          const newUser = await getUserByEmail(input.email);
+          if (!newUser) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create user" });
+          userId = newUser.id;
+        }
+        const existingMember = await getOrgMemberDb(input.orgId, userId);
+        if (existingMember) {
+          await updateOrgMemberRole(input.orgId, userId, input.role);
+        } else {
+          await addOrgMember(input.orgId, userId, input.role);
+        }
+        if (input.courseIds && input.courseIds.length > 0) {
+          for (const courseId of input.courseIds) {
+            const existingEnroll = await getEnrollment(courseId, userId);
+            if (!existingEnroll) {
+              await createEnrollment({ courseId, userId, orgId: input.orgId, amountPaid: 0 });
+            }
+          }
+        }
+        return { success: true, userId };
+      }),
     manualEnroll: protectedProcedure
       .input(z.object({
         orgId: z.number(),

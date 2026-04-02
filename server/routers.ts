@@ -28,6 +28,7 @@ import {
   getPermissions,
   getPlaySession,
   getPlaySessionsByPackage,
+  getUserByEmail,
   getUserById,
   getUserPlayCount,
   getVersionById,
@@ -60,6 +61,7 @@ import {
   updateOrg,
   deleteOrg,
   upsertUser,
+  createManualUser,
   getDb,
 } from "./db";
 import { courseEnrollments, organizations, orgMembers } from "../drizzle/schema";
@@ -142,7 +144,62 @@ export const appRouter = router({
   // ── Users (admin) ─────────────────────────────────────────────────────────
   users: router({
     list: adminProcedure.query(() => getAllUsers()),
+    // Returns users with their primary org name — for platform admin search/filter
+    listWithOrg: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      const allUsers = await getAllUsers();
+      const memberships = await db
+        .select({ userId: orgMembers.userId, orgName: organizations.name, orgId: organizations.id })
+        .from(orgMembers)
+        .innerJoin(organizations, eq(orgMembers.orgId, organizations.id));
+      const orgByUser = new Map<number, { orgName: string; orgId: number }>();
+      for (const m of memberships) {
+        if (!orgByUser.has(m.userId)) orgByUser.set(m.userId, { orgName: m.orgName, orgId: m.orgId });
+      }
+      return allUsers.map((u) => ({
+        ...u,
+        orgName: orgByUser.get(u.id)?.orgName ?? null,
+        orgId: orgByUser.get(u.id)?.orgId ?? null,
+      }));
+    }),
     get: adminProcedure.input(z.object({ id: z.number() })).query(({ input }) => getUserById(input.id)),
+    // Create a new user manually (platform admin)
+    create: adminProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        password: z.string().min(6),
+        role: z.enum(["site_admin", "org_admin", "user"]).default("user"),
+        orgId: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const existing = await getUserByEmail(input.email);
+        if (existing) throw new TRPCError({ code: "CONFLICT", message: "A user with that email already exists" });
+        const bcrypt = await import("bcryptjs");
+        const passwordHash = await bcrypt.default.hash(input.password, 10);
+        const openId = `manual_${nanoid(20)}`;
+        await createManualUser({ openId, name: input.name, email: input.email, loginMethod: "email", role: input.role, passwordHash });
+        const newUser = await getUserByEmail(input.email);
+        if (!newUser) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create user" });
+        if (input.orgId) {
+          const orgRole = input.role === "org_admin" ? "org_admin" : "user";
+          await addOrgMember(input.orgId, newUser.id, orgRole);
+        }
+        return newUser;
+      }),
+    // Assign a user to an org (platform admin only)
+    assignToOrg: adminProcedure
+      .input(z.object({ userId: z.number(), orgId: z.number(), orgRole: z.enum(["org_admin", "user"]).default("user") }))
+      .mutation(async ({ input }) => {
+        const existing = await getOrgMember(input.orgId, input.userId);
+        if (existing) {
+          await updateOrgMemberRole(input.orgId, input.userId, input.orgRole);
+        } else {
+          await addOrgMember(input.orgId, input.userId, input.orgRole);
+        }
+        return { success: true };
+      }),
     updateRole: ownerProcedure
       .input(z.object({ userId: z.number(), role: z.enum(["site_owner", "site_admin", "org_admin", "user"]) }))
       .mutation(({ input }) => updateUserRole(input.userId, input.role)),
