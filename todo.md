@@ -1080,3 +1080,7 @@
 - [x] /integrations/webhooks - Webhook configuration
 - [x] /profile - My Profile page
 - [x] /billing - Billing page
+
+## Analytics Nav Sub-items (Apr 2, 2026)
+- [x] Add Downloads Reports link under Analytics in sidebar → /admin/downloads/reports
+- [x] Add Webinar Reports link under Analytics in sidebar → /lms/webinars/reports
