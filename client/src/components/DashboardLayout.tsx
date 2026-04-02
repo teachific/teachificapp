@@ -25,14 +25,12 @@ import {
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
-  Activity,
   BarChart3,
   BookOpen,
   Building2,
   ChevronRight,
   Download,
   FileText,
-  GraduationCap,
   LayoutDashboard,
   Library,
   LogOut,
@@ -42,7 +40,6 @@ import {
   Settings,
   Crown,
   ShieldCheck,
-  TrendingUp,
   User,
   Users,
   Video,
@@ -56,11 +53,21 @@ const navGroups = [
   {
     label: "",
     items: [
-      { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+      { icon: LayoutDashboard, label: "Dashboard", path: "/lms" },
       { icon: Library, label: "Media Library", path: "/media-library" },
-      { icon: LayoutDashboard, label: "LMS Dashboard", path: "/lms" },
-      { icon: GraduationCap, label: "My Courses", path: "/lms/my-courses" },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
       { icon: BookOpen, label: "Courses", path: "/lms/courses" },
+      { icon: Download, label: "Digital Downloads", path: "/admin/downloads" },
+      { icon: Video, label: "Webinars", path: "/lms/webinars" },
+    ],
+  },
+  {
+    label: "People",
+    items: [
       { icon: Users, label: "Members", path: "/lms/members" },
     ],
   },
@@ -73,12 +80,7 @@ const navGroups = [
       { icon: BarChart3, label: "Analytics", path: "/lms/analytics" },
       { icon: Palette, label: "Branding", path: "/lms/branding" },
       { icon: FileText, label: "Custom Pages", path: "/lms/custom-pages" },
-      { icon: Download, label: "Digital Downloads", path: "/admin/downloads" },
-      { icon: TrendingUp, label: "Downloads Reports", path: "/admin/downloads/reports" },
-      { icon: Video, label: "Webinars", path: "/lms/webinars" },
-      { icon: BarChart3, label: "Webinar Reports", path: "/lms/webinars/reports" },
       { icon: Mail, label: "Email Marketing", path: "/lms/email-marketing" },
-      { icon: Activity, label: "Activity Log", path: "/lms/activity" },
     ],
   },
   {

@@ -1002,3 +1002,15 @@
 - [x] Show locked overlay in main content area with link to prerequisite lesson
 - [x] Block handleLessonClick for locked lessons with toast error naming the blocking lesson
 - [x] Save checkpoint
+
+## Sidebar Navigation Cleanup (Apr 2, 2026)
+- [x] Merge "Dashboard" + "LMS Dashboard" into single "Dashboard" → /lms
+- [x] Remove "My Courses" from sidebar top group (learner view accessible from Dashboard or Courses)
+- [x] Group content items together: Courses, Digital Downloads, Webinars (in that order, under a CONTENT section label)
+- [x] Remove "Downloads Reports" from sidebar
+- [x] Remove "Webinar Reports" from sidebar
+- [x] Remove "Activity Log" from sidebar (link from Analytics page instead)
+- [x] Add "Reports" button/link inside DigitalProductsPage → /admin/downloads/reports
+- [x] Add "Reports" button/link inside WebinarsPage → /lms/webinars/reports
+- [x] Add report links to AnalyticsPage (Downloads Reports, Webinar Reports, Activity Log)
+- [x] Keep final nav order: Dashboard, Media Library, [CONTENT: Courses, Digital Downloads, Webinars], Members, [ADMINISTRATION: Organizations, Users, Analytics, Branding, Custom Pages, Email Marketing, Settings]

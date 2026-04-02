@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,7 @@ function slugify(str: string) {
 
 export default function WebinarsPage() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -119,6 +120,10 @@ export default function WebinarsPage() {
                 </SelectContent>
               </Select>
             )}
+            <Button variant="outline" onClick={() => navigate(`/lms/webinars/reports${effectiveOrgId ? `?orgId=${effectiveOrgId}` : ``}`)}>
+              <BarChart2 className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Reports</span>
+            </Button>
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               New Webinar

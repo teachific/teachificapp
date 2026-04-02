@@ -91,7 +91,7 @@ function AdminRouter() {
     <DashboardLayout>
       <Switch>
         {/* Main */}
-        <Route path="/" component={Dashboard} />
+        <Route path="/">{() => { window.location.replace("/lms"); return null; }}</Route>
         <Route path="/media-library" component={MediaLibraryPage} />
         {/* Legacy routes — redirect to media library with correct tab */}
         <Route path="/upload">{() => { window.location.replace("/media-library#upload"); return null; }}</Route>
