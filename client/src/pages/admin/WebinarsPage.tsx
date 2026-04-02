@@ -1,0 +1,348 @@
+import { useState } from "react";
+import { Link } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
+import DashboardLayout from "@/components/DashboardLayout";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Plus,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Video,
+  Users,
+  Globe,
+  EyeOff,
+  ExternalLink,
+  BarChart2,
+} from "lucide-react";
+import { toast } from "sonner";
+
+function slugify(str: string) {
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export default function WebinarsPage() {
+  const { user } = useAuth();
+  const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [form, setForm] = useState({ title: "", slug: "", type: "evergreen" as "live" | "evergreen" });
+
+  const { data: orgs } = trpc.orgs.list.useQuery(undefined, { enabled: !!user });
+  const effectiveOrgId = selectedOrgId ?? orgs?.[0]?.id ?? null;
+
+  const { data: webinars, refetch } = trpc.lms.webinars.list.useQuery(
+    { orgId: effectiveOrgId! },
+    { enabled: !!effectiveOrgId }
+  );
+
+  const createMutation = trpc.lms.webinars.create.useMutation({
+    onSuccess: (w) => {
+      setCreateOpen(false);
+      setForm({ title: "", slug: "", type: "evergreen" });
+      refetch();
+      toast.success("Webinar created");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteMutation = trpc.lms.webinars.delete.useMutation({
+    onSuccess: () => { setDeleteId(null); refetch(); toast.success("Webinar deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const togglePublish = trpc.lms.webinars.update.useMutation({
+    onSuccess: () => { refetch(); toast.success("Updated"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <DashboardLayout>
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Webinars</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Create live and evergreen on-demand webinars with sales funnels.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {orgs && orgs.length > 1 && (
+              <Select
+                value={String(effectiveOrgId ?? "")}
+                onValueChange={(v) => setSelectedOrgId(Number(v))}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select org" />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgs.map((o) => (
+                    <SelectItem key={o.id} value={String(o.id)}>
+                      {o.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Webinar
+            </Button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Registrations</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {!webinars || webinars.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-16 text-muted-foreground">
+                    <Video className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">No webinars yet</p>
+                    <p className="text-sm mt-1">Create your first webinar to get started.</p>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                webinars.map((w) => (
+                  <TableRow key={w.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {w.thumbnailUrl ? (
+                          <img
+                            src={w.thumbnailUrl}
+                            alt={w.title}
+                            className="w-10 h-10 rounded object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
+                            <Video className="w-5 h-5 text-primary" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium">{w.title}</p>
+                          <p className="text-xs text-muted-foreground">/{w.slug}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {w.type === "live" ? "🔴 Live" : "♻️ Evergreen"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {w.isPublished ? (
+                        <Badge className="bg-green-100 text-green-700 border-green-200">
+                          <Globe className="w-3 h-3 mr-1" />
+                          Published
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          <EyeOff className="w-3 h-3 mr-1" />
+                          Draft
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Users className="w-3.5 h-3.5" />
+                        —
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/lms/webinars/${w.id}/edit`}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/lms/webinars/${w.id}/reports`}>
+                              <BarChart2 className="w-4 h-4 mr-2" />
+                              Reports
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              togglePublish.mutate({ id: w.id, isPublished: !w.isPublished })
+                            }
+                          >
+                            {w.isPublished ? (
+                              <><EyeOff className="w-4 h-4 mr-2" />Unpublish</>
+                            ) : (
+                              <><Globe className="w-4 h-4 mr-2" />Publish</>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <a
+                              href={`/webinar/${w.slug}/register`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              View Registration Page
+                            </a>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => setDeleteId(w.id)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Create Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Webinar</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Title</Label>
+              <Input
+                value={form.title}
+                onChange={(e) => {
+                  const title = e.target.value;
+                  setForm((f) => ({ ...f, title, slug: slugify(title) }));
+                }}
+                placeholder="My Awesome Webinar"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>URL Slug</Label>
+              <Input
+                value={form.slug}
+                onChange={(e) => setForm((f) => ({ ...f, slug: slugify(e.target.value) }))}
+                placeholder="my-awesome-webinar"
+              />
+              <p className="text-xs text-muted-foreground">
+                /webinar/<strong>{form.slug || "slug"}</strong>/register
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Select
+                value={form.type}
+                onValueChange={(v) => setForm((f) => ({ ...f, type: v as "live" | "evergreen" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="evergreen">♻️ Evergreen (on-demand replay)</SelectItem>
+                  <SelectItem value="live">🔴 Live (scheduled)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!form.title.trim() || !form.slug.trim()) {
+                  toast.error("Title and slug are required");
+                  return;
+                }
+                if (!effectiveOrgId) { toast.error("No org selected"); return; }
+                createMutation.mutate({ orgId: effectiveOrgId, ...form });
+              }}
+              disabled={createMutation.isPending}
+            >
+              Create Webinar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Webinar?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will permanently delete the webinar, all registrations, and session data. This
+            cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteId && deleteMutation.mutate({ id: deleteId })}
+              disabled={deleteMutation.isPending}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </DashboardLayout>
+  );
+}

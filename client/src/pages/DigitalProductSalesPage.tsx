@@ -1,0 +1,422 @@
+import { useState } from "react";
+import { useParams } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Download, ShieldCheck, Clock, RefreshCw, Package, Check, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+// ─── Block renderer (simplified for sales page) ────────────────────────────────
+function renderBlock(block: any, idx: number) {
+  const d = block.data || {};
+  switch (block.type) {
+    case "banner":
+      return (
+        <div
+          key={block.id}
+          className="relative w-full py-20 px-8 text-center overflow-hidden"
+          style={{
+            background: d.backgroundType === "image" && d.backgroundImage
+              ? `url(${d.backgroundImage}) center/cover no-repeat`
+              : (d.backgroundColor || "#15a4b7"),
+          }}
+        >
+          {d.backgroundType === "image" && (
+            <div className="absolute inset-0 bg-black/40" />
+          )}
+          <div className="relative z-10">
+            {d.headline && <h1 className="text-4xl font-bold text-white mb-4">{d.headline}</h1>}
+            {d.subheadline && <p className="text-xl text-white/90 mb-6">{d.subheadline}</p>}
+          </div>
+        </div>
+      );
+    case "text_media":
+      return (
+        <div key={block.id} className="max-w-4xl mx-auto px-6 py-12 grid md:grid-cols-2 gap-8 items-center">
+          <div>
+            {d.heading && <h2 className="text-2xl font-bold mb-3">{d.heading}</h2>}
+            {d.text && <div className="prose prose-sm" dangerouslySetInnerHTML={{ __html: d.text }} />}
+          </div>
+          {d.imageUrl && (
+            <img src={d.imageUrl} alt={d.heading || ""} className="rounded-lg w-full object-cover" />
+          )}
+        </div>
+      );
+    case "cta":
+      return (
+        <div
+          key={block.id}
+          className="py-16 px-8 text-center"
+          style={{ background: d.backgroundColor || "#f8fafc" }}
+        >
+          {d.headline && <h2 className="text-3xl font-bold mb-3">{d.headline}</h2>}
+          {d.subtext && <p className="text-muted-foreground mb-6">{d.subtext}</p>}
+        </div>
+      );
+    case "checklist":
+      return (
+        <div key={block.id} className="max-w-2xl mx-auto px-6 py-10">
+          {d.heading && <h2 className="text-2xl font-bold mb-6 text-center">{d.heading}</h2>}
+          <ul className="space-y-3">
+            {(d.items || []).map((item: string, i: number) => (
+              <li key={i} className="flex items-start gap-3">
+                <Check className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    case "testimonials":
+      return (
+        <div key={block.id} className="max-w-4xl mx-auto px-6 py-12">
+          {d.heading && <h2 className="text-2xl font-bold mb-8 text-center">{d.heading}</h2>}
+          <div className="grid md:grid-cols-2 gap-6">
+            {(d.testimonials || []).map((t: any, i: number) => (
+              <div key={i} className="border rounded-lg p-5 bg-muted/30">
+                <p className="italic mb-3">"{t.quote}"</p>
+                <p className="font-semibold text-sm">{t.name}</p>
+                {t.role && <p className="text-xs text-muted-foreground">{t.role}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    case "image":
+      return (
+        <div key={block.id} className="max-w-3xl mx-auto px-6 py-8 text-center">
+          {d.src && <img src={d.src} alt={d.alt || ""} className="rounded-lg w-full" />}
+          {d.caption && <p className="text-sm text-muted-foreground mt-2">{d.caption}</p>}
+        </div>
+      );
+    case "video":
+      return (
+        <div key={block.id} className="max-w-3xl mx-auto px-6 py-8">
+          {d.url && (
+            <div className="aspect-video rounded-lg overflow-hidden">
+              <iframe
+                src={d.url.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")}
+                className="w-full h-full"
+                allowFullScreen
+              />
+            </div>
+          )}
+        </div>
+      );
+    case "feature_grid":
+      return (
+        <div key={block.id} className="max-w-5xl mx-auto px-6 py-12">
+          {d.heading && <h2 className="text-2xl font-bold mb-8 text-center">{d.heading}</h2>}
+          <div className="grid md:grid-cols-3 gap-6">
+            {(d.features || []).map((f: any, i: number) => (
+              <div key={i} className="border rounded-lg p-5 text-center">
+                {f.icon && <div className="text-3xl mb-3">{f.icon}</div>}
+                <h3 className="font-semibold mb-2">{f.title}</h3>
+                <p className="text-sm text-muted-foreground">{f.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    default:
+      return null;
+  }
+}
+
+// ─── Checkout Dialog ───────────────────────────────────────────────────────────
+function CheckoutDialog({
+  open,
+  onClose,
+  product,
+  selectedPriceId,
+  onSuccess,
+}: {
+  open: boolean;
+  onClose: () => void;
+  product: any;
+  selectedPriceId: number;
+  onSuccess: (email: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
+
+  const createOrder = trpc.lms.downloads.createOrder.useMutation({
+    onSuccess: () => {
+      onSuccess(email);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleSubmit = () => {
+    if (!name.trim()) { toast.error("Please enter your name"); return; }
+    if (!email.trim() || !email.includes("@")) { toast.error("Please enter a valid email"); return; }
+    if (email !== confirmEmail) { toast.error("Emails do not match"); return; }
+    createOrder.mutate({ productId: product.id, priceId: selectedPriceId, buyerName: name, buyerEmail: email });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Complete Your Purchase</DialogTitle>
+          <DialogDescription>
+            Enter your details to receive your download link by email.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label>Full Name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Smith" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Email Address</Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="jane@example.com"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Confirm Email</Label>
+            <Input
+              type="email"
+              value={confirmEmail}
+              onChange={(e) => setConfirmEmail(e.target.value)}
+              placeholder="jane@example.com"
+            />
+          </div>
+          <div className="p-3 bg-muted/40 rounded-lg text-sm text-muted-foreground">
+            <ShieldCheck className="w-4 h-4 inline mr-1 text-primary" />
+            Your download link will be sent to your email immediately after purchase.
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={createOrder.isPending}>
+            {createOrder.isPending ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing…</>
+            ) : (
+              "Complete Purchase"
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Success Screen ────────────────────────────────────────────────────────────
+function SuccessScreen({ email, productTitle }: { email: string; productTitle: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center p-8">
+      <div className="max-w-md text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+          <Check className="w-8 h-8 text-green-600" />
+        </div>
+        <h1 className="text-2xl font-bold">Purchase Complete!</h1>
+        <p className="text-muted-foreground">
+          Thank you for purchasing <strong>{productTitle}</strong>. A download link has been sent to{" "}
+          <strong>{email}</strong>. Please check your inbox (and spam folder).
+        </p>
+        <p className="text-sm text-muted-foreground">
+          The download link is unique to your purchase and may have time or download limits.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Sales Page ───────────────────────────────────────────────────────────
+export default function DigitalProductSalesPage() {
+  const { slug } = useParams<{ slug: string }>();
+  const [selectedPriceId, setSelectedPriceId] = useState<number | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [successEmail, setSuccessEmail] = useState<string | null>(null);
+
+  const { data: product, isLoading } = trpc.lms.downloads.getProductBySlug.useQuery({ slug });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-8 text-center">
+        <div>
+          <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-40" />
+          <h1 className="text-2xl font-bold mb-2">Product Not Found</h1>
+          <p className="text-muted-foreground">This product may no longer be available.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (successEmail) {
+    return <SuccessScreen email={successEmail} productTitle={product.title} />;
+  }
+
+  const prices = product.prices || [];
+  const activePrices = prices.filter((p: any) => p.isActive);
+  const effectivePriceId = selectedPriceId ?? activePrices[0]?.id ?? null;
+
+  let salesPageBlocks: any[] = [];
+  try {
+    salesPageBlocks = product.salesPageBlocksJson
+      ? JSON.parse(product.salesPageBlocksJson as string)
+      : [];
+    if (!Array.isArray(salesPageBlocks)) salesPageBlocks = [];
+  } catch {
+    salesPageBlocks = [];
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Hero / Sales Page Blocks */}
+      {salesPageBlocks.length > 0 ? (
+        <div>{salesPageBlocks.map((b, i) => renderBlock(b, i))}</div>
+      ) : (
+        <div className="py-20 px-8 text-center bg-gradient-to-br from-primary/10 to-primary/5">
+          {product.thumbnailUrl && (
+            <img
+              src={product.thumbnailUrl}
+              alt={product.title}
+              className="w-32 h-32 object-cover rounded-xl mx-auto mb-6 shadow-lg"
+            />
+          )}
+          <h1 className="text-4xl font-bold mb-4">{product.title}</h1>
+          {product.description && (
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{product.description}</p>
+          )}
+        </div>
+      )}
+
+      {/* Pricing + Buy Section */}
+      <div className="max-w-2xl mx-auto px-6 py-16">
+        <div className="border rounded-2xl p-8 shadow-sm">
+          <h2 className="text-2xl font-bold mb-2 text-center">Get Instant Access</h2>
+          <p className="text-muted-foreground text-center mb-6">
+            Purchase once, download immediately.
+          </p>
+
+          {/* Access info */}
+          <div className="flex flex-wrap gap-4 justify-center mb-8 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <Download className="w-4 h-4 text-primary" />
+              {product.defaultMaxDownloads
+                ? `${product.defaultMaxDownloads} downloads included`
+                : "Unlimited downloads"}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-primary" />
+              {product.defaultAccessDays
+                ? `${product.defaultAccessDays}-day access`
+                : "Lifetime access"}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-primary" />
+              Secure download
+            </div>
+          </div>
+
+          {/* Price options */}
+          {activePrices.length > 1 && (
+            <div className="space-y-3 mb-6">
+              {activePrices.map((price: any) => (
+                <label
+                  key={price.id}
+                  className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
+                    effectivePriceId === price.id
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="price"
+                      value={price.id}
+                      checked={effectivePriceId === price.id}
+                      onChange={() => setSelectedPriceId(price.id)}
+                      className="accent-primary"
+                    />
+                    <div>
+                      <p className="font-medium">{price.label}</p>
+                      {price.type === "payment_plan" && price.installments && (
+                        <p className="text-xs text-muted-foreground">
+                          {price.installments} payments of ${price.installmentAmount} every {price.intervalDays} days
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-lg">
+                      ${Number(price.amount).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{price.currency}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+
+          {activePrices.length === 1 && (
+            <div className="text-center mb-6">
+              <p className="text-4xl font-bold">
+                ${Number(activePrices[0].amount).toFixed(2)}
+              </p>
+              <p className="text-muted-foreground text-sm">{activePrices[0].label}</p>
+            </div>
+          )}
+
+          {activePrices.length === 0 && (
+            <div className="text-center mb-6 text-muted-foreground">
+              <p>Pricing not yet available. Check back soon.</p>
+            </div>
+          )}
+
+          <Button
+            className="w-full h-12 text-base"
+            disabled={!effectivePriceId || activePrices.length === 0}
+            onClick={() => setCheckoutOpen(true)}
+          >
+            <Download className="w-5 h-5 mr-2" />
+            Buy Now — Get Instant Access
+          </Button>
+
+          <p className="text-center text-xs text-muted-foreground mt-4">
+            Download link sent to your email immediately after purchase.
+          </p>
+        </div>
+      </div>
+
+      {/* Checkout Dialog */}
+      {effectivePriceId && (
+        <CheckoutDialog
+          open={checkoutOpen}
+          onClose={() => setCheckoutOpen(false)}
+          product={product}
+          selectedPriceId={effectivePriceId}
+          onSuccess={(email) => {
+            setCheckoutOpen(false);
+            setSuccessEmail(email);
+          }}
+        />
+      )}
+    </div>
+  );
+}

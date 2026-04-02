@@ -915,3 +915,14 @@
 - [ ] Secure download: /api/download/:token endpoint with access control
 - [ ] Admin: Digital Downloads Reports (orders table, download logs, per-buyer access status)
 - [ ] Sidebar nav entry for Digital Downloads under admin section
+
+## Feature: Webinar Module
+- [ ] Webinar DB tables: webinars, webinar_registrations, webinar_sessions, webinar_funnel_steps
+- [ ] Backend tRPC procedures: webinar CRUD, registration, session tracking, funnel steps, AI viewer count
+- [ ] WebinarsPage admin list
+- [ ] WebinarEditorPage: details, video (upload/embed/Zoom/Teams), schedule, AI viewers, funnel builder
+- [ ] Public registration page /webinar/:slug/register with countdown timer and sales page blocks
+- [ ] Webinar room /webinar/:slug/watch: video player, AI viewer ticker, live chat, post-webinar offer overlay
+- [ ] Post-webinar funnel: CTA to product, custom URL, or thank-you page
+- [ ] Webinar Reports page: registrations, attendance, funnel conversion, drop-off
+- [ ] Wire routes and sidebar nav for webinars

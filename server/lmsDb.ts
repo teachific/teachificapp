@@ -20,6 +20,10 @@ import {
   digitalProductPrices,
   digitalOrders,
   digitalDownloadLogs,
+  webinars,
+  webinarRegistrations,
+  webinarSessions,
+  webinarFunnelSteps,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -934,4 +938,142 @@ export async function listDownloadLogsForOrder(orderId: number) {
 
 export async function updateOrderStatus(id: number, status: string, notes?: string) {
   await db.update(digitalOrders).set({ status, ...(notes !== undefined ? { notes } : {}) } as any).where(eq(digitalOrders.id, id));
+}
+
+// ─── Webinars ────────────────────────────────────────────────────────────────
+
+export async function getWebinarsByOrg(orgId: number) {
+  return db
+    .select()
+    .from(webinars)
+    .where(eq(webinars.orgId, orgId))
+    .orderBy(desc(webinars.createdAt));
+}
+
+export async function getWebinarById(id: number) {
+  const rows = await db.select().from(webinars).where(eq(webinars.id, id));
+  return rows[0] ?? null;
+}
+
+export async function getWebinarBySlug(orgId: number, slug: string) {
+  const rows = await db
+    .select()
+    .from(webinars)
+    .where(and(eq(webinars.orgId, orgId), eq(webinars.slug, slug)));
+  return rows[0] ?? null;
+}
+
+export async function getPublishedWebinarBySlug(slug: string) {
+  const rows = await db
+    .select()
+    .from(webinars)
+    .where(and(eq(webinars.slug, slug), eq(webinars.isPublished, true)));
+  return rows[0] ?? null;
+}
+
+export async function createWebinar(data: typeof webinars.$inferInsert) {
+  const result = await db.insert(webinars).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getWebinarById(Number(id));
+}
+
+export async function updateWebinar(id: number, data: Partial<typeof webinars.$inferInsert>) {
+  await db.update(webinars).set(data).where(eq(webinars.id, id));
+  return getWebinarById(id);
+}
+
+export async function deleteWebinar(id: number) {
+  await db.delete(webinarSessions).where(eq(webinarSessions.webinarId, id));
+  await db.delete(webinarRegistrations).where(eq(webinarRegistrations.webinarId, id));
+  await db.delete(webinarFunnelSteps).where(eq(webinarFunnelSteps.webinarId, id));
+  await db.delete(webinars).where(eq(webinars.id, id));
+}
+
+// ─── Webinar Registrations ───────────────────────────────────────────────────
+
+export async function getWebinarRegistrations(webinarId: number) {
+  return db
+    .select()
+    .from(webinarRegistrations)
+    .where(eq(webinarRegistrations.webinarId, webinarId))
+    .orderBy(desc(webinarRegistrations.registeredAt));
+}
+
+export async function getWebinarRegistrationByEmail(webinarId: number, email: string) {
+  const rows = await db
+    .select()
+    .from(webinarRegistrations)
+    .where(and(eq(webinarRegistrations.webinarId, webinarId), eq(webinarRegistrations.email, email)));
+  return rows[0] ?? null;
+}
+
+export async function createWebinarRegistration(data: typeof webinarRegistrations.$inferInsert) {
+  const result = await db.insert(webinarRegistrations).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  const rows = await db.select().from(webinarRegistrations).where(eq(webinarRegistrations.id, Number(id)));
+  return rows[0];
+}
+
+export async function updateWebinarRegistration(id: number, data: Partial<typeof webinarRegistrations.$inferInsert>) {
+  await db.update(webinarRegistrations).set(data).where(eq(webinarRegistrations.id, id));
+}
+
+// ─── Webinar Sessions ────────────────────────────────────────────────────────
+
+export async function createWebinarSession(data: typeof webinarSessions.$inferInsert) {
+  const result = await db.insert(webinarSessions).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  const rows = await db.select().from(webinarSessions).where(eq(webinarSessions.id, Number(id)));
+  return rows[0];
+}
+
+export async function getWebinarSessionByToken(token: string) {
+  const rows = await db.select().from(webinarSessions).where(eq(webinarSessions.sessionToken, token));
+  return rows[0] ?? null;
+}
+
+export async function updateWebinarSession(id: number, data: Partial<typeof webinarSessions.$inferInsert>) {
+  await db.update(webinarSessions).set(data).where(eq(webinarSessions.id, id));
+}
+
+export async function getWebinarSessions(webinarId: number) {
+  return db
+    .select()
+    .from(webinarSessions)
+    .where(eq(webinarSessions.webinarId, webinarId))
+    .orderBy(desc(webinarSessions.startedAt));
+}
+
+// ─── Webinar Funnel Steps ────────────────────────────────────────────────────
+
+export async function getWebinarFunnelSteps(webinarId: number) {
+  return db
+    .select()
+    .from(webinarFunnelSteps)
+    .where(eq(webinarFunnelSteps.webinarId, webinarId))
+    .orderBy(asc(webinarFunnelSteps.stepOrder));
+}
+
+export async function upsertWebinarFunnelSteps(webinarId: number, steps: typeof webinarFunnelSteps.$inferInsert[]) {
+  await db.delete(webinarFunnelSteps).where(eq(webinarFunnelSteps.webinarId, webinarId));
+  if (steps.length > 0) {
+    await db.insert(webinarFunnelSteps).values(steps.map((s, i) => ({ ...s, webinarId, stepOrder: i })));
+  }
+}
+
+// ─── Webinar Analytics ───────────────────────────────────────────────────────
+
+export async function getWebinarStats(webinarId: number) {
+  const registrations = await getWebinarRegistrations(webinarId);
+  const sessions = await getWebinarSessions(webinarId);
+  const attended = registrations.filter((r) => r.attended).length;
+  const converted = registrations.filter((r) => r.convertedAt).length;
+  const totalWatchSeconds = sessions.reduce((sum, s) => sum + (s.watchedSeconds ?? 0), 0);
+  return {
+    totalRegistrations: registrations.length,
+    attended,
+    converted,
+    conversionRate: registrations.length > 0 ? Math.round((converted / registrations.length) * 100) : 0,
+    avgWatchMinutes: sessions.length > 0 ? Math.round(totalWatchSeconds / sessions.length / 60) : 0,
+  };
 }

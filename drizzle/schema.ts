@@ -939,3 +939,99 @@ export type DigitalProduct = typeof digitalProducts.$inferSelect;
 export type DigitalProductPrice = typeof digitalProductPrices.$inferSelect;
 export type DigitalOrder = typeof digitalOrders.$inferSelect;
 export type DigitalDownloadLog = typeof digitalDownloadLogs.$inferSelect;
+
+// ─── Webinars ─────────────────────────────────────────────────────────────────
+export const webinars = mysqlTable("webinars", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull(),
+  description: text("description"),
+  // Type: live (scheduled) or evergreen (on-demand replay)
+  type: mysqlEnum("type", ["live", "evergreen"]).default("evergreen").notNull(),
+  // Video source
+  videoSource: mysqlEnum("videoSource", ["upload", "youtube", "vimeo", "zoom", "teams", "embed"]).default("youtube"),
+  videoUrl: text("videoUrl"),       // YouTube/Vimeo/embed URL
+  videoFileUrl: text("videoFileUrl"), // Uploaded video S3 URL
+  videoFileKey: text("videoFileKey"),
+  // Zoom/Teams integration
+  meetingUrl: text("meetingUrl"),   // Zoom/Teams join URL
+  meetingId: varchar("meetingId", { length: 128 }),
+  // Schedule (for live webinars)
+  scheduledAt: timestamp("scheduledAt"),
+  durationMinutes: int("durationMinutes").default(60),
+  timezone: varchar("timezone", { length: 64 }).default("America/New_York"),
+  // Evergreen replay settings
+  replayDelayMinutes: int("replayDelayMinutes").default(0), // delay before video starts
+  // AI viewer seeding
+  aiViewersEnabled: boolean("aiViewersEnabled").default(false),
+  aiViewersMin: int("aiViewersMin").default(50),
+  aiViewersMax: int("aiViewersMax").default(300),
+  aiViewersPeakAt: int("aiViewersPeakAt").default(30), // minutes into webinar
+  // Sales page
+  salesPageBlocksJson: json("salesPageBlocksJson"),
+  thumbnailUrl: text("thumbnailUrl"),
+  // Registration settings
+  requireRegistration: boolean("requireRegistration").default(true),
+  registrationFormFields: json("registrationFormFields"), // [{name, type, required}]
+  // Post-webinar funnel
+  postWebinarAction: mysqlEnum("postWebinarAction", ["product", "url", "thankyou", "none"]).default("none"),
+  postWebinarProductId: int("postWebinarProductId"), // digital product or course id
+  postWebinarUrl: text("postWebinarUrl"),
+  postWebinarMessage: text("postWebinarMessage"),
+  postWebinarDelaySeconds: int("postWebinarDelaySeconds").default(0),
+  // Status
+  isPublished: boolean("isPublished").default(false),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+export const webinarRegistrations = mysqlTable("webinar_registrations", {
+  id: int("id").autoincrement().primaryKey(),
+  webinarId: int("webinarId").notNull(),
+  orgId: int("orgId").notNull(),
+  firstName: varchar("firstName", { length: 128 }),
+  lastName: varchar("lastName", { length: 128 }),
+  email: varchar("email", { length: 320 }).notNull(),
+  phone: varchar("phone", { length: 32 }),
+  customFields: json("customFields"), // answers to extra registration form fields
+  registeredAt: timestamp("registeredAt").defaultNow().notNull(),
+  attended: boolean("attended").default(false),
+  watchedSeconds: int("watchedSeconds").default(0),
+  completedAt: timestamp("completedAt"),
+  convertedAt: timestamp("convertedAt"), // clicked post-webinar CTA
+  ipAddress: varchar("ipAddress", { length: 45 }),
+});
+
+export const webinarSessions = mysqlTable("webinar_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  webinarId: int("webinarId").notNull(),
+  registrationId: int("registrationId"),
+  sessionToken: varchar("sessionToken", { length: 128 }).notNull().unique(),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  lastHeartbeatAt: timestamp("lastHeartbeatAt").defaultNow(),
+  endedAt: timestamp("endedAt"),
+  watchedSeconds: int("watchedSeconds").default(0),
+  peakViewerCount: int("peakViewerCount").default(0),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: text("userAgent"),
+});
+
+export const webinarFunnelSteps = mysqlTable("webinar_funnel_steps", {
+  id: int("id").autoincrement().primaryKey(),
+  webinarId: int("webinarId").notNull(),
+  stepOrder: int("stepOrder").default(0),
+  stepType: mysqlEnum("stepType", ["registration", "confirmation", "reminder", "watch", "offer", "thankyou"]).notNull(),
+  title: varchar("title", { length: 255 }),
+  pageBlocksJson: json("pageBlocksJson"),
+  emailSubject: varchar("emailSubject", { length: 255 }),
+  emailBody: text("emailBody"),
+  triggerType: mysqlEnum("triggerType", ["immediate", "delay", "scheduled"]).default("immediate"),
+  triggerDelayMinutes: int("triggerDelayMinutes").default(0),
+  isActive: boolean("isActive").default(true),
+});
+
+export type Webinar = typeof webinars.$inferSelect;
+export type WebinarRegistration = typeof webinarRegistrations.$inferSelect;
+export type WebinarSession = typeof webinarSessions.$inferSelect;
+export type WebinarFunnelStep = typeof webinarFunnelSteps.$inferSelect;

@@ -79,6 +79,22 @@ import {
   listDownloadLogs,
   listDownloadLogsForOrder,
   updateOrderStatus,
+  getWebinarsByOrg,
+  getWebinarById,
+  getPublishedWebinarBySlug,
+  createWebinar,
+  updateWebinar,
+  deleteWebinar,
+  getWebinarRegistrations,
+  getWebinarRegistrationByEmail,
+  createWebinarRegistration,
+  updateWebinarRegistration,
+  createWebinarSession,
+  getWebinarSessionByToken,
+  updateWebinarSession,
+  getWebinarFunnelSteps,
+  upsertWebinarFunnelSteps,
+  getWebinarStats,
 } from "./lmsDb";
 import { copyCourse, copyLessonToSection, copySectionToCourse } from "./lmsDbCopy";
 import { nanoid } from "nanoid";
@@ -1386,6 +1402,251 @@ export const lmsRouter = router({
         const products = await listDigitalProducts(input.orgId);
         const allLogs = await Promise.all(products.map((p) => listDownloadLogs(p.id)));
         return allLogs.flat().sort((a, b) => new Date(b.downloadedAt!).getTime() - new Date(a.downloadedAt!).getTime());
+      }),
+  }),
+
+  // ── Webinars ─────────────────────────────────────────────────────────────
+  webinars: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId);
+        return getWebinarsByOrg(input.orgId);
+      }),
+
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const w = await getWebinarById(input.id);
+        if (!w) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, w.orgId);
+        return w;
+      }),
+
+    getBySlug: publicProcedure
+      .input(z.object({ slug: z.string() }))
+      .query(async ({ input }) => {
+        return getPublishedWebinarBySlug(input.slug);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        title: z.string(),
+        slug: z.string(),
+        type: z.enum(["live", "evergreen"]).default("evergreen"),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return createWebinar(input as any);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        slug: z.string().optional(),
+        description: z.string().nullish(),
+        type: z.enum(["live", "evergreen"]).optional(),
+        videoSource: z.enum(["upload", "youtube", "vimeo", "zoom", "teams", "embed"]).optional(),
+        videoUrl: z.string().nullish(),
+        videoFileUrl: z.string().nullish(),
+        videoFileKey: z.string().nullish(),
+        meetingUrl: z.string().nullish(),
+        meetingId: z.string().nullish(),
+        scheduledAt: z.string().nullish(),
+        durationMinutes: z.number().nullish(),
+        timezone: z.string().optional(),
+        replayDelayMinutes: z.number().optional(),
+        aiViewersEnabled: z.boolean().optional(),
+        aiViewersMin: z.number().optional(),
+        aiViewersMax: z.number().optional(),
+        aiViewersPeakAt: z.number().optional(),
+        salesPageBlocksJson: z.any().optional(),
+        thumbnailUrl: z.string().nullish(),
+        requireRegistration: z.boolean().optional(),
+        registrationFormFields: z.any().optional(),
+        postWebinarAction: z.enum(["product", "url", "thankyou", "none"]).optional(),
+        postWebinarProductId: z.number().nullish(),
+        postWebinarUrl: z.string().nullish(),
+        postWebinarMessage: z.string().nullish(),
+        postWebinarDelaySeconds: z.number().optional(),
+        isPublished: z.boolean().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, ...data } = input;
+        const w = await getWebinarById(id);
+        if (!w) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, w.orgId);
+        const updateData: any = { ...data };
+        if (data.scheduledAt) updateData.scheduledAt = new Date(data.scheduledAt);
+        return updateWebinar(id, updateData);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const w = await getWebinarById(input.id);
+        if (!w) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, w.orgId);
+        await deleteWebinar(input.id);
+        return { ok: true };
+      }),
+
+    // Funnel steps
+    getFunnelSteps: protectedProcedure
+      .input(z.object({ webinarId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const w = await getWebinarById(input.webinarId);
+        if (!w) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, w.orgId);
+        return getWebinarFunnelSteps(input.webinarId);
+      }),
+
+    saveFunnelSteps: protectedProcedure
+      .input(z.object({
+        webinarId: z.number(),
+        steps: z.array(z.object({
+          stepType: z.enum(["registration", "confirmation", "reminder", "watch", "offer", "thankyou"]),
+          title: z.string().optional(),
+          pageBlocksJson: z.any().optional(),
+          emailSubject: z.string().optional(),
+          emailBody: z.string().optional(),
+          triggerType: z.enum(["immediate", "delay", "scheduled"]).optional(),
+          triggerDelayMinutes: z.number().optional(),
+          isActive: z.boolean().optional(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const w = await getWebinarById(input.webinarId);
+        if (!w) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, w.orgId);
+        await upsertWebinarFunnelSteps(input.webinarId, input.steps as any);
+        return { ok: true };
+      }),
+
+    // Registration (public)
+    register: publicProcedure
+      .input(z.object({
+        webinarId: z.number(),
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        email: z.string().email(),
+        phone: z.string().optional(),
+        customFields: z.any().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const w = await getWebinarById(input.webinarId);
+        if (!w) throw new TRPCError({ code: "NOT_FOUND" });
+        // Upsert registration
+        const existing = await getWebinarRegistrationByEmail(input.webinarId, input.email);
+        if (existing) return { registration: existing, alreadyRegistered: true };
+        const reg = await createWebinarRegistration({
+          webinarId: input.webinarId,
+          orgId: w.orgId,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          email: input.email,
+          phone: input.phone,
+          customFields: input.customFields,
+          ipAddress: (ctx as any).req?.ip,
+        });
+        return { registration: reg, alreadyRegistered: false };
+      }),
+
+    // Start session (creates a session token for the watch page)
+    startSession: publicProcedure
+      .input(z.object({
+        webinarId: z.number(),
+        registrationId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const token = nanoid(32);
+        const session = await createWebinarSession({
+          webinarId: input.webinarId,
+          registrationId: input.registrationId,
+          sessionToken: token,
+          ipAddress: (ctx as any).req?.ip,
+          userAgent: (ctx as any).req?.headers?.['user-agent'],
+        });
+        return { sessionToken: token, sessionId: session?.id };
+      }),
+
+    // Heartbeat (updates watch time)
+    heartbeat: publicProcedure
+      .input(z.object({
+        sessionToken: z.string(),
+        watchedSeconds: z.number(),
+        currentViewerCount: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const session = await getWebinarSessionByToken(input.sessionToken);
+        if (!session) return { ok: false };
+        await updateWebinarSession(session.id, {
+          watchedSeconds: input.watchedSeconds,
+          lastHeartbeatAt: new Date(),
+          peakViewerCount: Math.max(session.peakViewerCount ?? 0, input.currentViewerCount ?? 0),
+        });
+        // Mark registration as attended if watched > 60s
+        if (session.registrationId && input.watchedSeconds > 60) {
+          await updateWebinarRegistration(session.registrationId, { attended: true, watchedSeconds: input.watchedSeconds });
+        }
+        return { ok: true };
+      }),
+
+    // Mark conversion (clicked post-webinar CTA)
+    markConverted: publicProcedure
+      .input(z.object({ registrationId: z.number() }))
+      .mutation(async ({ input }) => {
+        await updateWebinarRegistration(input.registrationId, { convertedAt: new Date() });
+        return { ok: true };
+      }),
+
+    // AI viewer count generator
+    getAiViewerCount: publicProcedure
+      .input(z.object({
+        webinarId: z.number(),
+        elapsedMinutes: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const w = await getWebinarById(input.webinarId);
+        if (!w || !w.aiViewersEnabled) return { count: 0 };
+        const min = w.aiViewersMin ?? 50;
+        const max = w.aiViewersMax ?? 300;
+        const peak = w.aiViewersPeakAt ?? 30;
+        const elapsed = input.elapsedMinutes;
+        const duration = w.durationMinutes ?? 60;
+        // Bell-curve style: ramp up to peak, then gradually decline
+        let ratio: number;
+        if (elapsed <= peak) {
+          ratio = elapsed / peak;
+        } else {
+          ratio = 1 - ((elapsed - peak) / (duration - peak)) * 0.4;
+        }
+        ratio = Math.max(0.1, Math.min(1, ratio));
+        const base = Math.round(min + (max - min) * ratio);
+        // Add small random jitter ±5%
+        const jitter = Math.round(base * 0.05 * (Math.random() * 2 - 1));
+        return { count: Math.max(1, base + jitter) };
+      }),
+
+    // Reports
+    getRegistrations: protectedProcedure
+      .input(z.object({ webinarId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const w = await getWebinarById(input.webinarId);
+        if (!w) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, w.orgId);
+        return getWebinarRegistrations(input.webinarId);
+      }),
+
+    getStats: protectedProcedure
+      .input(z.object({ webinarId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const w = await getWebinarById(input.webinarId);
+        if (!w) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, w.orgId);
+        return getWebinarStats(input.webinarId);
       }),
   }),
 

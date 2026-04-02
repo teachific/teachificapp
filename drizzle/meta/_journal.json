@@ -141,6 +141,13 @@
       "when": 1775124275069,
       "tag": "0019_natural_wong",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1775125161486,
+      "tag": "0020_neat_bloodstrike",
+      "breakpoints": true
     }
   ]
 }
