@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,75 +11,55 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import {
-  Settings, Building2, Palette, Globe, Mail, CreditCard,
-  Check, AlertCircle, Crown, Zap, Rocket, Bell, FileText,
+  Settings, Building2, Palette, Globe, CreditCard,
+  Check, AlertCircle, Crown, Zap, Rocket, Bell, Upload, ImageIcon, X,
 } from "lucide-react";
 
 export default function OrgSettingsPage() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get org context (includes subscription now)
   const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(undefined, {
     enabled: !!user,
   });
 
-  // Form states
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [customDomain, setCustomDomain] = useState("");
-  const [senderName, setSenderName] = useState("");
-  const [senderEmail, setSenderEmail] = useState("");
   const [initialized, setInitialized] = useState(false);
 
-  // Notification settings state
   const [notifEnrollment, setNotifEnrollment] = useState(true);
   const [notifCompletion, setNotifCompletion] = useState(true);
   const [notifQuizResult, setNotifQuizResult] = useState(true);
   const [notifReminder, setNotifReminder] = useState(false);
   const [notifAnnouncement, setNotifAnnouncement] = useState(true);
   const [notifWeeklyDigest, setNotifWeeklyDigest] = useState(false);
-  // Email branding state
-  const [emailLogoUrl, setEmailLogoUrl] = useState("");
-  const [emailPrimaryColor, setEmailPrimaryColor] = useState("#189aa1");
-  const [emailFooterText, setEmailFooterText] = useState("");
-  const [emailSenderNameBranding, setEmailSenderNameBranding] = useState("");
 
-  // Fetch notification settings from backend
   const { data: notifSettings } = trpc.lms.notifications.getOrgSettings.useQuery(
     { orgId: orgCtx?.org?.id! },
     { enabled: !!orgCtx?.org?.id }
   );
-  // Fetch email branding from backend
-  const { data: emailBrandingData } = trpc.lms.emailBranding.get.useQuery(
-    { orgId: orgCtx?.org?.id! },
-    { enabled: !!orgCtx?.org?.id }
-  );
-  // Notification update mutation
+
   const updateNotifSettings = trpc.lms.notifications.updateOrgSettings.useMutation({
     onSuccess: () => toast.success("Notification settings saved"),
     onError: (e) => toast.error(e.message),
   });
-  // Email branding update mutation
-  const updateEmailBranding = trpc.lms.emailBranding.update.useMutation({
-    onSuccess: () => toast.success("Email branding saved"),
-    onError: (e) => toast.error(e.message),
-  });
 
-  // Initialize form when org loads
   useEffect(() => {
     if (orgCtx && !initialized) {
       setOrgName(orgCtx.org.name);
       setOrgSlug(orgCtx.org.slug);
       setLogoUrl(orgCtx.org.logoUrl || "");
+      setLogoPreview(orgCtx.org.logoUrl || null);
       setCustomDomain(orgCtx.org.customDomain || "");
-      setSenderName(orgCtx.org.customSenderName || "");
-      setSenderEmail(orgCtx.org.customSenderEmail || "");
       setInitialized(true);
     }
   }, [orgCtx, initialized]);
-  // Sync notification settings when loaded
+
   useEffect(() => {
     if (notifSettings) {
       setNotifEnrollment(notifSettings.enrollment ?? true);
@@ -90,26 +70,60 @@ export default function OrgSettingsPage() {
       setNotifWeeklyDigest(notifSettings.weeklyDigest ?? false);
     }
   }, [notifSettings]);
-  // Sync email branding when loaded
-  useEffect(() => {
-    if (emailBrandingData) {
-      setEmailLogoUrl(emailBrandingData.logoUrl ?? "");
-      setEmailPrimaryColor(emailBrandingData.primaryColor ?? "#189aa1");
-      setEmailFooterText(emailBrandingData.footerText ?? "");
-      setEmailSenderNameBranding(emailBrandingData.senderName ?? "");
-    }
-  }, [emailBrandingData]);
 
-  // Mutation
   const updateSettings = trpc.orgs.updateSettings.useMutation({
     onSuccess: () => {
       toast.success("Settings saved successfully");
       utils.orgs.myContext.invalidate();
     },
-    onError: (error) => {
-      toast.error(error.message || "Failed to save settings");
-    },
+    onError: (error) => toast.error(error.message || "Failed to save settings"),
   });
+
+  const uploadLogo = trpc.orgs.uploadLogo.useMutation({
+    onSuccess: (data) => {
+      setLogoUrl(data.fileUrl);
+      setLogoPreview(data.fileUrl);
+      utils.orgs.myContext.invalidate();
+      toast.success("Logo uploaded successfully");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Logo must be under 5 MB");
+      return;
+    }
+    // Show local preview immediately
+    const reader = new FileReader();
+    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    setLogoUploading(true);
+    try {
+      // Get presigned upload URL from backend
+      const { uploadUrl, fileUrl } = await uploadLogo.mutateAsync({
+        fileName: file.name,
+        contentType: file.type || "image/png",
+      });
+      // PUT the file bytes directly to S3
+      await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type || "image/png" },
+      });
+      setLogoUrl(fileUrl);
+      setLogoPreview(fileUrl);
+      utils.orgs.myContext.invalidate();
+      toast.success("Logo uploaded successfully");
+    } catch (err: any) {
+      toast.error(err?.message || "Upload failed");
+    } finally {
+      setLogoUploading(false);
+    }
+  };
 
   if (orgLoading || !orgCtx) {
     return (
@@ -122,7 +136,6 @@ export default function OrgSettingsPage() {
 
   const org = orgCtx.org;
   const plan = orgCtx.subscription?.plan ?? "free";
-  const isBuilderPlus = ["builder", "pro", "enterprise"].includes(plan);
   const isProPlus = ["pro", "enterprise"].includes(plan);
 
   const tierConfig = {
@@ -138,7 +151,6 @@ export default function OrgSettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
           <Settings className="h-6 w-6 text-primary" />
@@ -149,7 +161,7 @@ export default function OrgSettingsPage() {
 
       <Tabs defaultValue="general" className="w-full">
         <div className="overflow-x-auto pb-1">
-          <TabsList className="flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-7 gap-0">
+          <TabsList className="flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-5 gap-0">
             <TabsTrigger value="general" className="gap-1.5 whitespace-nowrap">
               <Building2 className="h-4 w-4" /> General
             </TabsTrigger>
@@ -158,12 +170,6 @@ export default function OrgSettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="domain" className="gap-1.5 whitespace-nowrap">
               <Globe className="h-4 w-4" /> Domain
-            </TabsTrigger>
-            <TabsTrigger value="email" className="gap-1.5 whitespace-nowrap">
-              <Mail className="h-4 w-4" /> Email Sender
-            </TabsTrigger>
-            <TabsTrigger value="email-templates" className="gap-1.5 whitespace-nowrap">
-              <FileText className="h-4 w-4" /> Email Templates
             </TabsTrigger>
             <TabsTrigger value="notifications" className="gap-1.5 whitespace-nowrap">
               <Bell className="h-4 w-4" /> Notifications
@@ -219,35 +225,78 @@ export default function OrgSettingsPage() {
         <TabsContent value="branding" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Custom Branding</CardTitle>
-              <CardDescription>Set your organization logo for a personalized learner experience</CardDescription>
+              <CardTitle>Site Logo</CardTitle>
+              <CardDescription>Upload your organization logo — displayed in the admin panel and learner portal</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="logo-url">Logo URL</Label>
-                <Input
-                  id="logo-url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://example.com/logo.png"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Recommended: 200×50px, transparent background, PNG format
-                </p>
-              </div>
-              {logoUrl && (
-                <div className="border rounded-lg p-4 bg-muted/30">
-                  <p className="text-sm font-medium mb-2">Preview:</p>
-                  <img src={logoUrl} alt="Logo preview" className="h-12 object-contain" />
+              {/* Logo preview */}
+              <div className="flex items-start gap-4">
+                <div className="w-40 h-20 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/30 overflow-hidden shrink-0">
+                  {logoPreview ? (
+                    <img src={logoPreview} alt="Logo preview" className="max-h-16 max-w-36 object-contain" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                      <ImageIcon className="h-6 w-6" />
+                      <span className="text-xs">No logo</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              <Button
-                onClick={() => updateSettings.mutate({ logoUrl })}
-                disabled={updateSettings.isPending}
-                className="gap-2"
-              >
-                {updateSettings.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Logo</>}
-              </Button>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    disabled={logoUploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4" />
+                    {logoUploading ? "Uploading..." : "Upload Logo"}
+                  </Button>
+                  {logoPreview && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        setLogoPreview(null);
+                        setLogoUrl("");
+                        updateSettings.mutate({ logoUrl: null });
+                      }}
+                    >
+                      <X className="h-3.5 w-3.5" /> Remove logo
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Recommended: 200×50 px, transparent background, PNG or SVG.<br />
+                    Max file size: 5 MB.
+                  </p>
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={handleLogoFileChange}
+              />
+              {/* Also allow manual URL entry */}
+              <div className="space-y-2 pt-2 border-t">
+                <Label htmlFor="logo-url">Or enter a Logo URL directly</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="logo-url"
+                    value={logoUrl}
+                    onChange={(e) => { setLogoUrl(e.target.value); setLogoPreview(e.target.value || null); }}
+                    placeholder="https://example.com/logo.png"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => updateSettings.mutate({ logoUrl: logoUrl || null })}
+                    disabled={updateSettings.isPending}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -276,7 +325,7 @@ export default function OrgSettingsPage() {
               </div>
               {!isProPlus && (
                 <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                   <p className="text-xs text-amber-900 dark:text-amber-200">
                     Custom domains require a Pro plan or higher. Upgrade your subscription to enable this feature.
                   </p>
@@ -289,154 +338,6 @@ export default function OrgSettingsPage() {
               >
                 {updateSettings.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Domain</>}
               </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Email Sender Tab */}
-        <TabsContent value="email" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Custom Email Sender</CardTitle>
-              <CardDescription>Send emails from your own domain (Builder+ required)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="sender-name">Sender Name</Label>
-                <Input
-                  id="sender-name"
-                  value={senderName}
-                  onChange={(e) => setSenderName(e.target.value)}
-                  placeholder="Acme Learning Team"
-                  disabled={!isBuilderPlus}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sender-email">Sender Email</Label>
-                <Input
-                  id="sender-email"
-                  value={senderEmail}
-                  onChange={(e) => setSenderEmail(e.target.value)}
-                  placeholder="hello@acme.com"
-                  disabled={!isBuilderPlus}
-                />
-                <p className="text-xs text-muted-foreground">
-                  You must verify this email address with SendGrid before sending campaigns.
-                </p>
-              </div>
-              {!isBuilderPlus && (
-                <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-amber-900 dark:text-amber-200">
-                    Custom email sender requires a Builder+ plan or higher. Upgrade to send emails from your own domain.
-                  </p>
-                </div>
-              )}
-              <Button
-                onClick={() => updateSettings.mutate({ customSenderName: senderName, customSenderEmail: senderEmail })}
-                disabled={updateSettings.isPending || !isBuilderPlus}
-                className="gap-2"
-              >
-                {updateSettings.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Sender</>}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Email Templates Tab */}
-        <TabsContent value="email-templates" className="space-y-4">
-          {/* Email Branding */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Branding</CardTitle>
-              <CardDescription>Customize how your emails look — logo, colors, footer, and sender name</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Logo URL</Label>
-                <Input
-                  value={emailLogoUrl}
-                  onChange={(e) => setEmailLogoUrl(e.target.value)}
-                  placeholder="https://example.com/logo.png"
-                />
-                <p className="text-xs text-muted-foreground">Shown in the email header. Recommended: 200×50 px, transparent PNG.</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Primary Color</Label>
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg border border-border shrink-0" style={{ backgroundColor: emailPrimaryColor }} />
-                  <Input
-                    value={emailPrimaryColor}
-                    onChange={(e) => setEmailPrimaryColor(e.target.value)}
-                    placeholder="#189aa1"
-                    className="font-mono"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Sender Display Name</Label>
-                <Input
-                  value={emailSenderNameBranding}
-                  onChange={(e) => setEmailSenderNameBranding(e.target.value)}
-                  placeholder="All About Ultrasound Academy"
-                />
-                <p className="text-xs text-muted-foreground">Overrides the default "Teachific" sender name in email headers.</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Footer Text</Label>
-                <textarea
-                  value={emailFooterText}
-                  onChange={(e) => setEmailFooterText(e.target.value)}
-                  placeholder="© 2025 All About Ultrasound, Inc. · Unsubscribe"
-                  className="w-full h-20 text-sm bg-muted/30 border border-border rounded-lg p-3 resize-y focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-              <Button
-                className="gap-2"
-                disabled={updateEmailBranding.isPending}
-                onClick={() => {
-                  if (!org?.id) return;
-                  updateEmailBranding.mutate({
-                    orgId: org.id,
-                    logoUrl: emailLogoUrl || undefined,
-                    primaryColor: emailPrimaryColor || undefined,
-                    footerText: emailFooterText || undefined,
-                    senderName: emailSenderNameBranding || undefined,
-                  });
-                }}
-              >
-                {updateEmailBranding.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Email Branding</>}
-              </Button>
-            </CardContent>
-          </Card>
-          {/* Email Template List */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Templates</CardTitle>
-              <CardDescription>Automated emails sent to your students. Templates support <code className="bg-muted px-1 rounded text-xs">&#123;&#123;firstName&#125;&#125;</code>, <code className="bg-muted px-1 rounded text-xs">&#123;&#123;courseName&#125;&#125;</code>, <code className="bg-muted px-1 rounded text-xs">&#123;&#123;orgName&#125;&#125;</code>.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {[
-                { key: "welcome", label: "Welcome Email", desc: "Sent when a new member joins your organization", icon: "👋" },
-                { key: "enrollment", label: "Course Enrollment", desc: "Sent when a student enrolls in a course", icon: "📚" },
-                { key: "completion", label: "Course Completion", desc: "Sent when a student completes a course", icon: "🎓" },
-                { key: "quiz_result", label: "Quiz Result", desc: "Sent after a student submits a quiz", icon: "📝" },
-                { key: "reminder", label: "Course Reminder", desc: "Periodic reminder to continue learning", icon: "⏰" },
-                { key: "announcement", label: "Announcement", desc: "Broadcast message to all members", icon: "📢" },
-              ].map((tmpl) => (
-                <div key={tmpl.key} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{tmpl.icon}</span>
-                    <div>
-                      <p className="font-medium text-sm">{tmpl.label}</p>
-                      <p className="text-xs text-muted-foreground">{tmpl.desc}</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => toast.info("Full template editor coming soon — email branding above applies to all templates")}>
-                    <FileText className="h-3.5 w-3.5 mr-1.5" /> Preview
-                  </Button>
-                </div>
-              ))}
             </CardContent>
           </Card>
         </TabsContent>
@@ -525,7 +426,7 @@ export default function OrgSettingsPage() {
                 <ul className="space-y-1.5">
                   {currentTier.features.map((feature, i) => (
                     <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      <Check className="h-4 w-4 text-green-500 shrink-0" />
                       {feature}
                     </li>
                   ))}

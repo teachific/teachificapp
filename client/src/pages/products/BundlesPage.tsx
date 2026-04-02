@@ -1,68 +1,73 @@
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, Tag } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { Package, Plus, ShoppingCart } from "lucide-react";
+
+interface Bundle { id: number; name: string; price: number; items: string[]; sales: number; active: boolean; description: string; }
+
+const MOCK: Bundle[] = [
+  { id: 1, name: "Echo Mastery Bundle", price: 299, items: ["Echo Fundamentals", "Advanced Echo", "Echo Certification Prep"], sales: 42, active: true, description: "Complete echo training path" },
+  { id: 2, name: "POCUS Starter Pack", price: 149, items: ["POCUS Essentials", "Probe Guide PDF"], sales: 28, active: true, description: "Everything to get started with POCUS" },
+];
 
 export default function BundlesPage() {
+  const [bundles, setBundles] = useState<Bundle[]>(MOCK);
+  const [show, setShow] = useState(false);
+  const [name, setName] = useState(""); const [price, setPrice] = useState(""); const [desc, setDesc] = useState("");
+  const create = () => {
+    if (!name.trim() || !price) { toast.error("Name and price required"); return; }
+    setBundles(p => [{ id: Date.now(), name, price: parseFloat(price), items: [], sales: 0, active: true, description: desc }, ...p]);
+    setShow(false); setName(""); setPrice(""); setDesc(""); toast.success("Bundle created");
+  };
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
-      {/* Page Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Package className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Bundles</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Package multiple products together and offer them at a discounted price.</p>
-          </div>
-        </div>
-        <Button className="shrink-0">
-          <Tag className="mr-2 h-4 w-4" />
-          Create Bundle
-        </Button>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Package className="h-6 w-6 text-primary" />Bundles</h1><p className="text-muted-foreground mt-0.5">Group courses and products into discounted bundles</p></div>
+        <Button className="gap-2" onClick={() => setShow(true)}><Plus className="h-4 w-4" />New Bundle</Button>
       </div>
-
-      {/* Feature Preview */}
-      <Card className="border-dashed">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-base">Coming Soon</CardTitle>
-            <Badge variant="secondary" className="text-xs">In Development</Badge>
+      <div className="grid grid-cols-3 gap-4">
+        {[{ l: "Bundles", v: bundles.length }, { l: "Total Sales", v: bundles.reduce((s, b) => s + b.sales, 0) }, { l: "Revenue", v: "$" + bundles.reduce((s, b) => s + b.price * b.sales, 0).toLocaleString() }].map(s => (
+          <Card key={s.l}><CardContent className="pt-6"><p className="text-sm text-muted-foreground">{s.l}</p><p className="text-3xl font-bold">{s.v}</p></CardContent></Card>
+        ))}
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        {bundles.map(b => (
+          <Card key={b.id} className={!b.active ? "opacity-60" : ""}>
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div><CardTitle className="text-base">{b.name}</CardTitle><CardDescription>{b.description}</CardDescription></div>
+                <Switch checked={b.active} onCheckedChange={() => { setBundles(p => p.map(x => x.id === b.id ? { ...x, active: !x.active } : x)); toast.success("Updated"); }} />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold mb-3">${b.price}</div>
+              <div className="flex flex-wrap gap-1 mb-3">{b.items.map(item => <Badge key={item} variant="secondary" className="text-xs">{item}</Badge>)}</div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><ShoppingCart className="h-4 w-4" />{b.sales} sales</div>
+                <Button variant="outline" size="sm" onClick={() => toast.info("Bundle editor coming soon")}>Edit Bundle</Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Dialog open={show} onOpenChange={setShow}>
+        <DialogContent><DialogHeader><DialogTitle>New Bundle</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2"><Label>Bundle Name</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Echo Mastery Bundle" /></div>
+            <div className="space-y-2"><Label>Description</Label><Textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2} placeholder="What's included..." /></div>
+            <div className="space-y-2"><Label>Bundle Price ($)</Label><Input type="number" min="0" step="0.01" value={price} onChange={e => setPrice(e.target.value)} placeholder="299" /></div>
+            <p className="text-xs text-muted-foreground">After creating the bundle, add courses and products from the bundle editor.</p>
           </div>
-          <CardDescription>
-            This feature is currently being built. Here's what you'll be able to do:
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-3">
-            <li key={0} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">1</span>
-              </div>
-              <span className="text-foreground/80">Combine courses, downloads, and webinars into bundles</span>
-            </li>
-            <li key={1} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">2</span>
-              </div>
-              <span className="text-foreground/80">Set bundle pricing with savings displayed to buyers</span>
-            </li>
-            <li key={2} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">3</span>
-              </div>
-              <span className="text-foreground/80">Control bundle availability and expiry dates</span>
-            </li>
-            <li key={3} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">4</span>
-              </div>
-              <span className="text-foreground/80">Track bundle sales and individual product performance</span>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
+          <DialogFooter><Button variant="outline" onClick={() => setShow(false)}>Cancel</Button><Button onClick={create}>Create Bundle</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

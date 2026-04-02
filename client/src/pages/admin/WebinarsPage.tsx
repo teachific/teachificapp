@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,19 +57,15 @@ function slugify(str: string) {
 }
 
 export default function WebinarsPage() {
-  const { user } = useAuth();
+  const { showOrgSelector, orgId, orgs, setSelectedOrgId, ready } = useOrgScope();
   const [, navigate] = useLocation();
-  const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [form, setForm] = useState({ title: "", slug: "", type: "evergreen" as "live" | "evergreen" });
 
-  const { data: orgs } = trpc.orgs.list.useQuery(undefined, { enabled: !!user });
-  const effectiveOrgId = selectedOrgId ?? orgs?.[0]?.id ?? null;
-
   const { data: webinars, refetch } = trpc.lms.webinars.list.useQuery(
-    { orgId: effectiveOrgId! },
-    { enabled: !!effectiveOrgId }
+    { orgId: orgId! },
+    { enabled: ready }
   );
 
   const createMutation = trpc.lms.webinars.create.useMutation({
@@ -103,10 +99,10 @@ export default function WebinarsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {orgs && orgs.length > 1 && (
+            {showOrgSelector && (
               <Select
-                value={String(effectiveOrgId ?? "")}
-                onValueChange={(v) => setSelectedOrgId(Number(v))}
+                value={String(orgId ?? "")}
+                onValueChange={(v) => setSelectedOrgId(v ? Number(v) : null)}
               >
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Select org" />
@@ -120,7 +116,7 @@ export default function WebinarsPage() {
                 </SelectContent>
               </Select>
             )}
-            <Button variant="outline" onClick={() => navigate(`/lms/webinars/reports${effectiveOrgId ? `?orgId=${effectiveOrgId}` : ``}`)}>
+            <Button variant="outline" onClick={() => navigate(`/lms/webinars/reports${orgId ? `?orgId=${orgId}` : ``}`)}>
               <BarChart2 className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Reports</span>
             </Button>
@@ -332,8 +328,8 @@ export default function WebinarsPage() {
                   toast.error("Title and slug are required");
                   return;
                 }
-                if (!effectiveOrgId) { toast.error("No org selected"); return; }
-                createMutation.mutate({ orgId: effectiveOrgId, ...form });
+                if (!orgId) { toast.error("No org selected"); return; }
+                createMutation.mutate({ orgId: orgId!, ...form });
               }}
               disabled={createMutation.isPending}
             >

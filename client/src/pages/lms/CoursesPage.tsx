@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +28,14 @@ import { toast } from "sonner";
 import UpgradePromptDialog from "@/components/UpgradePromptDialog";
 import { useOrgPlan } from "@/hooks/useOrgPlan";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { BarChart2 } from "lucide-react";
+import {
   BookOpen,
   Plus,
   Search,
@@ -47,9 +55,8 @@ import {
 
 export default function CoursesPage() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { showOrgSelector, orgId, orgs, setSelectedOrgId, ready } = useOrgScope();
   const utils = trpc.useUtils();
-
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published" | "archived">("all");
   const [createOpen, setCreateOpen] = useState(false);
@@ -61,15 +68,11 @@ export default function CoursesPage() {
   const [aiModules, setAiModules] = useState(3);
   const [aiLessons, setAiLessons] = useState(4);
   const [aiGenerating, setAiGenerating] = useState(false);
-
-  // Get user's orgs
-  const { data: orgs } = trpc.orgs.myOrgs.useQuery();
-  const orgId = orgs?.[0]?.id;
-  const { can } = useOrgPlan(orgId);
+  const { can } = useOrgPlan(orgId ?? undefined);
 
   const { data: courses, isLoading } = trpc.lms.courses.list.useQuery(
     { orgId: orgId! },
-    { enabled: !!orgId }
+    { enabled: ready }
   );
 
   const createMutation = trpc.lms.courses.create.useMutation({
@@ -159,6 +162,25 @@ export default function CoursesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {showOrgSelector && (
+            <Select
+              value={String(orgId ?? "")}
+              onValueChange={(v) => setSelectedOrgId(v ? Number(v) : null)}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select org" />
+              </SelectTrigger>
+              <SelectContent>
+                {orgs.map((o) => (
+                  <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button variant="outline" className="gap-2" onClick={() => setLocation(`/analytics/engagement?orgId=${orgId}`)}>
+            <BarChart2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Reports</span>
+          </Button>
           <Button
             variant="outline"
             className="gap-2"

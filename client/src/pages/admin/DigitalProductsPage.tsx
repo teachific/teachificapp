@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,7 +20,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Edit, Trash2, Eye, EyeOff, Package, BarChart2, MoreHorizontal } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,26 +36,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-
-// Simple inline org selector using trpc
-function OrgPicker({ value, onChange }: { value: number | null; onChange: (id: number | null) => void }) {
-  const { data: orgs } = trpc.orgs.list.useQuery();
-  return (
-    <div className="space-y-1.5">
-      <Label>Organization</Label>
-      <select
-        className="w-full max-w-sm border border-input rounded-md px-3 py-2 text-sm bg-background"
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
-      >
-        <option value="">Select an organization…</option>
-        {orgs?.map((o) => (
-          <option key={o.id} value={o.id}>{o.name}</option>
-        ))}
-      </select>
-    </div>
-  );
-}
 
 function formatFileSize(bytes?: number | null): string {
   if (!bytes) return "—";
@@ -70,13 +57,13 @@ function fileTypeLabel(type?: string | null): string {
 }
 
 export default function DigitalProductsPage() {
-  const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
+  const { showOrgSelector, orgId, orgs, setSelectedOrgId, ready } = useOrgScope();
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [, navigate] = useLocation();
 
   const { data: products, refetch } = trpc.lms.downloads.listProducts.useQuery(
-    { orgId: selectedOrgId! },
-    { enabled: !!selectedOrgId }
+    { orgId: orgId! },
+    { enabled: ready }
   );
 
   const deleteProduct = trpc.lms.downloads.deleteProduct.useMutation({
@@ -105,24 +92,35 @@ export default function DigitalProductsPage() {
             Sell digital files with custom sales pages, payment options, and access controls.
           </p>
         </div>
+        {showOrgSelector && (
+          <Select
+            value={String(orgId ?? "")}
+            onValueChange={(v) => setSelectedOrgId(v ? Number(v) : null)}
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Select organization…" />
+            </SelectTrigger>
+            <SelectContent>
+              {orgs.map((o) => (
+                <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
-      <div>
-        <OrgPicker value={selectedOrgId} onChange={setSelectedOrgId} />
-      </div>
-
-      {selectedOrgId && (
+      {ready && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               {products?.length ?? 0} product{products?.length !== 1 ? "s" : ""}
             </p>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigate(`/admin/downloads/reports?orgId=${selectedOrgId}`)}>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/admin/downloads/reports?orgId=${orgId}`)}>
                 <BarChart2 className="w-4 h-4 mr-2" />
                 <span className="hidden sm:inline">Reports</span>
               </Button>
-              <Button size="sm" onClick={() => navigate(`/admin/downloads/new?orgId=${selectedOrgId}`)}>
+              <Button size="sm" onClick={() => navigate(`/admin/downloads/new?orgId=${orgId}`)}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Product
               </Button>
@@ -135,7 +133,7 @@ export default function DigitalProductsPage() {
                 <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-40" />
                 <h3 className="font-semibold text-lg mb-1">No digital products yet</h3>
                 <p className="text-muted-foreground text-sm mb-4">Create your first digital product to start selling downloads.</p>
-                <Button onClick={() => navigate(`/admin/downloads/new?orgId=${selectedOrgId}`)}>
+                <Button onClick={() => navigate(`/admin/downloads/new?orgId=${orgId}`)}>
                   <Plus className="w-4 h-4 mr-2" />Create Product
                 </Button>
               </CardContent>

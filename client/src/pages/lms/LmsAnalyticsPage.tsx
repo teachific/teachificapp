@@ -1,7 +1,15 @@
 import { trpc } from "@/lib/trpc";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   TrendingUp,
   Users,
@@ -18,12 +26,11 @@ import { useLocation } from "wouter";
 
 export default function LmsAnalyticsPage() {
   const [, navigate] = useLocation();
-  const { data: orgs } = trpc.orgs.myOrgs.useQuery();
-  const orgId = orgs?.[0]?.id;
+  const { showOrgSelector, orgId, orgs, setSelectedOrgId, ready } = useOrgScope();
 
   const { data: analytics, isLoading } = trpc.lms.analytics.summary.useQuery(
     { orgId: orgId! },
-    { enabled: !!orgId }
+    { enabled: ready }
   );
 
   const stats = [
@@ -100,11 +107,28 @@ export default function LmsAnalyticsPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Overview of your school's performance
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Overview of your school's performance
+          </p>
+        </div>
+        {showOrgSelector && (
+          <Select
+            value={String(orgId ?? "")}
+            onValueChange={(v) => setSelectedOrgId(v ? Number(v) : null)}
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Select organization…" />
+            </SelectTrigger>
+            <SelectContent>
+              {orgs.map((o) => (
+                <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Summary stats */}

@@ -1,68 +1,87 @@
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Share2, DollarSign } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Handshake, Plus, Percent, DollarSign } from "lucide-react";
+
+interface Partner { id: number; name: string; email: string; share: number; courses: string[]; totalEarned: number; status: "active" | "inactive"; }
+
+const MOCK: Partner[] = [
+  { id: 1, name: "Dr. Sarah Chen", email: "sarah@example.com", share: 30, courses: ["Advanced Cardiology", "ECG Mastery"], totalEarned: 4820, status: "active" },
+  { id: 2, name: "Prof. James Wright", email: "james@example.com", share: 25, courses: ["Leadership Fundamentals"], totalEarned: 1250, status: "active" },
+  { id: 3, name: "Maria Lopez", email: "maria@example.com", share: 20, courses: ["Spanish for Healthcare"], totalEarned: 680, status: "inactive" },
+];
 
 export default function RevenuePartnersPage() {
-  return (
-    <div className="p-6 space-y-6 max-w-4xl">
-      {/* Page Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Share2 className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Revenue Partners</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Set up revenue sharing arrangements with partners on specific course sales.</p>
-          </div>
-        </div>
-        <Button className="shrink-0">
-          <DollarSign className="mr-2 h-4 w-4" />
-          Add Revenue Partner
-        </Button>
-      </div>
+  const [partners, setPartners] = useState<Partner[]>(MOCK);
+  const [showAdd, setShowAdd] = useState(false);
+  const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [share, setShare] = useState("");
 
-      {/* Feature Preview */}
-      <Card className="border-dashed">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-base">Coming Soon</CardTitle>
-            <Badge variant="secondary" className="text-xs">In Development</Badge>
+  const handleCreate = () => {
+    if (!name || !email || !share) { toast.error("All fields required"); return; }
+    setPartners(prev => [...prev, { id: Date.now(), name, email, share: Number(share), courses: [], totalEarned: 0, status: "active" }]);
+    setName(""); setEmail(""); setShare(""); setShowAdd(false);
+    toast.success("Revenue partner added");
+  };
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Handshake className="w-6 h-6 text-teal-600" /> Revenue Partners</h1>
+          <p className="text-muted-foreground mt-1">Share revenue with instructors and content partners on specific course sales</p>
+        </div>
+        <Button onClick={() => setShowAdd(true)} className="bg-teal-600 hover:bg-teal-700 text-white"><Plus className="w-4 h-4 mr-2" /> Add Partner</Button>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold">{partners.filter(p => p.status === "active").length}</p><p className="text-sm text-muted-foreground">Active Partners</p></CardContent></Card>
+        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold">${partners.reduce((s, p) => s + p.totalEarned, 0).toLocaleString()}</p><p className="text-sm text-muted-foreground">Total Paid Out</p></CardContent></Card>
+        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold">{partners.reduce((s, p) => s + p.courses.length, 0)}</p><p className="text-sm text-muted-foreground">Courses Shared</p></CardContent></Card>
+      </div>
+      <div className="grid gap-4">
+        {partners.map(p => (
+          <Card key={p.id}>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold">{p.name}</span>
+                    <Badge className={p.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}>{p.status}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{p.email}</p>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {p.courses.map(c => <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>)}
+                    {p.courses.length === 0 && <span className="text-xs text-muted-foreground">No courses assigned</span>}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="flex items-center gap-1 text-lg font-bold text-teal-600"><Percent className="w-4 h-4" />{p.share}% share</div>
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground"><DollarSign className="w-3 h-3" />${p.totalEarned.toLocaleString()} earned</div>
+                  <Button size="sm" variant="outline" className="mt-2" onClick={() => toast.info("Opening partner settings...")}>Manage</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add Revenue Partner</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-2">
+            <div><Label>Full Name</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Dr. Jane Smith" className="mt-1" /></div>
+            <div><Label>Email Address</Label><Input value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" className="mt-1" /></div>
+            <div><Label>Revenue Share (%)</Label><Input type="number" min="1" max="99" value={share} onChange={e => setShare(e.target.value)} placeholder="30" className="mt-1" /></div>
           </div>
-          <CardDescription>
-            This feature is currently being built. Here's what you'll be able to do:
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-3">
-            <li key={0} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">1</span>
-              </div>
-              <span className="text-foreground/80">Add revenue partners and set their share percentage</span>
-            </li>
-            <li key={1} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">2</span>
-              </div>
-              <span className="text-foreground/80">Assign partners to specific courses or product types</span>
-            </li>
-            <li key={2} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">3</span>
-              </div>
-              <span className="text-foreground/80">Track partner earnings and payout history</span>
-            </li>
-            <li key={3} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">4</span>
-              </div>
-              <span className="text-foreground/80">Process partner payouts and generate reports</span>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
+            <Button onClick={handleCreate} className="bg-teal-600 hover:bg-teal-700 text-white">Add Partner</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

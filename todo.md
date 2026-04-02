@@ -1088,3 +1088,85 @@
 ## DATE_FORMAT Fix & Settings Nav (Apr 2, 2026)
 - [x] Fix DATE_FORMAT query error in getRevenueChartData (enrolledAt column type issue)
 - [x] Add Settings accordion group back to sidebar nav
+
+## Org Settings Cleanup (Apr 2, 2026)
+- [ ] Remove Email Sender tab from Organization Settings
+- [ ] Remove Email Templates tab from Organization Settings
+- [ ] Replace Logo URL text field with file upload control on Branding tab
+- [ ] Backend: uploadOrgLogo procedure (S3 upload, returns URL, saves to org)
+
+## Full Feature Build-Out (Apr 2, 2026)
+
+### Phase 1 - Org Settings
+- [ ] Remove Email Sender tab from Org Settings
+- [ ] Remove Email Templates tab from Org Settings
+- [ ] Replace Logo URL text field with file upload (S3) on Branding tab
+- [ ] Backend: orgs.uploadLogo procedure (presigned S3 upload)
+
+### Phase 2 - Members Section
+- [ ] Groups page: seat management tool, group seat managers, seat assignment/change
+- [ ] Certificates page: template builder, automated flows, link to course settings
+- [ ] Discussions page: forum management per course
+- [ ] Assignments page: instructor assignment creator + management
+
+### Phase 3 - Products Section
+- [ ] Categories page: CRUD for categories, auto-sort on catalog
+- [ ] Memberships page: membership plans
+- [ ] Bundles page: bundle builder
+- [ ] Community page: community builder tool + landing page
+
+### Phase 4 - Marketing Section
+- [ ] Website page: home page settings, landing pages, custom pages, tracking codes (GA, FB Pixel, GSV)
+- [ ] Email Campaigns page: send, templates, automation workflows
+- [ ] Funnels page: funnel page builder
+- [ ] Affiliates page: affiliate management
+
+### Phase 5 - Sales Section
+- [ ] Orders page: order management
+- [ ] Subscriptions page: cancel, refund, transaction support
+- [ ] Group Orders page: org admin group registrations
+- [ ] Coupons page: discount code builder (one or multiple products)
+- [ ] Invoices page: automated invoice templates, on/off per customer or site-wide
+- [ ] Revenue Partners page: revenue share setup per course
+
+### Phase 6 - Analytics & Integrations
+- [ ] Analytics/Revenue page: revenue charts and data
+- [ ] Analytics/Engagement page: engagement metrics
+- [ ] Analytics/Marketing page: marketing funnel metrics
+- [ ] Analytics/Custom Reports page: custom report builder
+- [ ] Integrations page: apps marketplace
+- [ ] API page: API key management
+- [ ] Webhooks page: webhook configuration
+
+### Phase 7 - Profile & Billing
+- [ ] Profile page: edit name, email, password, avatar
+- [ ] Billing page: subscription, payment methods, invoices
+
+## Reports Buttons & ProfilePage Fix (Apr 2, 2026)
+- [x] Fix ProfilePage useAuth import path (@/hooks/useAuth → @/_core/hooks/useAuth)
+- [x] Add "Reports" button to DigitalProductsPage header → /admin/downloads/reports
+- [x] Add "Reports" button to CoursesPage (LMS) header → /analytics/revenue
+- [x] Confirm Analytics sidebar still shows Downloads Reports and Webinar Reports
+
+## Org Selector & Reports Buttons Fix (Apr 2, 2026)
+- [x] DigitalProductsPage: hide org selector for org_admin role (show only for site_owner/admin)
+- [x] WebinarsPage: hide org selector for org_admin role (show only for site_owner/admin)
+- [x] DigitalProductsPage: add Reports button → /admin/downloads/reports
+- [x] WebinarsPage: add Reports button → /lms/webinars/reports
+- [x] CoursesPage (LMS): add Reports button → /analytics/revenue
+- [x] Confirm Analytics sidebar has Downloads Reports and Webinar Reports links
+
+## Platform-Wide Org Scoping Rule (Apr 2, 2026)
+- [x] Create useOrgScope hook: platform owner/admin → show org selector; org_admin → auto-scope to own org
+- [x] Apply to DigitalProductsPage (hide selector for org_admin)
+- [x] Apply to WebinarsPage (hide selector for org_admin)
+- [x] Apply to CoursesPage/LMS (hide selector for org_admin)
+- [x] Apply to Analytics pages (Revenue, Engagement, Marketing, Custom Reports)
+- [ ] Apply to Downloads Reports page
+- [ ] Apply to Webinar Reports page
+- [ ] Apply to Activity Log page
+- [ ] Apply to Members/Users pages
+- [x] Add Reports buttons: DigitalProductsPage → /admin/downloads/reports, WebinarsPage → /lms/webinars/reports, CoursesPage → /analytics/revenue
+
+## Website Preview Button (Apr 2, 2026)
+- [x] Add Preview button to Website marketing page → opens org storefront preview in new tab (works in draft mode)

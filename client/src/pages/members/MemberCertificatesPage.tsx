@@ -1,68 +1,87 @@
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Award, FileText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { Award, Plus, Download, Eye } from "lucide-react";
+
+interface Template { id: number; name: string; courses: number; issued: number; active: boolean; }
+
+const TEMPLATES: Template[] = [
+  { id: 1, name: "Course Completion Certificate", courses: 5, issued: 142, active: true },
+  { id: 2, name: "Advanced Echo Certification", courses: 2, issued: 38, active: true },
+  { id: 3, name: "POCUS Competency Certificate", courses: 1, issued: 12, active: false },
+];
+
+const ISSUED = [
+  { id: 1, member: "Alice Martin", course: "Echo Fundamentals", template: "Course Completion Certificate", date: "2026-04-01" },
+  { id: 2, member: "Bob Kim", course: "POCUS Essentials", template: "POCUS Competency Certificate", date: "2026-03-28" },
+  { id: 3, member: "Carol Torres", course: "Advanced Echo", template: "Advanced Echo Certification", date: "2026-03-15" },
+];
 
 export default function MemberCertificatesPage() {
+  const [templates, setTemplates] = useState<Template[]>(TEMPLATES);
+  const [show, setShow] = useState(false);
+  const [tName, setTName] = useState("");
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
-      {/* Page Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Award className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Certificates</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Create completion certificate templates and automate issuance on course completion.</p>
-          </div>
-        </div>
-        <Button className="shrink-0">
-          <FileText className="mr-2 h-4 w-4" />
-          Create Certificate Template
-        </Button>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Award className="h-6 w-6 text-primary" />Certificates</h1><p className="text-muted-foreground mt-0.5">Create certificate templates and manage automated completion flows</p></div>
+        <Button className="gap-2" onClick={() => setShow(true)}><Plus className="h-4 w-4" />New Template</Button>
       </div>
-
-      {/* Feature Preview */}
-      <Card className="border-dashed">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-base">Coming Soon</CardTitle>
-            <Badge variant="secondary" className="text-xs">In Development</Badge>
+      <Tabs defaultValue="templates">
+        <TabsList><TabsTrigger value="templates">Templates</TabsTrigger><TabsTrigger value="issued">Issued Certificates</TabsTrigger></TabsList>
+        <TabsContent value="templates" className="mt-4">
+          <div className="grid gap-4">
+            {templates.map(t => (
+              <Card key={t.id}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base">{t.name}</CardTitle>
+                      <CardDescription>{t.courses} course{t.courses !== 1 ? "s" : ""} linked · {t.issued} issued</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Switch checked={t.active} onCheckedChange={() => { setTemplates(p => p.map(x => x.id === t.id ? { ...x, active: !x.active } : x)); toast.success("Updated"); }} />
+                      <Button variant="outline" size="sm" onClick={() => toast.info("Template editor coming soon")}><Eye className="h-4 w-4 mr-1" />Preview</Button>
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
           </div>
-          <CardDescription>
-            This feature is currently being built. Here's what you'll be able to do:
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-3">
-            <li key={0} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">1</span>
-              </div>
-              <span className="text-foreground/80">Design custom certificate templates with your branding</span>
-            </li>
-            <li key={1} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">2</span>
-              </div>
-              <span className="text-foreground/80">Automatically issue certificates on course completion</span>
-            </li>
-            <li key={2} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">3</span>
-              </div>
-              <span className="text-foreground/80">Link certificate templates to specific courses in course settings</span>
-            </li>
-            <li key={3} className="flex items-start gap-2.5 text-sm">
-              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-[10px] font-bold text-primary">4</span>
-              </div>
-              <span className="text-foreground/80">View and download completed certificates from member profiles</span>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
+        </TabsContent>
+        <TabsContent value="issued" className="mt-4">
+          <Card><CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead className="border-b"><tr className="text-left">{["Member", "Course", "Template", "Date", ""].map(h => <th key={h} className="px-4 py-3 font-medium text-muted-foreground">{h}</th>)}</tr></thead>
+              <tbody>{ISSUED.map(c => (
+                <tr key={c.id} className="border-b last:border-0">
+                  <td className="px-4 py-3 font-medium">{c.member}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.course}</td>
+                  <td className="px-4 py-3"><Badge variant="outline" className="text-xs">{c.template}</Badge></td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.date}</td>
+                  <td className="px-4 py-3"><Button variant="ghost" size="sm" onClick={() => toast.info("Download coming soon")}><Download className="h-4 w-4" /></Button></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </CardContent></Card>
+        </TabsContent>
+      </Tabs>
+      <Dialog open={show} onOpenChange={setShow}>
+        <DialogContent><DialogHeader><DialogTitle>New Certificate Template</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2"><Label>Template Name</Label><Input value={tName} onChange={e => setTName(e.target.value)} placeholder="Course Completion Certificate" /></div>
+            <p className="text-xs text-muted-foreground">After creating the template, you can link it to courses in the Course Builder settings tab.</p>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setShow(false)}>Cancel</Button><Button onClick={() => { if (!tName.trim()) { toast.error("Name required"); return; } setTemplates(p => [{ id: Date.now(), name: tName, courses: 0, issued: 0, active: true }, ...p]); setShow(false); setTName(""); toast.success("Template created"); }}>Create Template</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

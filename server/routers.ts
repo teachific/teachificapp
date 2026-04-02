@@ -94,6 +94,7 @@ import {
   getQuizAnalytics,
 } from "./quizDb";
 import { invokeLLM } from "./_core/llm";
+import { storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { lmsRouter } from "./lmsRouter";
@@ -293,6 +294,30 @@ export const appRouter = router({
       if (newOrg) await addOrgMember(newOrg.id, ctx.user.id, "org_admin");
       return newOrg;
     }),
+    // Upload org logo to S3 and save URL
+    uploadLogo: protectedProcedure
+      .input(z.object({ fileName: z.string(), contentType: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const rows = await db
+          .select({ org: organizations, role: orgMembers.role })
+          .from(orgMembers)
+          .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+          .where(eq(orgMembers.userId, ctx.user.id))
+          .limit(1);
+        if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "No organization found" });
+        if (rows[0].role !== "org_admin" && ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const ext = input.fileName.split(".").pop() ?? "png";
+        const key = `org-logos/${rows[0].org.id}/${Date.now()}-${nanoid(8)}.${ext}`;
+        const { url } = await storagePut(key, Buffer.alloc(0), input.contentType);
+        const fileUrl = url.split("?")[0];
+        // Save the logo URL to the org
+        await updateOrg(rows[0].org.id, { logoUrl: fileUrl });
+        return { key, fileUrl, uploadUrl: url };
+      }),
     get: protectedProcedure.input(z.object({ id: z.number() })).query(({ input }) => getOrgById(input.id)),
     getBySlug: protectedProcedure.input(z.object({ slug: z.string() })).query(({ input }) => getOrgBySlug(input.slug)),
 
