@@ -58,6 +58,28 @@ import {
   getEnrolledCoursesForUser,
 } from "./lmsDb";
 import { getOrgById, getOrgMember } from "./db";
+import {
+  listDigitalProducts,
+  getDigitalProduct,
+  getDigitalProductBySlug,
+  createDigitalProduct,
+  updateDigitalProduct,
+  deleteDigitalProduct,
+  listProductPrices,
+  upsertProductPrice,
+  deleteProductPrice,
+  createDigitalOrder,
+  markOrderPaid,
+  getOrderByToken,
+  getOrderById,
+  listOrdersForProduct,
+  listOrdersForOrg,
+  incrementDownloadCount,
+  logDownload,
+  listDownloadLogs,
+  listDownloadLogsForOrder,
+  updateOrderStatus,
+} from "./lmsDb";
 import { copyCourse, copyLessonToSection, copySectionToCourse } from "./lmsDbCopy";
 import { nanoid } from "nanoid";
 import { invokeLLM } from "./_core/llm";
@@ -1145,8 +1167,229 @@ export const lmsRouter = router({
       }),
   }),
 
-  // ── Media Upload ────────────────────────────────────────────────────────
+  // ── Digital Downloads ─────────────────────────────────────────────────
+  downloads: router({
+    // Product CRUD
+    listProducts: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return listDigitalProducts(input.orgId);
+      }),
 
+    getProduct: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const product = await getDigitalProduct(input.id);
+        if (!product) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, product.orgId);
+        return product;
+      }),
+
+    getProductBySlug: publicProcedure
+      .input(z.object({ slug: z.string() }))
+      .query(async ({ input }) => {
+        const product = await getDigitalProductBySlug(input.slug);
+        if (!product || !product.isPublished) throw new TRPCError({ code: "NOT_FOUND" });
+        const prices = await listProductPrices(product.id);
+        return { ...product, prices: prices.filter((p) => p.isActive) };
+      }),
+
+    createProduct: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        title: z.string(),
+        slug: z.string(),
+        description: z.string().optional(),
+        fileUrl: z.string(),
+        fileKey: z.string(),
+        fileType: z.string().optional(),
+        fileSize: z.number().optional(),
+        thumbnailUrl: z.string().optional(),
+        defaultAccessDays: z.number().nullable().optional(),
+        defaultMaxDownloads: z.number().nullable().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return createDigitalProduct(input as any);
+      }),
+
+    updateProduct: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        slug: z.string().optional(),
+        description: z.string().optional(),
+        fileUrl: z.string().optional(),
+        fileKey: z.string().optional(),
+        fileType: z.string().optional(),
+        fileSize: z.number().optional(),
+        thumbnailUrl: z.string().optional(),
+        salesPageBlocksJson: z.any().optional(),
+        isPublished: z.boolean().optional(),
+        defaultAccessDays: z.number().nullable().optional(),
+        defaultMaxDownloads: z.number().nullable().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, ...data } = input;
+        const product = await getDigitalProduct(id);
+        if (!product) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await updateDigitalProduct(id, data as any);
+        return getDigitalProduct(id);
+      }),
+
+    deleteProduct: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const product = await getDigitalProduct(input.id);
+        if (!product) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await deleteDigitalProduct(input.id);
+        return { ok: true };
+      }),
+
+    // Prices
+    listPrices: protectedProcedure
+      .input(z.object({ productId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const product = await getDigitalProduct(input.productId);
+        if (!product) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, product.orgId);
+        return listProductPrices(input.productId);
+      }),
+
+    upsertPrice: protectedProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        productId: z.number(),
+        label: z.string(),
+        type: z.enum(["one_time", "payment_plan"]),
+        amount: z.string(),
+        currency: z.string().optional(),
+        installments: z.number().nullable().optional(),
+        installmentAmount: z.string().nullable().optional(),
+        intervalDays: z.number().nullable().optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const product = await getDigitalProduct(input.productId);
+        if (!product) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, product.orgId);
+        return upsertProductPrice(input as any);
+      }),
+
+    deletePrice: protectedProcedure
+      .input(z.object({ id: z.number(), productId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const product = await getDigitalProduct(input.productId);
+        if (!product) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await deleteProductPrice(input.id);
+        return { ok: true };
+      }),
+
+    // Orders
+    createOrder: publicProcedure
+      .input(z.object({
+        productId: z.number(),
+        priceId: z.number(),
+        buyerEmail: z.string().email(),
+        buyerName: z.string().optional(),
+        paymentRef: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const product = await getDigitalProduct(input.productId);
+        if (!product) throw new TRPCError({ code: "NOT_FOUND" });
+        const prices = await listProductPrices(input.productId);
+        const price = prices.find((p) => p.id === input.priceId);
+        if (!price) throw new TRPCError({ code: "NOT_FOUND", message: "Price not found" });
+        // Calculate access expiry
+        const accessExpiresAt = product.defaultAccessDays
+          ? new Date(Date.now() + product.defaultAccessDays * 86400000)
+          : null;
+        const order = await createDigitalOrder({
+          productId: input.productId,
+          priceId: input.priceId,
+          orgId: product.orgId,
+          buyerEmail: input.buyerEmail,
+          buyerName: input.buyerName,
+          amount: price.amount,
+          currency: price.currency ?? "USD",
+          paymentRef: input.paymentRef,
+          accessExpiresAt,
+          maxDownloads: product.defaultMaxDownloads ?? null,
+        });
+        // Auto-mark as paid if no payment ref required (free or manual)
+        if (input.paymentRef) {
+          await markOrderPaid(order.id, input.paymentRef);
+        }
+        return order;
+      }),
+
+    confirmPayment: protectedProcedure
+      .input(z.object({ orderId: z.number(), paymentRef: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const order = await getOrderById(input.orderId);
+        if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+        const product = await getDigitalProduct(order.productId);
+        if (!product) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await markOrderPaid(input.orderId, input.paymentRef);
+        return { ok: true };
+      }),
+
+    getOrderByToken: publicProcedure
+      .input(z.object({ token: z.string() }))
+      .query(async ({ input }) => {
+        const order = await getOrderByToken(input.token);
+        if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+        const product = await getDigitalProduct(order.productId);
+        const now = new Date();
+        const expired = order.accessExpiresAt ? order.accessExpiresAt < now : false;
+        const limitReached = order.maxDownloads ? (order.downloadCount ?? 0) >= order.maxDownloads : false;
+        return {
+          ...order,
+          product: product ? { title: product.title, thumbnailUrl: product.thumbnailUrl } : null,
+          canDownload: order.status === "paid" && !expired && !limitReached,
+          expired,
+          limitReached,
+        };
+      }),
+
+    listOrders: protectedProcedure
+      .input(z.object({ orgId: z.number(), productId: z.number().optional() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        if (input.productId) return listOrdersForProduct(input.productId);
+        return listOrdersForOrg(input.orgId);
+      }),
+
+    updateOrderStatus: protectedProcedure
+      .input(z.object({ id: z.number(), status: z.string(), notes: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const order = await getOrderById(input.id);
+        if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+        const product = await getDigitalProduct(order.productId);
+        if (!product) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await updateOrderStatus(input.id, input.status, input.notes);
+        return { ok: true };
+      }),
+
+    listDownloadLogs: protectedProcedure
+      .input(z.object({ orgId: z.number(), productId: z.number().optional() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        if (input.productId) return listDownloadLogs(input.productId);
+        // Return logs for all products in this org
+        const products = await listDigitalProducts(input.orgId);
+        const allLogs = await Promise.all(products.map((p) => listDownloadLogs(p.id)));
+        return allLogs.flat().sort((a, b) => new Date(b.downloadedAt!).getTime() - new Date(a.downloadedAt!).getTime());
+      }),
+  }),
+
+  // ── Media Upload ────────────────────────────────────────────────────────
   media: router({
     getUploadUrl: protectedProcedure
       .input(

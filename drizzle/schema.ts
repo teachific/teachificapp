@@ -869,3 +869,73 @@ export const memberActivityEvents = mysqlTable("member_activity_events", {
 
 export type MemberActivityEvent = typeof memberActivityEvents.$inferSelect;
 export type InsertMemberActivityEvent = typeof memberActivityEvents.$inferInsert;
+
+// ─── Digital Downloads ────────────────────────────────────────────────────────
+
+export const digitalProducts = mysqlTable("digital_products", {
+  id: int("id").primaryKey().autoincrement(),
+  orgId: int("orgId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull(),
+  description: text("description"),
+  fileUrl: text("fileUrl").notNull(),
+  fileKey: varchar("fileKey", { length: 512 }).notNull(),
+  fileType: varchar("fileType", { length: 100 }),
+  fileSize: bigint("fileSize", { mode: "number" }),
+  thumbnailUrl: text("thumbnailUrl"),
+  salesPageBlocksJson: json("salesPageBlocksJson"),
+  isPublished: boolean("isPublished").default(false),
+  // Access controls (defaults applied at order creation)
+  defaultAccessDays: int("defaultAccessDays"), // null = lifetime
+  defaultMaxDownloads: int("defaultMaxDownloads"), // null = unlimited
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+export const digitalProductPrices = mysqlTable("digital_product_prices", {
+  id: int("id").primaryKey().autoincrement(),
+  productId: int("productId").notNull(),
+  label: varchar("label", { length: 255 }).notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // "one_time" | "payment_plan"
+  amount: varchar("amount", { length: 20 }).notNull(), // stored as string e.g. "49.99"
+  currency: varchar("currency", { length: 3 }).default("USD"),
+  installments: int("installments"), // payment_plan: number of payments
+  installmentAmount: varchar("installmentAmount", { length: 20 }), // amount per installment
+  intervalDays: int("intervalDays"), // days between installments
+  isActive: boolean("isActive").default(true),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+export const digitalOrders = mysqlTable("digital_orders", {
+  id: int("id").primaryKey().autoincrement(),
+  productId: int("productId").notNull(),
+  priceId: int("priceId").notNull(),
+  orgId: int("orgId").notNull(),
+  buyerEmail: varchar("buyerEmail", { length: 255 }).notNull(),
+  buyerName: varchar("buyerName", { length: 255 }),
+  amount: varchar("amount", { length: 20 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("USD"),
+  status: varchar("status", { length: 50 }).notNull().default("pending"), // "pending" | "paid" | "expired" | "refunded"
+  paymentRef: varchar("paymentRef", { length: 255 }),
+  downloadToken: varchar("downloadToken", { length: 64 }).notNull(),
+  accessExpiresAt: timestamp("accessExpiresAt"), // null = no expiry
+  maxDownloads: int("maxDownloads"), // null = unlimited
+  downloadCount: int("downloadCount").default(0),
+  notes: text("notes"), // admin notes
+  createdAt: timestamp("createdAt").defaultNow(),
+  paidAt: timestamp("paidAt"),
+});
+
+export const digitalDownloadLogs = mysqlTable("digital_download_logs", {
+  id: int("id").primaryKey().autoincrement(),
+  orderId: int("orderId").notNull(),
+  productId: int("productId").notNull(),
+  downloadedAt: timestamp("downloadedAt").defaultNow(),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: text("userAgent"),
+});
+
+export type DigitalProduct = typeof digitalProducts.$inferSelect;
+export type DigitalProductPrice = typeof digitalProductPrices.$inferSelect;
+export type DigitalOrder = typeof digitalOrders.$inferSelect;
+export type DigitalDownloadLog = typeof digitalDownloadLogs.$inferSelect;

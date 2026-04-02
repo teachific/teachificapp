@@ -384,7 +384,7 @@ export default function CustomPagesPage() {
 
       {/* Edit Sheet */}
       <Sheet open={!!editingPage} onOpenChange={() => setEditingPage(null)}>
-        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-[85vw] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{editingPage?.id ? "Edit Page" : "Create Page"}</SheetTitle>
             <SheetDescription>

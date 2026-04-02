@@ -899,3 +899,19 @@
 - [ ] Button block (single styled button with URL, style variants: primary/secondary/outline/ghost)
 - [ ] Pre-formatted List blocks: Checklist (checkmarks), Icon List (custom icons), Numbered Steps, Feature Grid
 - [ ] All new blocks available in PageBuilder block library and renderable in lesson content
+
+## Feature: Digital Downloads Sales Module
+- [ ] digital_products table (title, slug, description, fileUrl, fileKey, fileType, fileSize, salesPageBlocksJson, thumbnailUrl, orgId, isPublished)
+- [ ] digital_product_prices table (productId, label, amount, currency, type: one_time|payment_plan, installments, installmentAmount, intervalDays)
+- [ ] digital_orders table (productId, priceId, orgId, buyerEmail, buyerName, amount, status, paymentRef, accessExpiresAt, maxDownloads, downloadCount, downloadToken, createdAt)
+- [ ] digital_download_logs table (orderId, productId, downloadedAt, ipAddress, userAgent)
+- [ ] Backend: product CRUD, file upload to S3, order creation, download token generation
+- [ ] Backend: access control check (expiry, download count limit), download log insert
+- [ ] Backend: download notification email on purchase
+- [ ] Admin: DigitalProductsPage (list, create, publish/unpublish)
+- [ ] Admin: DigitalProductEditorPage (file upload, pricing plans, sales page builder, access controls)
+- [ ] Public: /shop/:slug sales page with product info, pricing, buy button
+- [ ] Checkout: payment form (single payment + payment plan), order confirmation page
+- [ ] Secure download: /api/download/:token endpoint with access control
+- [ ] Admin: Digital Downloads Reports (orders table, download logs, per-buyer access status)
+- [ ] Sidebar nav entry for Digital Downloads under admin section

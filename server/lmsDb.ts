@@ -16,6 +16,10 @@ import {
   courseReviews,
   users,
   memberActivityEvents,
+  digitalProducts,
+  digitalProductPrices,
+  digitalOrders,
+  digitalDownloadLogs,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -817,4 +821,117 @@ export async function getOrgEmailBranding(orgId: number): Promise<EmailBranding>
 export async function updateOrgEmailBranding(orgId: number, branding: EmailBranding) {
   await upsertOrgTheme(orgId, { emailBranding: JSON.stringify(branding) });
   return branding;
+}
+
+// ─── Digital Downloads ────────────────────────────────────────────────────────
+import { randomBytes } from "crypto";
+
+export async function listDigitalProducts(orgId: number) {
+  return db.select().from(digitalProducts).where(eq(digitalProducts.orgId, orgId)).orderBy(desc(digitalProducts.createdAt));
+}
+
+export async function getDigitalProduct(id: number) {
+  const rows = await db.select().from(digitalProducts).where(eq(digitalProducts.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getDigitalProductBySlug(slug: string) {
+  const rows = await db.select().from(digitalProducts).where(eq(digitalProducts.slug, slug)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function createDigitalProduct(data: {
+  orgId: number; title: string; slug: string; description?: string;
+  fileUrl: string; fileKey: string; fileType?: string; fileSize?: number;
+  thumbnailUrl?: string; defaultAccessDays?: number; defaultMaxDownloads?: number;
+}) {
+  const result = await db.insert(digitalProducts).values(data as any);
+  return { id: (result as any)[0].insertId as number };
+}
+
+export async function updateDigitalProduct(id: number, data: Partial<{
+  title: string; slug: string; description: string; fileUrl: string; fileKey: string;
+  fileType: string; fileSize: number; thumbnailUrl: string; salesPageBlocksJson: any;
+  isPublished: boolean; defaultAccessDays: number | null; defaultMaxDownloads: number | null;
+}>) {
+  await db.update(digitalProducts).set(data as any).where(eq(digitalProducts.id, id));
+}
+
+export async function deleteDigitalProduct(id: number) {
+  await db.delete(digitalDownloadLogs).where(eq(digitalDownloadLogs.productId, id));
+  await db.delete(digitalOrders).where(eq(digitalOrders.productId, id));
+  await db.delete(digitalProductPrices).where(eq(digitalProductPrices.productId, id));
+  await db.delete(digitalProducts).where(eq(digitalProducts.id, id));
+}
+
+export async function listProductPrices(productId: number) {
+  return db.select().from(digitalProductPrices).where(eq(digitalProductPrices.productId, productId)).orderBy(asc(digitalProductPrices.createdAt));
+}
+
+export async function upsertProductPrice(data: {
+  id?: number; productId: number; label: string; type: string; amount: string; currency?: string;
+  installments?: number | null; installmentAmount?: string | null; intervalDays?: number | null; isActive?: boolean;
+}) {
+  if (data.id) {
+    await db.update(digitalProductPrices).set(data as any).where(eq(digitalProductPrices.id, data.id));
+    return data.id;
+  }
+  const result = await db.insert(digitalProductPrices).values(data as any);
+  return (result as any)[0].insertId as number;
+}
+
+export async function deleteProductPrice(id: number) {
+  await db.delete(digitalProductPrices).where(eq(digitalProductPrices.id, id));
+}
+
+export async function createDigitalOrder(data: {
+  productId: number; priceId: number; orgId: number; buyerEmail: string; buyerName?: string;
+  amount: string; currency?: string; paymentRef?: string;
+  accessExpiresAt?: Date | null; maxDownloads?: number | null;
+}) {
+  const token = randomBytes(32).toString("hex");
+  const result = await db.insert(digitalOrders).values({ ...data, downloadToken: token, status: "pending" } as any);
+  return { id: (result as any)[0].insertId as number, downloadToken: token };
+}
+
+export async function markOrderPaid(id: number, paymentRef?: string) {
+  await db.update(digitalOrders).set({ status: "paid", paidAt: new Date(), ...(paymentRef ? { paymentRef } : {}) } as any).where(eq(digitalOrders.id, id));
+}
+
+export async function getOrderByToken(token: string) {
+  const rows = await db.select().from(digitalOrders).where(eq(digitalOrders.downloadToken, token)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getOrderById(id: number) {
+  const rows = await db.select().from(digitalOrders).where(eq(digitalOrders.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function listOrdersForProduct(productId: number) {
+  return db.select().from(digitalOrders).where(eq(digitalOrders.productId, productId)).orderBy(desc(digitalOrders.createdAt));
+}
+
+export async function listOrdersForOrg(orgId: number) {
+  return db.select().from(digitalOrders).where(eq(digitalOrders.orgId, orgId)).orderBy(desc(digitalOrders.createdAt));
+}
+
+export async function incrementDownloadCount(orderId: number) {
+  await db.update(digitalOrders).set({ downloadCount: sql`${digitalOrders.downloadCount} + 1` } as any).where(eq(digitalOrders.id, orderId));
+}
+
+export async function logDownload(data: { orderId: number; productId: number; ipAddress?: string; userAgent?: string }) {
+  await db.insert(digitalDownloadLogs).values(data as any);
+}
+
+export async function listDownloadLogs(productId: number) {
+  return db.select().from(digitalDownloadLogs).where(eq(digitalDownloadLogs.productId, productId)).orderBy(desc(digitalDownloadLogs.downloadedAt));
+}
+
+export async function listDownloadLogsForOrder(orderId: number) {
+  return db.select().from(digitalDownloadLogs).where(eq(digitalDownloadLogs.orderId, orderId)).orderBy(desc(digitalDownloadLogs.downloadedAt));
+}
+
+export async function updateOrderStatus(id: number, status: string, notes?: string) {
+  await db.update(digitalOrders).set({ status, ...(notes !== undefined ? { notes } : {}) } as any).where(eq(digitalOrders.id, id));
 }

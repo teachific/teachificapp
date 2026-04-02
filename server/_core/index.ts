@@ -11,6 +11,7 @@ import quizImportRouter from "../quizImportRoutes";
 import scormUploadRouter from "../scormUploadRoutes";
 import chunkedUploadRouter from "../chunkedUploadRoutes";
 import contentRouter from "../contentRoutes";
+import digitalDownloadRouter from "../digitalDownloadRoutes";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -71,6 +72,9 @@ async function startServer() {
   // Content file proxy — serves extracted package files by redirecting to S3 CDN URLs
   // MUST be before tRPC and Vite so /api/content/* doesn't fall through to the SPA
   app.use("/api/content", contentRouter);
+
+  // Secure digital download — validates token, checks access controls, redirects to S3
+  app.use("/api/download", digitalDownloadRouter);
 
   // tRPC API
   app.use(

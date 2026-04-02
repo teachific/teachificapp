@@ -900,7 +900,7 @@ export function LessonEditorSheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-[72vw] flex flex-col p-0 overflow-hidden">
+      <SheetContent side="right" className="w-full sm:max-w-[85vw] flex flex-col p-0 overflow-hidden">
         <SheetHeader className="px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${meta.color}`}>
