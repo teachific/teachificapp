@@ -494,7 +494,7 @@ function DashboardLayoutContent({
         )}
       </div>
 
-      <SidebarInset>
+      <SidebarInset style={{ marginLeft: "2px" }}>
         {/* Top header */}
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/40 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
           <div className="flex items-center gap-3">

@@ -33,6 +33,7 @@ import {
   getOrgTheme,
   upsertOrgTheme,
   getOrgSubscription,
+  upsertOrgSubscription,
   getPagesByOrg,
   getPageById,
   getPageByCourse,
@@ -886,7 +887,22 @@ export const lmsRouter = router({
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
         await requireOrgRole(ctx.user.id, input.orgId);
-        return getOrgSubscription(input.orgId);
+        const sub = await getOrgSubscription(input.orgId);
+        // Auto-provision enterprise for any org that has no subscription yet
+        if (!sub) {
+          return upsertOrgSubscription(input.orgId, { plan: 'enterprise', status: 'active' });
+        }
+        return sub;
+      }),
+    upsert: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        plan: z.enum(['free', 'starter', 'builder', 'pro', 'enterprise']),
+        status: z.enum(['active', 'trialing', 'past_due', 'cancelled', 'unpaid']).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId);
+        return upsertOrgSubscription(input.orgId, { plan: input.plan, status: input.status ?? 'active' });
       }),
   }),
 
