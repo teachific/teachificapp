@@ -61,7 +61,7 @@ import {
   upsertUser,
   getDb,
 } from "./db";
-import { courseEnrollments } from "../drizzle/schema";
+import { courseEnrollments, organizations, orgMembers } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import {
   getOrgSubscription,
@@ -176,6 +176,19 @@ export const appRouter = router({
   orgs: router({
     list: adminProcedure.query(() => getAllOrgs()),
     myOrgs: protectedProcedure.query(({ ctx }) => getOrgsByUserId(ctx.user.id)),
+    // Returns the user's primary org + their role in it (auto-detected, no manual selection needed)
+    myContext: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return null;
+      const rows = await db
+        .select({ org: organizations, role: orgMembers.role })
+        .from(orgMembers)
+        .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+        .where(eq(orgMembers.userId, ctx.user.id))
+        .limit(1);
+      if (!rows[0]) return null;
+      return { org: rows[0].org, role: rows[0].role as "org_admin" | "user" };
+    }),
     // Auto-provision a default org for users who have none (e.g. existing users pre-dating auto-creation)
     ensureDefault: protectedProcedure.mutation(async ({ ctx }) => {
       const existing = await getOrgsByUserId(ctx.user.id);

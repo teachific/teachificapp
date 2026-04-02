@@ -806,3 +806,11 @@
 - [ ] Primary pricing section: Free / One-time / Subscription / Payment Plan radio selector
 - [ ] Additional pricing options: allow multiple pricing tiers per course
 - [ ] Copy enrollment link button per pricing option
+
+## Course Builder Content Editor Improvements
+- [ ] Move lesson content editor from left slide-out to a right-side panel (full height, wide enough for proper editing)
+- [ ] Editor panel should keep curriculum list visible on the left while editor opens on the right
+- [ ] Add AI content generator button in the lesson editor toolbar
+- [ ] AI generator: prompt input → generates lesson text, summaries, quiz questions, or outlines
+- [ ] AI generator uses invokeLLM server-side via a new tRPC mutation (lms.lessons.generateContent)
+- [ ] Show generated content in a preview/insert dialog before applying to the editor
