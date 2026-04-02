@@ -20,6 +20,13 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["site_owner", "site_admin", "org_admin", "user"]).default("user").notNull(),
+  // Custom Teachific auth fields
+  passwordHash: varchar("passwordHash", { length: 255 }),
+  emailVerified: boolean("emailVerified").default(false).notNull(),
+  emailVerificationToken: varchar("emailVerificationToken", { length: 128 }),
+  emailVerificationExpiry: timestamp("emailVerificationExpiry"),
+  resetToken: varchar("resetToken", { length: 128 }),
+  resetTokenExpiry: timestamp("resetTokenExpiry"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -39,6 +46,11 @@ export const organizations = mysqlTable("organizations", {
   maxStorageBytes: bigint("maxStorageBytes", { mode: "number" }).default(10737418240),
   usedStorageBytes: bigint("usedStorageBytes", { mode: "number" }).default(0),
   isActive: boolean("isActive").default(true).notNull(),
+  // Custom sender email for Builder+ orgs
+  customSenderEmail: varchar("customSenderEmail", { length: 320 }),
+  customSenderName: varchar("customSenderName", { length: 255 }),
+  senderDomainVerified: boolean("senderDomainVerified").default(false).notNull(),
+  senderDomainVerifiedAt: timestamp("senderDomainVerifiedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -702,3 +714,82 @@ export const platformSettings = mysqlTable("platform_settings", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type PlatformSettings = typeof platformSettings.$inferSelect;
+
+// ─── Email Marketing: Templates ───────────────────────────────────────────────
+export const emailTemplates = mysqlTable("email_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId"), // null = site-wide template (for site owner)
+  name: varchar("name", { length: 255 }).notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  htmlBody: text("htmlBody").notNull(),
+  textBody: text("textBody"),
+  isDefault: boolean("isDefault").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type InsertEmailTemplate = typeof emailTemplates.$inferInsert;
+
+// ─── Email Marketing: Campaigns ───────────────────────────────────────────────
+export const emailCampaigns = mysqlTable("email_campaigns", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId"), // null = site owner campaign
+  name: varchar("name", { length: 255 }).notNull(),
+  templateId: int("templateId"),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  htmlBody: text("htmlBody").notNull(),
+  textBody: text("textBody"),
+  status: mysqlEnum("status", ["draft", "scheduled", "sending", "sent", "failed"]).default("draft").notNull(),
+  scheduledAt: timestamp("scheduledAt"),
+  sentAt: timestamp("sentAt"),
+  recipientCount: int("recipientCount").default(0).notNull(),
+  sentCount: int("sentCount").default(0).notNull(),
+  failedCount: int("failedCount").default(0).notNull(),
+  openCount: int("openCount").default(0).notNull(),
+  clickCount: int("clickCount").default(0).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EmailCampaign = typeof emailCampaigns.$inferSelect;
+export type InsertEmailCampaign = typeof emailCampaigns.$inferInsert;
+
+// ─── Email Marketing: Campaign Recipients ─────────────────────────────────────
+export const emailCampaignRecipients = mysqlTable("email_campaign_recipients", {
+  id: int("id").autoincrement().primaryKey(),
+  campaignId: int("campaignId").notNull(),
+  userId: int("userId"),
+  email: varchar("email", { length: 320 }).notNull(),
+  status: mysqlEnum("status", ["pending", "sent", "failed", "bounced"]).default("pending").notNull(),
+  sentAt: timestamp("sentAt"),
+  openedAt: timestamp("openedAt"),
+  clickedAt: timestamp("clickedAt"),
+  errorMessage: text("errorMessage"),
+});
+
+export type EmailCampaignRecipient = typeof emailCampaignRecipients.$inferSelect;
+export type InsertEmailCampaignRecipient = typeof emailCampaignRecipients.$inferInsert;
+
+// ─── Email Marketing: Unsubscribes ────────────────────────────────────────────
+export const emailUnsubscribes = mysqlTable("email_unsubscribes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId"),
+  email: varchar("email", { length: 320 }).notNull(),
+  orgId: int("orgId"), // null = unsubscribed from site-level emails
+  unsubscribedAt: timestamp("unsubscribedAt").defaultNow().notNull(),
+  reason: text("reason"),
+});
+
+export type EmailUnsubscribe = typeof emailUnsubscribes.$inferSelect;
+export type InsertEmailUnsubscribe = typeof emailUnsubscribes.$inferInsert;
+
+// ─── Custom Auth: Password & Reset Tokens ─────────────────────────────────────
+// Extend users table with custom auth fields (migration will add these columns)
+// passwordHash: hashed password (bcrypt)
+// emailVerified: boolean
+// emailVerificationToken: token for email verification
+// emailVerificationExpiry: expiry timestamp for verification token
+// resetToken: token for password reset
+// resetTokenExpiry: expiry timestamp for reset token

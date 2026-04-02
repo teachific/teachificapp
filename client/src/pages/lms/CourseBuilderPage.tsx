@@ -416,10 +416,16 @@ function SectionBlock({
 export default function CourseBuilderPage() {
   const { id } = useParams<{ id: string }>();
   const courseId = parseInt(id ?? "0");
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const utils = trpc.useUtils();
-
-  const [activeTab, setActiveTab] = useState<"curriculum" | "settings" | "pricing" | "after_purchase" | "drip">("curriculum");
+  // Derive active tab from URL sub-path (e.g. /lms/courses/5/curriculum → "curriculum")
+  const tabFromUrl = ((): "curriculum" | "settings" | "pricing" | "after_purchase" | "drip" => {
+    const seg = location.split("/").pop() ?? "";
+    if (["curriculum", "settings", "pricing", "after_purchase", "drip"].includes(seg))
+      return seg as "curriculum" | "settings" | "pricing" | "after_purchase" | "drip";
+    return "curriculum";
+  })();
+  const [activeTab, setActiveTab] = useState<"curriculum" | "settings" | "pricing" | "after_purchase" | "drip">(tabFromUrl);
   const [addSectionOpen, setAddSectionOpen] = useState(false);
   const [newSectionTitle, setNewSectionTitle] = useState("");
   const [editingLessonId, setEditingLessonId] = useState<number | null>(null);

@@ -35,18 +35,35 @@ import SchoolPage from "./pages/lms/SchoolPage";
 import CourseSalesPage from "./pages/lms/CourseSalesPage";
 import CoursePlayerPage from "./pages/lms/CoursePlayerPage";
 import CustomPagesPage from "./pages/admin/CustomPagesPage";
-// Bare routes (no admin sidebar) — used for share links and external embedss
+// Auth pages (Teachific-branded, no sidebar)
+import LoginPage from "./pages/auth/LoginPage";
+import RegisterPage from "./pages/auth/RegisterPage";
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+import VerifyEmailPage from "./pages/auth/VerifyEmailPage";
+
+// Auth paths that render without the dashboard shell
+const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
+
+// Bare routes — no admin sidebar (share links, embeds, auth pages, student player)
 function BareRouter() {
   return (
     <Switch>
+      {/* Embeds & player */}
       <Route path="/embed/:id" component={EmbedPage} />
       <Route path="/learn/:courseId" component={CoursePlayerPage} />
       <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
+      {/* Teachific-branded auth */}
+      <Route path="/login" component={LoginPage} />
+      <Route path="/register" component={RegisterPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/verify-email" component={VerifyEmailPage} />
     </Switch>
   );
 }
 
-// Admin shell routes
+// Admin shell routes — wrapped in DashboardLayout
 function AdminRouter() {
   return (
     <DashboardLayout>
@@ -61,7 +78,7 @@ function AdminRouter() {
         <Route path="/quizzes">{() => { window.location.replace("/media-library#quizzes"); return null; }}</Route>
         <Route path="/play/:id" component={PlayerPage} />
 
-        {/* Quiz sub-routes (builder/player/results) — still accessible directly */}
+        {/* Quiz sub-routes */}
         <Route path="/quizzes/new" component={QuizBuilderPage} />
         <Route path="/quizzes/:id/edit" component={QuizBuilderPage} />
         <Route path="/quizzes/:id/play" component={QuizPlayerPage} />
@@ -73,6 +90,11 @@ function AdminRouter() {
         {/* LMS */}
         <Route path="/lms/courses" component={CoursesPage} />
         <Route path="/lms/courses/new" component={CourseBuilderPage} />
+        <Route path="/lms/courses/:id/curriculum" component={CourseBuilderPage} />
+        <Route path="/lms/courses/:id/settings" component={CourseBuilderPage} />
+        <Route path="/lms/courses/:id/pricing" component={CourseBuilderPage} />
+        <Route path="/lms/courses/:id/drip" component={CourseBuilderPage} />
+        <Route path="/lms/courses/:id/after_purchase" component={CourseBuilderPage} />
         <Route path="/lms/courses/:id" component={CourseBuilderPage} />
         <Route path="/lms/members" component={MembersPage} />
         <Route path="/lms/analytics" component={LmsAnalyticsPage} />
@@ -80,13 +102,16 @@ function AdminRouter() {
         <Route path="/lms/page-builder/:pageId" component={PageBuilderPage} />
         <Route path="/lms/courses/:courseId/page-builder" component={PageBuilderPage} />
         <Route path="/lms/custom-pages" component={CustomPagesPage} />
+
         {/* Student storefront */}
         <Route path="/school" component={SchoolPage} />
         <Route path="/school/courses/:courseId" component={CourseSalesPage} />
-        {/* Course player */}
+
+        {/* Course player (inside dashboard shell for authenticated users) */}
         <Route path="/learn/:courseId" component={CoursePlayerPage} />
         <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
-        {/* Admin */}
+
+        {/* Platform admin */}
         <Route path="/admin/orgs" component={AdminOrgsPage} />
         <Route path="/admin/users" component={AdminUsersPage} />
         <Route path="/admin/permissions" component={AdminPermissionsPage} />
@@ -102,12 +127,12 @@ function AdminRouter() {
 }
 
 function Router() {
-  // Check if current path is a bare route (embed/share/learn)
   const path = window.location.pathname;
-  if (path.startsWith("/embed/") || path.startsWith("/learn/")) {
-    return <BareRouter />;
-  }
-  return <AdminRouter />;
+  const isBare =
+    path.startsWith("/embed/") ||
+    path.startsWith("/learn/") ||
+    AUTH_PATHS.some((p) => path === p || path.startsWith(p + "?"));
+  return isBare ? <BareRouter /> : <AdminRouter />;
 }
 
 export default function App() {

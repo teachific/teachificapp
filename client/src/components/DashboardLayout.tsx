@@ -66,8 +66,12 @@ const navGroups = [
       { icon: BarChart3, label: "Analytics", path: "/lms/analytics" },
       { icon: Palette, label: "Branding", path: "/lms/branding" },
       { icon: FileText, label: "Custom Pages", path: "/lms/custom-pages" },
-      { icon: Settings, label: "Settings", path: "/admin/settings" },
-      { icon: Crown, label: "Platform Admin", path: "/platform-admin", ownerOnly: true },
+    ],
+  },
+  {
+    label: "",
+    items: [
+      { icon: Settings, label: "Settings", path: "/lms/settings" },
     ],
   },
 ];
@@ -211,10 +215,10 @@ function DashboardLayoutContent({
 
           {/* Navigation */}
           <SidebarContent className="gap-0 py-2">
-            {navGroups.map((group) => {
+            {navGroups.map((group, groupIdx) => {
               if (group.adminOnly && !isAdmin) return null;
               return (
-                <SidebarGroup key={group.label || "main"} className="py-1">
+                <SidebarGroup key={groupIdx} className="py-1">
                   {group.label && (
                     <SidebarGroupLabel className="px-4 text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1">
                       {group.label}
@@ -266,20 +270,7 @@ function DashboardLayoutContent({
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Platform Admin button — site owner and site admins only */}
-            {isAdmin && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setLocation("/platform-admin")}
-                className={`gap-1.5 text-xs h-8 px-3 ${location.startsWith("/platform-admin") ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <ShieldCheck className="h-3.5 w-3.5" />
-                {!isMobile && "Platform Admin"}
-              </Button>
-            )}
-
+           <div className="flex items-center gap-2">
             {/* Profile dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -319,9 +310,9 @@ function DashboardLayoutContent({
                   <User className="mr-2 h-4 w-4" />
                   My Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLocation("/admin/settings")} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => setLocation("/lms/settings")} className="cursor-pointer">
                   <Settings className="mr-2 h-4 w-4" />
-                  Settings
+                  Organization Settings
                 </DropdownMenuItem>
                 {isAdmin && (
                   <>

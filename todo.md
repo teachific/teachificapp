@@ -612,3 +612,152 @@
 
 ## Searchable Organization Selector in Custom Pages
 - [x] Replace plain <select> with a searchable combobox (input + filtered dropdown) in CustomPagesPage
+
+## Custom Teachific-Branded Authentication System (Replace Manus OAuth)
+- [ ] Design new auth schema: users table with email, passwordHash, emailVerified, resetToken, resetTokenExpiry
+- [ ] Build registration endpoint: POST /api/auth/register (email, password, name) → create user, send verification email
+- [ ] Build login endpoint: POST /api/auth/login (email, password) → verify credentials, return JWT session token
+- [ ] Build logout endpoint: POST /api/auth/logout → clear session cookie
+- [ ] Build password reset flow: POST /api/auth/forgot-password (email) → send reset link, POST /api/auth/reset-password (token, newPassword)
+- [ ] Build email verification flow: GET /api/auth/verify-email?token=xxx → mark user as verified
+- [ ] Replace Manus OAuth callback route with custom login page at /login
+- [ ] Build registration page at /register with Teachific branding
+- [ ] Build forgot password page at /forgot-password
+- [ ] Build reset password page at /reset-password
+- [ ] Update DashboardLayout to use custom auth context instead of Manus useAuth
+- [ ] Update all protected routes to check custom JWT session instead of Manus OAuth
+- [ ] Remove Manus OAuth dependencies from server/_core/oauth.ts and server/_core/context.ts
+- [ ] Update login/logout UI to use Teachific branding (logo, colors, copy)
+- [ ] Write vitest tests for registration, login, password reset flows
+
+## Enhanced Users Page with Org Filter/Search/Sort
+- [ ] Add organization filter dropdown (searchable combobox) to Users page
+- [ ] Add search input to filter users by name or email
+- [ ] Add sort dropdown: Name (A-Z), Name (Z-A), Email (A-Z), Role, Date Joined
+- [ ] Show user's organization(s) in the users table
+- [ ] Add "Delete User" action for site owner/admins
+- [ ] Add confirmation dialog for user deletion
+- [ ] Update users.list tRPC procedure to accept orgId, search, sortBy params
+- [ ] Show empty state when no users match filters
+
+## Workspace/Organization Deletion
+- [ ] Add "Delete Organization" button to Organizations page (visible only to site owner and site admins)
+- [ ] Build confirmation dialog: warn that all courses, content, users, and data will be permanently deleted
+- [ ] Build orgs.delete tRPC procedure (site owner/admin only)
+- [ ] Cascade delete: remove all org-owned courses, lessons, content packages, pages, enrollments, sessions, analytics
+- [ ] Show toast notification on successful deletion
+- [ ] Redirect to Organizations list after deletion
+- [ ] Write vitest test for org deletion with cascade checks
+
+## Email Marketing System via SendGrid
+### Database Schema
+- [ ] Create email_templates table (id, orgId, name, subject, htmlBody, textBody, isDefault, createdAt, updatedAt)
+- [ ] Create email_campaigns table (id, orgId, name, templateId, subject, status [draft, scheduled, sending, sent], scheduledAt, sentAt, recipientCount, openCount, clickCount, createdBy, createdAt)
+- [ ] Create email_campaign_recipients table (id, campaignId, userId, email, status [pending, sent, failed, bounced], sentAt, openedAt, clickedAt)
+- [ ] Create email_unsubscribes table (id, userId, email, orgId, unsubscribedAt, reason)
+- [ ] Generate and apply migration SQL for all email tables
+
+### SendGrid Integration
+- [ ] Install @sendgrid/mail npm package
+- [ ] Create server/sendgrid.ts helper with sendEmail(to, subject, html, text, fromName, fromEmail) function
+- [ ] Request SENDGRID_API_KEY from user via webdev_request_secrets
+- [ ] Build email sending queue: campaigns.send procedure processes recipients in batches
+- [ ] Track delivery status: update email_campaign_recipients with sent/failed/bounced status
+- [ ] Handle SendGrid webhooks for open/click tracking (POST /api/webhooks/sendgrid)
+- [ ] Build unsubscribe link generator: {{unsubscribe_url}} placeholder in templates
+- [ ] Build unsubscribe landing page: GET /unsubscribe?token=xxx → mark user as unsubscribed from org
+- [ ] Respect unsubscribe status: filter out unsubscribed users before sending campaigns
+
+### Email Templates
+- [ ] Build 5 default email templates: Welcome, Course Enrollment, Course Completion, Newsletter, Announcement
+- [ ] Each template includes: subject line, HTML body, plain text fallback, merge tags ({{user_name}}, {{org_name}}, {{course_title}}, {{unsubscribe_url}})
+- [ ] Seed default templates for each org on first access to email marketing page
+- [ ] Build template editor UI: rich text editor for HTML body, plain text textarea, subject line input
+- [ ] Allow org admins to customize templates: edit subject, body, add custom CSS, preview before saving
+- [ ] Template preview modal: show rendered HTML with sample merge tag values
+- [ ] Template duplication: "Duplicate Template" button creates a copy for customization
+
+### Email Marketing UI
+- [ ] Build EmailMarketingPage at /lms/email-marketing (visible to org admins and site owner)
+- [ ] Add "Email Marketing" nav link to Administration section in DashboardLayout
+- [ ] Campaign list view: show all campaigns with status, recipient count, open rate, click rate, sent date
+- [ ] Campaign creation wizard: Step 1 - Select template, Step 2 - Customize subject/body, Step 3 - Select audience, Step 4 - Schedule or send now
+- [ ] Audience selector: All members, Enrolled in specific course, Completed specific course, Custom filter (role, join date range)
+- [ ] Campaign preview: show recipient count, preview email with merge tags resolved
+- [ ] Send confirmation dialog: "Send to X recipients now?" with final preview
+- [ ] Campaign detail page: show send status, recipient list with open/click status, resend to failed recipients
+- [ ] Template management page: list all templates, create/edit/delete/duplicate
+- [ ] Unsubscribe management page: list all unsubscribed users per org, allow manual re-subscription
+
+### Site Owner → Org Admin Communication
+- [ ] Site owner can send campaigns to "All Org Admins" audience
+- [ ] Site owner email marketing page shows campaigns sent to org admins vs org members
+- [ ] Org admins cannot see site owner's campaigns to other orgs
+- [ ] Site owner campaigns use site-level unsubscribe (not org-level)
+
+### Testing
+- [ ] Write vitest tests for email sending, unsubscribe flow, audience filtering
+- [ ] Test SendGrid integration with test API key
+- [ ] Test merge tag replacement in templates
+- [ ] Test org-level unsubscribe isolation (unsubscribe from Org A, still receive from Org B)
+
+## Custom Sender Domain/Email for Org Admins (Builder+ Tier)
+- [ ] Add customSenderEmail and customSenderName columns to organizations table
+- [ ] Add senderDomainVerified boolean column to organizations table
+- [ ] Add senderDomainVerifiedAt timestamp to organizations table
+- [ ] Build UI in org settings for Builder+ admins to set custom from name and email
+- [ ] Validate custom email domain against org subscription tier (Builder and above only)
+- [ ] Use custom sender email/name when sending campaigns for that org (fall back to hello@teachific.net for Free/Starter)
+- [ ] Show "Custom Sender" badge in email marketing page when custom domain is active
+- [ ] Show upgrade prompt for Free/Starter orgs trying to set custom sender
+
+## Fix Custom CSS Injection Scope
+- [ ] Remove custom CSS injection from admin dashboard / DashboardLayout
+- [ ] Apply org custom CSS only to student-facing routes: course player, course catalog, learner dashboard, enrollment pages, certificate pages, public custom pages
+- [ ] Build a StudentLayout wrapper that loads the active org's custom CSS and injects it into a <style> tag scoped to student pages
+- [ ] Admin dashboard always uses Teachific default branding (no custom CSS override)
+- [ ] Custom CSS editor in org settings should preview in a student-page context, not admin context
+
+## Platform Admin Nav Fix
+- [x] Remove Platform Admin header button from DashboardLayout top bar
+- [x] Platform Admin remains in profile dropdown (site_owner/site_admin only)
+- [x] Profile menu order: Profile, Organization Settings, (divider), Platform Admin [admin only], (divider), Sign Out
+
+## Sidebar Settings → Org Setup
+- [x] "Settings" link in sidebar nav now points to /lms/settings (org settings page)
+- [x] Profile dropdown "Settings" now says "Organization Settings" and points to /lms/settings
+- [ ] Create OrgSettingsPage at /lms/settings with tabs: General, Branding, Domain, Email Sender, Subscription
+- [ ] General tab: org name, slug, description, contact email
+- [ ] Domain tab: custom domain binding instructions and status
+- [ ] Email Sender tab: custom from name and email (Builder+ only), with upgrade prompt for lower tiers
+- [ ] Subscription tab: current plan, usage stats, upgrade CTA
+
+## Branding Page: Logo Upload
+- [ ] Add logo upload section to BrandingPage (org logo used in student-facing pages, school page, course player header)
+- [ ] Upload logo to S3 via storagePut, save URL to org record (organizations.logoUrl column already exists)
+- [ ] Show current logo preview with remove button
+- [ ] Logo accepted formats: PNG, JPG, SVG, WebP — max 2MB
+- [ ] Logo displayed in: SchoolPage header, CoursePlayerPage header, email templates (org logo)
+
+## Bug: Add Course → 404
+- [x] Fix /lms/courses/new route — "new" is being matched as :id by the dynamic route, causing 404
+- [x] Ensure /lms/courses/new is declared before /lms/courses/:id in App.tsx router
+- [x] Add /lms/courses/:id/curriculum, /settings, /pricing, /drip, /after_purchase routes to App.tsx
+- [x] CourseBuilderPage derives active tab from URL sub-path
+
+## Org Admin Dashboard Redesign
+- [ ] Replace the current Dashboard.tsx with an org-focused analytics dashboard
+- [ ] Welcome header with org name and greeting
+- [ ] Key metrics cards: Total Revenue (past 30 days), New Registrations (past 30 days), Course Sales (past 30 days), Active Members
+- [ ] Revenue/enrollment chart with daily/weekly/monthly toggle (line chart showing revenue or enrollment trend)
+- [ ] Live activity feed (right sidebar): recent enrollments, course purchases, logins — show user name, course name, timestamp, price (if sale)
+- [ ] Recently edited courses section: grid of course cards with thumbnail, title, status badge (Published/Draft), last edited timestamp
+- [ ] All data scoped to the org admin's organization (org_admin sees their org only, site_owner/site_admin see all orgs or selected org)
+
+## Member (Learner) Dashboard
+- [ ] When logged-in user role is "user" (org member), show a learner home dashboard instead of the admin dashboard
+- [ ] Display course cards for all courses the member is enrolled in or has access to
+- [ ] Each card shows: course thumbnail, title, org name, progress bar (% complete), "Continue" or "Start" button
+- [ ] Group by: In Progress, Not Started, Completed
+- [ ] If no courses, show a friendly empty state with a link to the course catalog
+- [ ] Role-based routing: org_admin and above → org admin dashboard; user role → learner dashboard
