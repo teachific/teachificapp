@@ -13,7 +13,8 @@ import {
   Pause, Play, Download, Trash2, Settings, Camera,
   CheckCircle, Loader2, Clock, Library, FileText, Upload,
   Scissors, Subtitles, Save, Plus, X, Edit2, ChevronRight,
-  Film, Wand2, ArrowLeft,
+  Film, Wand2, ArrowLeft, Headphones, Volume2, Sparkles,
+  Music, SlidersHorizontal,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,7 +24,7 @@ import { useLocation } from "wouter";
 
 type RecordMode = "screen" | "camera" | "screen+camera";
 type RecordState = "idle" | "countdown" | "recording" | "paused" | "stopped";
-type StudioTab = "record" | "upload" | "edit";
+type StudioTab = "record" | "upload" | "edit" | "audio";
 
 interface TranscriptSegment {
   id: number;
@@ -1261,6 +1262,620 @@ function EditTab({ orgId, initialItem }: { orgId: number; initialItem?: MediaIte
   );
 }
 
+// ─── AudioTab Sub-component ─────────────────────────────────────────────────
+
+const VOICE_OPTIONS = [
+  { value: "alloy", label: "Alloy", description: "Neutral, balanced" },
+  { value: "echo", label: "Echo", description: "Warm, resonant" },
+  { value: "fable", label: "Fable", description: "Expressive, narrative" },
+  { value: "onyx", label: "Onyx", description: "Deep, authoritative" },
+  { value: "nova", label: "Nova", description: "Bright, energetic" },
+  { value: "shimmer", label: "Shimmer", description: "Clear, professional" },
+] as const;
+
+type AudioSubTab = "record" | "upload" | "tts";
+
+function AudioTab({ orgId, onSaved }: { orgId: number; onSaved?: (item: MediaItem) => void }) {
+  const [subTab, setSubTab] = useState<AudioSubTab>("record");
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Sub-tab bar */}
+      <div className="flex items-center gap-0 px-6 border-b border-border bg-muted/20 shrink-0">
+        {(["record", "upload", "tts"] as AudioSubTab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setSubTab(t)}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors",
+              subTab === t
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t === "record" && <><Mic className="h-3 w-3" /> Record Audio</>}
+            {t === "upload" && <><Upload className="h-3 w-3" /> Upload Audio</>}
+            {t === "tts" && <><Sparkles className="h-3 w-3" /> Text-to-Speech</>}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto">
+        {subTab === "record" && <RecordAudioSubTab orgId={orgId} onSaved={onSaved} />}
+        {subTab === "upload" && <UploadAudioSubTab orgId={orgId} onSaved={onSaved} />}
+        {subTab === "tts" && <TTSSubTab orgId={orgId} onSaved={onSaved} />}
+      </div>
+    </div>
+  );
+}
+
+// ── Record Audio ─────────────────────────────────────────────────────────────
+
+function RecordAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item: MediaItem) => void }) {
+  const [recordState, setRecordState] = useState<"idle" | "countdown" | "recording" | "paused" | "stopped">("idle");
+  const [countdown, setCountdown] = useState(3);
+  const [elapsed, setElapsed] = useState(0);
+  const [recordings, setRecordings] = useState<{ name: string; url: string; blob: Blob; duration: number; size: number }[]>([]);
+  const [savingIdx, setSavingIdx] = useState<number | null>(null);
+  const [savedItems, setSavedItems] = useState<Record<number, boolean>>({});
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef<number>(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number>(0);
+  const saveMediaItem = trpc.lms.media.saveMediaItem.useMutation();
+
+  const isRecording = recordState === "recording";
+
+  const drawWaveform = useCallback(() => {
+    const canvas = canvasRef.current;
+    const analyser = analyserRef.current;
+    if (!canvas || !analyser) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteTimeDomainData(dataArray);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "hsl(var(--primary))";
+    ctx.beginPath();
+    const sliceWidth = canvas.width / bufferLength;
+    let x = 0;
+    for (let i = 0; i < bufferLength; i++) {
+      const v = dataArray[i] / 128.0;
+      const y = (v * canvas.height) / 2;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+      x += sliceWidth;
+    }
+    ctx.lineTo(canvas.width, canvas.height / 2);
+    ctx.stroke();
+    animFrameRef.current = requestAnimationFrame(drawWaveform);
+  }, []);
+
+  const startCountdown = () => {
+    setCountdown(3);
+    setRecordState("countdown");
+    let c = 3;
+    const iv = setInterval(() => {
+      c--;
+      setCountdown(c);
+      if (c <= 0) {
+        clearInterval(iv);
+        startRecording();
+      }
+    }, 1000);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioCtx = new AudioContext();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      animFrameRef.current = requestAnimationFrame(drawWaveform);
+
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mediaRecorderRef.current = mr;
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        cancelAnimationFrame(animFrameRef.current);
+        analyserRef.current = null;
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        const dur = Math.round((Date.now() - startTimeRef.current) / 1000);
+        const name = `audio-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.webm`;
+        setRecordings((prev) => [{ name, url, blob, duration: dur, size: blob.size }, ...prev]);
+        setRecordState("stopped");
+      };
+      mr.start(250);
+      startTimeRef.current = Date.now();
+      setElapsed(0);
+      setRecordState("recording");
+      timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Microphone access denied");
+      setRecordState("idle");
+    }
+  };
+
+  const pauseRecording = () => {
+    mediaRecorderRef.current?.pause();
+    if (timerRef.current) clearInterval(timerRef.current);
+    cancelAnimationFrame(animFrameRef.current);
+    setRecordState("paused");
+  };
+
+  const resumeRecording = () => {
+    mediaRecorderRef.current?.resume();
+    timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+    animFrameRef.current = requestAnimationFrame(drawWaveform);
+    setRecordState("recording");
+  };
+
+  const stopRecording = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    mediaRecorderRef.current?.stop();
+  };
+
+  const handleSaveToLibrary = async (rec: typeof recordings[0], idx: number) => {
+    setSavingIdx(idx);
+    try {
+      const formData = new FormData();
+      formData.append("file", rec.blob, rec.name);
+      formData.append("orgId", String(orgId));
+      formData.append("folder", "lms-media");
+      const result = await new Promise<{ key: string; url: string; fileName: string; fileSize: number; fileType: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+          else reject(new Error(`Upload failed: ${xhr.status}`));
+        });
+        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+        xhr.open("POST", "/api/media-upload");
+        xhr.send(formData);
+      });
+      const saved = await saveMediaItem.mutateAsync({
+        orgId,
+        fileName: result.fileName,
+        mimeType: "audio/webm",
+        fileSize: result.fileSize,
+        fileKey: result.key,
+        url: result.url,
+        source: "direct",
+        tags: ["audio", "recording"],
+        durationSeconds: rec.duration,
+      });
+      setSavedItems((prev) => ({ ...prev, [idx]: true }));
+      const item: MediaItem = { id: (saved as any).id, url: result.url, filename: result.fileName, mimeType: "audio/webm", fileSize: result.fileSize };
+      onSaved?.(item);
+      toast.success("Audio saved to Media Library");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Save failed");
+    } finally {
+      setSavingIdx(null);
+    }
+  };
+
+  return (
+    <div className="flex gap-0 h-full">
+      {/* Main recording area */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
+        <div className="flex flex-col items-center gap-2">
+          <h2 className="text-lg font-semibold">Record Audio</h2>
+          <p className="text-sm text-muted-foreground">Record your microphone directly to the Media Library</p>
+        </div>
+
+        {/* Waveform canvas */}
+        <div className="w-full max-w-md h-24 rounded-2xl border border-border bg-muted/30 overflow-hidden relative">
+          <canvas ref={canvasRef} className="w-full h-full" width={600} height={96} />
+          {!isRecording && recordState !== "paused" && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex items-end gap-0.5 h-8">
+                {Array.from({ length: 24 }).map((_, i) => (
+                  <div key={i} className="w-1 rounded-full bg-muted-foreground/20" style={{ height: `${20 + Math.sin(i * 0.8) * 15}px` }} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Timer */}
+        {(isRecording || recordState === "paused") && (
+          <div className="flex items-center gap-2">
+            <div className={cn("h-2.5 w-2.5 rounded-full", isRecording ? "bg-red-500 animate-pulse" : "bg-yellow-500")} />
+            <span className="text-2xl font-mono font-bold tabular-nums">{formatTime(elapsed)}</span>
+            {recordState === "paused" && <span className="text-sm text-muted-foreground">(paused)</span>}
+          </div>
+        )}
+
+        {/* Countdown overlay */}
+        {recordState === "countdown" && (
+          <div className="text-6xl font-bold text-primary animate-pulse">{countdown}</div>
+        )}
+
+        {/* Controls */}
+        <div className="flex items-center justify-center gap-3">
+          {recordState === "idle" && (
+            <Button size="lg" className="h-14 w-14 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30" onClick={startCountdown}>
+              <Mic className="h-6 w-6" />
+            </Button>
+          )}
+          {recordState === "countdown" && (
+            <Button size="lg" variant="outline" className="h-14 w-14 rounded-full" onClick={() => setRecordState("idle")}>
+              <Square className="h-5 w-5" />
+            </Button>
+          )}
+          {recordState === "recording" && (
+            <>
+              <Button size="lg" variant="outline" className="h-14 w-14 rounded-full" onClick={pauseRecording}>
+                <Pause className="h-5 w-5" />
+              </Button>
+              <Button size="lg" className="h-14 w-14 rounded-full bg-red-500 hover:bg-red-600 text-white" onClick={stopRecording}>
+                <Square className="h-5 w-5 fill-current" />
+              </Button>
+            </>
+          )}
+          {recordState === "paused" && (
+            <>
+              <Button size="lg" className="h-14 w-14 rounded-full bg-green-500 hover:bg-green-600 text-white" onClick={resumeRecording}>
+                <Play className="h-5 w-5 fill-current" />
+              </Button>
+              <Button size="lg" className="h-14 w-14 rounded-full bg-red-500 hover:bg-red-600 text-white" onClick={stopRecording}>
+                <Square className="h-5 w-5 fill-current" />
+              </Button>
+            </>
+          )}
+          {recordState === "stopped" && (
+            <Button size="lg" className="h-14 px-6 rounded-full bg-primary text-primary-foreground" onClick={() => { setRecordState("idle"); setElapsed(0); }}>
+              <Mic className="h-5 w-5 mr-2" /> Record Again
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Recordings list */}
+      <div className="w-72 border-l border-border flex flex-col overflow-hidden">
+        <div className="p-4 border-b border-border">
+          <h3 className="font-semibold text-sm">Recordings ({recordings.length})</h3>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {recordings.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm gap-2">
+              <Headphones className="h-8 w-8 opacity-30" />
+              <p>No recordings yet</p>
+            </div>
+          ) : (
+            <div className="flex flex-col divide-y divide-border">
+              {recordings.map((rec, idx) => (
+                <div key={idx} className="p-3 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{rec.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> {formatTime(rec.duration)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{formatFileSize(rec.size)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { const a = document.createElement("a"); a.href = rec.url; a.download = rec.name; a.click(); }}>
+                        <Download className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost" size="icon"
+                        className={cn("h-7 w-7", savedItems[idx] ? "text-teal-500" : "")}
+                        onClick={() => handleSaveToLibrary(rec, idx)}
+                        disabled={savingIdx === idx || !!savedItems[idx]}
+                      >
+                        {savingIdx === idx ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Library className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <audio src={rec.url} controls className="w-full mt-2 h-8" />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Upload Audio ──────────────────────────────────────────────────────────────
+
+function UploadAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item: MediaItem) => void }) {
+  const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [uploadedItems, setUploadedItems] = useState<MediaItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const saveMediaItem = trpc.lms.media.saveMediaItem.useMutation();
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    const maxSize = 100 * 1024 * 1024; // 100 MB for audio
+    if (file.size > maxSize) { toast.error("File too large — maximum 100 MB for audio"); return; }
+    if (!file.type.startsWith("audio/")) { toast.error("Please select an audio file (MP3, WAV, M4A, OGG, WebM)"); return; }
+
+    setUploading(true);
+    setProgress(0);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("orgId", String(orgId));
+      formData.append("folder", "lms-media");
+
+      const result = await new Promise<{ key: string; url: string; fileName: string; fileSize: number; fileType: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+        });
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+          else reject(new Error(`Upload failed: ${xhr.status}`));
+        });
+        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+        xhr.open("POST", "/api/media-upload");
+        xhr.send(formData);
+      });
+
+      const saved = await saveMediaItem.mutateAsync({
+        orgId,
+        fileName: result.fileName,
+        mimeType: result.fileType || file.type || "audio/mpeg",
+        fileSize: result.fileSize,
+        fileKey: result.key,
+        url: result.url,
+        source: "direct",
+        tags: ["audio", "upload"],
+      });
+
+      const item: MediaItem = { id: (saved as any).id, url: result.url, filename: result.fileName, mimeType: result.fileType || file.type, fileSize: result.fileSize };
+      setUploadedItems((prev) => [item, ...prev]);
+      toast.success("Audio uploaded to Media Library");
+      onSaved?.(item);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Upload failed");
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6 p-6 max-w-2xl mx-auto w-full">
+      <div>
+        <h2 className="text-lg font-semibold">Upload Audio</h2>
+        <p className="text-sm text-muted-foreground mt-1">Upload an existing audio file to your Media Library</p>
+      </div>
+
+      <div
+        className={cn(
+          "border-2 border-dashed rounded-2xl p-12 flex flex-col items-center justify-center gap-4 transition-all cursor-pointer",
+          dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30"
+        )}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+        <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center">
+          {uploading ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <Music className="h-8 w-8 text-muted-foreground" />}
+        </div>
+        {uploading ? (
+          <div className="flex flex-col items-center gap-2 w-full max-w-xs">
+            <p className="text-sm font-medium">Uploading... {progress}%</p>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        ) : (
+          <div className="text-center">
+            <p className="text-sm font-medium">Drop an audio file here or click to browse</p>
+            <p className="text-xs text-muted-foreground mt-1">MP3, WAV, M4A, OGG, WebM · Max 100 MB</p>
+          </div>
+        )}
+      </div>
+
+      {uploadedItems.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold">Uploaded this session</h3>
+          {uploadedItems.map((item) => (
+            <div key={item.id} className="flex flex-col gap-2 p-3 rounded-xl border border-border bg-muted/20">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Music className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{item.filename}</p>
+                  <p className="text-xs text-muted-foreground">{formatFileSize(item.fileSize)}</p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <CheckCircle className="h-4 w-4 text-teal-500" />
+                  <span className="text-xs text-teal-600">Saved</span>
+                </div>
+              </div>
+              <audio src={item.url} controls className="w-full h-8" />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Text-to-Speech ────────────────────────────────────────────────────────────
+
+function TTSSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item: MediaItem) => void }) {
+  const [text, setText] = useState("");
+  const [voice, setVoice] = useState<"alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer">("nova");
+  const [speed, setSpeed] = useState(1.0);
+  const [fileName, setFileName] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [savedItem, setSavedItem] = useState<MediaItem | null>(null);
+  const generateSpeech = trpc.lms.media.generateSpeech.useMutation();
+
+  const handleGenerate = async () => {
+    if (!text.trim()) { toast.error("Please enter some text"); return; }
+    try {
+      const result = await generateSpeech.mutateAsync({
+        orgId,
+        text: text.trim(),
+        voice,
+        speed,
+        fileName: fileName.trim() || undefined,
+      });
+      setPreviewUrl(result.url);
+      const item: MediaItem = { id: result.id, url: result.url, filename: result.filename, mimeType: "audio/mpeg", fileSize: result.fileSize };
+      setSavedItem(item);
+      onSaved?.(item);
+      toast.success("Speech generated and saved to Media Library");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Speech generation failed");
+    }
+  };
+
+  const charCount = text.length;
+  const maxChars = 4096;
+
+  return (
+    <div className="flex flex-col gap-6 p-6 max-w-2xl mx-auto w-full">
+      <div>
+        <h2 className="text-lg font-semibold">Text-to-Speech</h2>
+        <p className="text-sm text-muted-foreground mt-1">Convert text to natural-sounding speech and save it to your Media Library</p>
+      </div>
+
+      {/* Text input */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">Text</Label>
+          <span className={cn("text-xs", charCount > maxChars * 0.9 ? "text-destructive" : "text-muted-foreground")}>
+            {charCount.toLocaleString()} / {maxChars.toLocaleString()}
+          </span>
+        </div>
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value.slice(0, maxChars))}
+          placeholder="Enter the text you want to convert to speech..."
+          className="min-h-[160px] resize-y text-sm"
+        />
+      </div>
+
+      {/* Voice & Speed controls */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-sm font-medium">Voice</Label>
+          <Select value={voice} onValueChange={(v) => setVoice(v as typeof voice)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {VOICE_OPTIONS.map((v) => (
+                <SelectItem key={v.value} value={v.value}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{v.label}</span>
+                    <span className="text-xs text-muted-foreground">{v.description}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium flex items-center gap-1.5">
+              <SlidersHorizontal className="h-3.5 w-3.5" /> Speed
+            </Label>
+            <span className="text-sm font-mono text-muted-foreground">{speed.toFixed(2)}×</span>
+          </div>
+          <Slider
+            value={[speed]}
+            onValueChange={([v]) => setSpeed(Math.round(v * 100) / 100)}
+            min={0.25}
+            max={4.0}
+            step={0.05}
+            className="mt-1"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>0.25× (slow)</span>
+            <span>1.0× (normal)</span>
+            <span>4.0× (fast)</span>
+          </div>
+        </div>
+      </div>
+
+      {/* File name */}
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-sm font-medium">File Name <span className="text-muted-foreground font-normal">(optional)</span></Label>
+        <div className="flex items-center gap-2">
+          <Input
+            value={fileName}
+            onChange={(e) => setFileName(e.target.value)}
+            placeholder={`tts-${voice}-...`}
+            className="flex-1"
+          />
+          <span className="text-sm text-muted-foreground shrink-0">.mp3</span>
+        </div>
+      </div>
+
+      {/* Generate button */}
+      <Button
+        size="lg"
+        className="w-full gap-2"
+        onClick={handleGenerate}
+        disabled={generateSpeech.isPending || !text.trim()}
+      >
+        {generateSpeech.isPending ? (
+          <><Loader2 className="h-4 w-4 animate-spin" /> Generating speech...</>
+        ) : (
+          <><Sparkles className="h-4 w-4" /> Generate Speech</>  
+        )}
+      </Button>
+
+      {/* Preview */}
+      {previewUrl && savedItem && (
+        <div className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-muted/20">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Volume2 className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{savedItem.filename}</p>
+              <p className="text-xs text-muted-foreground">{formatFileSize(savedItem.fileSize)} · MP3 · {voice} voice · {speed}×</p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <CheckCircle className="h-4 w-4 text-teal-500" />
+              <span className="text-xs text-teal-600">Saved</span>
+            </div>
+          </div>
+          <audio src={previewUrl} controls className="w-full h-8" />
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => { const a = document.createElement("a"); a.href = previewUrl; a.download = savedItem.filename; a.click(); }}>
+              <Download className="h-3.5 w-3.5" /> Download MP3
+            </Button>
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => { setPreviewUrl(null); setSavedItem(null); setText(""); setFileName(""); }}>
+              <Plus className="h-3.5 w-3.5" /> Generate Another
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main RecordEditPage ──────────────────────────────────────────────────────
 
 export default function RecordEditPage() {
@@ -1274,9 +1889,10 @@ export default function RecordEditPage() {
   };
 
   const TABS: { id: StudioTab; label: string; icon: React.ElementType }[] = [
-    { id: "record", label: "Record", icon: Circle },
+    { id: "record", label: "Record Video", icon: Circle },
     { id: "upload", label: "Upload Video", icon: Upload },
-    { id: "edit", label: "Edit", icon: Scissors },
+    { id: "edit", label: "Edit Video", icon: Scissors },
+    { id: "audio", label: "Audio", icon: Headphones },
   ];
 
   return (
@@ -1284,8 +1900,8 @@ export default function RecordEditPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div>
-          <h1 className="text-xl font-bold">Record / Edit</h1>
-          <p className="text-sm text-muted-foreground">Record, upload, and edit videos — add captions, transcripts, and highlight clips</p>
+          <h1 className="text-xl font-bold">Teachific Studio™</h1>
+          <p className="text-sm text-muted-foreground">Record, upload, and edit video and audio — add captions, transcripts, highlight clips, and AI-generated speech</p>
         </div>
         {lastSavedItem && (
           <div className="flex items-center gap-2 text-sm text-teal-600">
@@ -1327,6 +1943,9 @@ export default function RecordEditPage() {
         )}
         {activeTab === "edit" && (
           <EditTab orgId={orgId} initialItem={lastSavedItem} />
+        )}
+        {activeTab === "audio" && (
+          <AudioTab orgId={orgId} onSaved={handleItemSaved} />
         )}
       </div>
     </div>

@@ -1759,3 +1759,29 @@
 - [ ] Media Library Files tab: show duration badge on video items; show CC badge if captionsUrl set (future enhancement)
 - [ ] Media Library Files tab: "Edit Video" button on video items opens Edit Video tab with that item pre-loaded (future enhancement)
 - [x] Write vitest tests for VTT generation, clip validation, transcript editing, format helpers (10 tests)
+
+## Audio Studio & Text-to-Speech (Media Library Integration)
+- [ ] Backend: add lms.media.generateSpeech procedure (TTS via forge API v1/audio/speech → save mp3 to S3 → save to media library)
+- [ ] Backend: TTS supports voice selection (alloy, echo, fable, onyx, nova, shimmer), speed control
+- [ ] RecordEditPage: add "Audio" top-level tab alongside Record/Upload/Edit
+- [ ] Audio tab: sub-tabs — Record Audio, Upload Audio, Text-to-Speech
+- [ ] Record Audio sub-tab: microphone-only recording (MediaRecorder, audio/webm), waveform visualizer, pause/resume/stop, save to Media Library
+- [ ] Upload Audio sub-tab: drag-and-drop or file picker for audio files (mp3, wav, m4a, ogg, webm); progress bar; saves to Media Library
+- [ ] Text-to-Speech sub-tab: textarea for input text, voice selector (6 voices with preview labels), speed slider (0.25–4.0), Generate button, audio player preview, Save to Media Library button
+- [ ] Audio waveform visualizer using Web Audio API AnalyserNode (real-time during recording)
+- [ ] Audio player component: play/pause, seek bar, time display, download button
+- [x] StudioTab type extended to include "audio"
+- [ ] Update DashboardLayout sidebar Record/Edit icon to include audio hint
+- [x] Write vitest tests for TTS input validation and audio format helpers (15 new tests, 49 total)
+
+## Teachific Studio™ Branding & Audio Features
+- [x] Rename Record/Edit page header and description to "Teachific Studio™"
+- [x] Update DashboardLayout sidebar nav item from "Record/Edit" to "Teachific Studio™"
+- [x] Update MediaLibraryPage Record/Edit tab label to "Teachific Studio™"
+- [x] RecordEditPage: add "Audio" tab (4th top-level tab) with Headphones icon
+- [x] AudioTab: sub-tabs — Record Audio, Upload Audio, Text-to-Speech
+- [x] Record Audio sub-tab: microphone-only MediaRecorder, real-time waveform canvas visualizer, pause/resume/stop, recordings list with save-to-library
+- [x] Upload Audio sub-tab: drag-and-drop for mp3/wav/m4a/ogg/webm, progress bar, saves to Media Library
+- [x] Text-to-Speech sub-tab: textarea (max 4096 chars with counter), voice selector (alloy/echo/fable/onyx/nova/shimmer with descriptions), speed slider (0.25–4.0), file name input, Generate button, audio preview player, Save to Media Library button
+- [x] StudioTab type extended to include "audio"
+- [x] Write vitest tests for TTS input validation and audio format helpers (15 new tests, 49 total)

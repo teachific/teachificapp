@@ -16,7 +16,7 @@ function getDefaultTab(): TabId {
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: "files", label: "My Files", icon: FileArchive },
   { id: "upload", label: "Upload Content", icon: Upload },
-  { id: "record-edit", label: "Record / Edit", icon: Video },
+  { id: "record-edit", label: "Teachific Studio™", icon: Video },
   { id: "quizzes", label: "Quizzes", icon: BookOpen },
   { id: "flashcards", label: "Flashcards", icon: Layers },
 ];

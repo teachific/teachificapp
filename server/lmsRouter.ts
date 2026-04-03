@@ -2419,6 +2419,68 @@ export const lmsRouter = router({
         await db.delete(videoClips).where(eq(videoClips.id, input.id));
         return { success: true };
       }),
+
+    // ── Text-to-Speech ──────────────────────────────────────────────────────
+    generateSpeech: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        text: z.string().min(1).max(4096),
+        voice: z.enum(["alloy", "echo", "fable", "onyx", "nova", "shimmer"]).default("nova"),
+        speed: z.number().min(0.25).max(4.0).default(1.0),
+        fileName: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const { ENV } = await import("./_core/env");
+        const { orgMediaLibrary } = await import("../drizzle/schema");
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+        // Call the TTS endpoint (OpenAI-compatible)
+        const baseUrl = ENV.forgeApiUrl.endsWith("/") ? ENV.forgeApiUrl : `${ENV.forgeApiUrl}/`;
+        const ttsUrl = new URL("v1/audio/speech", baseUrl).toString();
+        const ttsRes = await fetch(ttsUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${ENV.forgeApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "tts-1",
+            input: input.text,
+            voice: input.voice,
+            speed: input.speed,
+            response_format: "mp3",
+          }),
+        });
+        if (!ttsRes.ok) {
+          const errText = await ttsRes.text().catch(() => "");
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `TTS generation failed: ${ttsRes.status} ${errText}` });
+        }
+        const audioBuffer = Buffer.from(await ttsRes.arrayBuffer());
+        const suffix = Math.random().toString(36).slice(2, 8);
+        const baseName = input.fileName
+          ? input.fileName.replace(/[^a-z0-9_-]/gi, "-").replace(/\.mp3$/i, "")
+          : `tts-${input.voice}-${suffix}`;
+        const fileKey = `lms-media/${input.orgId}/audio/${baseName}-${suffix}.mp3`;
+        const { url } = await storagePut(fileKey, audioBuffer, "audio/mpeg");
+
+        // Save to media library
+        const [row] = await db.insert(orgMediaLibrary).values({
+          orgId: input.orgId,
+          uploadedBy: ctx.user.id,
+          filename: `${baseName}.mp3`,
+          mimeType: "audio/mpeg",
+          fileSize: audioBuffer.length,
+          fileKey,
+          url,
+          source: "direct" as any,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        const insertId = (row as any).insertId ?? 0;
+        return { id: insertId, url, filename: `${baseName}.mp3`, fileSize: audioBuffer.length };
+      }),
   }),
   // ── Categories ────────────────────────────────────────────────────────────
   categories: router({
