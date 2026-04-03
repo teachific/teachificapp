@@ -168,6 +168,11 @@ function AdminRouter() {
         <Route path="/members/assignments" component={AssignmentsPage} />
         {/* Legacy /lms/members redirect */}
         <Route path="/lms/members">{() => { window.location.replace("/members/users"); return null; }}</Route>
+        {/* Parent nav redirects — collapsed sidebar navigates to parent path */}
+        <Route path="/members">{() => { window.location.replace("/members/users"); return null; }}</Route>
+        <Route path="/products">{() => { window.location.replace("/lms/courses"); return null; }}</Route>
+        <Route path="/marketing">{() => { window.location.replace("/marketing/website"); return null; }}</Route>
+        <Route path="/sales">{() => { window.location.replace("/sales/orders"); return null; }}</Route>
 
         {/* ── Products ── */}
         <Route path="/lms/courses" component={CoursesPage} />

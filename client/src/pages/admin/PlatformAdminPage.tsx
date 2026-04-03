@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from "react";
+import { CANONICAL_FEATURE_KEYS } from "../../../../shared/tierLimits";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -1856,23 +1857,8 @@ function PlatformFormsTab() {
 }
 
 // ─── Subscription Plans Tab ──────────────────────────────────────────────────
-const FEATURE_KEYS = [
-  { key: "courses", label: "Courses" },
-  { key: "lessons_per_course", label: "Lessons per Course" },
-  { key: "members", label: "Members" },
-  { key: "groups", label: "Groups" },
-  { key: "storage_gb", label: "Storage (GB)" },
-  { key: "forms", label: "Forms" },
-  { key: "communities", label: "Communities" },
-  { key: "webinars", label: "Webinars" },
-  { key: "digital_products", label: "Digital Products" },
-  { key: "email_campaigns", label: "Email Campaigns" },
-  { key: "custom_pages", label: "Custom Pages" },
-  { key: "bundles", label: "Bundles" },
-  { key: "memberships", label: "Memberships" },
-  { key: "affiliates", label: "Affiliates" },
-  { key: "certificates", label: "Certificates" },
-];
+// Use the shared canonical feature keys as the single source of truth
+const FEATURE_KEYS = CANONICAL_FEATURE_KEYS as readonly { key: string; label: string }[];
 
 const PLANS = ["free", "starter", "builder", "pro", "enterprise"] as const;
 

@@ -180,6 +180,30 @@ export const TIER_LIMITS: Record<PlanTier, TierLimits> = {
   },
 };
 
+/** Canonical feature keys used in subscription_plan_limits and org_limit_overrides tables.
+ * This is the single source of truth for which features appear in the Subscription Plans grid
+ * and the Limit Overrides panel.
+ */
+export const CANONICAL_FEATURE_KEYS = [
+  { key: "courses", label: "Courses" },
+  { key: "lessons_per_course", label: "Lessons per Course" },
+  { key: "members", label: "Members" },
+  { key: "groups", label: "Groups" },
+  { key: "storage_gb", label: "Storage (GB)" },
+  { key: "forms", label: "Forms" },
+  { key: "communities", label: "Communities" },
+  { key: "webinars", label: "Webinars" },
+  { key: "digital_products", label: "Digital Products" },
+  { key: "email_campaigns", label: "Email Campaigns" },
+  { key: "custom_pages", label: "Custom Pages" },
+  { key: "bundles", label: "Bundles" },
+  { key: "memberships", label: "Memberships" },
+  { key: "affiliates", label: "Affiliates" },
+  { key: "certificates", label: "Certificates" },
+] as const;
+
+export type CanonicalFeatureKey = typeof CANONICAL_FEATURE_KEYS[number]["key"];
+
 /** Returns the limits for a given plan string (defaults to free if unknown) */
 export function getLimits(plan?: string | null): TierLimits {
   const tier = (plan ?? "free") as PlanTier;

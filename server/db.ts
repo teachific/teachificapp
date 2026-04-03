@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { CANONICAL_FEATURE_KEYS } from "../shared/tierLimits";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   analyticsEvents,
@@ -646,6 +647,7 @@ export async function upsertOrgLimitOverride(data: {
 }
 
 /** Returns plan limits merged with org overrides for a given org.
+ * Uses CANONICAL_FEATURE_KEYS as the authoritative list of features.
  * Each row has featureKey, featureLabel, planDefault, limitValue (effective), isOverride.
  */
 export async function getOrgLimitsEnriched(orgId: number) {
@@ -657,24 +659,35 @@ export async function getOrgLimitsEnriched(orgId: number) {
     .where(eq(orgSubscriptions.orgId, orgId))
     .limit(1);
   const plan = subRows[0]?.plan ?? "free";
-  // Get plan limits for that plan
+  // Get plan limits for that plan (only canonical feature keys)
+  const canonicalKeys = CANONICAL_FEATURE_KEYS.map(f => f.key);
   const planLimits = await db.select()
     .from(subscriptionPlanLimits)
-    .where(eq(subscriptionPlanLimits.plan, plan))
+    .where(and(
+      eq(subscriptionPlanLimits.plan, plan),
+      inArray(subscriptionPlanLimits.featureKey, canonicalKeys)
+    ))
     .orderBy(subscriptionPlanLimits.featureKey);
+  // Build a map of plan defaults from DB
+  const planMap = new Map(planLimits.map(pl => [pl.featureKey, pl.limitValue]));
   // Get org overrides
   const overrides = await db.select()
     .from(orgLimitOverrides)
     .where(eq(orgLimitOverrides.orgId, orgId));
   const overrideMap = new Map(overrides.map(o => [o.featureKey, o.limitValue]));
-  return planLimits.map(pl => ({
-    featureKey: pl.featureKey,
-    featureLabel: pl.featureLabel,
-    planDefault: pl.limitValue,
-    limitValue: overrideMap.has(pl.featureKey) ? overrideMap.get(pl.featureKey)! : pl.limitValue,
-    isOverride: overrideMap.has(pl.featureKey),
-    plan,
-  }));
+  // Return rows for ALL canonical features (using DB plan default or 0 if not seeded yet)
+  return CANONICAL_FEATURE_KEYS.map(f => {
+    const planDefault = planMap.get(f.key) ?? 0;
+    const hasOverride = overrideMap.has(f.key);
+    return {
+      featureKey: f.key,
+      featureLabel: f.label,
+      planDefault,
+      limitValue: hasOverride ? overrideMap.get(f.key)! : planDefault,
+      isOverride: hasOverride,
+      plan,
+    };
+  });
 }
 
 /** Delete a per-org limit override (reverts to plan default) */

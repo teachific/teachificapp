@@ -1647,14 +1647,14 @@
 - [x] Platform admins auto-default to "Teachific" org; regular users auto-default to their own org
 
 ## Feature: Subscription Limits & Org Deletion (Apr 3 2026)
-- [ ] Add subscription_plan_limits table (plan x featureKey x limitValue)
-- [ ] Add org_limit_overrides table (per-org override of plan defaults)
-- [ ] Seed 75 default limit rows (15 features x 5 plans)
-- [ ] Backend: getPlanLimits, upsertPlanLimit, getOrgLimits, upsertOrgLimitOverride, deleteOrgLimitOverride
-- [ ] Backend: deleteOrg procedure (adminProcedure, cascades members + subscription)
-- [ ] Platform Admin UI: Subscription Plans tab - grid of plan x feature limits, inline edit
-- [ ] Platform Admin UI: Org edit dialog - Limits tab showing plan defaults + per-org overrides
-- [ ] Platform Admin UI: Org list - Delete button with confirmation dialog
+- [x] Add subscription_plan_limits table (plan x featureKey x limitValue)
+- [x] Add org_limit_overrides table (per-org override of plan defaults)
+- [x] Seed 75 default limit rows (15 features x 5 plans)
+- [x] Backend: getPlanLimits, upsertPlanLimit, getOrgLimits, upsertOrgLimitOverride, deleteOrgLimitOverride
+- [x] Backend: deleteOrg procedure (adminProcedure, cascades members + subscription)
+- [x] Platform Admin UI: Subscription Plans tab - grid of plan x feature limits, inline edit
+- [x] Platform Admin UI: Org edit dialog - Limits tab showing plan defaults + per-org overrides
+- [x] Platform Admin UI: Org list - Delete button with confirmation dialog
 
 ## Feature: Expanded Role System & Platform Admin User Management (Apr 3 2026)
 - [ ] Schema: add memberSubRole field to org_members (basic_member, instructor, group_manager, group_member)
@@ -1665,17 +1665,17 @@
 - [ ] Platform Admin UI: role selector shows Owner, Platform Admin, Org Super Admin, Org Admin, Org Member
 - [ ] Platform Admin UI: when Org Member selected, show sub-role selector (Basic Member, Instructor, Group Manager, Group Member)
 - [ ] Platform Admin UI: when Group Manager or Group Member selected, show group assignment dropdown
-- [ ] Platform Admin UI: subscription limits tab (plan x feature grid, inline edit)
+- [x] Platform Admin UI: subscription limits tab (plan x feature grid, inline edit)
 - [x] Platform Admin UI: org limits panel in org edit dialog (Limits tab)
-- [ ] Platform Admin UI: org delete button with confirmation dialog
+- [x] Platform Admin UI: org delete button with confirmation dialog
 
 ## Bug Fixes - Apr 3 2026 (Session 2)
 
 - [ ] PageBuilder banner block: add button color fields (primary button bg + text color, secondary button bg + text color)
-- [ ] Platform Admin: add Subscription Plans tab with editable plan limits grid (features × plans)
+- [x] Platform Admin: add Subscription Plans tab with editable plan limits grid (features × plans)
 - [x] Platform Admin: add org limits override panel inside org edit dialog
-- [ ] Platform Admin: add Delete Organization button with confirmation
-- [ ] PageBuilder: fix null validation error on page save (metaTitle/metaDescription/customCss sent as null)
+- [x] Platform Admin: add Delete Organization button with confirmation
+- [x] PageBuilder: fix null validation error on page save (metaTitle/metaDescription/customCss sent as null)
 - [ ] PageBuilder: collapsible block editing — blocks show live preview when collapsed, settings panel when expanded/selected
 - [ ] PageBuilder: direct media upload (image/video) with storage to Media Library for image/video fields
 - [ ] PageBuilder: image AND video background options in all banner and CTA blocks
@@ -1724,5 +1724,5 @@
 - [ ] Apply org branding when accessed via subdomain
 - [ ] Add subdomain field to Org Settings so admins can configure their subdomain
 - [x] Add per-org subscription plan editing in Platform Admin Organizations tab (plan selector + limit overrides per org)
-- [ ] Fix org edit dialog save — subscription plan changes not persisting
+- [x] Fix org edit dialog save — subscription plan changes not persisting
 - [x] Add Subscription tab in org edit dialog showing plan defaults + per-org limit overrides inline

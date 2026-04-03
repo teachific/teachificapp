@@ -143,7 +143,7 @@ export default function LmsDashboardPage() {
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setLocation("/lms/members")}>
             <UserPlus className="h-3.5 w-3.5" /> Add Member
           </Button>
-          <Button size="sm" className="gap-1.5" onClick={() => setLocation("/lms/courses/new")}>
+          <Button size="sm" className="gap-1.5" onClick={() => setLocation("/lms/courses?create=1")}>
             <Plus className="h-3.5 w-3.5" /> New Course
           </Button>
         </div>
@@ -271,7 +271,7 @@ export default function LmsDashboardPage() {
               <div className="flex flex-col items-center justify-center py-10 text-center px-4">
                 <BookOpen className="h-8 w-8 text-muted-foreground/40 mb-2" />
                 <p className="text-sm text-muted-foreground">No courses yet</p>
-                <Button size="sm" className="mt-3 gap-1.5" onClick={() => setLocation("/lms/courses/new")}>
+                <Button size="sm" className="mt-3 gap-1.5" onClick={() => setLocation("/lms/courses?create=1")}>
                   <Plus className="h-3.5 w-3.5" /> Create First Course
                 </Button>
               </div>
@@ -327,7 +327,7 @@ export default function LmsDashboardPage() {
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "New Course", icon: Plus, path: "/lms/courses/new", color: "text-primary" },
+              { label: "New Course", icon: Plus, path: "/lms/courses?create=1", color: "text-primary" },
               { label: "Add Member", icon: UserPlus, path: "/lms/members", color: "text-blue-600" },
               { label: "Analytics", icon: BarChart3, path: "/lms/analytics", color: "text-violet-600" },
               { label: "Activity Log", icon: Activity, path: "/lms/activity", color: "text-amber-600" },

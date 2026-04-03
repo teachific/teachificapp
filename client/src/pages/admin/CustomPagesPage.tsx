@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
+import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -170,7 +171,15 @@ function OrgSearchSelector({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CustomPagesPage() {
   const [, setLocation] = useLocation();
+  const { orgId: autoOrgId, ready: orgReady } = useOrgScope();
   const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
+
+  // Auto-select org from useOrgScope when it resolves
+  useEffect(() => {
+    if (orgReady && autoOrgId && !selectedOrgId) {
+      setSelectedOrgId(autoOrgId);
+    }
+  }, [orgReady, autoOrgId, selectedOrgId]);
   const [editingPage, setEditingPage] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pageToDelete, setPageToDelete] = useState<number | null>(null);
