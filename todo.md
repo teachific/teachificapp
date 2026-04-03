@@ -1650,4 +1650,6 @@
 - [x] Live client-side school/org pages (e.g. /school/all-about-ultrasound) should NOT show the org admin DashboardLayout sidebar
 - [x] School pages should show a learner/member sidebar only when the user is logged in
 - [x] The main org landing page (storefront) should have NO sidebar at all — public-facing layout only
-- [ ] The learner sidebar (My Courses, My Certificates, Account, etc.) should appear only on authenticated learner routes
+- [x] The learner sidebar (My Courses, My Certificates, Account, etc.) should appear only on authenticated learner routes
+- [x] SchoolMemberLayout created: sidebar with My Courses, Certificates, Profile nav items, only shown on /school/:orgSlug/my-courses and similar authenticated routes
+- [x] SchoolMyCoursesPage created at /school/:orgSlug/my-courses with full enrollment grid, progress bars, and filter tabs

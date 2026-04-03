@@ -182,8 +182,8 @@ export default function SchoolPage() {
             <a href="#courses" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Courses</a>
             {user ? (
               <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={() => setLocation("/lms/my-learning")}>
-                  My Learning
+                <Button variant="outline" size="sm" onClick={() => setLocation(orgSlug ? `/school/${orgSlug}/my-courses` : "/school/my-courses")}>
+                  My Courses
                 </Button>
                 <Button size="sm" style={{ backgroundColor: primaryColor }} onClick={() => setLocation("/")}>
                   Dashboard

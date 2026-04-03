@@ -765,6 +765,9 @@ export const platformSettings = mysqlTable("platform_settings", {
   faviconUrl: text("faviconUrl"),
   primaryColor: varchar("primaryColor", { length: 32 }).default("#189aa1").notNull(),
   accentColor: varchar("accentColor", { length: 32 }).default("#4ad9e0").notNull(),
+  tagline: varchar("tagline", { length: 500 }),
+  headingFont: varchar("headingFont", { length: 128 }).default("Inter"),
+  bodyFont: varchar("bodyFont", { length: 128 }).default("Inter"),
   // Platform-wide video watermark
   watermarkImageUrl: text("watermarkImageUrl"),
   watermarkOpacity: int("watermarkOpacity").default(30),

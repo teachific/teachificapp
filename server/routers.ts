@@ -1507,6 +1507,15 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         await db2.insert(orgSubTable).values({ orgId, plan: input.plan, status: "active" }).onDuplicateKeyUpdate({ set: { plan: input.plan, status: "active" } });
         return { orgId, adminUserId };
       }),
+    uploadPlatformLogo: adminProcedure
+      .input(z.object({ fileName: z.string(), contentType: z.string() }))
+      .mutation(async ({ input }) => {
+        const ext = input.fileName.split(".").pop() ?? "png";
+        const key = `platform-branding/${Date.now()}-${nanoid(8)}.${ext}`;
+        const { url } = await storagePut(key, Buffer.alloc(0), input.contentType);
+        const fileUrl = url.split("?")[0];
+        return { key, fileUrl, uploadUrl: url };
+      }),
     getBranding: adminProcedure.query(async () => {
       const db2 = await getDb();
       if (!db2) return null;
@@ -1521,6 +1530,9 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         primaryColor: z.string().optional(),
         accentColor: z.string().optional(),
         platformName: z.string().optional(),
+        tagline: z.string().optional().nullable(),
+        headingFont: z.string().optional(),
+        bodyFont: z.string().optional(),
         watermarkImageUrl: z.string().optional().nullable(),
         watermarkOpacity: z.number().int().min(0).max(100).optional(),
         watermarkPosition: z.string().optional(),

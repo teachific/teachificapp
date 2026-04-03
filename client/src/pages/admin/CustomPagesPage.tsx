@@ -29,7 +29,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageBuilder, Block } from "@/components/PageBuilder";
-import { Plus, Edit, Trash2, Eye, EyeOff, Search, Building2, ChevronDown, X, Layout, Copy } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, EyeOff, Search, Building2, ChevronDown, X, Layout, Copy, Globe, GlobeLock } from "lucide-react";
+import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -168,6 +169,7 @@ function OrgSearchSelector({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CustomPagesPage() {
+  const [, setLocation] = useLocation();
   const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
   const [editingPage, setEditingPage] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -207,6 +209,13 @@ export default function CustomPagesPage() {
       refetchPages();
       toast.success("Page duplicated");
       if (copy) setEditingPage(copy);
+    },
+  });
+
+  const togglePublish = trpc.lms.pages.update.useMutation({
+    onSuccess: () => {
+      refetchPages();
+      toast.success("Page status updated");
     },
   });
 
@@ -344,34 +353,57 @@ export default function CustomPagesPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
                       <Button
-                        variant="ghost"
+                        variant="default"
                         size="sm"
-                        onClick={() => setEditingPage(page)}
-                        title="Edit"
+                        className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs h-7 px-2"
+                        onClick={() => setLocation(`/lms/page-builder/${page.id}`)}
+                        title="Open in Page Builder"
                       >
-                        <Edit className="w-4 h-4" />
+                        <Layout className="w-3.5 h-3.5" /> Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`gap-1.5 text-xs h-7 px-2 ${page.isPublished ? 'border-amber-300 text-amber-700 hover:bg-amber-50' : 'border-green-300 text-green-700 hover:bg-green-50'}`}
+                        onClick={() => togglePublish.mutate({ id: page.id, isPublished: !page.isPublished })}
+                        disabled={togglePublish.isPending}
+                        title={page.isPublished ? "Unpublish" : "Publish"}
+                      >
+                        {page.isPublished ? <GlobeLock className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
+                        {page.isPublished ? "Unpublish" : "Publish"}
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => setEditingPage(page)}
+                        title="Edit Settings"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
                         onClick={() => duplicatePage.mutate({ id: page.id })}
                         disabled={duplicatePage.isPending}
                         title="Duplicate"
                       >
-                        <Copy className="w-4 h-4" />
+                        <Copy className="w-3.5 h-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                         onClick={() => {
                           setPageToDelete(page.id);
                           setDeleteDialogOpen(true);
                         }}
                         title="Delete"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </TableCell>

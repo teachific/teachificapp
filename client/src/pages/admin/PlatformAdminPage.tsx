@@ -1143,8 +1143,12 @@ function BrandingTab() {
     onSuccess: () => { refetch(); toast.success("Branding saved"); },
     onError: (e) => toast.error(e.message),
   });
+  const uploadPlatformLogo = trpc.platformAdmin.uploadPlatformLogo.useMutation();
   const [form, setForm] = useState<{
     platformName?: string;
+    tagline?: string | null;
+    headingFont?: string;
+    bodyFont?: string;
     logoUrl?: string | null;
     faviconUrl?: string | null;
     primaryColor?: string;
@@ -1154,7 +1158,33 @@ function BrandingTab() {
     watermarkPosition?: string;
     watermarkSize?: number;
   }>({});
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [faviconUploading, setFaviconUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
   const merged = { ...branding, ...form };
+
+  const FONT_OPTIONS = [
+    "Inter", "Roboto", "Open Sans", "Lato", "Montserrat", "Poppins",
+    "Source Sans Pro", "Nunito", "Raleway", "Merriweather", "Playfair Display",
+    "DM Sans", "Work Sans", "Outfit", "Plus Jakarta Sans",
+  ];
+
+  const handleLogoUpload = async (file: File, field: "logoUrl" | "faviconUrl") => {
+    const setter = field === "logoUrl" ? setLogoUploading : setFaviconUploading;
+    setter(true);
+    try {
+      const { uploadUrl, fileUrl } = await uploadPlatformLogo.mutateAsync({ fileName: file.name, contentType: file.type });
+      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      setForm(f => ({ ...f, [field]: fileUrl }));
+      toast.success(field === "logoUrl" ? "Logo uploaded" : "Favicon uploaded");
+    } catch (e: any) {
+      toast.error("Upload failed: " + e.message);
+    } finally {
+      setter(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="bg-gray-50 border-gray-200">
@@ -1163,23 +1193,55 @@ function BrandingTab() {
             <Palette className="w-4 h-4 text-teal-400" />
             Platform Identity
           </CardTitle>
-          <CardDescription className="text-slate-700">Configure the platform name, logo, and brand colors.</CardDescription>
+          <CardDescription className="text-slate-700">Configure the platform name, tagline, logo, and brand colors.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label className="text-slate-700 text-sm">Platform Name</Label>
-            <Input value={merged.platformName ?? "Teachific"} onChange={e => setForm(f => ({ ...f, platformName: e.target.value }))} className="bg-white border-gray-300 text-slate-900 max-w-sm" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Platform Name</Label>
+              <Input value={merged.platformName ?? "Teachific"} onChange={e => setForm(f => ({ ...f, platformName: e.target.value }))} className="bg-white border-gray-300 text-slate-900" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Tagline</Label>
+              <Input value={merged.tagline ?? ""} onChange={e => setForm(f => ({ ...f, tagline: e.target.value || null }))} placeholder="e.g. Empowering teams through learning" className="bg-white border-gray-300 text-slate-900" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-slate-700 text-sm">Logo URL</Label>
-              <Input value={merged.logoUrl ?? ""} onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value || null }))} placeholder="https://..." className="bg-white border-gray-300 text-slate-900" />
-              {merged.logoUrl && <img src={merged.logoUrl} alt="Logo preview" className="h-12 mt-2 rounded border border-gray-200 object-contain bg-white p-1" />}
+              <Label className="text-slate-700 text-sm">Platform Logo</Label>
+              <div className="flex items-start gap-3">
+                {merged.logoUrl && <img src={merged.logoUrl} alt="Logo" className="h-12 rounded border border-gray-200 object-contain bg-white p-1" />}
+                <div className="flex-1 space-y-1.5">
+                  <Input
+                    value={merged.logoUrl ?? ""}
+                    onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value || null }))}
+                    placeholder="https://... or upload below"
+                    className="bg-white border-gray-300 text-slate-900 text-sm"
+                  />
+                  <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f, "logoUrl"); }} />
+                  <Button variant="outline" size="sm" onClick={() => logoInputRef.current?.click()} disabled={logoUploading} className="gap-1.5 text-xs border-gray-300 text-slate-700">
+                    <Upload className="w-3.5 h-3.5" /> {logoUploading ? "Uploading..." : "Upload Logo"}
+                  </Button>
+                </div>
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-700 text-sm">Favicon URL</Label>
-              <Input value={merged.faviconUrl ?? ""} onChange={e => setForm(f => ({ ...f, faviconUrl: e.target.value || null }))} placeholder="https://..." className="bg-white border-gray-300 text-slate-900" />
-              {merged.faviconUrl && <img src={merged.faviconUrl} alt="Favicon preview" className="h-8 mt-2 rounded border border-gray-200 object-contain bg-white p-1" />}
+              <Label className="text-slate-700 text-sm">Favicon</Label>
+              <div className="flex items-start gap-3">
+                {merged.faviconUrl && <img src={merged.faviconUrl} alt="Favicon" className="h-8 rounded border border-gray-200 object-contain bg-white p-1" />}
+                <div className="flex-1 space-y-1.5">
+                  <Input
+                    value={merged.faviconUrl ?? ""}
+                    onChange={e => setForm(f => ({ ...f, faviconUrl: e.target.value || null }))}
+                    placeholder="https://... or upload below"
+                    className="bg-white border-gray-300 text-slate-900 text-sm"
+                  />
+                  <input ref={faviconInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f, "faviconUrl"); }} />
+                  <Button variant="outline" size="sm" onClick={() => faviconInputRef.current?.click()} disabled={faviconUploading} className="gap-1.5 text-xs border-gray-300 text-slate-700">
+                    <Upload className="w-3.5 h-3.5" /> {faviconUploading ? "Uploading..." : "Upload Favicon"}
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -1196,6 +1258,26 @@ function BrandingTab() {
                 <input type="color" value={merged.accentColor ?? "#4ad9e0"} onChange={e => setForm(f => ({ ...f, accentColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
                 <Input value={merged.accentColor ?? "#4ad9e0"} onChange={e => setForm(f => ({ ...f, accentColor: e.target.value }))} className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
               </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Heading Font</Label>
+              <Select value={merged.headingFont ?? "Inter"} onValueChange={v => setForm(f => ({ ...f, headingFont: v }))}>
+                <SelectTrigger className="bg-white border-gray-300 text-slate-900"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FONT_OPTIONS.map(font => <SelectItem key={font} value={font} style={{ fontFamily: font }}>{font}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Body Font</Label>
+              <Select value={merged.bodyFont ?? "Inter"} onValueChange={v => setForm(f => ({ ...f, bodyFont: v }))}>
+                <SelectTrigger className="bg-white border-gray-300 text-slate-900"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FONT_OPTIONS.map(font => <SelectItem key={font} value={font} style={{ fontFamily: font }}>{font}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>

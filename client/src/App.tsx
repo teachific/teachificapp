@@ -33,6 +33,7 @@ import MembersPage from "./pages/lms/MembersPage";
 import LmsAnalyticsPage from "./pages/lms/LmsAnalyticsPage";
 import PageBuilderPage from "./pages/lms/PageBuilderPage";
 import SchoolPage from "./pages/lms/SchoolPage";
+import SchoolMyCoursesPage from "./pages/lms/SchoolMyCoursesPage";
 import FormsPage from "./pages/lms/FormsPage";
 import FormBuilderPage from "./pages/lms/FormBuilderPage";
 import FormResponsesPage from "./pages/lms/FormResponsesPage";
@@ -126,6 +127,9 @@ function BareRouter() {
       <Route path="/school/:orgSlug" component={SchoolPage} />
       <Route path="/school/courses/:courseId" component={CourseSalesPage} />
       <Route path="/school/:orgSlug/courses/:courseId" component={CourseSalesPage} />
+      {/* Member portal routes — require auth, show member sidebar */}
+      <Route path="/school/:orgSlug/my-courses" component={SchoolMyCoursesPage} />
+      <Route path="/school/my-courses" component={SchoolMyCoursesPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
