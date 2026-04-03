@@ -57,6 +57,8 @@ import {
   getRecentActivity,
   getRecentlyEditedCourses,
   getEnrolledCoursesForUser,
+  getCertificateByEnrollment,
+  createCertificate,
 } from "./lmsDb";
 import { getOrgById, getOrgMember } from "./db";
 import {
@@ -170,6 +172,8 @@ import { nanoid } from "nanoid";
 import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
 import { getLimits } from "../shared/tierLimits";
+import { sendEmail, resolveMergeTags, buildUnsubscribeToken } from "./sendgrid";
+import { getOrgMembers, getUserById } from "./db";
 
 // ─── Role helpers ────────────────────────────────────────────────────────────
 
@@ -643,6 +647,29 @@ export const lmsRouter = router({
         const total = allLessons.length;
         const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
         await updateEnrollmentProgress(enrollment.id, pct, input.lessonId);
+
+        // Auto-issue certificate on 100% completion
+        if (pct === 100) {
+          const course = await getCourseById(input.courseId);
+          if (course?.enableCertificate) {
+            const existing = await getCertificateByEnrollment(enrollment.id);
+            if (!existing) {
+              const verificationCode = nanoid(16);
+              await createCertificate({
+                enrollmentId: enrollment.id,
+                userId: ctx.user.id,
+                courseId: input.courseId,
+                orgId: course.orgId,
+                verificationCode,
+                certData: JSON.stringify({
+                  studentName: ctx.user.name ?? ctx.user.email,
+                  courseTitle: course.title,
+                  issuedAt: new Date().toISOString(),
+                }),
+              });
+            }
+          }
+        }
 
         return progress;
       }),
@@ -1885,6 +1912,48 @@ export const lmsRouter = router({
         await deleteEmailCampaign(input.id);
         return { ok: true };
       }),
+    send: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        audience: z.enum(["all_members", "enrolled_students", "custom"]).default("all_members"),
+        courseId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const c = await getEmailCampaignById(input.id);
+        if (!c) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, c.orgId!);
+        if (c.status === "sent") throw new TRPCError({ code: "BAD_REQUEST", message: "Campaign already sent" });
+        // Mark as sending
+        await updateEmailCampaign(input.id, { status: "sending" });
+        // Gather recipients
+        const members = await getOrgMembers(c.orgId!);
+        const recipientUserIds = members.map((m: any) => m.userId).filter(Boolean) as number[];
+        let sentCount = 0;
+        let failedCount = 0;
+        for (const userId of recipientUserIds) {
+          const user = await getUserById(userId);
+          if (!user?.email) { failedCount++; continue; }
+          const unsubToken = buildUnsubscribeToken(c.orgId!, userId);
+          const html = resolveMergeTags(c.htmlBody, {
+            user_name: user.name ?? user.email,
+            org_name: String(c.orgId),
+            course_title: "",
+            unsubscribe_url: `${process.env.VITE_OAUTH_PORTAL_URL ?? ""}/unsubscribe?token=${unsubToken}`,
+            site_url: process.env.VITE_OAUTH_PORTAL_URL ?? "",
+            year: String(new Date().getFullYear()),
+          });
+          const ok = await sendEmail({ to: user.email, subject: c.subject, html });
+          if (ok) sentCount++; else failedCount++;
+        }
+        await updateEmailCampaign(input.id, {
+          status: "sent",
+          sentAt: new Date(),
+          sentCount,
+          failedCount,
+          recipientCount: recipientUserIds.length,
+        });
+        return { sentCount, failedCount, total: recipientUserIds.length };
+      }),
   }),
   // ── Media Upload ────────────────────────────────────────────────────────
   media: router({
@@ -2004,6 +2073,32 @@ export const lmsRouter = router({
       .mutation(async ({ input }) => {
         await removeGroupMember(input.memberId);
         return { ok: true };
+      }),
+    bulkEnroll: protectedProcedure
+      .input(z.object({ groupId: z.number(), courseId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const g = await getGroupById(input.groupId);
+        if (!g) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, g.orgId);
+        const members = await getGroupMembers(input.groupId);
+        let enrolled = 0;
+        let skipped = 0;
+        for (const member of members) {
+          if (!member.userId) { skipped++; continue; }
+          const existing = await getEnrollment(input.courseId, member.userId);
+          if (existing) { skipped++; continue; }
+          await createEnrollment({
+            courseId: input.courseId,
+            userId: member.userId,
+            orgId: g.orgId,
+            enrolledAt: new Date(),
+            isActive: true,
+          });
+          enrolled++;
+        }
+        // Update group courseId if not set
+        if (!g.courseId) await updateGroup(input.groupId, { courseId: input.courseId });
+        return { enrolled, skipped, total: members.length };
       }),
   }),
   // ── Discussions ───────────────────────────────────────────────────────────

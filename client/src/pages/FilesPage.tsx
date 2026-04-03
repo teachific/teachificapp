@@ -559,7 +559,7 @@ export default function FilesPage() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex flex-col md:flex-row h-full min-h-0">
+      <div className="flex flex-col md:flex-row h-full min-h-0 p-4 sm:p-6 max-w-7xl mx-auto w-full">
         {/* ── Folder Sidebar ── */}
         <aside className="md:w-56 shrink-0 border-b md:border-b-0 md:border-r border-border/60 flex flex-col bg-muted/20 md:overflow-y-auto">
           <div className="flex items-center justify-between px-3 pt-4 pb-2">

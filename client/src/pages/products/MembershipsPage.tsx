@@ -41,7 +41,7 @@ export default function MembershipsPage() {
   const openEdit = (m: any) => { setEditId(m.id); setName(m.name); setDescription(m.description ?? ""); setPrice(String(m.price)); setInterval(m.billingInterval); setTrialDays(String(m.trialDays ?? 0)); setEditOpen(true); };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold flex items-center gap-2"><CreditCard className="h-6 w-6 text-primary" />Memberships</h1><p className="text-muted-foreground mt-0.5">Create recurring membership plans for your school</p></div>
         <Button className="gap-2" onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4" />New Membership</Button>

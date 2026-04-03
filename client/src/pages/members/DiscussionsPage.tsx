@@ -46,7 +46,7 @@ export default function DiscussionsPage() {
   const { data: expandedDetail } = trpc.lms.discussions.get.useQuery({ id: expanded! }, { enabled: !!expanded });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold flex items-center gap-2"><MessageSquare className="h-6 w-6 text-primary" />Discussions</h1><p className="text-muted-foreground mt-0.5">Course Q&A and community discussions</p></div>
         <Button className="gap-2" onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4" />New Discussion</Button>

@@ -27,7 +27,7 @@ export default function MediaLibraryPage() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 p-4 sm:p-6 max-w-7xl mx-auto">
       {/* Tab bar */}
       <div className="flex items-center gap-0 px-6 border-b border-border bg-background shrink-0">
         {TABS.map((tab) => {

@@ -26,7 +26,7 @@ export default function ApiPage() {
     setShow(false); setName(""); toast.success("API key created — copy it now, it won\'t be shown again");
   };
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold flex items-center gap-2"><Key className="h-6 w-6 text-primary" />API Keys</h1><p className="text-muted-foreground mt-0.5">Manage API keys for programmatic access to your school data</p></div>
         <Button className="gap-2" onClick={() => setShow(true)}><Plus className="h-4 w-4" />New API Key</Button>

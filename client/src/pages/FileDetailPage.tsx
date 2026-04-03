@@ -122,7 +122,7 @@ document.getElementById('teachific-frame').src = buildLearnerUrl();`;
       ].join('\n');
 
   return (
-    <div className="space-y-5 pt-1">
+    <div className="space-y-5 pt-1 p-4 sm:p-6 max-w-7xl mx-auto">
       {/* Step 1: Select params */}
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Step 1 — Choose which variables to pass</p>

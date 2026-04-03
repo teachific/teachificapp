@@ -128,7 +128,7 @@ export default function OrgSettingsPage() {
 
   if (orgLoading || !orgCtx) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-96 w-full" />
       </div>

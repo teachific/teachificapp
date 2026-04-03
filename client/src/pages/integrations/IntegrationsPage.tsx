@@ -21,7 +21,7 @@ export default function IntegrationsPage() {
   const [search, setSearch] = useState("");
   const filtered = INTEGRATIONS.filter(i => i.name.toLowerCase().includes(search.toLowerCase()) || i.category.toLowerCase().includes(search.toLowerCase()));
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div><h1 className="text-2xl font-bold flex items-center gap-2"><Puzzle className="h-6 w-6 text-primary" />Integrations</h1><p className="text-muted-foreground mt-0.5">Connect your school with third-party apps and services</p></div>
       <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder="Search integrations..." value={search} onChange={e => setSearch(e.target.value)} /></div>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">

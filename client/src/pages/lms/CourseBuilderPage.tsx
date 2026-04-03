@@ -267,7 +267,7 @@ function SectionBlock({
     .filter(Boolean) as typeof section.lessons;
 
   return (
-    <div className="border border-border rounded-xl overflow-hidden">
+    <div className="border border-border rounded-xl overflow-hidden p-4 sm:p-6 max-w-7xl mx-auto">
       {/* Section header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-muted/30">
         <button onClick={() => setExpanded((v) => !v)} className="text-muted-foreground">

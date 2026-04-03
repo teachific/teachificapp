@@ -267,7 +267,7 @@ export default function CustomPagesPage() {
   const orgList: Array<{ id: number; name: string }> = orgs ?? [];
 
   return (
-    <div className="container py-8">
+    <div className="container py-8 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Custom Pages</h1>
         <p className="text-muted-foreground">

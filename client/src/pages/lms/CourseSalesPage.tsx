@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
+import { toast } from "sonner";
 import {
   ChevronLeft,
   Star,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+type EnrollFn = (pricingId?: number, price?: number) => void;
 type LegalDocs = {
   termsOfService?: string | null;
   privacyPolicy?: string | null;
@@ -32,12 +34,13 @@ type LegalDocs = {
 
 // ─── Block Renderer (student-facing, read-only) ───────────────────────────────
 
-function RenderBlock({ block, primaryColor, curriculum, pricing, legalDocs }: {
+function RenderBlock({ block, primaryColor, curriculum, pricing, legalDocs, onEnroll }: {
   block: any;
   primaryColor: string;
   curriculum: any[];
   pricing: any[];
   legalDocs?: LegalDocs;
+  onEnroll?: EnrollFn;
 }) {
   const d = block.data;
   const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({});
@@ -211,14 +214,15 @@ function RenderBlock({ block, primaryColor, curriculum, pricing, legalDocs }: {
                       )}
                     </div>
                     {p.description && <p className="text-sm text-muted-foreground mb-4">{p.description}</p>}
-                    <Button
-                      className="w-full text-white"
-                      style={{ backgroundColor: primaryColor }}
-                      disabled={requireAgreement ? !agreed : false}
-                      title={requireAgreement && !agreed ? "Please agree to the policies above to continue" : undefined}
-                    >
-                      Get Started
-                    </Button>
+                  <Button
+                    className="w-full text-white"
+                    style={{ backgroundColor: primaryColor }}
+                    disabled={requireAgreement ? !agreed : false}
+                    title={requireAgreement && !agreed ? "Please agree to the policies above to continue" : undefined}
+                    onClick={() => onEnroll?.(p.id, p.price)}
+                  >
+                    {p.price > 0 ? `Enroll — $${p.price}` : "Enroll Free"}
+                  </Button>
                   </div>
                 ))}
               </div>
@@ -351,6 +355,7 @@ export default function CourseSalesPage() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const courseId = parseInt(params.courseId);
+  const utils = trpc.useUtils();
 
   const { data: course, isLoading: courseLoading } = trpc.lms.courses.get.useQuery({ id: courseId });
   const { data: curriculum } = trpc.lms.curriculum.get.useQuery({ courseId });
@@ -372,6 +377,26 @@ export default function CourseSalesPage() {
     { enabled: !!user }
   );
   const enrollment = enrollments?.find((e: any) => e.courseId === courseId);
+
+  const enrollMut = trpc.lms.enrollments.enroll.useMutation({
+    onSuccess: () => {
+      utils.lms.enrollments.myEnrollments.invalidate();
+      toast.success("Enrolled successfully!");
+      setLocation(`/learn/${courseId}`);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleEnroll = (pricingId?: number, price?: number) => {
+    if (!user) { window.location.href = getLoginUrl(); return; }
+    if (!course) return;
+    if (price && price > 0) {
+      // Paid course — redirect to payment (Stripe not yet configured, show info)
+      toast.info("Payment processing coming soon. Contact the course provider to enroll.");
+      return;
+    }
+    enrollMut.mutate({ courseId, orgId: course.orgId, pricingId, amountPaid: 0 });
+  };
 
   const primaryColor = theme?.studentPrimaryColor || theme?.primaryColor || "#189aa1";
 
@@ -448,6 +473,7 @@ export default function CourseSalesPage() {
                 curriculum={curriculum || []}
                 pricing={pricing || []}
                 legalDocs={legalDocs}
+                onEnroll={handleEnroll}
               />
             </div>
           ))}
@@ -492,6 +518,7 @@ export default function CourseSalesPage() {
               curriculum={curriculum || []}
               pricing={pricing}
               legalDocs={legalDocs}
+              onEnroll={handleEnroll}
             />
           )}
         </div>

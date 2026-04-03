@@ -26,7 +26,7 @@ export default function OrdersPage() {
   const filtered = orders?.filter(o => !search || o.customerEmail.includes(search) || (o.productName ?? "").toLowerCase().includes(search.toLowerCase())) ?? [];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold flex items-center gap-2"><ShoppingCart className="h-6 w-6 text-primary" />Orders</h1><p className="text-muted-foreground mt-0.5">Track and manage all course purchases</p></div>
       </div>

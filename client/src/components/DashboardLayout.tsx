@@ -64,9 +64,10 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
+import { trpc } from "@/lib/trpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type NavSubItem = { label: string; path: string };
+type NavSubItem = { label: string; path: string; external?: boolean };
 type NavItem = {
   icon: React.ElementType;
   label: string;
@@ -292,6 +293,13 @@ function DashboardLayoutContent({
   const isAdmin = user?.role === "site_admin" || user?.role === "site_owner";
   const isOwner = user?.role === "site_owner";
 
+  // Fetch org slug for the Preview link
+  const { data: orgs } = trpc.orgs.myOrgs.useQuery();
+  const orgSlug = orgs?.[0]?.slug;
+  const previewUrl = orgSlug
+    ? `${window.location.origin}/school/${orgSlug}?preview=1`
+    : null;
+
   // Determine which accordion groups are open
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -453,15 +461,32 @@ function DashboardLayoutContent({
                             {/* Sub-items */}
                             {hasSubItems && !isCollapsed && isOpen && (
                               <div className="ml-4 mt-0.5 mb-1 pl-3 border-l-2 border-primary/25 space-y-0.5">
+                                {/* Inject Preview sub-item under Website */}
+                                {item.path === "/marketing" && previewUrl && (
+                                  <button
+                                    key="preview"
+                                    onClick={() => window.open(previewUrl, "_blank", "noopener,noreferrer")}
+                                    className="w-full text-left px-2 py-1.5 rounded-md text-[13px] transition-all duration-150 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 flex items-center gap-1.5"
+                                  >
+                                    <Globe className="h-3 w-3 shrink-0 opacity-60" />
+                                    Preview Site
+                                  </button>
+                                )}
                                 {item.subItems!.map((sub) => {
                                   const subActive = isSubItemActive(sub);
                                   return (
                                     <button
                                       key={sub.label + sub.path}
-                                      onClick={() => setLocation(sub.path)}
+                                      onClick={() => {
+                                        if (sub.external) {
+                                          window.open(sub.path, "_blank", "noopener,noreferrer");
+                                        } else {
+                                          setLocation(sub.path);
+                                        }
+                                      }}
                                       className={[
                                         "w-full text-left px-2 py-1.5 rounded-md text-[13px] transition-all duration-150",
-                                        subActive
+                                        subActive && !sub.external
                                           ? "text-primary font-medium bg-primary/8"
                                           : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60",
                                       ].join(" ")}

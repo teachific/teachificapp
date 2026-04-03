@@ -39,7 +39,7 @@ export default function AffiliatesPage() {
   const openEdit = (a: any) => { setEditId(a.id); setName(a.name); setEmail(a.email ?? ""); setCommissionType(a.commissionType ?? "percentage"); setCommissionValue(String(a.commissionValue ?? "")); setIsActive(a.isActive !== false); setEditOpen(true); };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold flex items-center gap-2"><Share2 className="h-6 w-6 text-primary" />Affiliates</h1><p className="text-muted-foreground mt-0.5">Manage affiliate partners who promote your courses</p></div>
         <Button className="gap-2" onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4" />Add Affiliate</Button>

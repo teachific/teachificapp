@@ -50,7 +50,7 @@ export default function MyCoursesPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
         <Skeleton className="h-8 w-48" />
         <div className="grid grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20" />)}

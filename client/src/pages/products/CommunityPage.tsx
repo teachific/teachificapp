@@ -22,7 +22,7 @@ export default function CommunityPage() {
     { id: 4, name: "Resources & Tips", members: 89, posts: 15 },
   ]);
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold flex items-center gap-2"><Globe className="h-6 w-6 text-primary" />Community</h1><p className="text-muted-foreground mt-0.5">Build and manage your learning community</p></div>
         <div className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Community enabled</span><Switch checked={enabled} onCheckedChange={setEnabled} /></div>

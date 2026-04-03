@@ -30,6 +30,14 @@ export default function EmailCampaignsPage() {
     onSuccess: () => { utils.lms.emailMarketing.list.invalidate(); toast.success("Updated"); setEditOpen(false); },
     onError: (e) => toast.error(e.message),
   });
+  const sendMut = trpc.lms.emailMarketing.send.useMutation({
+    onSuccess: (res) => {
+      toast.success(`Sent to ${res.sentCount} recipient${res.sentCount !== 1 ? "s" : ""}${res.failedCount > 0 ? ` (${res.failedCount} failed)` : ""}`);
+      utils.lms.emailMarketing.list.invalidate();
+      utils.lms.emailMarketing.stats.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
   const deleteMut = trpc.lms.emailMarketing.delete.useMutation({
     onSuccess: () => { utils.lms.emailMarketing.list.invalidate(); toast.success("Deleted"); },
     onError: (e) => toast.error(e.message),
@@ -44,7 +52,7 @@ export default function EmailCampaignsPage() {
   const openEdit = (c: any) => { setEditId(c.id); setName(c.name); setSubject(c.subject); setHtmlBody(c.htmlBody ?? ""); setTextBody(c.textBody ?? ""); setEditOpen(true); };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold flex items-center gap-2"><Mail className="h-6 w-6 text-primary" />Email Campaigns</h1><p className="text-muted-foreground mt-0.5">Create and send email campaigns to your learners</p></div>
         <Button className="gap-2" onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4" />New Campaign</Button>
@@ -77,7 +85,18 @@ export default function EmailCampaignsPage() {
                   <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => openEdit(c)}><Edit className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
-                      {c.status === "draft" && <DropdownMenuItem onClick={() => updateMut.mutate({ id: c.id, status: "sending" })}><Send className="h-4 w-4 mr-2" />Send Now</DropdownMenuItem>}
+                      {c.status === "draft" && (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (confirm(`Send "${c.name}" to all org members now?`)) {
+                              sendMut.mutate({ id: c.id, audience: "all_members" });
+                            }
+                          }}
+                          disabled={sendMut.isPending}
+                        >
+                          <Send className="h-4 w-4 mr-2" />Send Now
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => { if (confirm("Delete?")) deleteMut.mutate({ id: c.id }); }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

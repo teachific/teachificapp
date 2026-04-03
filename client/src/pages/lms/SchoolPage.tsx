@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { Search, Star, Clock, BookOpen, GraduationCap, Users, ChevronRight, Play } from "lucide-react";
+import { Search, Star, Clock, BookOpen, GraduationCap, Users, ChevronRight, Play, FileText } from "lucide-react";
 
 function CourseCard({
   course,
@@ -92,6 +93,7 @@ export default function SchoolPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [policyModal, setPolicyModal] = useState<"terms" | "privacy" | null>(null);
 
   // For now, use the user's first org — in production this would be resolved by subdomain/slug
   const { data: orgs } = trpc.orgs.myOrgs.useQuery();
@@ -103,6 +105,11 @@ export default function SchoolPage() {
   );
 
   const { data: theme } = trpc.lms.themes.get.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId }
+  );
+
+  const { data: legalDocs } = trpc.orgs.publicLegalDocs.useQuery(
     { orgId: orgId! },
     { enabled: !!orgId }
   );
@@ -310,8 +317,53 @@ export default function SchoolPage() {
           <p className="text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} {schoolName}. All rights reserved.
           </p>
+          {(legalDocs?.termsOfService || legalDocs?.privacyPolicy) && (
+            <div className="flex items-center gap-3">
+              {legalDocs?.termsOfService && (
+                <button
+                  onClick={() => setPolicyModal("terms")}
+                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors flex items-center gap-1"
+                >
+                  <FileText className="h-3 w-3" />
+                  Terms of Service
+                </button>
+              )}
+              {legalDocs?.termsOfService && legalDocs?.privacyPolicy && (
+                <span className="text-muted-foreground/40 text-xs">·</span>
+              )}
+              {legalDocs?.privacyPolicy && (
+                <button
+                  onClick={() => setPolicyModal("privacy")}
+                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors flex items-center gap-1"
+                >
+                  <FileText className="h-3 w-3" />
+                  Privacy Policy
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </footer>
+
+      {/* Policy Modals */}
+      <Dialog open={policyModal !== null} onOpenChange={() => setPolicyModal(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              {policyModal === "terms" ? "Terms of Service" : "Privacy Policy"}
+            </DialogTitle>
+          </DialogHeader>
+          <div
+            className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed"
+            dangerouslySetInnerHTML={{
+              __html: policyModal === "terms"
+                ? (legalDocs?.termsOfService ?? "")
+                : (legalDocs?.privacyPolicy ?? ""),
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

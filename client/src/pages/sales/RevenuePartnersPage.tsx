@@ -39,7 +39,7 @@ export default function RevenuePartnersPage() {
   const openEdit = (p: any) => { setEditId(p.id); setName(p.name ?? ""); setShareType(p.shareType ?? "percentage"); setShareValue(String(p.shareValue ?? "")); setAppliesTo(p.appliesTo ?? "all"); setIsActive(p.isActive !== false); setEditOpen(true); };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold flex items-center gap-2"><Handshake className="h-6 w-6 text-primary" />Revenue Partners</h1><p className="text-muted-foreground mt-0.5">Share revenue with co-instructors and content partners</p></div>
         <Button className="gap-2" onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4" />Add Partner</Button>

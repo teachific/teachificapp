@@ -21,7 +21,7 @@ export default function FunnelsPage() {
   const [show, setShow] = useState(false);
   const [name, setName] = useState("");
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold flex items-center gap-2"><GitBranch className="h-6 w-6 text-primary" />Funnels</h1><p className="text-muted-foreground mt-0.5">Build conversion funnels with landing pages and automated follow-ups</p></div>
         <Button className="gap-2" onClick={() => setShow(true)}><Plus className="h-4 w-4" />New Funnel</Button>
