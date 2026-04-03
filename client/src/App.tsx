@@ -67,6 +67,7 @@ import AssignmentsPage from "./pages/members/AssignmentsPage";
 import MembershipsPage from "./pages/products/MembershipsPage";
 import BundlesPage from "./pages/products/BundlesPage";
 import CommunityPage from "./pages/products/CommunityPage";
+import CommunityManagePage from "./pages/products/CommunityManagePage";
 import CategoriesPage from "./pages/products/CategoriesPage";
 
 // Marketing section
@@ -173,6 +174,7 @@ function AdminRouter() {
         <Route path="/lms/forms/:id/analytics" component={FormAnalyticsPage} />
         <Route path="/lms/forms/:id" component={FormBuilderPage} />
         <Route path="/products/community" component={CommunityPage} />
+        <Route path="/products/community/:hubId/manage" component={CommunityManagePage} />
         <Route path="/products/categories" component={CategoriesPage} />
         <Route path="/media-library" component={MediaLibraryPage} />
 

@@ -409,6 +409,11 @@ export const orgThemes = mysqlTable("org_themes", {
   notificationSettings: text("notificationSettings"),
   // Email template overrides (JSON): { logoUrl, primaryColor, footerText, senderName }
   emailBranding: text("emailBranding"),
+  // Video player watermark
+  watermarkImageUrl: text("watermarkImageUrl"),
+  watermarkOpacity: int("watermarkOpacity").default(30), // 0-100
+  watermarkPosition: varchar("watermarkPosition", { length: 32 }).default("bottom-left"),
+  watermarkSize: int("watermarkSize").default(120), // px
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type OrgTheme = typeof orgThemes.$inferSelect;
@@ -507,6 +512,8 @@ export const courses = mysqlTable("courses", {
   copiedFromId: int("copiedFromId"),
   // Notification overrides at course level (JSON): { enrollment, completion, quizResult, reminder } — null = inherit from org
   notificationOverrides: text("notificationOverrides"),
+  // Sort order for catalog/admin reordering
+  sortOrder: int("sortOrder").default(0).notNull(),
   // Counters
   totalEnrollments: int("totalEnrollments").default(0).notNull(),
   totalCompletions: int("totalCompletions").default(0).notNull(),
@@ -745,6 +752,16 @@ export const platformSettings = mysqlTable("platform_settings", {
   supportEmail: varchar("supportEmail", { length: 320 }),
   maxUploadSizeMb: int("maxUploadSizeMb").default(500).notNull(),
   enterpriseMaxUploadSizeMb: int("enterpriseMaxUploadSizeMb").default(5000).notNull(),
+  // Platform branding
+  logoUrl: text("logoUrl"),
+  faviconUrl: text("faviconUrl"),
+  primaryColor: varchar("primaryColor", { length: 32 }).default("#189aa1").notNull(),
+  accentColor: varchar("accentColor", { length: 32 }).default("#4ad9e0").notNull(),
+  // Platform-wide video watermark
+  watermarkImageUrl: text("watermarkImageUrl"),
+  watermarkOpacity: int("watermarkOpacity").default(30),
+  watermarkPosition: varchar("watermarkPosition", { length: 32 }).default("bottom-left"),
+  watermarkSize: int("watermarkSize").default(120),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type PlatformSettings = typeof platformSettings.$inferSelect;
@@ -1299,7 +1316,9 @@ export const forms = mysqlTable("forms", {
   confirmationBody: text("confirmationBody"),
   // Post-submit settings
   successMessage: text("successMessage"),
+  successMessageHtml: text("successMessageHtml"),
   redirectUrl: text("redirectUrl"),
+  showPageProgressBar: boolean("showPageProgressBar").default(true).notNull(),
   // Access
   requireLogin: boolean("requireLogin").default(false).notNull(),
   allowMultipleSubmissions: boolean("allowMultipleSubmissions").default(true).notNull(),
@@ -1567,3 +1586,165 @@ export const formScheduledExports = mysqlTable("form_scheduled_exports", {
 });
 export type FormScheduledExport = typeof formScheduledExports.$inferSelect;
 export type InsertFormScheduledExport = typeof formScheduledExports.$inferInsert;
+
+// ─── Community Hubs ───────────────────────────────────────────────────────────
+export const communityHubs = mysqlTable("community_hubs", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull(),
+  tagline: varchar("tagline", { length: 500 }),
+  description: text("description"),
+  coverImageUrl: text("coverImageUrl"),
+  logoUrl: text("logoUrl"),
+  primaryColor: varchar("primaryColor", { length: 20 }).default("#0d9488"),
+  isEnabled: boolean("isEnabled").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CommunityHub = typeof communityHubs.$inferSelect;
+export type InsertCommunityHub = typeof communityHubs.$inferInsert;
+
+// ─── Community Spaces ─────────────────────────────────────────────────────────
+export const communitySpaces = mysqlTable("community_spaces", {
+  id: int("id").autoincrement().primaryKey(),
+  hubId: int("hubId").notNull(),
+  orgId: int("orgId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull(),
+  description: text("description"),
+  coverImageUrl: text("coverImageUrl"),
+  emoji: varchar("emoji", { length: 10 }).default("💬"),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  accessType: mysqlEnum("accessType", ["open", "invite_only", "course_enrollment", "purchase"]).default("open").notNull(),
+  isInviteOnly: boolean("isInviteOnly").default(false).notNull(),
+  linkedCourseId: int("linkedCourseId"),
+  price: int("price").default(0),
+  stripePriceId: varchar("stripePriceId", { length: 255 }),
+  salesPageTitle: varchar("salesPageTitle", { length: 500 }),
+  salesPageContent: text("salesPageContent"),
+  salesPageCta: varchar("salesPageCta", { length: 255 }).default("Join Community"),
+  memberCount: int("memberCount").default(0).notNull(),
+  postCount: int("postCount").default(0).notNull(),
+  isArchived: boolean("isArchived").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CommunitySpace = typeof communitySpaces.$inferSelect;
+export type InsertCommunitySpace = typeof communitySpaces.$inferInsert;
+
+// ─── Community Members ────────────────────────────────────────────────────────
+export const communityMembers = mysqlTable("community_members", {
+  id: int("id").autoincrement().primaryKey(),
+  spaceId: int("spaceId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["member", "moderator", "admin"]).default("member").notNull(),
+  joinedAt: timestamp("joinedAt").defaultNow().notNull(),
+  isBanned: boolean("isBanned").default(false).notNull(),
+});
+export type CommunityMember = typeof communityMembers.$inferSelect;
+export type InsertCommunityMember = typeof communityMembers.$inferInsert;
+
+// ─── Community Invites ────────────────────────────────────────────────────────
+export const communityInvites = mysqlTable("community_invites", {
+  id: int("id").autoincrement().primaryKey(),
+  spaceId: int("spaceId").notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  token: varchar("token", { length: 64 }).notNull(),
+  invitedByUserId: int("invitedByUserId").notNull(),
+  status: mysqlEnum("status", ["pending", "accepted", "revoked"]).default("pending").notNull(),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CommunityInvite = typeof communityInvites.$inferSelect;
+export type InsertCommunityInvite = typeof communityInvites.$inferInsert;
+
+// ─── Community Posts ──────────────────────────────────────────────────────────
+export const communityPosts = mysqlTable("community_posts", {
+  id: int("id").autoincrement().primaryKey(),
+  spaceId: int("spaceId").notNull(),
+  hubId: int("hubId").notNull(),
+  orgId: int("orgId").notNull(),
+  authorId: int("authorId").notNull(),
+  authorName: varchar("authorName", { length: 255 }),
+  authorAvatarUrl: text("authorAvatarUrl"),
+  content: text("content").notNull(),
+  imageUrl: text("imageUrl"),
+  isPinned: boolean("isPinned").default(false).notNull(),
+  isHidden: boolean("isHidden").default(false).notNull(),
+  replyCount: int("replyCount").default(0).notNull(),
+  reactionCount: int("reactionCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CommunityPost = typeof communityPosts.$inferSelect;
+export type InsertCommunityPost = typeof communityPosts.$inferInsert;
+
+// ─── Community Post Replies ───────────────────────────────────────────────────
+export const communityPostReplies = mysqlTable("community_post_replies", {
+  id: int("id").autoincrement().primaryKey(),
+  postId: int("postId").notNull(),
+  authorId: int("authorId").notNull(),
+  authorName: varchar("authorName", { length: 255 }),
+  authorAvatarUrl: text("authorAvatarUrl"),
+  content: text("content").notNull(),
+  isHidden: boolean("isHidden").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CommunityPostReply = typeof communityPostReplies.$inferSelect;
+export type InsertCommunityPostReply = typeof communityPostReplies.$inferInsert;
+
+// ─── Community Post Reactions ─────────────────────────────────────────────────
+export const communityPostReactions = mysqlTable("community_post_reactions", {
+  id: int("id").autoincrement().primaryKey(),
+  postId: int("postId").notNull(),
+  userId: int("userId").notNull(),
+  emoji: varchar("emoji", { length: 10 }).default("👍").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CommunityPostReaction = typeof communityPostReactions.$inferSelect;
+export type InsertCommunityPostReaction = typeof communityPostReactions.$inferInsert;
+
+// ─── Community DMs ────────────────────────────────────────────────────────────
+export const communityDms = mysqlTable("community_dms", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  fromUserId: int("fromUserId").notNull(),
+  toUserId: int("toUserId").notNull(),
+  content: text("content").notNull(),
+  isRead: boolean("isRead").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CommunityDm = typeof communityDms.$inferSelect;
+export type InsertCommunityDm = typeof communityDms.$inferInsert;
+
+// ─── Flashcard Decks ──────────────────────────────────────────────────────────
+export const flashcardDecks = mysqlTable("flashcard_decks", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 100 }),
+  cardCount: int("cardCount").default(0).notNull(),
+  isPublic: boolean("isPublic").default(false).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type FlashcardDeck = typeof flashcardDecks.$inferSelect;
+export type InsertFlashcardDeck = typeof flashcardDecks.$inferInsert;
+
+// ─── Flashcard Cards ──────────────────────────────────────────────────────────
+export const flashcardCards = mysqlTable("flashcard_cards", {
+  id: int("id").autoincrement().primaryKey(),
+  deckId: int("deckId").notNull(),
+  front: text("front").notNull(),
+  back: text("back").notNull(),
+  frontImageUrl: varchar("frontImageUrl", { length: 1024 }),
+  backImageUrl: varchar("backImageUrl", { length: 1024 }),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type FlashcardCard = typeof flashcardCards.$inferSelect;
+export type InsertFlashcardCard = typeof flashcardCards.$inferInsert;

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
   getCoursesByOrg,
+  reorderCourses,
   getCourseById,
   getCourseBySlug,
   createCourse,
@@ -44,6 +45,8 @@ import {
   duplicatePage,
   getInstructorsByOrg,
   upsertInstructor,
+  updateInstructorById,
+  deleteInstructorById,
   getCouponsByOrg,
   getCouponByCode,
   createCoupon,
@@ -59,6 +62,13 @@ import {
   getEnrolledCoursesForUser,
   getCertificateByEnrollment,
   createCertificate,
+  getFlashcardDecksByOrg,
+  getFlashcardDeckById,
+  createFlashcardDeck,
+  updateFlashcardDeck,
+  deleteFlashcardDeck,
+  getCardsByDeck,
+  bulkUpsertCards,
 } from "./lmsDb";
 import { getOrgById, getOrgMember } from "./db";
 import {
@@ -180,8 +190,14 @@ import { getOrgMembers, getUserById } from "./db";
 async function requireOrgRole(
   userId: number,
   orgId: number,
-  allowedRoles: string[] = ["org_admin", "sub_admin", "instructor"]
+  allowedRoles: string[] = ["org_admin", "sub_admin", "instructor"],
+  userRole?: string
 ) {
+  // Platform admins (site_owner, site_admin) can access any org without being a member
+  if (userRole === "site_owner" || userRole === "site_admin") {
+    // Return a synthetic member object so callers don't need to handle null
+    return { userId, orgId, role: "org_admin" as const, createdAt: new Date() };
+  }
   const member = await getOrgMember(userId, orgId);
   if (!member || !allowedRoles.includes(member.role)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient permissions" });
@@ -189,8 +205,8 @@ async function requireOrgRole(
   return member;
 }
 
-async function requireOrgAdmin(userId: number, orgId: number) {
-  return requireOrgRole(userId, orgId, ["org_admin", "sub_admin"]);
+async function requireOrgAdmin(userId: number, orgId: number, userRole?: string) {
+  return requireOrgRole(userId, orgId, ["org_admin", "sub_admin"], userRole);
 }
 
 // ─── Router ──────────────────────────────────────────────────────────────────
@@ -202,7 +218,7 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getCoursesByOrg(input.orgId);
       }),
 
@@ -223,7 +239,7 @@ export const lmsRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         const slug =
           input.slug ??
           input.title
@@ -284,7 +300,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const course = await getCourseById(input.id);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
-        const member = await requireOrgRole(ctx.user.id, course.orgId);
+        const member = await requireOrgRole(ctx.user.id, course.orgId, undefined, ctx.user.role);
         // Gate hidden/private to Pro and Enterprise tiers
         if (input.status === "hidden" || input.status === "private") {
           const sub = await getOrgSubscription(course.orgId);
@@ -305,8 +321,16 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const course = await getCourseById(input.id);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, course.orgId);
+        await requireOrgAdmin(ctx.user.id, course.orgId, ctx.user.role);
         await deleteCourse(input.id);
+        return { success: true };
+      }),
+
+    reorder: protectedProcedure
+      .input(z.object({ orgId: z.number(), courseIds: z.array(z.number()) }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        await reorderCourses(input.courseIds);
         return { success: true };
       }),
   }),
@@ -332,7 +356,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const course = await getCourseById(input.courseId);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, course.orgId);
+        await requireOrgRole(ctx.user.id, course.orgId, undefined, ctx.user.role);
         return createSection(input);
       }),
 
@@ -407,7 +431,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const course = await getCourseById(input.courseId);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, course.orgId);
+        await requireOrgRole(ctx.user.id, course.orgId, undefined, ctx.user.role);
         return createLesson(input);
       }),
 
@@ -528,7 +552,7 @@ export const lmsRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return createPricing(input);
       }),
 
@@ -568,7 +592,7 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const course = await getCourseById(input.courseId);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, course.orgId);
+        await requireOrgRole(ctx.user.id, course.orgId, undefined, ctx.user.role);
         return getEnrollmentsByCourse(input.courseId);
       }),
 
@@ -681,7 +705,7 @@ export const lmsRouter = router({
     get: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getOrgTheme(input.orgId);
       }),
 
@@ -699,10 +723,14 @@ export const lmsRouter = router({
           customCss: z.string().optional(),
           studentPrimaryColor: z.string().optional(),
           studentAccentColor: z.string().optional(),
+          watermarkImageUrl: z.string().nullable().optional(),
+          watermarkOpacity: z.number().min(0).max(100).optional(),
+          watermarkPosition: z.string().optional(),
+          watermarkSize: z.number().min(20).max(400).optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         const { orgId, ...data } = input;
         return upsertOrgTheme(orgId, data);
       }),
@@ -714,7 +742,7 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getPagesByOrg(input.orgId);
       }),
 
@@ -745,7 +773,7 @@ export const lmsRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return createPage({ ...input, blocksJson: "[]" });
       }),
 
@@ -789,7 +817,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const original = await getPageById(input.id);
         if (!original) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, original.orgId);
+        await requireOrgRole(ctx.user.id, original.orgId, undefined, ctx.user.role);
         const copy = await duplicatePage(input.id);
         return copy;
       }),
@@ -801,7 +829,7 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getInstructorsByOrg(input.orgId);
       }),
 
@@ -816,8 +844,47 @@ export const lmsRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return upsertInstructor({ ...input, userId: ctx.user.id });
+      }),
+    create: protectedProcedure
+      .input(
+        z.object({
+          orgId: z.number(),
+          displayName: z.string().min(1),
+          title: z.string().optional(),
+          bio: z.string().optional(),
+          avatarUrl: z.string().optional(),
+          socialLinks: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
+        return upsertInstructor({ ...input, userId: ctx.user.id });
+      }),
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          orgId: z.number(),
+          displayName: z.string().optional(),
+          title: z.string().optional(),
+          bio: z.string().optional(),
+          avatarUrl: z.string().optional(),
+          socialLinks: z.string().optional(),
+          isActive: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
+        const { id, orgId, ...updates } = input;
+        return updateInstructorById(id, updates);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number(), orgId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
+        return deleteInstructorById(input.id);
       }),
   }),
 
@@ -827,7 +894,7 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getCouponsByOrg(input.orgId);
       }),
 
@@ -849,7 +916,7 @@ export const lmsRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return createCoupon(input);
       }),
 
@@ -894,7 +961,7 @@ export const lmsRouter = router({
     summary: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getLmsAnalyticsByOrg(input.orgId);
       }),
   }),
@@ -913,7 +980,7 @@ export const lmsRouter = router({
     get: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         const sub = await getOrgSubscription(input.orgId);
         // Auto-provision enterprise for any org that has no subscription yet
         if (!sub) {
@@ -928,7 +995,7 @@ export const lmsRouter = router({
         status: z.enum(['active', 'trialing', 'past_due', 'cancelled', 'unpaid']).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return upsertOrgSubscription(input.orgId, { plan: input.plan, status: input.status ?? 'active' });
       }),
   }),
@@ -941,7 +1008,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const course = await getCourseById(input.courseId);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, course.orgId);
+        await requireOrgRole(ctx.user.id, course.orgId, undefined, ctx.user.role);
         const newTitle = input.newTitle ?? `Copy of ${course.title}`;
         const newSlug =
           newTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") +
@@ -960,7 +1027,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const course = await getCourseById(input.targetCourseId);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, course.orgId);
+        await requireOrgRole(ctx.user.id, course.orgId, undefined, ctx.user.role);
         return copyLessonToSection(
           input.lessonId,
           input.targetCourseId,
@@ -972,7 +1039,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const course = await getCourseById(input.targetCourseId);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, course.orgId);
+        await requireOrgRole(ctx.user.id, course.orgId, undefined, ctx.user.role);
         return copySectionToCourse(input.sectionId, input.targetCourseId);
       }),
   }),
@@ -990,7 +1057,7 @@ export const lmsRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         // Tier gate: AI generation requires Starter+
         const sub = await getOrgSubscription(input.orgId);
         if (!getLimits(sub?.plan).aiGeneration) {
@@ -1087,7 +1154,7 @@ export const lmsRouter = router({
     metrics: protectedProcedure
       .input(z.object({ orgId: z.number(), days: z.number().default(30) }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getDashboardMetrics(input.orgId, input.days);
       }),
     chartData: protectedProcedure
@@ -1097,19 +1164,19 @@ export const lmsRouter = router({
         groupBy: z.enum(['day', 'week', 'month']).default('day'),
       }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getRevenueChartData(input.orgId, input.days, input.groupBy);
       }),
     recentActivity: protectedProcedure
       .input(z.object({ orgId: z.number(), limit: z.number().default(20) }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getRecentActivity(input.orgId, input.limit);
       }),
     recentCourses: protectedProcedure
       .input(z.object({ orgId: z.number(), limit: z.number().default(6) }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getRecentlyEditedCourses(input.orgId, input.limit);
       }),
     enrolledCourses: protectedProcedure
@@ -1124,7 +1191,7 @@ export const lmsRouter = router({
     listWithEnrollments: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const { getMembersWithEnrollments } = await import("./lmsDb");
         return getMembersWithEnrollments(input.orgId);
       }),
@@ -1139,7 +1206,7 @@ export const lmsRouter = router({
         courseIds: z.array(z.number()).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const { getUserByEmail, createManualUser, addOrgMember, getOrgMember: getOrgMemberDb, updateOrgMemberRole } = await import("./db");
         const existing = await getUserByEmail(input.email);
         let userId: number;
@@ -1178,7 +1245,7 @@ export const lmsRouter = router({
         email: z.string().email(),
       }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const { getUserByEmail } = await import("./db");
         const user = await getUserByEmail(input.email);
         if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "No user found with that email address" });
@@ -1252,7 +1319,7 @@ export const lmsRouter = router({
         })
       )
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const { getActivityEventsByOrg } = await import("./lmsDb");
         return getActivityEventsByOrg(input.orgId, {
           userId: input.userId,
@@ -1269,7 +1336,7 @@ export const lmsRouter = router({
     userSummary: protectedProcedure
       .input(z.object({ orgId: z.number(), userId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const { getActivitySummaryByUser } = await import("./lmsDb");
         return getActivitySummaryByUser(input.orgId, input.userId);
       }),
@@ -1278,7 +1345,7 @@ export const lmsRouter = router({
     memberList: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const { getActivityMemberList } = await import("./lmsDb");
         const userIds = await getActivityMemberList(input.orgId);
         // Fetch user details for each
@@ -1299,7 +1366,7 @@ export const lmsRouter = router({
     getOrgSettings: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const { getOrgNotificationSettings } = await import("./lmsDb");
         return getOrgNotificationSettings(input.orgId);
       }),
@@ -1317,7 +1384,7 @@ export const lmsRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const { updateOrgNotificationSettings } = await import("./lmsDb");
         const { orgId, ...settings } = input;
         return updateOrgNotificationSettings(orgId, settings);
@@ -1328,7 +1395,7 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const course = await getCourseById(input.courseId);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, course.orgId);
+        await requireOrgAdmin(ctx.user.id, course.orgId, ctx.user.role);
         const { getCourseNotificationOverrides } = await import("./lmsDb");
         return getCourseNotificationOverrides(input.courseId);
       }),
@@ -1348,7 +1415,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const course = await getCourseById(input.courseId);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, course.orgId);
+        await requireOrgAdmin(ctx.user.id, course.orgId, ctx.user.role);
         const { updateCourseNotificationOverrides } = await import("./lmsDb");
         await updateCourseNotificationOverrides(input.courseId, input.overrides);
         return { ok: true };
@@ -1361,7 +1428,7 @@ export const lmsRouter = router({
     get: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const { getOrgEmailBranding } = await import("./lmsDb");
         return getOrgEmailBranding(input.orgId);
       }),
@@ -1377,7 +1444,7 @@ export const lmsRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const { updateOrgEmailBranding } = await import("./lmsDb");
         const { orgId, ...branding } = input;
         return updateOrgEmailBranding(orgId, branding);
@@ -1390,7 +1457,7 @@ export const lmsRouter = router({
     listProducts: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return listDigitalProducts(input.orgId);
       }),
 
@@ -1399,7 +1466,7 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const product = await getDigitalProduct(input.id);
         if (!product) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await requireOrgAdmin(ctx.user.id, product.orgId, ctx.user.role);
         return product;
       }),
 
@@ -1427,7 +1494,7 @@ export const lmsRouter = router({
         defaultMaxDownloads: z.number().nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return createDigitalProduct(input as any);
       }),
 
@@ -1451,7 +1518,7 @@ export const lmsRouter = router({
         const { id, ...data } = input;
         const product = await getDigitalProduct(id);
         if (!product) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await requireOrgAdmin(ctx.user.id, product.orgId, ctx.user.role);
         await updateDigitalProduct(id, data as any);
         return getDigitalProduct(id);
       }),
@@ -1461,7 +1528,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const product = await getDigitalProduct(input.id);
         if (!product) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await requireOrgAdmin(ctx.user.id, product.orgId, ctx.user.role);
         await deleteDigitalProduct(input.id);
         return { ok: true };
       }),
@@ -1472,7 +1539,7 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const product = await getDigitalProduct(input.productId);
         if (!product) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await requireOrgAdmin(ctx.user.id, product.orgId, ctx.user.role);
         return listProductPrices(input.productId);
       }),
 
@@ -1492,7 +1559,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const product = await getDigitalProduct(input.productId);
         if (!product) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await requireOrgAdmin(ctx.user.id, product.orgId, ctx.user.role);
         return upsertProductPrice(input as any);
       }),
 
@@ -1501,7 +1568,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const product = await getDigitalProduct(input.productId);
         if (!product) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await requireOrgAdmin(ctx.user.id, product.orgId, ctx.user.role);
         await deleteProductPrice(input.id);
         return { ok: true };
       }),
@@ -1551,7 +1618,7 @@ export const lmsRouter = router({
         if (!order) throw new TRPCError({ code: "NOT_FOUND" });
         const product = await getDigitalProduct(order.productId);
         if (!product) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await requireOrgAdmin(ctx.user.id, product.orgId, ctx.user.role);
         await markOrderPaid(input.orderId, input.paymentRef);
         return { ok: true };
       }),
@@ -1577,7 +1644,7 @@ export const lmsRouter = router({
     listOrders: protectedProcedure
       .input(z.object({ orgId: z.number(), productId: z.number().optional() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         if (input.productId) return listOrdersForProduct(input.productId);
         return listOrdersForOrg(input.orgId);
       }),
@@ -1589,7 +1656,7 @@ export const lmsRouter = router({
         if (!order) throw new TRPCError({ code: "NOT_FOUND" });
         const product = await getDigitalProduct(order.productId);
         if (!product) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, product.orgId);
+        await requireOrgAdmin(ctx.user.id, product.orgId, ctx.user.role);
         await updateOrderStatus(input.id, input.status, input.notes);
         return { ok: true };
       }),
@@ -1597,7 +1664,7 @@ export const lmsRouter = router({
     listDownloadLogs: protectedProcedure
       .input(z.object({ orgId: z.number(), productId: z.number().optional() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         if (input.productId) return listDownloadLogs(input.productId);
         // Return logs for all products in this org
         const products = await listDigitalProducts(input.orgId);
@@ -1611,7 +1678,7 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getWebinarsByOrg(input.orgId);
       }),
 
@@ -1620,7 +1687,7 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const w = await getWebinarById(input.id);
         if (!w) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, w.orgId);
+        await requireOrgRole(ctx.user.id, w.orgId, undefined, ctx.user.role);
         return w;
       }),
 
@@ -1638,7 +1705,15 @@ export const lmsRouter = router({
         type: z.enum(["live", "evergreen"]).default("evergreen"),
       }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
+        // Webinars require Builder plan or higher
+        const sub = await getOrgSubscription(input.orgId);
+        if (!getLimits(sub?.plan).upsellFunnels) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Webinars require a Builder plan or higher. Please upgrade your organization's plan to access this feature.",
+          });
+        }
         return createWebinar(input as any);
       }),
 
@@ -1678,7 +1753,7 @@ export const lmsRouter = router({
         const { id, ...data } = input;
         const w = await getWebinarById(id);
         if (!w) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, w.orgId);
+        await requireOrgAdmin(ctx.user.id, w.orgId, ctx.user.role);
         const updateData: any = { ...data };
         if (data.scheduledAt) updateData.scheduledAt = new Date(data.scheduledAt);
         return updateWebinar(id, updateData);
@@ -1689,7 +1764,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const w = await getWebinarById(input.id);
         if (!w) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, w.orgId);
+        await requireOrgAdmin(ctx.user.id, w.orgId, ctx.user.role);
         await deleteWebinar(input.id);
         return { ok: true };
       }),
@@ -1700,7 +1775,7 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const w = await getWebinarById(input.webinarId);
         if (!w) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, w.orgId);
+        await requireOrgRole(ctx.user.id, w.orgId, undefined, ctx.user.role);
         return getWebinarFunnelSteps(input.webinarId);
       }),
 
@@ -1721,7 +1796,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const w = await getWebinarById(input.webinarId);
         if (!w) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, w.orgId);
+        await requireOrgAdmin(ctx.user.id, w.orgId, ctx.user.role);
         await upsertWebinarFunnelSteps(input.webinarId, input.steps as any);
         return { ok: true };
       }),
@@ -1837,7 +1912,7 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const w = await getWebinarById(input.webinarId);
         if (!w) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, w.orgId);
+        await requireOrgRole(ctx.user.id, w.orgId, undefined, ctx.user.role);
         return getWebinarRegistrations(input.webinarId);
       }),
 
@@ -1846,7 +1921,7 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const w = await getWebinarById(input.webinarId);
         if (!w) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, w.orgId);
+        await requireOrgRole(ctx.user.id, w.orgId, undefined, ctx.user.role);
         return getWebinarStats(input.webinarId);
       }),
   }),
@@ -1856,13 +1931,13 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return listEmailCampaigns(input.orgId);
       }),
     stats: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return getEmailCampaignStats(input.orgId);
       }),
     get: protectedProcedure
@@ -1870,7 +1945,7 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const c = await getEmailCampaignById(input.id);
         if (!c) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, c.orgId!);
+        await requireOrgAdmin(ctx.user.id, c.orgId!, ctx.user.role);
         return c;
       }),
     create: protectedProcedure
@@ -1883,7 +1958,7 @@ export const lmsRouter = router({
         scheduledAt: z.date().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return createEmailCampaign({ ...input, createdBy: ctx.user.id });
       }),
     update: protectedProcedure
@@ -1899,7 +1974,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const c = await getEmailCampaignById(input.id);
         if (!c) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, c.orgId!);
+        await requireOrgAdmin(ctx.user.id, c.orgId!, ctx.user.role);
         const { id, ...data } = input;
         return updateEmailCampaign(id, data);
       }),
@@ -1908,7 +1983,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const c = await getEmailCampaignById(input.id);
         if (!c) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, c.orgId!);
+        await requireOrgAdmin(ctx.user.id, c.orgId!, ctx.user.role);
         await deleteEmailCampaign(input.id);
         return { ok: true };
       }),
@@ -1921,7 +1996,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const c = await getEmailCampaignById(input.id);
         if (!c) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, c.orgId!);
+        await requireOrgAdmin(ctx.user.id, c.orgId!, ctx.user.role);
         if (c.status === "sent") throw new TRPCError({ code: "BAD_REQUEST", message: "Campaign already sent" });
         // Mark as sending
         await updateEmailCampaign(input.id, { status: "sending" });
@@ -1966,7 +2041,7 @@ export const lmsRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         const ext = input.fileName.split(".").pop() ?? "bin";
         const key = `lms-media/${input.orgId}/${Date.now()}-${nanoid(8)}.${ext}`;
         const { url } = await storagePut(key, Buffer.alloc(0), input.contentType);
@@ -1979,13 +2054,13 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getCategoriesByOrg(input.orgId);
       }),
     create: protectedProcedure
       .input(z.object({ orgId: z.number(), name: z.string().min(1), color: z.string().optional(), description: z.string().optional() }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const slug = input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         return createCategory({ ...input, slug });
       }),
@@ -1994,7 +2069,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const cat = await getCategoryById(input.id);
         if (!cat) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, cat.orgId);
+        await requireOrgAdmin(ctx.user.id, cat.orgId, ctx.user.role);
         const { id, ...data } = input;
         if (data.name) (data as any).slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         return updateCategory(id, data);
@@ -2004,7 +2079,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const cat = await getCategoryById(input.id);
         if (!cat) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, cat.orgId);
+        await requireOrgAdmin(ctx.user.id, cat.orgId, ctx.user.role);
         await deleteCategory(input.id);
         return { ok: true };
       }),
@@ -2023,7 +2098,7 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getGroupsByOrg(input.orgId);
       }),
     get: protectedProcedure
@@ -2031,14 +2106,14 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const g = await getGroupById(input.id);
         if (!g) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, g.orgId);
+        await requireOrgRole(ctx.user.id, g.orgId, undefined, ctx.user.role);
         const members = await getGroupMembers(input.id);
         return { ...g, members };
       }),
     create: protectedProcedure
       .input(z.object({ orgId: z.number(), name: z.string().min(1), managerName: z.string().optional(), seats: z.number().default(10), courseId: z.number().optional(), notes: z.string().optional(), expiresAt: z.date().optional() }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return createGroup({ ...input, managerId: ctx.user.id });
       }),
     update: protectedProcedure
@@ -2046,7 +2121,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const g = await getGroupById(input.id);
         if (!g) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, g.orgId);
+        await requireOrgAdmin(ctx.user.id, g.orgId, ctx.user.role);
         const { id, ...data } = input;
         return updateGroup(id, data);
       }),
@@ -2055,7 +2130,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const g = await getGroupById(input.id);
         if (!g) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, g.orgId);
+        await requireOrgAdmin(ctx.user.id, g.orgId, ctx.user.role);
         await deleteGroup(input.id);
         return { ok: true };
       }),
@@ -2064,7 +2139,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const g = await getGroupById(input.groupId);
         if (!g) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, g.orgId);
+        await requireOrgAdmin(ctx.user.id, g.orgId, ctx.user.role);
         if (g.usedSeats >= g.seats) throw new TRPCError({ code: "BAD_REQUEST", message: "No seats available" });
         return addGroupMember({ groupId: input.groupId, email: input.email, name: input.name, status: 'active' });
       }),
@@ -2079,7 +2154,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const g = await getGroupById(input.groupId);
         if (!g) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, g.orgId);
+        await requireOrgAdmin(ctx.user.id, g.orgId, ctx.user.role);
         const members = await getGroupMembers(input.groupId);
         let enrolled = 0;
         let skipped = 0;
@@ -2106,7 +2181,7 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number(), courseId: z.number().optional() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getDiscussionsByOrg(input.orgId, input.courseId);
       }),
     get: protectedProcedure
@@ -2114,14 +2189,14 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const d = await getDiscussionById(input.id);
         if (!d) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, d.orgId);
+        await requireOrgRole(ctx.user.id, d.orgId, undefined, ctx.user.role);
         const replies = await getRepliesByDiscussion(input.id);
         return { ...d, replies };
       }),
     create: protectedProcedure
       .input(z.object({ orgId: z.number(), courseId: z.number().optional(), title: z.string().min(1), body: z.string().optional() }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return createDiscussion({ ...input, authorId: ctx.user.id, authorName: ctx.user.name ?? ctx.user.email ?? 'Unknown' });
       }),
     update: protectedProcedure
@@ -2129,7 +2204,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const d = await getDiscussionById(input.id);
         if (!d) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, d.orgId);
+        await requireOrgRole(ctx.user.id, d.orgId, undefined, ctx.user.role);
         const { id, ...data } = input;
         return updateDiscussion(id, data);
       }),
@@ -2138,7 +2213,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const d = await getDiscussionById(input.id);
         if (!d) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, d.orgId);
+        await requireOrgAdmin(ctx.user.id, d.orgId, ctx.user.role);
         await deleteDiscussion(input.id);
         return { ok: true };
       }),
@@ -2147,7 +2222,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const d = await getDiscussionById(input.discussionId);
         if (!d) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, d.orgId);
+        await requireOrgRole(ctx.user.id, d.orgId, undefined, ctx.user.role);
         return createDiscussionReply({ ...input, authorId: ctx.user.id, authorName: ctx.user.name ?? ctx.user.email ?? 'Unknown' });
       }),
     deleteReply: protectedProcedure
@@ -2162,7 +2237,7 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getAssignmentsByOrg(input.orgId);
       }),
     get: protectedProcedure
@@ -2170,14 +2245,14 @@ export const lmsRouter = router({
       .query(async ({ input, ctx }) => {
         const a = await getAssignmentById(input.id);
         if (!a) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgRole(ctx.user.id, a.orgId);
+        await requireOrgRole(ctx.user.id, a.orgId, undefined, ctx.user.role);
         const submissions = await getSubmissionsByAssignment(input.id);
         return { ...a, submissions };
       }),
     create: protectedProcedure
       .input(z.object({ orgId: z.number(), courseId: z.number().optional(), title: z.string().min(1), description: z.string().optional(), dueDate: z.date().optional(), maxScore: z.number().optional(), allowFileUpload: z.boolean().optional(), allowTextSubmission: z.boolean().optional() }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return createAssignment({ ...input, status: 'draft' });
       }),
     update: protectedProcedure
@@ -2185,7 +2260,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const a = await getAssignmentById(input.id);
         if (!a) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, a.orgId);
+        await requireOrgAdmin(ctx.user.id, a.orgId, ctx.user.role);
         const { id, ...data } = input;
         return updateAssignment(id, data);
       }),
@@ -2194,7 +2269,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const a = await getAssignmentById(input.id);
         if (!a) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, a.orgId);
+        await requireOrgAdmin(ctx.user.id, a.orgId, ctx.user.role);
         await deleteAssignment(input.id);
         return { ok: true };
       }),
@@ -2209,13 +2284,13 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getCertificateTemplatesByOrg(input.orgId);
       }),
     create: protectedProcedure
       .input(z.object({ orgId: z.number(), name: z.string().min(1), htmlTemplate: z.string().optional(), isDefault: z.boolean().optional() }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return createCertificateTemplate(input);
       }),
     update: protectedProcedure
@@ -2223,7 +2298,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const t = await getCertificateTemplateById(input.id);
         if (!t) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, t.orgId!);
+        await requireOrgAdmin(ctx.user.id, t.orgId!, ctx.user.role);
         const { id, ...data } = input;
         return updateCertificateTemplate(id, data);
       }),
@@ -2232,7 +2307,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const t = await getCertificateTemplateById(input.id);
         if (!t) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, t.orgId!);
+        await requireOrgAdmin(ctx.user.id, t.orgId!, ctx.user.role);
         await deleteCertificateTemplate(input.id);
         return { ok: true };
       }),
@@ -2242,13 +2317,13 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return getAffiliatesByOrg(input.orgId);
       }),
     create: protectedProcedure
       .input(z.object({ orgId: z.number(), name: z.string().min(1), email: z.string().email(), commissionType: z.enum(['percentage','fixed']).optional(), commissionValue: z.number().optional() }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         const code = nanoid(8).toUpperCase();
         return createAffiliate({ ...input, code });
       }),
@@ -2257,7 +2332,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const a = await getAffiliateById(input.id);
         if (!a) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, a.orgId);
+        await requireOrgAdmin(ctx.user.id, a.orgId, ctx.user.role);
         const { id, ...data } = input;
         return updateAffiliate(id, data);
       }),
@@ -2266,7 +2341,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const a = await getAffiliateById(input.id);
         if (!a) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, a.orgId);
+        await requireOrgAdmin(ctx.user.id, a.orgId, ctx.user.role);
         await deleteAffiliate(input.id);
         return { ok: true };
       }),
@@ -2276,13 +2351,13 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return getRevenuePartnersByOrg(input.orgId);
       }),
     create: protectedProcedure
       .input(z.object({ orgId: z.number(), name: z.string().min(1), email: z.string().email(), shareType: z.enum(['percentage','fixed']).optional(), shareValue: z.number().optional(), appliesTo: z.enum(['all','specific']).optional(), courseIds: z.string().optional() }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return createRevenuePartner(input);
       }),
     update: protectedProcedure
@@ -2290,7 +2365,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const rp = await getRevenuePartnerById(input.id);
         if (!rp) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, rp.orgId);
+        await requireOrgAdmin(ctx.user.id, rp.orgId, ctx.user.role);
         const { id, ...data } = input;
         return updateRevenuePartner(id, data);
       }),
@@ -2299,7 +2374,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const rp = await getRevenuePartnerById(input.id);
         if (!rp) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, rp.orgId);
+        await requireOrgAdmin(ctx.user.id, rp.orgId, ctx.user.role);
         await deleteRevenuePartner(input.id);
         return { ok: true };
       }),
@@ -2309,19 +2384,19 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return getCourseOrdersByOrg(input.orgId);
       }),
     stats: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return getCourseOrderStats(input.orgId);
       }),
     create: protectedProcedure
       .input(z.object({ orgId: z.number(), customerEmail: z.string().email(), customerName: z.string().optional(), courseId: z.number().optional(), productName: z.string().optional(), productType: z.enum(['course','bundle','membership','digital']).optional(), amount: z.number(), status: z.enum(['pending','completed','refunded','failed']).optional(), couponCode: z.string().optional(), discountAmount: z.number().optional() }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return createCourseOrder({ ...input, userId: ctx.user.id });
       }),
     update: protectedProcedure
@@ -2329,7 +2404,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const o = await getCourseOrderById(input.id);
         if (!o) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, o.orgId);
+        await requireOrgAdmin(ctx.user.id, o.orgId, ctx.user.role);
         const { id, ...data } = input;
         return updateCourseOrder(id, data);
       }),
@@ -2339,13 +2414,13 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getMembershipsByOrg(input.orgId);
       }),
     create: protectedProcedure
       .input(z.object({ orgId: z.number(), name: z.string().min(1), description: z.string().optional(), price: z.number(), billingInterval: z.enum(['monthly','yearly','one_time']).optional(), trialDays: z.number().optional(), courseAccess: z.enum(['all','specific']).optional(), courseIds: z.string().optional() }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return createMembership(input);
       }),
     update: protectedProcedure
@@ -2353,7 +2428,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const m = await getMembershipById(input.id);
         if (!m) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, m.orgId);
+        await requireOrgAdmin(ctx.user.id, m.orgId, ctx.user.role);
         const { id, ...data } = input;
         return updateMembership(id, data);
       }),
@@ -2362,7 +2437,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const m = await getMembershipById(input.id);
         if (!m) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, m.orgId);
+        await requireOrgAdmin(ctx.user.id, m.orgId, ctx.user.role);
         await deleteMembership(input.id);
         return { ok: true };
       }),
@@ -2372,13 +2447,13 @@ export const lmsRouter = router({
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        await requireOrgRole(ctx.user.id, input.orgId);
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         return getBundlesByOrg(input.orgId);
       }),
     create: protectedProcedure
       .input(z.object({ orgId: z.number(), name: z.string().min(1), description: z.string().optional(), price: z.number(), salePrice: z.number().optional(), courseIds: z.string() }))
       .mutation(async ({ input, ctx }) => {
-        await requireOrgAdmin(ctx.user.id, input.orgId);
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
         return createBundle(input);
       }),
     update: protectedProcedure
@@ -2386,7 +2461,7 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const b = await getBundleById(input.id);
         if (!b) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, b.orgId);
+        await requireOrgAdmin(ctx.user.id, b.orgId, ctx.user.role);
         const { id, ...data } = input;
         return updateBundle(id, data);
       }),
@@ -2395,9 +2470,95 @@ export const lmsRouter = router({
       .mutation(async ({ input, ctx }) => {
         const b = await getBundleById(input.id);
         if (!b) throw new TRPCError({ code: "NOT_FOUND" });
-        await requireOrgAdmin(ctx.user.id, b.orgId);
+        await requireOrgAdmin(ctx.user.id, b.orgId, ctx.user.role);
         await deleteBundle(input.id);
         return { ok: true };
+      }),
+  }),
+
+  // ── Flashcards ───────────────────────────────────────────────────────────────────────
+  flashcards: router({
+    listDecks: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        return getFlashcardDecksByOrg(input.orgId);
+      }),
+    getDeck: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const deck = await getFlashcardDeckById(input.id);
+        if (!deck) throw new TRPCError({ code: "NOT_FOUND" });
+        return deck;
+      }),
+    createDeck: protectedProcedure
+      .input(z.object({ orgId: z.number(), title: z.string().min(1), description: z.string().optional(), category: z.string().optional(), isPublic: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        return createFlashcardDeck({ ...input, createdBy: ctx.user.id });
+      }),
+    updateDeck: protectedProcedure
+      .input(z.object({ id: z.number(), title: z.string().optional(), description: z.string().optional(), category: z.string().optional(), isPublic: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const deck = await getFlashcardDeckById(input.id);
+        if (!deck) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, deck.orgId, undefined, ctx.user.role);
+        const { id, ...data } = input;
+        return updateFlashcardDeck(id, data);
+      }),
+    deleteDeck: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const deck = await getFlashcardDeckById(input.id);
+        if (!deck) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, deck.orgId, ctx.user.role);
+        await deleteFlashcardDeck(input.id);
+        return { ok: true };
+      }),
+    getCards: protectedProcedure
+      .input(z.object({ deckId: z.number() }))
+      .query(async ({ input }) => {
+        return getCardsByDeck(input.deckId);
+      }),
+    saveCards: protectedProcedure
+      .input(z.object({
+        deckId: z.number(),
+        cards: z.array(z.object({
+          front: z.string(),
+          back: z.string(),
+          frontImageUrl: z.string().optional(),
+          backImageUrl: z.string().optional(),
+          sortOrder: z.number(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const deck = await getFlashcardDeckById(input.deckId);
+        if (!deck) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, deck.orgId, undefined, ctx.user.role);
+        await bulkUpsertCards(input.deckId, input.cards);
+        return { ok: true };
+      }),
+    generateAI: protectedProcedure
+      .input(z.object({ orgId: z.number(), topic: z.string().min(3), numCards: z.number().default(15), context: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const prompt = input.context
+          ? `Create ${input.numCards} flashcards about: "${input.topic}". Use this context:\n${input.context}\nReturn JSON: { "cards": [{ "front": string, "back": string }] }`
+          : `Create ${input.numCards} flashcards about: "${input.topic}". Return JSON: { "cards": [{ "front": string, "back": string }] }`;
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: "You are an expert educator. Return valid JSON only, no markdown." },
+            { role: "user", content: prompt },
+          ],
+        });
+        const rawContent = response.choices?.[0]?.message?.content ?? "{}";
+        const content = typeof rawContent === "string" ? rawContent : "{}";
+        try {
+          const cleaned = content.replace(/```json\n?|```\n?/g, "").trim();
+          return JSON.parse(cleaned) as { cards: Array<{ front: string; back: string }> };
+        } catch {
+          return { cards: [] };
+        }
       }),
   }),
 

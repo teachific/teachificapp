@@ -1326,3 +1326,252 @@
 - [x] Form limits enforced: Free=0, Starter=3, Builder=10, Pro=50, Enterprise=200
 - [x] org_media_library table with tags support
 - [x] form_filters, form_views, form_labels, form_docs, form_scheduled_exports tables
+
+## Custom Form URL & Digital Downloads Fix
+- [ ] Fix Digital Downloads upload: change from presigned PUT to server-side proxy upload via /api/media-upload
+- [ ] Add custom form slug editor in Form Settings > General tab (editable URL field with live preview)
+- [ ] Add slug uniqueness validation in formsRouter.update (check no other form in org has same slug)
+- [ ] Show full form URL preview in Share tab (domain + /forms/ + slug)
+- [ ] Allow slug to be edited from the Share tab Links section as well
+- [ ] Add redirectUrl column to forms table (nullable text)
+- [ ] Add redirect URL field in Form Settings > Success Pages section
+- [ ] Form Player: after successful submission, redirect to redirectUrl if set (otherwise show thank-you message)
+- [ ] Show redirect URL in Share tab for reference
+
+## Rich Text in Forms
+- [ ] Install a lightweight rich text editor (tiptap or react-quill) for form builder
+- [ ] Add "Rich Text" field type to form builder (display-only formatted content block)
+- [ ] Add successMessageHtml column to forms table (replaces plain text successMessage)
+- [ ] Form Settings > Success Pages: replace plain textarea with rich text editor for success message
+- [ ] Form Player: render success message as HTML (sanitized) after submission
+- [ ] Rich Text field in form player: render HTML content block inline within the form
+
+## Form Pagination (Multi-Page Forms)
+- [ ] Add pageBreak field type to form builder (inserts a page break between questions)
+- [ ] Add pageBreak to form_fields type enum in schema
+- [ ] Form Builder: show page numbers in the field list (Page 1, Page 2, etc.) with visual separator
+- [ ] Form Player: split fields into pages at pageBreak boundaries, show one page at a time
+- [ ] Form Player: show Next/Back navigation buttons between pages
+- [ ] Form Player: show page progress indicator (e.g., "Page 2 of 4" or a step progress bar)
+- [ ] Form Player: validate required fields on current page before advancing to next page
+- [ ] Form Settings > General: add "Show page progress bar" toggle
+- [ ] Form Analytics: track per-page drop-off (not just per-field)
+
+## Video Player Branding & Watermark
+- [ ] Add watermarkImageUrl and watermarkOpacity columns to orgThemes table in schema
+- [ ] Add watermarkImageUrl and watermarkOpacity columns to courses table (per-course override)
+- [ ] Org Branding settings: add watermark image upload and opacity slider
+- [ ] Course editor: add per-course watermark override toggle + image upload
+- [ ] Video player component: apply org primary color to controls bar background and progress bar
+- [ ] Video player component: render watermark image at bottom-left corner with configurable opacity
+- [ ] Video player component: inherit watermark from org theme, allow per-course override
+
+## Platform Admin Fixes (Apr 3)
+- [ ] Fix org table text color: always show org name in teal (not invisible until hover)
+- [ ] Add light teal hover background to org table rows
+- [ ] Add plan/subscription selector to Edit Organization dialog
+- [ ] Fix tier-gated "Insufficient permissions" errors to show upgrade message (e.g., webinars require Builder+)
+
+## Platform Admin: Impersonation & Granular Editing (Apr 3)
+- [ ] Backend: impersonation JWT endpoint (site_owner/site_admin only)
+- [ ] Backend: impersonation session cookie with impersonatedBy metadata
+- [ ] Backend: end impersonation endpoint (restore original session)
+- [ ] Backend: fix requireOrgRole to allow site_owner/site_admin to bypass org membership check
+- [ ] Backend: add webinar tier check with clear "upgrade to Builder+" message
+- [ ] Platform Admin UI: "Login as Customer" button per org row
+- [ ] Platform Admin UI: impersonation banner shown when active (who you're impersonating + exit button)
+- [ ] Platform Admin UI: granular Edit Org dialog (name, slug, description, domain, logo, plan, status, admin notes)
+- [ ] Platform Admin UI: fix org table text always visible in teal, light teal hover on rows
+
+## Course Reordering (Apr 3, 2026)
+- [ ] Add sortOrder column to courses table in schema
+- [ ] Generate and apply migration SQL
+- [ ] Add lms.courses.reorder tRPC procedure (accepts ordered array of courseIds)
+- [ ] CoursesPage (admin): drag-and-drop reorder using @dnd-kit, persist on drop
+- [ ] SchoolPage (catalog): render courses in sortOrder sequence
+- [ ] CoursesPage: show drag handle icon on each course card/row
+- [ ] Reorder persists across page refreshes (stored in DB)
+
+## Community Enhancements (Apr 3, 2026)
+- [ ] Schema: add coverImageUrl to community_spaces table
+- [ ] Schema: add isInviteOnly boolean to community_spaces
+- [ ] Schema: add accessType enum (open, invite_only, course_enrollment, purchase) to community_spaces
+- [ ] Schema: add linkedCourseId (FK to courses) to community_spaces
+- [ ] Schema: add price/priceId to community_spaces for standalone purchase access
+- [ ] Schema: add salesPageContent (rich text) to community_spaces
+- [ ] Schema: add community_invites table (id, spaceId, email, token, status, createdAt)
+- [ ] Schema: add community_dms table (id, orgId, fromUserId, toUserId, content, createdAt, readAt)
+- [ ] Generate and apply migration
+- [ ] Backend: update space create/update procedures with new fields
+- [ ] Backend: add invite management procedures (createInvite, listInvites, acceptInvite, revokeInvite)
+- [ ] Backend: access check middleware for invite-only spaces (check membership or valid invite)
+- [ ] Backend: auto-grant community access on course enrollment if linkedCourseId is set
+- [ ] Backend: DM procedures (sendDm, listConversations, getConversation, markRead)
+- [ ] Community Admin UI: management page with Posts moderation tab
+- [ ] Community Admin UI: Member Access tab (list members, invite, revoke)
+- [ ] Community Admin UI: Space Settings tab (cover image upload, access type, linked course, price)
+- [ ] Community Admin UI: Enter Community button linking to learner-facing hub
+- [ ] Community learner UI: space cards with cover image
+- [ ] Community learner UI: invite-only lock indicator on locked spaces
+- [ ] Community learner UI: sales/landing page for community access with join CTA
+- [ ] Community learner UI: DMs panel with conversation list sidebar and thread view
+
+
+## Record Feature (Loom-style) - DEFERRED (complete after all other items)
+- [ ] Add Record to sidebar under Products section in DashboardLayout
+- [ ] Record page: browser-based screen + camera simultaneous recording using MediaRecorder API
+  - [ ] Screen capture (getDisplayMedia) + camera overlay (getUserMedia) combined into single MediaStream
+  - [ ] Camera bubble overlay (draggable, resizable, circle/square shape options)
+  - [ ] Recording controls: Start, Pause, Resume, Stop, Countdown timer
+  - [ ] Recording quality settings (resolution, frame rate)
+  - [ ] Microphone selection + audio level indicator
+- [ ] Video editor (in-browser, post-recording):
+  - [ ] Timeline with waveform visualization
+  - [ ] Trim/cut: drag handles on timeline to set in/out points
+  - [ ] Split clips at playhead position
+  - [ ] Delete segments from timeline
+  - [ ] Transcript panel (auto-generated via Whisper API on upload)
+  - [ ] Click word in transcript to jump to that timestamp in video
+  - [ ] Edit transcript text inline (corrections sync to caption timing)
+  - [ ] Closed captions overlay: toggle on/off, font family, font size, color, background color, position
+  - [ ] Caption style presets (white on black, yellow, etc.)
+  - [ ] Export captions as SRT/VTT file
+- [ ] Marketing snips: select clip range, add text overlay/CTA, download or share link
+- [ ] Video storage: upload to S3, save metadata to DB, appear in Media Library
+- [ ] Schema: add recorded_videos and video_snips tables
+- [ ] Backend procedures: upload, list, get, update, delete recorded videos; create/list snips
+- [ ] Integration: Insert from Record Library button in Course Lesson editor and Webinar media picker
+
+## Community Hub List Page (Thinkific-style)
+- [ ] CommunityPage: Thinkific-style list of community hubs with cover image, name, share button, published status badge
+- [ ] CommunityPage: search/filter by name
+- [ ] CommunityPage: Grid/List view toggle
+- [ ] CommunityPage: "New community" button (tier-gated: Free=0, Starter=1, Builder=2, Pro=5, Enterprise=unlimited)
+- [ ] CommunityPage: upgrade prompt card when community limit reached (dashed border, upgrade CTA)
+- [ ] CommunityPage: Re-order tab with drag-and-drop reordering
+- [ ] CommunityPage: three-dot menu per hub (Edit, Enter Community, Delete)
+- [ ] Backend: community.listHubs procedure (list all hubs for org)
+- [ ] Backend: community.createHub procedure (create new hub with name, slug)
+- [ ] Backend: community.deleteHub procedure
+- [ ] Backend: community.reorderHubs procedure
+- [ ] CommunityEditorPage: full management page at /products/community/:hubId with tabs
+- [ ] CommunityEditorPage: Hub Settings tab (name, tagline, description, cover image, logo, primary color, enabled toggle)
+- [ ] CommunityEditorPage: Spaces tab (list spaces, create/edit/delete/reorder spaces with cover images, access type, invite-only toggle)
+- [ ] CommunityEditorPage: Members tab (list members per space, ban/unban, role change)
+- [ ] CommunityEditorPage: Moderation tab (hidden/flagged posts queue, restore/delete actions)
+- [ ] CommunityEditorPage: Invites tab (send invite by email, list pending/revoked invites)
+- [ ] CommunityEditorPage: "Enter Community" button linking to learner view
+- [ ] Community learner view at /community/:hubId (spaces sidebar, posts feed, DMs panel)
+
+## Course Pre-Start Page (Teachable-style)
+- [ ] Course overview page at /learn/:courseId/overview - Teachable-style pre-start page
+- [ ] Top section: course thumbnail image + "next lesson" card with lesson title, position (e.g. "1/3"), and "Start Lesson" / "Continue" button
+- [ ] Module/lesson outline: expandable sections showing module name, X/Y complete count, collapse/expand toggle
+- [ ] Each lesson row: circle progress icon (empty/half/full), lesson title, subtitle/type icon, Start/Continue/Review button
+- [ ] Right sidebar: completion percentage (e.g. "0% COMPLETE"), instructor bio card with avatar, name/credentials, bio text
+- [ ] Link from CoursePlayerPage header back to overview page
+- [ ] Progress data pulled from real course_progress / lesson_completions tables
+
+## AI Course Generation Wizard
+- [ ] "Create with AI" button on Courses page alongside "New Course"
+- [ ] Multi-step wizard dialog/page:
+  - [ ] Step 1: Course topic, description, target audience, difficulty (Beginner/Intermediate/Advanced), number of modules (3-10)
+  - [ ] Step 2: AI generates course outline - title, subtitle, description, modules with lesson names and descriptions
+  - [ ] Step 3: Review & edit generated outline - editable module/lesson names, add/remove lessons
+  - [ ] Step 4: AI generates landing page content - hero headline, course description, what you'll learn bullets, suggested pricing
+- [ ] Backend tRPC procedure: lms.ai.generateCourseOutline using invokeLLM
+- [ ] Backend tRPC procedure: lms.ai.generateLandingPage using invokeLLM
+- [ ] Auto-create course with all modules and lessons in DB after user confirms
+- [ ] Navigate to course builder after creation for further customization
+
+## Instructors Management Page (Org Settings)
+- [ ] Add "Instructors" nav item under Org Settings sidebar (between Branding and Integrations)
+- [ ] Route: /org/instructors
+- [ ] Instructors list page: table/card view of all instructors for the org
+- [ ] Each instructor card: avatar, name, credentials/title, bio preview, course count, actions (Edit, Delete)
+- [ ] Add Instructor dialog: name, title/credentials, bio, avatar upload, email, social links (LinkedIn, Twitter, website)
+- [ ] Edit Instructor dialog: same fields as add
+- [ ] Delete instructor with confirmation (warn if assigned to courses)
+- [ ] Backend: instructors table (id, orgId, name, title, bio, avatarUrl, email, linkedinUrl, twitterUrl, websiteUrl, createdAt)
+- [ ] Backend tRPC procedures: instructors.list, instructors.create, instructors.update, instructors.delete
+- [ ] Course Builder: instructor selector dropdown on course settings tab (link course to instructor)
+- [ ] Course pre-start page: pull instructor info from linked instructor record
+
+## WYSIWYG Page Editor (Thinkific Site Builder Style)
+- [ ] Full-screen editor layout: narrow left panel + wide live preview pane
+- [ ] Left panel: Page tab with Header (Default badge), Sections list with drag handles, Footer (Default badge), Add section button
+- [ ] Left panel: Theme Settings tab (fonts, colors, button styles)
+- [ ] Live preview: Desktop / Mobile / Fullscreen toggle in top bar
+- [ ] Live preview: Discard / Save buttons in top bar with draft/published status indicator
+- [ ] Live preview: Section hover highlights with blue border + "Edit" overlay button
+- [ ] Section editor panel: clicking section opens settings (Headings, Background, Image or Video, Size & alignment, Blocks, Delete section)
+- [ ] Add section modal: grid of section type cards with thumbnail previews and descriptions
+- [ ] Section types: Banner (course), Curriculum [smart], Call to action, Call to action (course), Bonus material, Checklist, Countdown timer, FAQ, Icons & text, Instructor(s), Lead Capture, Pricing options, Social proof logos/reviews/testimonials, Image gallery, Image & text (with CTA), Additional products, All categories, All pricing options
+- [ ] Remove policy pages from Pages tab in page editor
+
+## Policies System
+- [ ] Org Settings: Policies tab with list of policy pages (Privacy Policy, Terms of Service, Refund Policy, custom)
+- [ ] Policy editor: rich text editor with title, slug, content, published toggle
+- [ ] Public policy page route: /policies/:slug (learner-facing)
+- [ ] Footer site links: ability to add policy page links to footer (alongside custom links)
+- [ ] Checkout page: "I agree to [Terms of Service] and [Privacy Policy]" checkbox (required before purchase)
+- [ ] Checkout agreement: links open policy pages in new tab
+- [ ] Checkout: block purchase if agreement checkbox not checked when policies are published
+
+## Record Tool (Loom-style, under Products in sidebar)
+- [ ] Sidebar entry: Products > Record
+- [ ] Screen + camera simultaneous recording using browser MediaRecorder API
+- [ ] Camera preview bubble (moveable) overlaid on screen recording
+- [ ] Save recording to media library on completion
+- [ ] Video editor: timeline with cut/trim tools
+- [ ] Transcript generation via Whisper API after recording
+- [ ] Closed captions editor: editable transcript segments with font/color/size controls
+- [ ] Marketing snips: select transcript segments to create short clips
+- [ ] Videos stored in media library and linkable to courses/products
+
+## Flashcard Creator (Media Library)
+- [ ] Add "Flashcards" tab/section to Media Library page
+- [ ] Flashcard deck management: create deck with name, description, category/tags
+- [ ] Flashcard card editor: front (term/question with optional image), back (definition/answer with optional image)
+- [ ] AI generation: input topic or paste text → AI generates N flashcard pairs using LLM
+- [ ] Excel import: upload .xlsx with columns (Front, Back, Front Image URL, Back Image URL) → bulk import
+- [ ] Excel export: download deck as .xlsx for offline use or sharing
+- [ ] Deck study mode: flip animation, shuffle/randomize, progress tracking (known/unknown)
+- [ ] Incorporate flashcard decks into course lessons as a "Flashcards" lesson type
+- [ ] Backend: flashcard_decks table (id, orgId, title, description, category, cardCount, createdAt)
+- [ ] Backend: flashcard_cards table (id, deckId, front, back, frontImageUrl, backImageUrl, sortOrder)
+- [ ] Backend tRPC procedures: flashcards.listDecks, flashcards.getDeck, flashcards.createDeck, flashcards.updateDeck, flashcards.deleteDeck
+- [ ] Backend tRPC procedures: flashcards.listCards, flashcards.createCard, flashcards.updateCard, flashcards.deleteCard, flashcards.reorderCards
+- [ ] Backend: flashcards.generateWithAI procedure using invokeLLM
+- [ ] Backend: flashcards.importFromExcel procedure using xlsx library
+- [ ] Backend: flashcards.exportToExcel procedure
+- [ ] Tier gating: limit number of flashcard decks per plan
+
+## Quiz Import Template ZIP with Bundled Media
+- [ ] Rebuild quiz import template as a ZIP bundle: QuizTemplate.zip containing Questions.xlsx + media/ folder with sample images
+- [ ] Instructions sheet in Excel: explain ZIP structure, media/ path format, all question types, correct answer marking (* prefix), matching pipe delimiter, numeric ranges
+- [ ] Questions sheet: sample rows for every question type (TF, MC, MR, TI, MG, SEQ, NUMG, IS) with real media path references like media/sample_image.jpg
+- [ ] Template sheet: column reference rows showing format placeholders ([path], *Alternative 1, etc.)
+- [ ] Zero iSpring branding - all instructions reference "Teachific" only
+- [ ] Include sample media images in the media/ folder of the ZIP
+- [ ] Backend: update quiz import endpoint to accept ZIP uploads (not just XLSX)
+- [ ] Backend: when ZIP uploaded, extract media/ files to S3, rewrite media paths in Excel to S3 URLs before parsing
+- [ ] Frontend: update quiz builder import UI to accept .zip files in addition to .xlsx
+- [ ] Frontend: show instructions panel explaining the ZIP+media format with download template button
+- [ ] Upload the new template ZIP to CDN and update the download link in quiz builder
+
+## Group Manager System
+- [ ] Extend groups table: managerName, managerTitle, managerEmail, managerPhone, productIds (JSON), welcomeEmailSent
+- [ ] Add group_manager role to users enum in schema
+- [ ] Migration: generate and apply SQL for groups table changes
+- [ ] Backend: update createGroup procedure to accept manager contact + product assignments
+- [ ] Backend: send welcome email to group manager on group creation (SendGrid)
+- [ ] Backend: listGroupProducts procedure (returns courses/products assigned to a group)
+- [ ] Backend: seatEnroll procedure (group manager enrolls learner by email into a seat)
+- [ ] Backend: listGroupSeats procedure (returns all seats with learner info and progress)
+- [ ] Backend: revokeSeat procedure (remove a learner from a seat)
+- [ ] Frontend: Update New Group dialog with manager name/title/email/phone + product multi-select
+- [ ] Frontend: Group Manager portal page (only visible to group_manager role in sidebar)
+- [ ] Frontend: Seat registration tool (invite by email, assign to products, view progress)
+- [ ] Frontend: Group Manager sees only their group(s), not full org admin views
+- [ ] Frontend: DashboardLayout sidebar shows Group Management link for group_manager role

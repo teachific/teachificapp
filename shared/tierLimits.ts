@@ -20,6 +20,8 @@ export interface TierLimits {
   maxInstructors: number | null;
   /** Max course bundles (null = unlimited) */
   maxBundles: number | null;
+  /** Max community hubs per org (null = unlimited) */
+  maxCommunities: number | null;
   // ── Feature flags ──────────────────────────────────────────────────────────
   /** AI course / quiz / flashcard generation */
   aiGeneration: boolean;
@@ -62,6 +64,7 @@ export const TIER_LIMITS: Record<PlanTier, TierLimits> = {
     maxStorageGb: 1,
     maxInstructors: 1,
     maxBundles: 0,
+    maxCommunities: 0,
     aiGeneration: false,
     dripScheduling: false,
     certificates: false,
@@ -85,6 +88,7 @@ export const TIER_LIMITS: Record<PlanTier, TierLimits> = {
     maxStorageGb: 10,
     maxInstructors: 3,
     maxBundles: 0,
+    maxCommunities: 1,
     aiGeneration: true,
     dripScheduling: false,
     certificates: true,
@@ -108,6 +112,7 @@ export const TIER_LIMITS: Record<PlanTier, TierLimits> = {
     maxStorageGb: 50,
     maxInstructors: 10,
     maxBundles: 5,
+    maxCommunities: 2,
     aiGeneration: true,
     dripScheduling: true,
     certificates: true,
@@ -131,6 +136,7 @@ export const TIER_LIMITS: Record<PlanTier, TierLimits> = {
     maxStorageGb: 200,
     maxInstructors: null,
     maxBundles: null,
+    maxCommunities: 5,
     aiGeneration: true,
     dripScheduling: true,
     certificates: true,
@@ -154,6 +160,7 @@ export const TIER_LIMITS: Record<PlanTier, TierLimits> = {
     maxStorageGb: null,
     maxInstructors: null,
     maxBundles: null,
+    maxCommunities: null,
     aiGeneration: true,
     dripScheduling: true,
     certificates: true,

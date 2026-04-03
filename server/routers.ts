@@ -1,4 +1,4 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, IMPERSONATION_ORIGINAL_COOKIE } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -96,10 +96,12 @@ import {
 import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { lmsRouter } from "./lmsRouter";
 import { formsRouter } from "./formsRouter";
 import { customAuthRouter } from "./customAuthRouter";
+import { communityRouter } from "./communityRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { ENV } from "./_core/env";
 
@@ -133,6 +135,7 @@ export const appRouter = router({
   lms: lmsRouter,
   customAuth: customAuthRouter,
   forms: formsRouter,
+  community: communityRouter,
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   auth: router({
@@ -1239,8 +1242,32 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         supportEmail: z.string().email().optional().nullable(),
         maxUploadSizeMb: z.number().int().min(1).max(10000).optional(),
         enterpriseMaxUploadSizeMb: z.number().int().min(1).max(50000).optional(),
+        // Branding
+        logoUrl: z.string().url().optional().nullable(),
+        faviconUrl: z.string().url().optional().nullable(),
+        primaryColor: z.string().max(32).optional(),
+        accentColor: z.string().max(32).optional(),
+        // Watermark
+        watermarkImageUrl: z.string().url().optional().nullable(),
+        watermarkOpacity: z.number().int().min(0).max(100).optional(),
+        watermarkPosition: z.string().max(32).optional(),
+        watermarkSize: z.number().int().min(20).max(400).optional(),
       }))
       .mutation(({ input }) => updatePlatformSettings(input)),
+    // Upload platform logo, favicon, or watermark
+    uploadPlatformAsset: ownerProcedure
+      .input(z.object({
+        fileName: z.string(),
+        contentType: z.string(),
+        assetType: z.enum(["logo", "favicon", "watermark"]),
+      }))
+      .mutation(async ({ input }) => {
+        const suffix = input.fileName.split(".").pop() || "png";
+        const key = `platform/${input.assetType}-${Date.now()}.${suffix}`;
+        const { url } = await storagePut(key, Buffer.alloc(0), input.contentType);
+        const fileUrl = url.split("?")[0];
+        return { uploadUrl: url, fileUrl, assetType: input.assetType };
+      }),
 
     // All users across the platform
     listUsers: adminProcedure.query(() => getAllUsers()),
@@ -1369,6 +1396,77 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         analytics,
       };
     }),
+
+    // ── Impersonation ──────────────────────────────────────────────────────
+    // Login as the primary org admin for a given org
+    impersonateOrg: adminProcedure
+      .input(z.object({ orgId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const db2 = await getDb();
+        if (!db2) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+        const { orgMembers: orgMembersTable, users: usersTable } = await import("../drizzle/schema");
+        const { eq: eqOp, inArray } = await import("drizzle-orm");
+        const adminMembers = await db2
+          .select({ userId: orgMembersTable.userId })
+          .from(orgMembersTable)
+          .where(eqOp(orgMembersTable.orgId, input.orgId))
+          .limit(20);
+        if (!adminMembers.length) throw new TRPCError({ code: "NOT_FOUND", message: "No members found in this organization" });
+        const memberIds = adminMembers.map(m => m.userId);
+        const members = await db2.select().from(usersTable).where(inArray(usersTable.id, memberIds));
+        const orgAdmin = members.find(u => u.role === "org_admin") ?? members[0];
+        if (!orgAdmin) throw new TRPCError({ code: "NOT_FOUND", message: "No user found for this organization" });
+        // Store current admin session as the original session cookie
+        const cookieHeader = ctx.req.headers.cookie ?? "";
+        const currentSessionCookie = cookieHeader.split(";").find(c => c.trim().startsWith(COOKIE_NAME + "="))?.split("=").slice(1).join("=");
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        if (currentSessionCookie) {
+          ctx.res.cookie(IMPERSONATION_ORIGINAL_COOKIE, currentSessionCookie, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
+        }
+        const impersonationToken = await sdk.createImpersonationToken(
+          orgAdmin.openId,
+          orgAdmin.name ?? orgAdmin.email ?? "User",
+          ctx.user.openId
+        );
+        ctx.res.cookie(COOKIE_NAME, impersonationToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
+        return { success: true, impersonatedUser: { id: orgAdmin.id, name: orgAdmin.name, email: orgAdmin.email } };
+      }),
+
+    // Login as a specific user by userId
+    impersonateUser: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const targetUser = await getUserById(input.userId);
+        if (!targetUser) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        if ((targetUser.role === "site_owner" || targetUser.role === "site_admin") && ctx.user.role !== "site_owner") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Cannot impersonate another admin" });
+        }
+        const cookieHeader = ctx.req.headers.cookie ?? "";
+        const currentSessionCookie = cookieHeader.split(";").find(c => c.trim().startsWith(COOKIE_NAME + "="))?.split("=").slice(1).join("=");
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        if (currentSessionCookie) {
+          ctx.res.cookie(IMPERSONATION_ORIGINAL_COOKIE, currentSessionCookie, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
+        }
+        const impersonationToken = await sdk.createImpersonationToken(
+          targetUser.openId,
+          targetUser.name ?? targetUser.email ?? "User",
+          ctx.user.openId
+        );
+        ctx.res.cookie(COOKIE_NAME, impersonationToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
+        return { success: true, impersonatedUser: { id: targetUser.id, name: targetUser.name, email: targetUser.email } };
+      }),
+
+    // End impersonation — restore original admin session
+    endImpersonation: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        const cookieHeader = ctx.req.headers.cookie ?? "";
+        const originalSession = cookieHeader.split(";").find(c => c.trim().startsWith(IMPERSONATION_ORIGINAL_COOKIE + "="))?.split("=").slice(1).join("=");
+        if (!originalSession) throw new TRPCError({ code: "BAD_REQUEST", message: "No active impersonation session" });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, originalSession, { ...cookieOptions, maxAge: 365 * 24 * 60 * 60 * 1000 });
+        ctx.res.clearCookie(IMPERSONATION_ORIGINAL_COOKIE, { ...cookieOptions, maxAge: -1 });
+        return { success: true };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

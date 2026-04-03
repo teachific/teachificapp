@@ -1,21 +1,21 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
-import { Upload, FileArchive, BookOpen } from "lucide-react";
+import { Upload, FileArchive, BookOpen, Layers } from "lucide-react";
 import UploadPage from "./UploadPage";
 import FilesPage from "./FilesPage";
 import QuizzesPage from "./QuizzesPage";
-
-type TabId = "files" | "upload" | "quizzes";
+import FlashcardsPage from "./FlashcardsPage";
+type TabId = "files" | "upload" | "quizzes" | "flashcards";
 
 function getDefaultTab(): TabId {
   const hash = window.location.hash.replace("#", "") as TabId;
-  return ["files", "upload", "quizzes"].includes(hash) ? hash : "files";
+  return ["files", "upload", "quizzes", "flashcards"].includes(hash) ? hash : "files";
 }
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: "files", label: "My Files", icon: FileArchive },
   { id: "upload", label: "Upload Content", icon: Upload },
   { id: "quizzes", label: "Quizzes", icon: BookOpen },
+  { id: "flashcards", label: "Flashcards", icon: Layers },
 ];
 
 export default function MediaLibraryPage() {
@@ -54,6 +54,7 @@ export default function MediaLibraryPage() {
         {activeTab === "files" && <FilesPage />}
         {activeTab === "upload" && <UploadPage />}
         {activeTab === "quizzes" && <QuizzesPage />}
+        {activeTab === "flashcards" && <FlashcardsPage />}
       </div>
     </div>
   );

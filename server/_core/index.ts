@@ -12,6 +12,7 @@ import scormUploadRouter from "../scormUploadRoutes";
 import chunkedUploadRouter from "../chunkedUploadRoutes";
 import contentRouter from "../contentRoutes";
 import digitalDownloadRouter from "../digitalDownloadRoutes";
+import mediaUploadRouter from "../mediaUploadRoutes";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -75,6 +76,9 @@ async function startServer() {
 
   // Secure digital download — validates token, checks access controls, redirects to S3
   app.use("/api/download", digitalDownloadRouter);
+
+  // Media upload — server-side proxy for browser file uploads (digital downloads, forms, media library)
+  app.use("/api/media-upload", mediaUploadRouter);
 
   // tRPC API
   app.use(

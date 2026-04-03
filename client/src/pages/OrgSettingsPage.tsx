@@ -9,17 +9,23 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import {
   Settings, Building2, Palette, Globe, CreditCard,
-  Check, AlertCircle, Crown, Zap, Rocket, Bell, Upload, ImageIcon, X, FileText,
+  Check, AlertCircle, Crown, Zap, Rocket, Bell, Upload, ImageIcon, X, FileText, Video,
+  UserCircle, Plus, Trash2, Edit2, Link as LinkIcon,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function OrgSettingsPage() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const watermarkInputRef = useRef<HTMLInputElement>(null);
 
   const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(undefined, {
     enabled: !!user,
@@ -33,6 +39,18 @@ export default function OrgSettingsPage() {
   const [customDomain, setCustomDomain] = useState("");
   const [initialized, setInitialized] = useState(false);
 
+  // Branding / theme state
+  const [primaryColor, setPrimaryColor] = useState("#189aa1");
+  const [accentColor, setAccentColor] = useState("#4ad9e0");
+  const [themeInitialized, setThemeInitialized] = useState(false);
+
+  // Watermark state
+  const [watermarkImageUrl, setWatermarkImageUrl] = useState<string | null>(null);
+  const [watermarkOpacity, setWatermarkOpacity] = useState(30);
+  const [watermarkPosition, setWatermarkPosition] = useState("bottom-left");
+  const [watermarkSize, setWatermarkSize] = useState(120);
+  const [watermarkUploading, setWatermarkUploading] = useState(false);
+
   const [notifEnrollment, setNotifEnrollment] = useState(true);
   const [notifCompletion, setNotifCompletion] = useState(true);
   const [notifQuizResult, setNotifQuizResult] = useState(true);
@@ -45,8 +63,21 @@ export default function OrgSettingsPage() {
     { enabled: !!orgCtx?.org?.id }
   );
 
+  const { data: orgTheme } = trpc.lms.themes.get.useQuery(
+    { orgId: orgCtx?.org?.id! },
+    { enabled: !!orgCtx?.org?.id }
+  );
+
   const updateNotifSettings = trpc.lms.notifications.updateOrgSettings.useMutation({
     onSuccess: () => toast.success("Notification settings saved"),
+    onError: (e) => toast.error(e.message),
+  });
+
+  const updateTheme = trpc.lms.themes.update.useMutation({
+    onSuccess: () => {
+      toast.success("Branding settings saved");
+      utils.lms.themes.get.invalidate({ orgId: orgCtx?.org?.id! });
+    },
     onError: (e) => toast.error(e.message),
   });
 
@@ -60,6 +91,18 @@ export default function OrgSettingsPage() {
       setInitialized(true);
     }
   }, [orgCtx, initialized]);
+
+  useEffect(() => {
+    if (orgTheme && !themeInitialized) {
+      setPrimaryColor(orgTheme.primaryColor || "#189aa1");
+      setAccentColor(orgTheme.accentColor || "#4ad9e0");
+      setWatermarkImageUrl(orgTheme.watermarkImageUrl || null);
+      setWatermarkOpacity(orgTheme.watermarkOpacity ?? 30);
+      setWatermarkPosition(orgTheme.watermarkPosition || "bottom-left");
+      setWatermarkSize(orgTheme.watermarkSize ?? 120);
+      setThemeInitialized(true);
+    }
+  }, [orgTheme, themeInitialized]);
 
   useEffect(() => {
     if (notifSettings) {
@@ -97,19 +140,16 @@ export default function OrgSettingsPage() {
       toast.error("Logo must be under 5 MB");
       return;
     }
-    // Show local preview immediately
     const reader = new FileReader();
     reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
 
     setLogoUploading(true);
     try {
-      // Get presigned upload URL from backend
       const { uploadUrl, fileUrl } = await uploadLogo.mutateAsync({
         fileName: file.name,
         contentType: file.type || "image/png",
       });
-      // PUT the file bytes directly to S3
       await fetch(uploadUrl, {
         method: "PUT",
         body: file,
@@ -124,6 +164,50 @@ export default function OrgSettingsPage() {
     } finally {
       setLogoUploading(false);
     }
+  };
+
+  const handleWatermarkFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Watermark image must be under 5 MB");
+      return;
+    }
+    if (!orgCtx?.org?.id) return;
+    setWatermarkUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("orgId", String(orgCtx.org.id));
+      formData.append("folder", "watermarks");
+      const res = await fetch("/api/media-upload", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      setWatermarkImageUrl(url);
+      toast.success("Watermark image uploaded");
+    } catch (err: any) {
+      toast.error(err?.message || "Upload failed");
+    } finally {
+      setWatermarkUploading(false);
+      if (watermarkInputRef.current) watermarkInputRef.current.value = "";
+    }
+  };
+
+  const handleSaveBranding = () => {
+    if (!orgCtx?.org?.id) return;
+    updateTheme.mutate({
+      orgId: orgCtx.org.id,
+      primaryColor,
+      accentColor,
+      watermarkImageUrl: watermarkImageUrl ?? null,
+      watermarkOpacity,
+      watermarkPosition,
+      watermarkSize,
+    });
   };
 
   if (orgLoading || !orgCtx) {
@@ -162,7 +246,7 @@ export default function OrgSettingsPage() {
 
       <Tabs defaultValue="general" className="w-full">
         <div className="overflow-x-auto pb-1">
-          <TabsList className="flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-6 gap-0">
+          <TabsList className="flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-7 gap-0">
             <TabsTrigger value="general" className="gap-1.5 whitespace-nowrap">
               <Building2 className="h-4 w-4" /> General
             </TabsTrigger>
@@ -177,6 +261,9 @@ export default function OrgSettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="subscription" className="gap-1.5 whitespace-nowrap">
               <CreditCard className="h-4 w-4" /> Subscription
+            </TabsTrigger>
+            <TabsTrigger value="instructors" className="gap-1.5 whitespace-nowrap">
+              <UserCircle className="h-4 w-4" /> Instructors
             </TabsTrigger>
             <TabsTrigger value="policies" className="gap-1.5 whitespace-nowrap">
               <FileText className="h-4 w-4" /> Site Policies
@@ -227,13 +314,13 @@ export default function OrgSettingsPage() {
 
         {/* Branding Tab */}
         <TabsContent value="branding" className="space-y-4">
+          {/* Logo */}
           <Card>
             <CardHeader>
               <CardTitle>Site Logo</CardTitle>
               <CardDescription>Upload your organization logo — displayed in the admin panel and learner portal</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Logo preview */}
               <div className="flex items-start gap-4">
                 <div className="w-40 h-20 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/30 overflow-hidden shrink-0">
                   {logoPreview ? (
@@ -248,6 +335,7 @@ export default function OrgSettingsPage() {
                 <div className="flex flex-col gap-2">
                   <Button
                     variant="outline"
+                    size="sm"
                     className="gap-2"
                     disabled={logoUploading}
                     onClick={() => fileInputRef.current?.click()}
@@ -282,7 +370,6 @@ export default function OrgSettingsPage() {
                 className="hidden"
                 onChange={handleLogoFileChange}
               />
-              {/* Also allow manual URL entry */}
               <div className="space-y-2 pt-2 border-t">
                 <Label htmlFor="logo-url">Or enter a Logo URL directly</Label>
                 <div className="flex gap-2">
@@ -303,6 +390,252 @@ export default function OrgSettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Theme Colors */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Palette className="h-4 w-4" /> Theme Colors
+              </CardTitle>
+              <CardDescription>
+                These colors are applied to the admin panel, learner portal, and video player controls.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="primary-color">Primary Color</Label>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-lg border border-border shadow-sm shrink-0 cursor-pointer overflow-hidden"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      <input
+                        type="color"
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        className="w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </div>
+                    <Input
+                      id="primary-color"
+                      value={primaryColor}
+                      onChange={(e) => setPrimaryColor(e.target.value)}
+                      placeholder="#189aa1"
+                      className="font-mono"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Used for buttons, progress bars, and active states</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="accent-color">Accent Color</Label>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-lg border border-border shadow-sm shrink-0 cursor-pointer overflow-hidden"
+                      style={{ backgroundColor: accentColor }}
+                    >
+                      <input
+                        type="color"
+                        value={accentColor}
+                        onChange={(e) => setAccentColor(e.target.value)}
+                        className="w-full h-full opacity-0 cursor-pointer"
+                      />
+                    </div>
+                    <Input
+                      id="accent-color"
+                      value={accentColor}
+                      onChange={(e) => setAccentColor(e.target.value)}
+                      placeholder="#4ad9e0"
+                      className="font-mono"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Used for highlights, hover states, and secondary elements</p>
+                </div>
+              </div>
+              {/* Color preview */}
+              <div className="p-4 rounded-lg border bg-muted/20 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Preview</p>
+                <div className="flex items-center gap-3">
+                  <button
+                    className="px-4 py-2 rounded-md text-white text-sm font-medium shadow-sm"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    Primary Button
+                  </button>
+                  <button
+                    className="px-4 py-2 rounded-md text-sm font-medium border-2"
+                    style={{ borderColor: accentColor, color: accentColor }}
+                  >
+                    Accent Button
+                  </button>
+                  <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full w-2/3 rounded-full" style={{ backgroundColor: primaryColor }} />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Video Player Watermark */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Video className="h-4 w-4" /> Video Player Watermark
+              </CardTitle>
+              <CardDescription>
+                Overlay a semi-transparent logo or watermark image on all video players across your school.
+                This helps protect your content and reinforce your brand.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Watermark image upload */}
+              <div className="space-y-3">
+                <Label>Watermark Image</Label>
+                <div className="flex items-start gap-4">
+                  <div className="w-32 h-20 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/30 overflow-hidden shrink-0">
+                    {watermarkImageUrl ? (
+                      <img
+                        src={watermarkImageUrl}
+                        alt="Watermark preview"
+                        className="max-h-16 max-w-28 object-contain"
+                        style={{ opacity: watermarkOpacity / 100 }}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                        <ImageIcon className="h-5 w-5" />
+                        <span className="text-xs">No watermark</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      disabled={watermarkUploading}
+                      onClick={() => watermarkInputRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4" />
+                      {watermarkUploading ? "Uploading..." : "Upload Watermark"}
+                    </Button>
+                    {watermarkImageUrl && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 text-muted-foreground hover:text-destructive"
+                        onClick={() => setWatermarkImageUrl(null)}
+                      >
+                        <X className="h-3.5 w-3.5" /> Remove watermark
+                      </Button>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Recommended: PNG with transparent background.<br />
+                      Max file size: 5 MB.
+                    </p>
+                  </div>
+                </div>
+                <input
+                  ref={watermarkInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                  className="hidden"
+                  onChange={handleWatermarkFileChange}
+                />
+              </div>
+
+              {/* Watermark settings */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2 border-t">
+                <div className="space-y-3">
+                  <Label>Opacity: {watermarkOpacity}%</Label>
+                  <Slider
+                    min={5}
+                    max={100}
+                    step={5}
+                    value={[watermarkOpacity]}
+                    onValueChange={([v]) => setWatermarkOpacity(v)}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">Lower opacity = more subtle watermark</p>
+                </div>
+                <div className="space-y-3">
+                  <Label>Size: {watermarkSize}px</Label>
+                  <Slider
+                    min={40}
+                    max={300}
+                    step={10}
+                    value={[watermarkSize]}
+                    onValueChange={([v]) => setWatermarkSize(v)}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground">Width of the watermark image in pixels</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Position</Label>
+                <Select value={watermarkPosition} onValueChange={setWatermarkPosition}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                    <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                    <SelectItem value="top-left">Top Left</SelectItem>
+                    <SelectItem value="top-right">Top Right</SelectItem>
+                    <SelectItem value="center">Center</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Live preview */}
+              {watermarkImageUrl && (
+                <div className="space-y-2 pt-2 border-t">
+                  <p className="text-xs font-medium text-muted-foreground">Player Preview</p>
+                  <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-border">
+                    <div className="absolute inset-0 flex items-center justify-center text-white/20 text-sm">
+                      Video Content
+                    </div>
+                    {/* Simulated controls bar */}
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-10 flex items-center px-3 gap-2"
+                      style={{ backgroundColor: primaryColor + "cc" }}
+                    >
+                      <div className="w-4 h-4 rounded bg-white/80" />
+                      <div className="flex-1 h-1.5 rounded-full bg-white/30">
+                        <div className="w-1/3 h-full rounded-full bg-white/80" />
+                      </div>
+                      <div className="w-4 h-4 rounded bg-white/80" />
+                    </div>
+                    {/* Watermark overlay */}
+                    <img
+                      src={watermarkImageUrl}
+                      alt="Watermark"
+                      className="absolute pointer-events-none"
+                      style={{
+                        width: `${Math.min(watermarkSize, 160)}px`,
+                        opacity: watermarkOpacity / 100,
+                        ...(watermarkPosition === "bottom-left" ? { bottom: "48px", left: "12px" } :
+                          watermarkPosition === "bottom-right" ? { bottom: "48px", right: "12px" } :
+                          watermarkPosition === "top-left" ? { top: "12px", left: "12px" } :
+                          watermarkPosition === "top-right" ? { top: "12px", right: "12px" } :
+                          { top: "50%", left: "50%", transform: "translate(-50%, -50%)" }),
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveBranding}
+              disabled={updateTheme.isPending}
+              className="gap-2"
+            >
+              {updateTheme.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Branding Settings</>}
+            </Button>
+          </div>
         </TabsContent>
 
         {/* Domain Tab */}
@@ -449,11 +782,191 @@ export default function OrgSettingsPage() {
           </Card>
         </TabsContent>
 
+        {/* Instructors Tab */}
+        <InstructorsTab orgId={orgCtx?.org?.id} />
         {/* Site Policies Tab */}
         <SitePoliciesTab orgId={orgCtx?.org?.id} />
-
       </Tabs>
     </div>
+  );
+}
+
+function InstructorsTab({ orgId }: { orgId?: number }) {
+  const utils = trpc.useUtils();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [title, setTitle] = useState("");
+  const [bio, setBio] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [socialLinks, setSocialLinks] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const { data: instructorList = [], isLoading } = trpc.lms.instructors.list.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId }
+  );
+
+  const createInstructor = trpc.lms.instructors.create.useMutation({
+    onSuccess: () => { utils.lms.instructors.list.invalidate({ orgId: orgId! }); toast.success("Instructor added"); closeDialog(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const updateInstructor = trpc.lms.instructors.update.useMutation({
+    onSuccess: () => { utils.lms.instructors.list.invalidate({ orgId: orgId! }); toast.success("Instructor updated"); closeDialog(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteInstructor = trpc.lms.instructors.delete.useMutation({
+    onSuccess: () => { utils.lms.instructors.list.invalidate({ orgId: orgId! }); toast.success("Instructor removed"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const getUploadUrl = trpc.lms.media.getUploadUrl.useMutation();
+
+  const openNew = () => {
+    setEditingId(null); setDisplayName(""); setTitle(""); setBio(""); setAvatarUrl(""); setSocialLinks("");
+    setDialogOpen(true);
+  };
+
+  const openEdit = (inst: any) => {
+    setEditingId(inst.id); setDisplayName(inst.displayName ?? ""); setTitle(inst.title ?? "");
+    setBio(inst.bio ?? ""); setAvatarUrl(inst.avatarUrl ?? ""); setSocialLinks(inst.socialLinks ?? "");
+    setDialogOpen(true);
+  };
+
+  const closeDialog = () => { setDialogOpen(false); setEditingId(null); };
+
+  const handleAvatarUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const { uploadUrl, fileUrl } = await getUploadUrl.mutateAsync({ orgId: orgId!, fileName: file.name, contentType: file.type });
+      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      setAvatarUrl(fileUrl);
+    } catch { toast.error("Upload failed"); } finally { setUploading(false); }
+  };
+
+  const handleSave = () => {
+    if (!displayName.trim()) return toast.error("Display name is required");
+    if (editingId) {
+      updateInstructor.mutate({ id: editingId, orgId: orgId!, displayName, title, bio, avatarUrl, socialLinks });
+    } else {
+      createInstructor.mutate({ orgId: orgId!, displayName, title, bio, avatarUrl, socialLinks });
+    }
+  };
+
+  return (
+    <TabsContent value="instructors" className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>Instructors</CardTitle>
+            <CardDescription>Manage the instructors who appear on your course pages and landing pages.</CardDescription>
+          </div>
+          <Button onClick={openNew} className="gap-2">
+            <Plus className="h-4 w-4" /> Add Instructor
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">{[1,2].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
+          ) : instructorList.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">
+              <UserCircle className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">No instructors yet</p>
+              <p className="text-sm">Add instructors to feature them on your course landing pages.</p>
+              <Button className="mt-4" onClick={openNew}>Add Your First Instructor</Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {instructorList.map((inst) => (
+                <div key={inst.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                  {inst.avatarUrl ? (
+                    <img src={inst.avatarUrl} alt={inst.displayName ?? ""} className="h-12 w-12 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-lg shrink-0">
+                      {(inst.displayName ?? "?")[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold">{inst.displayName}</p>
+                    {inst.title && <p className="text-sm text-muted-foreground">{inst.title}</p>}
+                    {inst.bio && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{inst.bio}</p>}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(inst)}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost" size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => { if (confirm(`Remove ${inst.displayName}?`)) deleteInstructor.mutate({ id: inst.id, orgId: orgId! }); }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Edit Instructor" : "Add Instructor"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Avatar */}
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="avatar" className="h-16 w-16 rounded-full object-cover" />
+                ) : (
+                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                    <UserCircle className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1">
+                <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                  <Upload className="h-3.5 w-3.5 mr-1.5" />{uploading ? "Uploading…" : "Upload Photo"}
+                </Button>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleAvatarUpload(e.target.files[0])} />
+                {avatarUrl && <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setAvatarUrl("")}><X className="h-3.5 w-3.5 mr-1" />Remove</Button>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Display Name *</Label>
+                <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Jane Smith" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Title / Credentials</Label>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="PhD, RN, RDMS" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Bio</Label>
+              <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Brief instructor biography..." rows={3} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5"><LinkIcon className="h-3.5 w-3.5" /> Social Links (JSON)</Label>
+              <Input value={socialLinks} onChange={(e) => setSocialLinks(e.target.value)} placeholder='{"website":"https://...","linkedin":"https://..."}' />
+              <p className="text-xs text-muted-foreground">Optional: JSON object with keys like website, linkedin, twitter, youtube</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeDialog}>Cancel</Button>
+            <Button onClick={handleSave} disabled={createInstructor.isPending || updateInstructor.isPending}>
+              {editingId ? "Save Changes" : "Add Instructor"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </TabsContent>
   );
 }
 

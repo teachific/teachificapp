@@ -66,6 +66,34 @@ import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { trpc } from "@/lib/trpc";
 
+// ─── Impersonation Banner ────────────────────────────────────────────────────
+function ImpersonationBanner({ userName }: { userName: string }) {
+  return (
+    <div className="sticky top-14 z-50 bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-between text-sm font-medium border-b border-amber-600 shadow-sm">
+      <div className="flex items-center gap-2">
+        <Shield className="w-4 h-4" />
+        <span>Viewing as <strong>{userName}</strong> — impersonation session active</span>
+      </div>
+      <button
+        onClick={async () => {
+          try {
+            await fetch("/api/trpc/platformAdmin.endImpersonation", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ json: null }),
+            });
+          } finally {
+            window.location.href = "/platform-admin";
+          }
+        }}
+        className="ml-4 px-3 py-1 rounded bg-amber-700 text-white hover:bg-amber-800 text-xs font-semibold transition-colors"
+      >
+        Exit Impersonation
+      </button>
+    </div>
+  );
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type NavSubItem = { label: string; path: string; external?: boolean };
 type NavItem = {
@@ -569,6 +597,28 @@ function DashboardLayoutContent({
                 Billing
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              {(user as any)?.impersonatedBy && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      try {
+                        await fetch("/api/trpc/platformAdmin.endImpersonation", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ json: null }),
+                        });
+                      } finally {
+                        window.location.href = "/platform-admin";
+                      }
+                    }}
+                    className="cursor-pointer text-amber-600 focus:text-amber-600"
+                  >
+                    <Shield className="mr-2 h-4 w-4" />
+                    Exit Impersonation
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
@@ -577,6 +627,10 @@ function DashboardLayoutContent({
           </DropdownMenu>
         </header>
 
+        {/* Impersonation banner */}
+        {(user as any)?.impersonatedBy && (
+          <ImpersonationBanner userName={user?.name || user?.email || "User"} />
+        )}
         <main className="flex-1 min-h-[calc(100vh-3.5rem)]">{children}</main>
       </SidebarInset>
     </>

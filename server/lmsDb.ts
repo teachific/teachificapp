@@ -41,6 +41,8 @@ import {
   courseOrders,
   memberships,
   bundles,
+  flashcardDecks,
+  flashcardCards,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -62,7 +64,16 @@ export async function getCoursesByOrg(orgId: number) {
     .select()
     .from(courses)
     .where(eq(courses.orgId, orgId))
-    .orderBy(desc(courses.createdAt));
+    .orderBy(asc(courses.sortOrder), desc(courses.createdAt));
+}
+
+export async function reorderCourses(courseIds: number[]) {
+  for (let i = 0; i < courseIds.length; i++) {
+    await db
+      .update(courses)
+      .set({ sortOrder: i })
+      .where(eq(courses.id, courseIds[i]));
+  }
 }
 
 export async function getCourseById(id: number) {
@@ -463,6 +474,17 @@ export async function upsertInstructor(data: typeof instructors.$inferInsert) {
     const rows = await db.select().from(instructors).where(eq(instructors.id, Number(id)));
     return rows[0];
   }
+}
+
+export async function updateInstructorById(id: number, data: Partial<typeof instructors.$inferInsert>) {
+  await db.update(instructors).set(data).where(eq(instructors.id, id));
+  const rows = await db.select().from(instructors).where(eq(instructors.id, id));
+  return rows[0];
+}
+
+export async function deleteInstructorById(id: number) {
+  await db.update(instructors).set({ isActive: false }).where(eq(instructors.id, id));
+  return { success: true };
 }
 
 // ─── Coupons ─────────────────────────────────────────────────────────────────
@@ -1493,4 +1515,37 @@ export async function updateBundle(id: number, data: Partial<typeof bundles.$inf
 }
 export async function deleteBundle(id: number) {
   await db.delete(bundles).where(eq(bundles.id, id));
+}
+
+// ─── Flashcard Decks ─────────────────────────────────────────────────────────
+export async function getFlashcardDecksByOrg(orgId: number) {
+  return db.select().from(flashcardDecks).where(eq(flashcardDecks.orgId, orgId)).orderBy(desc(flashcardDecks.createdAt));
+}
+export async function getFlashcardDeckById(id: number) {
+  const rows = await db.select().from(flashcardDecks).where(eq(flashcardDecks.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+export async function createFlashcardDeck(data: { orgId: number; title: string; description?: string; category?: string; isPublic?: boolean; createdBy: number }) {
+  const result = await db.insert(flashcardDecks).values({ ...data, cardCount: 0 });
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getFlashcardDeckById(Number(id));
+}
+export async function updateFlashcardDeck(id: number, data: Partial<{ title: string; description: string; category: string; isPublic: boolean; cardCount: number }>) {
+  await db.update(flashcardDecks).set({ ...data, updatedAt: new Date() }).where(eq(flashcardDecks.id, id));
+  return getFlashcardDeckById(id);
+}
+export async function deleteFlashcardDeck(id: number) {
+  await db.delete(flashcardCards).where(eq(flashcardCards.deckId, id));
+  await db.delete(flashcardDecks).where(eq(flashcardDecks.id, id));
+}
+
+// ─── Flashcard Cards ─────────────────────────────────────────────────────────
+export async function getCardsByDeck(deckId: number) {
+  return db.select().from(flashcardCards).where(eq(flashcardCards.deckId, deckId)).orderBy(asc(flashcardCards.sortOrder));
+}
+export async function bulkUpsertCards(deckId: number, cards: Array<{ front: string; back: string; frontImageUrl?: string; backImageUrl?: string; sortOrder: number }>) {
+  await db.delete(flashcardCards).where(eq(flashcardCards.deckId, deckId));
+  if (cards.length === 0) return;
+  await db.insert(flashcardCards).values(cards.map((c) => ({ deckId, front: c.front, back: c.back, frontImageUrl: c.frontImageUrl, backImageUrl: c.backImageUrl, sortOrder: c.sortOrder })));
+  await db.update(flashcardDecks).set({ cardCount: cards.length, updatedAt: new Date() }).where(eq(flashcardDecks.id, deckId));
 }

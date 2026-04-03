@@ -263,7 +263,7 @@ export default function DigitalProductEditorPage() {
     }
   }, [title, isNew, slug]);
 
-  const getUploadUrl = trpc.lms.media.getUploadUrl.useMutation();
+  // No longer using presigned PUT — uploads go through /api/media-upload server proxy
   const createProduct = trpc.lms.downloads.createProduct.useMutation();
   const updateProduct = trpc.lms.downloads.updateProduct.useMutation();
   const upsertPrice = trpc.lms.downloads.upsertPrice.useMutation();
@@ -279,25 +279,30 @@ export default function DigitalProductEditorPage() {
       setUploading(true);
       setUploadProgress(0);
       try {
-        const { uploadUrl, fileUrl: url, key } = await getUploadUrl.mutateAsync({
-          orgId: effectiveOrgId,
-          fileName: file.name,
-          contentType: file.type,
-        });
-        // Upload to S3 via PUT
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("orgId", String(effectiveOrgId));
+        formData.append("folder", "downloads");
         const xhr = new XMLHttpRequest();
-        await new Promise<void>((resolve, reject) => {
+        const result = await new Promise<{ key: string; url: string }>((resolve, reject) => {
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
           };
-          xhr.onload = () => (xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
+          xhr.onload = () => {
+            if (xhr.status < 300) {
+              try { resolve(JSON.parse(xhr.responseText)); }
+              catch { reject(new Error("Invalid response from server")); }
+            } else {
+              reject(new Error(`Upload failed: ${xhr.status}`));
+            }
+          };
           xhr.onerror = () => reject(new Error("Upload failed"));
-          xhr.open("PUT", uploadUrl);
-          xhr.setRequestHeader("Content-Type", file.type);
-          xhr.send(file);
+          xhr.open("POST", "/api/media-upload");
+          xhr.withCredentials = true;
+          xhr.send(formData);
         });
-        setFileUrl(url);
-        setFileKey(key);
+        setFileUrl(result.url);
+        setFileKey(result.key);
         setFileType(file.type);
         setFileSize(file.size);
         setFileName(file.name);
@@ -309,7 +314,7 @@ export default function DigitalProductEditorPage() {
         setUploadProgress(0);
       }
     },
-    [orgId, product?.orgId, getUploadUrl]
+    [orgId, product?.orgId]
   );
 
   const handleSave = async () => {

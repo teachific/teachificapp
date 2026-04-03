@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useOrgScope } from "@/hooks/useOrgScope";
@@ -6,6 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,7 +66,24 @@ import {
   Copy,
   Archive,
   Settings,
+  GripVertical,
 } from "lucide-react";
+
+// Sortable course card wrapper
+function SortableCourseCard({ course, children }: { course: { id: number }; children: (dragHandleProps: React.HTMLAttributes<HTMLElement>) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: course.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners })}
+    </div>
+  );
+}
 
 export default function CoursesPage() {
   const [, setLocation] = useLocation();
@@ -68,8 +100,16 @@ export default function CoursesPage() {
   const [aiModules, setAiModules] = useState(3);
   const [aiLessons, setAiLessons] = useState(4);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [localOrder, setLocalOrder] = useState<number[] | null>(null);
   const { can } = useOrgPlan(orgId ?? undefined);
-
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const reorderMutation = trpc.lms.courses.reorder.useMutation({
+    onSuccess: () => utils.lms.courses.list.invalidate(),
+    onError: () => {
+      setLocalOrder(null);
+      utils.lms.courses.list.invalidate();
+    },
+  });
   const { data: courses, isLoading } = trpc.lms.courses.list.useQuery(
     { orgId: orgId! },
     { enabled: ready }
@@ -139,11 +179,28 @@ export default function CoursesPage() {
     }
   };
 
-  const filtered = courses?.filter((c) => {
+  // Derive ordered list: use localOrder for optimistic reordering
+  const orderedCourses = localOrder && courses
+    ? localOrder.map(id => courses.find(c => c.id === id)).filter(Boolean) as typeof courses
+    : courses ?? [];
+
+  const filtered = orderedCourses.filter((c) => {
     const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !orgId) return;
+    const currentOrder = localOrder ?? orderedCourses.map(c => c.id);
+    const oldIndex = currentOrder.indexOf(active.id as number);
+    const newIndex = currentOrder.indexOf(over.id as number);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
+    setLocalOrder(newOrder);
+    reorderMutation.mutate({ orgId, courseIds: newOrder });
+  }, [localOrder, orderedCourses, orgId, reorderMutation]);
 
   const statusColor: Record<string, string> = {
     draft: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -316,132 +373,147 @@ export default function CoursesPage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered?.map((course) => (
-            <Card
-              key={course.id}
-              className="group overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => setLocation(`/lms/courses/${course.id}/curriculum`)}
-            >
-              {/* Thumbnail */}
-              <div className="relative h-36 bg-gradient-to-br from-primary/20 to-primary/5 overflow-hidden">
-                {course.thumbnailUrl ? (
-                  <img
-                    src={course.thumbnailUrl}
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <BookOpen className="h-12 w-12 text-primary/30" />
-                  </div>
-                )}
-                <div className="absolute top-2 right-2">
-                  <span
-                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColor[course.status]}`}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={filtered.map(c => c.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filtered.map((course) => (
+                <SortableCourseCard key={course.id} course={course}>
+                  {(dragHandleProps) => (
+                  <Card
+                    className="group overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => setLocation(`/lms/courses/${course.id}/curriculum`)}
                   >
-                    {course.status.charAt(0).toUpperCase() + course.status.slice(1)}
-                  </span>
-                </div>
-              </div>
-
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm leading-tight truncate">
-                      {course.title}
-                    </h3>
-                    {course.shortDescription && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                        {course.shortDescription}
-                      </p>
-                    )}
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    {/* Thumbnail */}
+                    <div className="relative h-36 bg-gradient-to-br from-primary/20 to-primary/5 overflow-hidden">
+                      {course.thumbnailUrl ? (
+                        <img
+                          src={course.thumbnailUrl}
+                          alt={course.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full">
+                          <BookOpen className="h-12 w-12 text-primary/30" />
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2">
+                        <span
+                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColor[course.status]}`}
+                        >
+                          {course.status.charAt(0).toUpperCase() + course.status.slice(1)}
+                        </span>
+                      </div>
+                      {/* Drag handle */}
+                      <div
+                        {...dragHandleProps}
+                        className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing bg-black/40 rounded p-1"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setLocation(`/lms/courses/${course.id}/curriculum`);
-                        }}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Curriculum
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setLocation(`/lms/courses/${course.id}/settings`);
-                        }}
-                      >
-                        <Settings className="h-4 w-4 mr-2" />
-                        Settings
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.open(`/learn/${course.id}?preview=1`, "_blank");
-                        }}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        Preview
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          copyMutation.mutate({ courseId: course.id });
-                        }}
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
-                        Duplicate
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateMutation.mutate({ id: course.id, status: "archived" });
-                        }}
-                      >
-                        <Archive className="h-4 w-4 mr-2" />
-                        Archive
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`Delete "${course.title}"? This cannot be undone.`)) {
-                            deleteMutation.mutate({ id: course.id });
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                        <GripVertical className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
 
-                <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    {course.totalEnrollments ?? 0} enrolled
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm leading-tight truncate">
+                            {course.title}
+                          </h3>
+                          {course.shortDescription && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                              {course.shortDescription}
+                            </p>
+                          )}
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLocation(`/lms/courses/${course.id}/curriculum`);
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Curriculum
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLocation(`/lms/courses/${course.id}/settings`);
+                              }}
+                            >
+                              <Settings className="h-4 w-4 mr-2" />
+                              Settings
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(`/learn/${course.id}?preview=1`, "_blank");
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Preview
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyMutation.mutate({ courseId: course.id });
+                              }}
+                            >
+                              <Copy className="h-4 w-4 mr-2" />
+                              Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateMutation.mutate({ id: course.id, status: "archived" });
+                              }}
+                            >
+                              <Archive className="h-4 w-4 mr-2" />
+                              Archive
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Delete "${course.title}"? This cannot be undone.`)) {
+                                  deleteMutation.mutate({ id: course.id });
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                        <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {course.totalEnrollments ?? 0} enrolled
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </SortableCourseCard>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* AI Generate Dialog */}

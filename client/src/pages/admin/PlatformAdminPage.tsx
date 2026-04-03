@@ -81,12 +81,14 @@ import {
   FileText,
   Layout,
   ClipboardList,
+  UserCheck,
+  LogIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Plan badge ──────────────────────────────────────────────────────────────
 const PLAN_COLORS: Record<string, string> = {
-  free: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+  free: "bg-slate-500/20 text-slate-800 border-slate-500/30",
   starter: "bg-blue-500/20 text-blue-300 border-blue-500/30",
   builder: "bg-violet-500/20 text-violet-300 border-violet-500/30",
   pro: "bg-amber-500/20 text-amber-300 border-amber-500/30",
@@ -122,21 +124,21 @@ function SettingsTab() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-gray-50 border-gray-200">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-slate-900 flex items-center gap-2">
             <Globe className="w-4 h-4 text-teal-400" />
             Registration & Access
           </CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardDescription className="text-slate-700">
             Control who can create new accounts on this platform.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-lg bg-slate-900/50 border border-slate-700">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50/50 border border-gray-200">
             <div>
-              <p className="text-sm font-medium text-white">Public Registration</p>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-sm font-medium text-slate-900">Public Registration</p>
+              <p className="text-xs text-slate-700 mt-0.5">
                 When off, only manually added users can log in. New OAuth logins are blocked.
               </p>
             </div>
@@ -145,10 +147,10 @@ function SettingsTab() {
               onCheckedChange={(v) => setForm((f) => ({ ...f, allowPublicRegistration: v }))}
             />
           </div>
-          <div className="flex items-center justify-between p-4 rounded-lg bg-slate-900/50 border border-slate-700">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50/50 border border-gray-200">
             <div>
-              <p className="text-sm font-medium text-white">Maintenance Mode</p>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-sm font-medium text-slate-900">Maintenance Mode</p>
+              <p className="text-xs text-slate-700 mt-0.5">
                 Shows a maintenance page to all non-admin users.
               </p>
             </div>
@@ -160,9 +162,9 @@ function SettingsTab() {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-gray-50 border-gray-200">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-slate-900 flex items-center gap-2">
             <Settings className="w-4 h-4 text-teal-400" />
             Platform Configuration
           </CardTitle>
@@ -170,41 +172,41 @@ function SettingsTab() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Platform Name</Label>
+              <Label className="text-slate-800">Platform Name</Label>
               <Input
                 value={merged.platformName ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, platformName: e.target.value }))}
                 placeholder="Teachific"
-                className="bg-slate-900 border-slate-600 text-white"
+                className="bg-gray-50 border-gray-300 text-slate-900"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Support Email</Label>
+              <Label className="text-slate-800">Support Email</Label>
               <Input
                 value={merged.supportEmail ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, supportEmail: e.target.value }))}
                 placeholder="support@example.com"
-                className="bg-slate-900 border-slate-600 text-white"
+                className="bg-gray-50 border-gray-300 text-slate-900"
               />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Standard Max Upload Size (MB)</Label>
+              <Label className="text-slate-800">Standard Max Upload Size (MB)</Label>
               <Input
                 type="number"
                 value={merged.maxUploadSizeMb ?? 100}
                 onChange={(e) => setForm((f) => ({ ...f, maxUploadSizeMb: parseInt(e.target.value) || 100 }))}
-                className="bg-slate-900 border-slate-600 text-white"
+                className="bg-gray-50 border-gray-300 text-slate-900"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Enterprise Max Upload Size (MB)</Label>
+              <Label className="text-slate-800">Enterprise Max Upload Size (MB)</Label>
               <Input
                 type="number"
                 value={merged.enterpriseMaxUploadSizeMb ?? 2000}
                 onChange={(e) => setForm((f) => ({ ...f, enterpriseMaxUploadSizeMb: parseInt(e.target.value) || 2000 }))}
-                className="bg-slate-900 border-slate-600 text-white"
+                className="bg-gray-50 border-gray-300 text-slate-900"
               />
             </div>
           </div>
@@ -215,7 +217,7 @@ function SettingsTab() {
         <Button
           onClick={() => update.mutate(form)}
           disabled={update.isPending || Object.keys(form).length === 0}
-          className="bg-teal-600 hover:bg-teal-500 text-white"
+          className="bg-teal-600 hover:bg-gray-500 text-slate-900"
         >
           {update.isPending ? "Saving..." : "Save Settings"}
         </Button>
@@ -228,74 +230,100 @@ function SettingsTab() {
 function OrgsTab() {
   const { data: orgs = [], refetch } = trpc.platformAdmin.listOrgs.useQuery();
   const [editOrg, setEditOrg] = useState<typeof orgs[0] | null>(null);
-  const [editForm, setEditForm] = useState<{ name?: string; slug?: string; description?: string; domain?: string }>({});
-  const [planOrg, setPlanOrg] = useState<typeof orgs[0] | null>(null);
-  const [planForm, setPlanForm] = useState<{
-    plan: "free" | "starter" | "builder" | "pro" | "enterprise";
+  const [editForm, setEditForm] = useState<{
+    name?: string;
+    slug?: string;
+    description?: string;
+    domain?: string;
+    plan?: "free" | "starter" | "builder" | "pro" | "enterprise";
+    planStatus?: "active" | "trialing" | "past_due" | "cancelled" | "unpaid";
     customPriceUsd?: number;
     customPriceLabel?: string;
     adminNotes?: string;
-    status?: "active" | "trialing" | "past_due" | "cancelled" | "unpaid";
-  }>({ plan: "free", status: "active" });
+  }>({});
 
-  const { data: planOrgSub } = trpc.platformAdmin.getOrgSubscription.useQuery(
-    { orgId: planOrg?.id ?? 0 },
-    { enabled: !!planOrg }
+  const { data: editOrgSub } = trpc.platformAdmin.getOrgSubscription.useQuery(
+    { orgId: editOrg?.id ?? 0 },
+    { enabled: !!editOrg }
   );
 
+  const impersonateOrg = trpc.platformAdmin.impersonateOrg.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Now viewing as ${data.impersonatedUser.name || data.impersonatedUser.email}`);
+      setTimeout(() => { window.location.href = "/lms"; }, 800);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const updateOrg = trpc.platformAdmin.updateOrg.useMutation({
-    onSuccess: () => { refetch(); setEditOrg(null); toast.success("Organization updated"); },
+    onSuccess: () => { refetch(); },
     onError: (e) => toast.error(e.message),
   });
   const setOrgPlan = trpc.platformAdmin.setOrgPlan.useMutation({
-    onSuccess: () => { refetch(); setPlanOrg(null); toast.success("Plan updated"); },
+    onSuccess: () => { refetch(); },
     onError: (e) => toast.error(e.message),
   });
+
+  const handleOpenEdit = (org: typeof orgs[0]) => {
+    setEditOrg(org);
+    setEditForm({
+      name: org.name,
+      slug: org.slug,
+      description: org.description ?? "",
+      domain: (org as any).customDomain ?? "",
+      plan: ((org.plan as string) ?? "free") as typeof editForm.plan,
+      planStatus: "active",
+    });
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-400">{orgs.length} organizations</p>
+        <p className="text-sm text-slate-700">{orgs.length} organizations</p>
       </div>
-      <div className="rounded-lg border border-slate-700 overflow-hidden">
+      <div className="rounded-lg border border-gray-200 overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-slate-700 hover:bg-transparent">
-              <TableHead className="text-slate-400">Organization</TableHead>
-              <TableHead className="text-slate-400">Slug</TableHead>
-              <TableHead className="text-slate-400">Domain</TableHead>
-              <TableHead className="text-slate-400">Plan</TableHead>
-              <TableHead className="text-slate-400 w-12"></TableHead>
+            <TableRow className="border-gray-200 hover:bg-transparent">
+              <TableHead className="text-slate-700">Organization</TableHead>
+              <TableHead className="text-slate-700">Slug</TableHead>
+              <TableHead className="text-slate-700">Domain</TableHead>
+              <TableHead className="text-slate-700">Plan</TableHead>
+              <TableHead className="text-slate-700 w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {orgs.map((org) => (
-              <TableRow key={org.id} className="border-slate-700 hover:bg-slate-800/50">
-                <TableCell className="text-white font-medium">{org.name}</TableCell>
-                <TableCell className="text-slate-400 font-mono text-xs">{org.slug}</TableCell>
-                <TableCell className="text-slate-400 text-xs">—</TableCell>
+              <TableRow key={org.id} className="border-gray-200 hover:bg-gray-50 transition-colors">
                 <TableCell>
-                  <PlanBadge plan="free" />
+                  <span className="text-teal-400 font-semibold">{org.name}</span>
+                </TableCell>
+                <TableCell className="text-slate-700 font-mono text-xs">{org.slug}</TableCell>
+                <TableCell className="text-slate-700 text-xs">{(org as any).customDomain || "—"}</TableCell>
+                <TableCell>
+                  <PlanBadge plan={(org.plan as string) ?? "free"} />
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-700 hover:text-teal-400">
                         <MoreHorizontal className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
+                    <DropdownMenuContent align="end" className="bg-white border-gray-200">
                       <DropdownMenuItem
-                        className="text-slate-300 hover:text-white focus:text-white"
-                        onClick={() => { setEditOrg(org); setEditForm({ name: org.name, slug: org.slug, description: org.description ?? "" }); }}
+                        className="text-teal-400 hover:text-teal-300 focus:text-teal-300 focus:bg-gray-100"
+                        onClick={() => handleOpenEdit(org)}
                       >
-                        <Edit className="w-3.5 h-3.5 mr-2" /> Edit Details
+                        <Edit className="w-3.5 h-3.5 mr-2" /> Edit Organization
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator className="bg-gray-100" />
                       <DropdownMenuItem
-                        className="text-slate-300 hover:text-white focus:text-white"
-                        onClick={() => { setPlanOrg(org); setPlanForm({ plan: "free", status: "active" }); }}
+                        className="text-amber-400 hover:text-amber-300 focus:text-amber-300 focus:bg-amber-50"
+                        onClick={() => impersonateOrg.mutate({ orgId: org.id })}
+                        disabled={impersonateOrg.isPending}
                       >
-                        <CreditCard className="w-3.5 h-3.5 mr-2" /> Manage Plan
+                        <UserCheck className="w-3.5 h-3.5 mr-2" /> Login as Customer
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -306,139 +334,120 @@ function OrgsTab() {
         </Table>
       </div>
 
-      {/* Edit Org Dialog */}
+      {/* Consolidated Edit + Plan Dialog */}
       <Dialog open={!!editOrg} onOpenChange={(o) => !o && setEditOrg(null)}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white">
-          <DialogHeader>
-            <DialogTitle>Edit Organization</DialogTitle>
-            <DialogDescription className="text-slate-400">Update organization details.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-slate-300">Name</Label>
-              <Input value={editForm.name ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="bg-slate-800 border-slate-600 text-white" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-slate-300">Slug</Label>
-              <Input value={editForm.slug ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, slug: e.target.value }))} className="bg-slate-800 border-slate-600 text-white font-mono" />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-slate-300">Description</Label>
-              <Textarea value={editForm.description ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} className="bg-slate-800 border-slate-600 text-white" rows={2} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOrg(null)} className="border-slate-600 text-slate-300">Cancel</Button>
-            <Button
-              onClick={() => editOrg && updateOrg.mutate({ orgId: editOrg.id, ...editForm })}
-              disabled={updateOrg.isPending}
-              className="bg-teal-600 hover:bg-teal-500 text-white"
-            >
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Manage Plan Dialog */}
-      <Dialog open={!!planOrg} onOpenChange={(o) => !o && setPlanOrg(null)}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-lg">
+        <DialogContent className="bg-gray-50 border-gray-200 text-slate-900 max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Crown className="w-4 h-4 text-amber-400" />
-              Manage Plan — {planOrg?.name}
+              <Building2 className="w-4 h-4 text-teal-400" />
+              Edit Organization
             </DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Manually assign a subscription tier. For Enterprise, you can set custom pricing.
-            </DialogDescription>
+            <DialogDescription className="text-slate-700">Update organization details and subscription plan.</DialogDescription>
           </DialogHeader>
-          {planOrgSub && (
-            <div className="rounded-lg bg-slate-800 border border-slate-700 p-3 text-sm">
-              <p className="text-slate-400">Current plan: <PlanBadge plan={planOrgSub.plan} /></p>
-              {planOrgSub.customPriceLabel && (
-                <p className="text-slate-400 mt-1">Custom price: <span className="text-white">{planOrgSub.customPriceLabel}</span></p>
-              )}
-              {planOrgSub.adminNotes && (
-                <p className="text-slate-400 mt-1">Notes: <span className="text-white">{planOrgSub.adminNotes}</span></p>
-              )}
-            </div>
-          )}
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-slate-300">Plan</Label>
-              <Select value={planForm.plan} onValueChange={(v) => setPlanForm((f) => ({ ...f, plan: v as typeof planForm.plan }))}>
-                <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
-                  {["free", "starter", "builder", "pro", "enterprise"].map((p) => (
-                    <SelectItem key={p} value={p} className="text-white focus:bg-slate-700">
-                      {p.charAt(0).toUpperCase() + p.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5 col-span-2">
+                <Label className="text-slate-800">Name</Label>
+                <Input value={editForm.name ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="bg-white border-gray-300 text-slate-900" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-800">Slug</Label>
+                <Input value={editForm.slug ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, slug: e.target.value }))} className="bg-white border-gray-300 text-slate-900 font-mono" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-800">Custom Domain</Label>
+                <Input value={editForm.domain ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, domain: e.target.value }))} placeholder="app.example.com" className="bg-white border-gray-300 text-slate-900" />
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Status</Label>
-              <Select value={planForm.status ?? "active"} onValueChange={(v) => setPlanForm((f) => ({ ...f, status: v as typeof planForm.status }))}>
-                <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
-                  {["active", "trialing", "past_due", "cancelled", "unpaid"].map((s) => (
-                    <SelectItem key={s} value={s} className="text-white focus:bg-slate-700">
-                      {s.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-slate-800">Description</Label>
+              <Textarea value={editForm.description ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} className="bg-white border-gray-300 text-slate-900" rows={2} />
             </div>
-            {planForm.plan === "enterprise" && (
-              <>
+
+            {/* Subscription plan */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+              <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                <Crown className="w-3.5 h-3.5 text-amber-400" /> Subscription Plan
+              </p>
+              {editOrgSub && (
+                <div className="text-xs text-slate-700">
+                  Current: <PlanBadge plan={editOrgSub.plan} />
+                  {editOrgSub.customPriceLabel && <span className="ml-2">({editOrgSub.customPriceLabel})</span>}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-slate-800 text-xs">Plan</Label>
+                  <Select
+                    value={editForm.plan ?? "free"}
+                    onValueChange={(v) => setEditForm((f) => ({ ...f, plan: v as typeof editForm.plan }))}
+                  >
+                    <SelectTrigger className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-gray-200">
+                      {["free", "starter", "builder", "pro", "enterprise"].map((p) => (
+                        <SelectItem key={p} value={p} className="text-slate-900 focus:bg-gray-100 text-xs">
+                          {p.charAt(0).toUpperCase() + p.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-slate-800 text-xs">Status</Label>
+                  <Select
+                    value={editForm.planStatus ?? "active"}
+                    onValueChange={(v) => setEditForm((f) => ({ ...f, planStatus: v as typeof editForm.planStatus }))}
+                  >
+                    <SelectTrigger className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-gray-200">
+                      {["active", "trialing", "past_due", "cancelled", "unpaid"].map((s) => (
+                        <SelectItem key={s} value={s} className="text-slate-900 focus:bg-gray-100 text-xs">
+                          {s.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {editForm.plan === "enterprise" && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-slate-300">Custom Price (USD cents)</Label>
-                    <Input
-                      type="number"
-                      value={planForm.customPriceUsd ?? ""}
-                      onChange={(e) => setPlanForm((f) => ({ ...f, customPriceUsd: parseInt(e.target.value) || undefined }))}
-                      placeholder="e.g. 49900 = $499"
-                      className="bg-slate-800 border-slate-600 text-white"
-                    />
+                    <Label className="text-slate-800 text-xs">Custom Price (USD cents)</Label>
+                    <Input type="number" value={editForm.customPriceUsd ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, customPriceUsd: parseInt(e.target.value) || undefined }))} placeholder="e.g. 49900" className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-slate-300">Price Label</Label>
-                    <Input
-                      value={planForm.customPriceLabel ?? ""}
-                      onChange={(e) => setPlanForm((f) => ({ ...f, customPriceLabel: e.target.value }))}
-                      placeholder="e.g. $499/mo"
-                      className="bg-slate-800 border-slate-600 text-white"
-                    />
+                    <Label className="text-slate-800 text-xs">Price Label</Label>
+                    <Input value={editForm.customPriceLabel ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, customPriceLabel: e.target.value }))} placeholder="e.g. $499/mo" className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs" />
                   </div>
                 </div>
-              </>
-            )}
-            <div className="space-y-1.5">
-              <Label className="text-slate-300">Admin Notes (internal)</Label>
-              <Textarea
-                value={planForm.adminNotes ?? ""}
-                onChange={(e) => setPlanForm((f) => ({ ...f, adminNotes: e.target.value }))}
-                placeholder="Notes about this org's subscription..."
-                className="bg-slate-800 border-slate-600 text-white"
-                rows={2}
-              />
+              )}
+              <div className="space-y-1.5">
+                <Label className="text-slate-800 text-xs">Admin Notes (internal)</Label>
+                <Textarea value={editForm.adminNotes ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, adminNotes: e.target.value }))} placeholder="Notes about this org..." className="bg-gray-50 border-gray-300 text-slate-900 text-xs" rows={2} />
+              </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPlanOrg(null)} className="border-slate-600 text-slate-300">Cancel</Button>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditOrg(null)} className="border-gray-300 text-slate-800">Cancel</Button>
             <Button
-              onClick={() => planOrg && setOrgPlan.mutate({ orgId: planOrg.id, ...planForm })}
-              disabled={setOrgPlan.isPending}
-              className="bg-teal-600 hover:bg-teal-500 text-white"
+              onClick={async () => {
+                if (!editOrg) return;
+                await updateOrg.mutateAsync({ orgId: editOrg.id, name: editForm.name, slug: editForm.slug, description: editForm.description, domain: editForm.domain });
+                if (editForm.plan) {
+                  await setOrgPlan.mutateAsync({ orgId: editOrg.id, plan: editForm.plan, status: editForm.planStatus, customPriceUsd: editForm.customPriceUsd, customPriceLabel: editForm.customPriceLabel, adminNotes: editForm.adminNotes });
+                }
+                refetch();
+                setEditOrg(null);
+                toast.success("Organization saved");
+              }}
+              disabled={updateOrg.isPending || setOrgPlan.isPending}
+              className="bg-teal-600 hover:bg-gray-500 text-slate-900"
             >
-              {setOrgPlan.isPending ? "Saving..." : "Apply Plan"}
+              {(updateOrg.isPending || setOrgPlan.isPending) ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -504,34 +513,34 @@ function UsersTab() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search users..."
-          className="bg-slate-800 border-slate-600 text-white max-w-xs"
+          className="bg-white border-gray-300 text-slate-900 max-w-xs"
         />
         <Button
           onClick={() => setBulkOpen(true)}
           variant="outline"
-          className="border-slate-600 text-slate-300 hover:text-white ml-auto"
+          className="border-gray-300 text-slate-800 hover:text-slate-900 ml-auto"
         >
           <Upload className="w-3.5 h-3.5 mr-2" />
           Bulk Add Users
         </Button>
       </div>
 
-      <div className="rounded-lg border border-slate-700 overflow-hidden">
+      <div className="rounded-lg border border-gray-200 overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-slate-700 hover:bg-transparent">
-              <TableHead className="text-slate-400">Name</TableHead>
-              <TableHead className="text-slate-400">Email</TableHead>
-              <TableHead className="text-slate-400">Role</TableHead>
-              <TableHead className="text-slate-400">Joined</TableHead>
-              <TableHead className="text-slate-400 w-12"></TableHead>
+            <TableRow className="border-gray-200 hover:bg-transparent">
+              <TableHead className="text-slate-700">Name</TableHead>
+              <TableHead className="text-slate-700">Email</TableHead>
+              <TableHead className="text-slate-700">Role</TableHead>
+              <TableHead className="text-slate-700">Joined</TableHead>
+              <TableHead className="text-slate-700 w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((u) => (
-              <TableRow key={u.id} className="border-slate-700 hover:bg-slate-800/50">
-                <TableCell className="text-white font-medium">{u.name ?? "—"}</TableCell>
-                <TableCell className="text-slate-400 text-sm">{u.email ?? "—"}</TableCell>
+              <TableRow key={u.id} className="border-gray-200 hover:bg-gray-50">
+                <TableCell className="text-slate-900 font-semibold">{u.name ?? "—"}</TableCell>
+                <TableCell className="text-slate-700 text-sm">{u.email ?? "—"}</TableCell>
                 <TableCell>
                   <Badge
                     variant="outline"
@@ -539,31 +548,31 @@ function UsersTab() {
                       u.role === "site_owner" ? "border-amber-500/50 text-amber-300" :
                       u.role === "site_admin" ? "border-violet-500/50 text-violet-300" :
                       u.role === "org_admin" ? "border-teal-500/50 text-teal-300" :
-                      "border-slate-600 text-slate-400"
+                      "border-gray-300 text-slate-700"
                     }
                   >
                     {u.role === "site_owner" && <Crown className="w-3 h-3 mr-1" />}
                     {u.role?.replace("_", " ") ?? "user"}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-slate-400 text-xs">
+                <TableCell className="text-slate-700 text-xs">
                   {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-700 hover:text-slate-900">
                         <MoreHorizontal className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
+                    <DropdownMenuContent align="end" className="bg-white border-gray-200">
                       <DropdownMenuItem
-                        className="text-slate-300 hover:text-white focus:text-white"
+                        className="text-slate-800 hover:text-slate-900 focus:text-slate-900"
                         onClick={() => { setEditUser(u); setEditForm({ name: u.name ?? "", email: u.email ?? "", role: (u.role as typeof editForm.role) ?? "user" }); }}
                       >
                         <Edit className="w-3.5 h-3.5 mr-2" /> Edit Profile
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator className="bg-slate-700" />
+                      <DropdownMenuSeparator className="bg-gray-100" />
                       <DropdownMenuItem
                         className="text-red-400 hover:text-red-300 focus:text-red-300"
                         onClick={() => {
@@ -585,41 +594,41 @@ function UsersTab() {
 
       {/* Edit User Dialog */}
       <Dialog open={!!editUser} onOpenChange={(o) => !o && setEditUser(null)}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white">
+        <DialogContent className="bg-gray-50 border-gray-200 text-slate-900">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription className="text-slate-400">Update user profile and role.</DialogDescription>
+            <DialogDescription className="text-slate-700">Update user profile and role.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Name</Label>
-              <Input value={editForm.name ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="bg-slate-800 border-slate-600 text-white" />
+              <Label className="text-slate-800">Name</Label>
+              <Input value={editForm.name ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="bg-white border-gray-300 text-slate-900" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Email</Label>
-              <Input value={editForm.email ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} className="bg-slate-800 border-slate-600 text-white" />
+              <Label className="text-slate-800">Email</Label>
+              <Input value={editForm.email ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} className="bg-white border-gray-300 text-slate-900" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Platform Role</Label>
+              <Label className="text-slate-800">Platform Role</Label>
               <Select value={editForm.role ?? "user"} onValueChange={(v) => setEditForm((f) => ({ ...f, role: v as typeof editForm.role }))}>
-                <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
+                <SelectTrigger className="bg-white border-gray-300 text-slate-900">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
-                  <SelectItem value="user" className="text-white focus:bg-slate-700">User</SelectItem>
-                  <SelectItem value="org_admin" className="text-white focus:bg-slate-700">Org Admin</SelectItem>
-                  <SelectItem value="site_admin" className="text-white focus:bg-slate-700">Site Admin</SelectItem>
-                  <SelectItem value="site_owner" className="text-white focus:bg-slate-700">Site Owner</SelectItem>
+                <SelectContent className="bg-white border-gray-200">
+                  <SelectItem value="user" className="text-slate-900 focus:bg-gray-100">User</SelectItem>
+                  <SelectItem value="org_admin" className="text-slate-900 focus:bg-gray-100">Org Admin</SelectItem>
+                  <SelectItem value="site_admin" className="text-slate-900 focus:bg-gray-100">Site Admin</SelectItem>
+                  <SelectItem value="site_owner" className="text-slate-900 focus:bg-gray-100">Site Owner</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditUser(null)} className="border-slate-600 text-slate-300">Cancel</Button>
+            <Button variant="outline" onClick={() => setEditUser(null)} className="border-gray-300 text-slate-800">Cancel</Button>
             <Button
               onClick={() => editUser && updateUser.mutate({ userId: editUser.id, ...editForm })}
               disabled={updateUser.isPending}
-              className="bg-teal-600 hover:bg-teal-500 text-white"
+              className="bg-teal-600 hover:bg-gray-500 text-slate-900"
             >
               Save
             </Button>
@@ -629,26 +638,26 @@ function UsersTab() {
 
       {/* Bulk Add Users Dialog */}
       <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-lg">
+        <DialogContent className="bg-gray-50 border-gray-200 text-slate-900 max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="w-4 h-4 text-teal-400" />
               Bulk Add Users
             </DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-slate-700">
               Paste one user per line: <code className="text-teal-400">email, name (optional), role (optional)</code>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-slate-300">Target Organization</Label>
+              <Label className="text-slate-800">Target Organization</Label>
               <Select value={bulkOrgId?.toString() ?? ""} onValueChange={(v) => setBulkOrgId(parseInt(v))}>
-                <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
+                <SelectTrigger className="bg-white border-gray-300 text-slate-900">
                   <SelectValue placeholder="Select organization..." />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-white border-gray-200">
                   {orgs.map((o) => (
-                    <SelectItem key={o.id} value={o.id.toString()} className="text-white focus:bg-slate-700">
+                    <SelectItem key={o.id} value={o.id.toString()} className="text-slate-900 focus:bg-gray-100">
                       {o.name}
                     </SelectItem>
                   ))}
@@ -656,26 +665,26 @@ function UsersTab() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300">User List</Label>
+              <Label className="text-slate-800">User List</Label>
               <Textarea
                 value={bulkText}
                 onChange={(e) => setBulkText(e.target.value)}
                 placeholder={"alice@example.com, Alice Smith, user\nbob@example.com, Bob Jones, org_admin"}
-                className="bg-slate-800 border-slate-600 text-white font-mono text-xs"
+                className="bg-white border-gray-300 text-slate-900 font-mono text-xs"
                 rows={8}
               />
               <p className="text-xs text-slate-500">{parseBulkUsers().length} valid users detected</p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkOpen(false)} className="border-slate-600 text-slate-300">Cancel</Button>
+            <Button variant="outline" onClick={() => setBulkOpen(false)} className="border-gray-300 text-slate-800">Cancel</Button>
             <Button
               onClick={() => {
                 if (!bulkOrgId) { toast.error("Select an organization first"); return; }
                 bulkAdd.mutate({ orgId: bulkOrgId, users: parseBulkUsers() });
               }}
               disabled={bulkAdd.isPending || parseBulkUsers().length === 0 || !bulkOrgId}
-              className="bg-teal-600 hover:bg-teal-500 text-white"
+              className="bg-teal-600 hover:bg-gray-500 text-slate-900"
             >
               {bulkAdd.isPending ? "Importing..." : `Import ${parseBulkUsers().length} Users`}
             </Button>
@@ -691,7 +700,7 @@ function OverviewTab() {
   const { data: stats, isLoading } = trpc.platformAdmin.platformStats.useQuery();
   const statCards = [
     { label: "Total Users", value: stats?.totalUsers ?? 0, icon: Users, color: "text-blue-400", bg: "bg-blue-500/10" },
-    { label: "Organizations", value: stats?.totalOrgs ?? 0, icon: Building2, color: "text-teal-400", bg: "bg-teal-500/10" },
+    { label: "Organizations", value: stats?.totalOrgs ?? 0, icon: Building2, color: "text-teal-400", bg: "bg-gray-500/10" },
     { label: "Total Courses", value: stats?.totalCourses ?? 0, icon: BookOpen, color: "text-violet-400", bg: "bg-violet-500/10" },
     { label: "Total Enrollments", value: stats?.totalEnrollments ?? 0, icon: GraduationCap, color: "text-emerald-400", bg: "bg-emerald-500/10" },
     { label: "Content Plays", value: (stats?.analytics as any)?.totalPlays ?? 0, icon: Activity, color: "text-amber-400", bg: "bg-amber-500/10" },
@@ -705,12 +714,12 @@ function OverviewTab() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {statCards.map((s) => (
-          <Card key={s.label} className="bg-slate-800/50 border-slate-700">
+          <Card key={s.label} className="bg-gray-50 border-gray-200">
             <CardContent className="p-4">
-              {isLoading ? <div className="h-12 w-full rounded bg-slate-700 animate-pulse" /> : (
+              {isLoading ? <div className="h-12 w-full rounded bg-gray-100 animate-pulse" /> : (
                 <div className="flex items-center gap-3">
                   <div className={cn("p-2 rounded-lg", s.bg)}><s.icon className={cn("w-4 h-4", s.color)} /></div>
-                  <div><p className="text-xl font-bold text-white">{s.value}</p><p className="text-xs text-slate-400">{s.label}</p></div>
+                  <div><p className="text-xl font-bold text-slate-900">{s.value}</p><p className="text-xs text-slate-700">{s.label}</p></div>
                 </div>
               )}
             </CardContent>
@@ -718,32 +727,32 @@ function OverviewTab() {
         ))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader className="pb-3"><CardTitle className="text-white text-sm flex items-center gap-2"><CreditCard className="w-4 h-4 text-teal-400" /> Subscription Plan Breakdown</CardTitle></CardHeader>
+        <Card className="bg-gray-50 border-gray-200">
+          <CardHeader className="pb-3"><CardTitle className="text-slate-900 text-sm flex items-center gap-2"><CreditCard className="w-4 h-4 text-teal-400" /> Subscription Plan Breakdown</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {isLoading ? Array.from({length:4}).map((_,i)=><div key={i} className="h-8 w-full rounded bg-slate-700 animate-pulse mb-1"/>) : planOrder.map((plan) => {
+            {isLoading ? Array.from({length:4}).map((_,i)=><div key={i} className="h-8 w-full rounded bg-gray-100 animate-pulse mb-1"/>) : planOrder.map((plan) => {
               const count = planBreakdown[plan] ?? 0;
               const total = Object.values(planBreakdown).reduce((a,b)=>a+b,0)||1;
               const pct = Math.round((count/total)*100);
               return (
                 <div key={plan} className="flex items-center gap-3">
                   <PlanBadge plan={plan} />
-                  <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-teal-500 rounded-full" style={{width:`${pct}%`}} />
+                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gray-500 rounded-full" style={{width:`${pct}%`}} />
                   </div>
-                  <span className="text-xs text-slate-300 w-8 text-right">{count}</span>
+                  <span className="text-xs text-slate-800 w-8 text-right">{count}</span>
                 </div>
               );
             })}
           </CardContent>
         </Card>
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader className="pb-3"><CardTitle className="text-white text-sm flex items-center gap-2"><Building2 className="w-4 h-4 text-teal-400" /> Recently Created Organizations</CardTitle></CardHeader>
+        <Card className="bg-gray-50 border-gray-200">
+          <CardHeader className="pb-3"><CardTitle className="text-slate-900 text-sm flex items-center gap-2"><Building2 className="w-4 h-4 text-teal-400" /> Recently Created Organizations</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-2">
               {(stats?.recentOrgs??[]).map((org)=>(
-                <div key={org.id} className="flex items-center justify-between py-1.5 border-b border-slate-700 last:border-0">
-                  <div><p className="text-sm text-white font-medium">{org.name}</p><p className="text-xs text-slate-400 font-mono">{org.slug}</p></div>
+                <div key={org.id} className="flex items-center justify-between py-1.5 border-b border-gray-200 last:border-0">
+                  <div><p className="text-sm text-slate-900 font-semibold">{org.name}</p><p className="text-xs text-slate-700 font-mono">{org.slug}</p></div>
                   <span className="text-xs text-slate-500">{org.createdAt ? new Date(org.createdAt as unknown as string).toLocaleDateString() : "—"}</span>
                 </div>
               ))}
@@ -752,26 +761,26 @@ function OverviewTab() {
           </CardContent>
         </Card>
       </div>
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader className="pb-3"><CardTitle className="text-white text-sm flex items-center gap-2"><Users className="w-4 h-4 text-teal-400" /> Recently Joined Users</CardTitle></CardHeader>
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader className="pb-3"><CardTitle className="text-slate-900 text-sm flex items-center gap-2"><Users className="w-4 h-4 text-teal-400" /> Recently Joined Users</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow className="border-slate-700 hover:bg-transparent">
-                <TableHead className="text-slate-400">Name</TableHead><TableHead className="text-slate-400">Email</TableHead><TableHead className="text-slate-400">Role</TableHead><TableHead className="text-slate-400">Joined</TableHead>
+              <TableRow className="border-gray-200 hover:bg-transparent">
+                <TableHead className="text-slate-700">Name</TableHead><TableHead className="text-slate-700">Email</TableHead><TableHead className="text-slate-700">Role</TableHead><TableHead className="text-slate-700">Joined</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(stats?.recentUsers??[]).map((u)=>(
-                <TableRow key={u.id} className="border-slate-700 hover:bg-slate-700/30">
-                  <TableCell className="text-white font-medium">{u.name||"—"}</TableCell>
-                  <TableCell className="text-slate-300">{u.email||"—"}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-xs capitalize border-slate-600 text-slate-300">{u.role?.replace("_"," ")}</Badge></TableCell>
-                  <TableCell className="text-slate-400 text-xs">{u.createdAt ? new Date(u.createdAt as unknown as string).toLocaleDateString() : "—"}</TableCell>
+                <TableRow key={u.id} className="border-gray-200 hover:bg-gray-100/30">
+                  <TableCell className="text-slate-900 font-semibold">{u.name||"—"}</TableCell>
+                  <TableCell className="text-slate-800">{u.email||"—"}</TableCell>
+                  <TableCell><Badge variant="outline" className="text-xs capitalize border-gray-300 text-slate-800">{u.role?.replace("_"," ")}</Badge></TableCell>
+                  <TableCell className="text-slate-700 text-xs">{u.createdAt ? new Date(u.createdAt as unknown as string).toLocaleDateString() : "—"}</TableCell>
                 </TableRow>
               ))}
               {(stats?.recentUsers??[]).length===0 && (
-                <TableRow className="border-slate-700"><TableCell colSpan={4} className="text-center text-slate-500 py-6">No users yet</TableCell></TableRow>
+                <TableRow className="border-gray-200"><TableCell colSpan={4} className="text-center text-slate-500 py-6">No users yet</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -794,45 +803,45 @@ function PageCreatorTab() {
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
         <Select value={selectedOrgId?.toString()??""} onValueChange={(v)=>setSelectedOrgId(parseInt(v))}>
-          <SelectTrigger className="w-64 bg-slate-800 border-slate-600 text-white"><SelectValue placeholder="Select organization..."/></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700">{orgs.map(o=><SelectItem key={o.id} value={o.id.toString()} className="text-white focus:bg-slate-700">{o.name}</SelectItem>)}</SelectContent>
+          <SelectTrigger className="w-64 bg-white border-gray-300 text-slate-900"><SelectValue placeholder="Select organization..."/></SelectTrigger>
+          <SelectContent className="bg-white border-gray-200">{orgs.map(o=><SelectItem key={o.id} value={o.id.toString()} className="text-slate-900 focus:bg-gray-100">{o.name}</SelectItem>)}</SelectContent>
         </Select>
         {selectedOrgId && <Button size="sm" className="gap-1.5 bg-teal-600 hover:bg-teal-700 ml-auto" onClick={()=>setCreateOpen(true)}><Plus className="w-3.5 h-3.5"/> New Page</Button>}
       </div>
       {!selectedOrgId ? (
-        <Card className="bg-slate-800/50 border-slate-700"><CardContent className="py-12 text-center"><Layout className="w-8 h-8 text-slate-500 mx-auto mb-3"/><p className="text-slate-400">Select an organization to manage its pages</p></CardContent></Card>
+        <Card className="bg-gray-50 border-gray-200"><CardContent className="py-12 text-center"><Layout className="w-8 h-8 text-slate-500 mx-auto mb-3"/><p className="text-slate-700">Select an organization to manage its pages</p></CardContent></Card>
       ) : (
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-gray-50 border-gray-200">
           <Table>
             <TableHeader>
-              <TableRow className="border-slate-700 hover:bg-transparent">
-                <TableHead className="text-slate-400">Title</TableHead><TableHead className="text-slate-400">Slug</TableHead><TableHead className="text-slate-400">Status</TableHead><TableHead className="text-slate-400 text-right">Actions</TableHead>
+              <TableRow className="border-gray-200 hover:bg-transparent">
+                <TableHead className="text-slate-700">Title</TableHead><TableHead className="text-slate-700">Slug</TableHead><TableHead className="text-slate-700">Status</TableHead><TableHead className="text-slate-700 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pages.map((page)=>(
-                <TableRow key={page.id} className="border-slate-700 hover:bg-slate-700/30">
-                  <TableCell className="text-white font-medium">{page.title}</TableCell>
-                  <TableCell className="text-slate-400 font-mono text-xs">/{page.slug}</TableCell>
-                  <TableCell><Badge variant="outline" className={page.isPublished?"border-green-500/40 text-green-300":"border-slate-600 text-slate-400"}>{page.isPublished?"Published":"Draft"}</Badge></TableCell>
+                <TableRow key={page.id} className="border-gray-200 hover:bg-gray-100/30">
+                  <TableCell className="text-slate-900 font-semibold">{page.title}</TableCell>
+                  <TableCell className="text-slate-700 font-mono text-xs">/{page.slug}</TableCell>
+                  <TableCell><Badge variant="outline" className={page.isPublished?"border-green-500/40 text-green-300":"border-gray-300 text-slate-700"}>{page.isPublished?"Published":"Draft"}</Badge></TableCell>
                   <TableCell className="text-right"><Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-300" onClick={()=>{if(confirm("Delete this page?"))deletePage.mutate({id:page.id});}}><Trash2 className="w-3.5 h-3.5"/></Button></TableCell>
                 </TableRow>
               ))}
-              {pages.length===0&&<TableRow className="border-slate-700"><TableCell colSpan={4} className="text-center text-slate-500 py-8">No pages yet — create one above</TableCell></TableRow>}
+              {pages.length===0&&<TableRow className="border-gray-200"><TableCell colSpan={4} className="text-center text-slate-500 py-8">No pages yet — create one above</TableCell></TableRow>}
             </TableBody>
           </Table>
         </Card>
       )}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white">
+        <DialogContent className="bg-gray-50 border-gray-200 text-slate-900">
           <DialogHeader><DialogTitle>Create New Page</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1.5"><Label className="text-slate-300">Page Title</Label><Input value={newPage.title} onChange={(e)=>setNewPage(p=>({...p,title:e.target.value,slug:e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")}))} placeholder="About Us" className="bg-slate-800 border-slate-600 text-white"/></div>
-            <div className="space-y-1.5"><Label className="text-slate-300">URL Slug</Label><Input value={newPage.slug} onChange={(e)=>setNewPage(p=>({...p,slug:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,"")}))} placeholder="about-us" className="bg-slate-800 border-slate-600 text-white font-mono"/></div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800 border border-slate-700"><Label className="text-slate-300">Publish immediately</Label><Switch checked={newPage.isPublished} onCheckedChange={(v)=>setNewPage(p=>({...p,isPublished:v}))}/></div>
+            <div className="space-y-1.5"><Label className="text-slate-800">Page Title</Label><Input value={newPage.title} onChange={(e)=>setNewPage(p=>({...p,title:e.target.value,slug:e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")}))} placeholder="About Us" className="bg-white border-gray-300 text-slate-900"/></div>
+            <div className="space-y-1.5"><Label className="text-slate-800">URL Slug</Label><Input value={newPage.slug} onChange={(e)=>setNewPage(p=>({...p,slug:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,"")}))} placeholder="about-us" className="bg-white border-gray-300 text-slate-900 font-mono"/></div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-white border border-gray-200"><Label className="text-slate-800">Publish immediately</Label><Switch checked={newPage.isPublished} onCheckedChange={(v)=>setNewPage(p=>({...p,isPublished:v}))}/></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={()=>setCreateOpen(false)} className="border-slate-600 text-slate-300">Cancel</Button>
+            <Button variant="outline" onClick={()=>setCreateOpen(false)} className="border-gray-300 text-slate-800">Cancel</Button>
             <Button onClick={()=>selectedOrgId&&createPage.mutate({orgId:selectedOrgId,title:newPage.title,slug:newPage.slug})} disabled={createPage.isPending||!newPage.title||!newPage.slug} className="bg-teal-600 hover:bg-teal-700">{createPage.isPending?"Creating...":"Create Page"}</Button>
           </DialogFooter>
         </DialogContent>
@@ -856,39 +865,39 @@ function IntegrationsTab() {
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {integrations.map((intg)=>(
-          <Card key={intg.name} className="bg-slate-800/50 border-slate-700">
+          <Card key={intg.name} className="bg-gray-50 border-gray-200">
             <CardContent className="p-4 flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-slate-700/50 shrink-0"><intg.icon className={cn("w-5 h-5",intg.color)}/></div>
+              <div className="p-2 rounded-lg bg-gray-100/50 shrink-0"><intg.icon className={cn("w-5 h-5",intg.color)}/></div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-white font-medium text-sm">{intg.name}</p>
-                  <Badge variant="outline" className={intg.status==="configured"?"border-green-500/40 text-green-300 text-xs":"border-slate-600 text-slate-400 text-xs"}>{intg.status==="configured"?"Active":"Not configured"}</Badge>
+                  <p className="text-slate-900 font-semibold text-sm">{intg.name}</p>
+                  <Badge variant="outline" className={intg.status==="configured"?"border-green-500/40 text-green-300 text-xs":"border-gray-300 text-slate-700 text-xs"}>{intg.status==="configured"?"Active":"Not configured"}</Badge>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">{intg.desc}</p>
+                <p className="text-xs text-slate-700 mt-0.5">{intg.desc}</p>
               </div>
-              <Button size="sm" variant="outline" className="border-slate-600 text-slate-300 hover:text-white shrink-0" onClick={()=>toast.info("Integration configuration coming soon")}>{intg.status==="configured"?"Manage":"Configure"}</Button>
+              <Button size="sm" variant="outline" className="border-gray-300 text-slate-800 hover:text-slate-900 shrink-0" onClick={()=>toast.info("Integration configuration coming soon")}>{intg.status==="configured"?"Manage":"Configure"}</Button>
             </CardContent>
           </Card>
         ))}
       </div>
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader className="pb-3"><CardTitle className="text-white text-sm flex items-center gap-2"><Code2 className="w-4 h-4 text-teal-400"/> Platform API Key</CardTitle><CardDescription className="text-slate-400">Use this key to authenticate server-to-server API requests</CardDescription></CardHeader>
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader className="pb-3"><CardTitle className="text-slate-900 text-sm flex items-center gap-2"><Code2 className="w-4 h-4 text-teal-400"/> Platform API Key</CardTitle><CardDescription className="text-slate-700">Use this key to authenticate server-to-server API requests</CardDescription></CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2">
-            <Input value={apiKeyVisible ? apiKey : "•".repeat(40)} readOnly className="bg-slate-900 border-slate-600 text-white font-mono text-xs"/>
-            <Button size="icon" variant="outline" className="border-slate-600 text-slate-300 hover:text-white shrink-0" onClick={()=>setApiKeyVisible(v=>!v)}><Search className="w-4 h-4"/></Button>
-            <Button size="icon" variant="outline" className="border-slate-600 text-slate-300 hover:text-white shrink-0" onClick={()=>{navigator.clipboard.writeText(apiKey);toast.success("API key copied");}}><Copy className="w-4 h-4"/></Button>
+            <Input value={apiKeyVisible ? apiKey : "•".repeat(40)} readOnly className="bg-gray-50 border-gray-300 text-slate-900 font-mono text-xs"/>
+            <Button size="icon" variant="outline" className="border-gray-300 text-slate-800 hover:text-slate-900 shrink-0" onClick={()=>setApiKeyVisible(v=>!v)}><Search className="w-4 h-4"/></Button>
+            <Button size="icon" variant="outline" className="border-gray-300 text-slate-800 hover:text-slate-900 shrink-0" onClick={()=>{navigator.clipboard.writeText(apiKey);toast.success("API key copied");}}><Copy className="w-4 h-4"/></Button>
           </div>
           <p className="text-xs text-slate-500">Keep this key secret — it grants full API access to your platform.</p>
         </CardContent>
       </Card>
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader className="pb-3"><CardTitle className="text-white text-sm flex items-center gap-2"><Webhook className="w-4 h-4 text-teal-400"/> Webhook Endpoints</CardTitle><CardDescription className="text-slate-400">Configure URLs to receive real-time event notifications</CardDescription></CardHeader>
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader className="pb-3"><CardTitle className="text-slate-900 text-sm flex items-center gap-2"><Webhook className="w-4 h-4 text-teal-400"/> Webhook Endpoints</CardTitle><CardDescription className="text-slate-700">Configure URLs to receive real-time event notifications</CardDescription></CardHeader>
         <CardContent>
           <div className="text-center py-6">
             <Webhook className="w-8 h-8 text-slate-600 mx-auto mb-2"/>
-            <p className="text-slate-400 text-sm">No webhook endpoints configured</p>
-            <Button size="sm" variant="outline" className="mt-3 border-slate-600 text-slate-300 hover:text-white gap-1.5" onClick={()=>toast.info("Webhook management coming soon")}><Plus className="w-3.5 h-3.5"/> Add Endpoint</Button>
+            <p className="text-slate-700 text-sm">No webhook endpoints configured</p>
+            <Button size="sm" variant="outline" className="mt-3 border-gray-300 text-slate-800 hover:text-slate-900 gap-1.5" onClick={()=>toast.info("Webhook management coming soon")}><Plus className="w-3.5 h-3.5"/> Add Endpoint</Button>
           </div>
         </CardContent>
       </Card>
@@ -905,7 +914,7 @@ export default function PlatformAdminPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-3">
           <Lock className="w-12 h-12 text-slate-600 mx-auto" />
-          <p className="text-slate-400 font-medium">Platform Admin Access Required</p>
+          <p className="text-slate-700 font-medium">Platform Admin Access Required</p>
           <p className="text-sm text-slate-500">This area is restricted to site owners and site admins.</p>
         </div>
       </div>
@@ -920,8 +929,8 @@ export default function PlatformAdminPage() {
           <Shield className="w-5 h-5 text-teal-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">Platform Admin</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="text-2xl font-bold text-slate-900">Platform Admin</h1>
+          <p className="text-sm text-slate-700">
             Manage all organizations, users, subscriptions, and platform settings.
             {user.role === "site_owner" && (
               <span className="ml-2 inline-flex items-center gap-1 text-amber-400">
@@ -933,26 +942,26 @@ export default function PlatformAdminPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="bg-slate-800 border border-slate-700 flex flex-wrap h-auto gap-0.5 p-1">
-          <TabsTrigger value="overview" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+        <TabsList className="bg-white border border-gray-200 flex flex-wrap h-auto gap-0.5 p-1">
+          <TabsTrigger value="overview" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <BarChart3 className="w-3.5 h-3.5" /> Overview
           </TabsTrigger>
-          <TabsTrigger value="orgs" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+          <TabsTrigger value="orgs" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <Building2 className="w-3.5 h-3.5" /> Organizations
           </TabsTrigger>
-          <TabsTrigger value="users" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+          <TabsTrigger value="users" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <Users className="w-3.5 h-3.5" /> Users
           </TabsTrigger>
-          <TabsTrigger value="pages" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+          <TabsTrigger value="pages" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <Layout className="w-3.5 h-3.5" /> Page Creator
           </TabsTrigger>
-          <TabsTrigger value="integrations" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+          <TabsTrigger value="integrations" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <Zap className="w-3.5 h-3.5" /> Integrations
           </TabsTrigger>
-          <TabsTrigger value="settings" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+          <TabsTrigger value="settings" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <Settings className="w-3.5 h-3.5" /> System Settings
           </TabsTrigger>
-          <TabsTrigger value="forms" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+          <TabsTrigger value="forms" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <ClipboardList className="w-3.5 h-3.5" /> Platform Forms
           </TabsTrigger>
         </TabsList>
@@ -1004,13 +1013,13 @@ function PlatformFormsTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-gray-50 border-gray-200">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-slate-900 flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-teal-400" />
             Platform Forms Overview
           </CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardDescription className="text-slate-700">
             View and manage forms across all organizations. Form limits are enforced per subscription tier.
           </CardDescription>
         </CardHeader>
@@ -1018,10 +1027,10 @@ function PlatformFormsTab() {
           {/* Form limits reference */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
             {Object.entries(FORM_LIMITS).map(([plan, limit]) => (
-              <div key={plan} className="rounded-lg bg-slate-900/60 border border-slate-700 p-3 text-center">
+              <div key={plan} className="rounded-lg bg-gray-50/60 border border-gray-200 p-3 text-center">
                 <PlanBadge plan={plan} />
-                <p className="text-lg font-bold text-white mt-2">{limit}</p>
-                <p className="text-xs text-slate-400">forms</p>
+                <p className="text-lg font-bold text-slate-900 mt-2">{limit}</p>
+                <p className="text-xs text-slate-700">forms</p>
               </div>
             ))}
           </div>
@@ -1032,7 +1041,7 @@ function PlatformFormsTab() {
               value={selectedOrgId ? String(selectedOrgId) : ""}
               onValueChange={(v) => setSelectedOrgId(Number(v))}
             >
-              <SelectTrigger className="w-64 bg-slate-900 border-slate-600 text-white">
+              <SelectTrigger className="w-64 bg-gray-50 border-gray-300 text-slate-900">
                 <SelectValue placeholder="Select an organization..." />
               </SelectTrigger>
               <SelectContent>
@@ -1043,12 +1052,12 @@ function PlatformFormsTab() {
             </Select>
             {selectedOrgId && (
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-700" />
                 <Input
                   placeholder="Search forms..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-8 bg-slate-900 border-slate-600 text-white w-56"
+                  className="pl-8 bg-gray-50 border-gray-300 text-slate-900 w-56"
                 />
               </div>
             )}
@@ -1058,9 +1067,9 @@ function PlatformFormsTab() {
 
       {/* Forms table */}
       {selectedOrgId && (
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-gray-50 border-gray-200">
           <CardHeader>
-            <CardTitle className="text-white text-base">
+            <CardTitle className="text-slate-900 text-base">
               Forms for {(orgs as any[]).find((o: any) => o.id === selectedOrgId)?.name ?? "Organization"}
             </CardTitle>
           </CardHeader>
@@ -1070,41 +1079,41 @@ function PlatformFormsTab() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-400" />
               </div>
             ) : filteredForms.length === 0 ? (
-              <div className="text-center py-12 text-slate-400">
+              <div className="text-center py-12 text-slate-700">
                 <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-40" />
                 <p className="text-sm">No forms found for this organization.</p>
               </div>
             ) : (
-              <div className="rounded-lg border border-slate-700 overflow-hidden">
+              <div className="rounded-lg border border-gray-200 overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-slate-700 hover:bg-transparent">
-                      <TableHead className="text-slate-400">Form Title</TableHead>
-                      <TableHead className="text-slate-400">Status</TableHead>
-                      <TableHead className="text-slate-400">Slug</TableHead>
-                      <TableHead className="text-slate-400">Submissions</TableHead>
-                      <TableHead className="text-slate-400">Created</TableHead>
+                    <TableRow className="border-gray-200 hover:bg-transparent">
+                      <TableHead className="text-slate-700">Form Title</TableHead>
+                      <TableHead className="text-slate-700">Status</TableHead>
+                      <TableHead className="text-slate-700">Slug</TableHead>
+                      <TableHead className="text-slate-700">Submissions</TableHead>
+                      <TableHead className="text-slate-700">Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredForms.map((form: any) => (
-                      <TableRow key={form.id} className="border-slate-700 hover:bg-slate-800/50">
-                        <TableCell className="text-white font-medium">{form.title}</TableCell>
+                      <TableRow key={form.id} className="border-gray-200 hover:bg-gray-50">
+                        <TableCell className="text-slate-900 font-semibold">{form.title}</TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
                             className={
                               form.status === "published"
                                 ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
-                                : "border-slate-500/40 text-slate-400 bg-slate-500/10"
+                                : "border-slate-500/40 text-slate-700 bg-slate-500/10"
                             }
                           >
                             {form.status ?? "draft"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-slate-400 font-mono text-xs">{form.slug}</TableCell>
-                        <TableCell className="text-slate-300 text-sm">—</TableCell>
-                        <TableCell className="text-slate-400 text-xs">
+                        <TableCell className="text-slate-700 font-mono text-xs">{form.slug}</TableCell>
+                        <TableCell className="text-slate-800 text-sm">—</TableCell>
+                        <TableCell className="text-slate-700 text-xs">
                           {form.createdAt ? new Date(form.createdAt).toLocaleDateString() : "—"}
                         </TableCell>
                       </TableRow>

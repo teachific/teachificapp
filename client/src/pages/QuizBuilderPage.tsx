@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import UpgradePromptDialog from "@/components/UpgradePromptDialog";
 import { useOrgPlan } from "@/hooks/useOrgPlan";
 import {
-  ChevronLeft, Download, GripVertical, Plus, Save, Trash2, Upload, CheckCircle2, Sparkles, Loader2,
+  ChevronLeft, Download, GripVertical, Plus, Save, Trash2, Upload, CheckCircle2, Sparkles, Loader2, Info, FileArchive,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -150,31 +150,40 @@ export default function QuizBuilderPage() {
     setQuestions([...questions, q]);
   };
 
+  const [importInfoOpen, setImportInfoOpen] = useState(false);
+
   const handleImportExcel = () => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".xls,.xlsx";
+    input.accept = ".xls,.xlsx,.zip";
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/quiz/import/preview", { method: "POST", body: fd });
-      const data = await res.json();
-      if (data.questions) {
-        const imported: Question[] = data.questions.map((q: any) => ({
-          id: Math.random().toString(36).slice(2),
-          type: q.type as QuestionType,
-          text: q.text,
-          points: q.points ?? 1,
-          choices: (q.choices ?? []).map((c: any) => ({ text: c.text, isCorrect: c.isCorrect, feedback: c.feedback })),
-          correctFeedback: q.correctFeedback,
-          incorrectFeedback: q.incorrectFeedback,
-        }));
-        setQuestions([...questions, ...imported]);
-        toast.success(`Imported ${imported.length} questions`);
-      } else {
-        toast.error("Import failed: " + (data.error ?? "Unknown error"));
+      const isZip = file.name.toLowerCase().endsWith(".zip");
+      const toastId = toast.loading(isZip ? "Extracting ZIP and uploading media..." : "Parsing Excel...");
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/quiz/import/preview", { method: "POST", body: fd });
+        const data = await res.json();
+        if (data.questions) {
+          const imported: Question[] = data.questions.map((q: any) => ({
+            id: Math.random().toString(36).slice(2),
+            type: (q.questionType ?? q.type ?? "multiple_choice") as QuestionType,
+            text: q.questionText ?? q.text ?? "",
+            points: q.points ?? 1,
+            choices: (q.choices ?? []).map((c: any) => ({ text: c.choiceText ?? c.text, isCorrect: c.isCorrect, feedback: c.feedback })),
+            correctFeedback: q.correctFeedback,
+            incorrectFeedback: q.incorrectFeedback,
+          }));
+          setQuestions([...questions, ...imported]);
+          const mediaMsg = data.mediaUploaded > 0 ? ` (${data.mediaUploaded} media files uploaded)` : "";
+          toast.success(`Imported ${imported.length} questions${mediaMsg}`, { id: toastId });
+        } else {
+          toast.error("Import failed: " + (data.error ?? "Unknown error"), { id: toastId });
+        }
+      } catch (err: any) {
+        toast.error("Import failed: " + err.message, { id: toastId });
       }
     };
     input.click();
@@ -229,8 +238,9 @@ export default function QuizBuilderPage() {
           <Sparkles className="h-4 w-4 text-purple-500" />
           AI Generate
         </Button>
-        <Button variant="outline" onClick={handleImportExcel} className="gap-2"><Upload className="h-4 w-4" />Import Excel</Button>
-        <Button variant="outline" asChild className="gap-2"><a href="/api/quiz/template" download="QuizTemplate.xlsx"><Download className="h-4 w-4" />Template</a></Button>
+        <Button variant="outline" onClick={handleImportExcel} className="gap-2"><Upload className="h-4 w-4" />Import</Button>
+        <Button variant="outline" size="icon" onClick={() => setImportInfoOpen(true)} title="Import instructions"><Info className="h-4 w-4" /></Button>
+        <Button variant="outline" asChild className="gap-2"><a href="/api/quiz/template"><FileArchive className="h-4 w-4" />Template (ZIP)</a></Button>
         <Button onClick={handleSave} disabled={saving} className="gap-2"><Save className="h-4 w-4" />{saving ? "Saving..." : "Save Quiz"}</Button>
       </div>
 
@@ -340,6 +350,58 @@ export default function QuizBuilderPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Import Instructions Dialog */}
+      <Dialog open={importInfoOpen} onOpenChange={setImportInfoOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><FileArchive className="h-5 w-5 text-primary" />Quiz Import Instructions</DialogTitle>
+            <DialogDescription>How to import questions with media files into Teachific</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 text-sm">
+            <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
+              <p className="font-semibold">Option 1: XLSX Only (no media)</p>
+              <p className="text-muted-foreground">Download the template, fill in your questions, and upload the <code className="bg-muted px-1 rounded">.xlsx</code> file directly. Leave the Image, Video, and Audio columns blank.</p>
+              <Button variant="outline" size="sm" asChild className="gap-2 mt-1">
+                <a href="/api/quiz/template/xlsx"><Download className="h-3.5 w-3.5" />Download XLSX Template</a>
+              </Button>
+            </div>
+            <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
+              <p className="font-semibold">Option 2: ZIP Bundle (with media)</p>
+              <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground">
+                <li>Download the ZIP template below — it contains a sample Excel file and a <code className="bg-muted px-1 rounded">media/</code> folder with example images.</li>
+                <li>Add your media files (images, videos, audio) into the <code className="bg-muted px-1 rounded">media/</code> folder inside the ZIP.</li>
+                <li>In the Excel file, reference media using relative paths like <code className="bg-muted px-1 rounded">media/my-image.jpg</code> in the Image, Video, or Audio columns.</li>
+                <li>Re-zip the folder (keeping the same structure) and upload the <code className="bg-muted px-1 rounded">.zip</code> file using the Import button.</li>
+              </ol>
+              <div className="mt-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-2 text-amber-800 dark:text-amber-300 text-xs">
+                Supported media formats: JPG, PNG, GIF, WebP, SVG (images) · MP4, WebM, MOV (video) · MP3, WAV, OGG, M4A, AAC (audio)
+              </div>
+              <Button variant="outline" size="sm" asChild className="gap-2 mt-1">
+                <a href="/api/quiz/template"><FileArchive className="h-3.5 w-3.5" />Download ZIP Template</a>
+              </Button>
+            </div>
+            <div className="rounded-lg border bg-muted/40 p-4 space-y-1">
+              <p className="font-semibold">Question Type Codes</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground text-xs mt-1">
+                <span><code className="bg-muted px-1 rounded">MC</code> — Multiple Choice</span>
+                <span><code className="bg-muted px-1 rounded">MR</code> — Multiple Response</span>
+                <span><code className="bg-muted px-1 rounded">TF</code> — True / False</span>
+                <span><code className="bg-muted px-1 rounded">TI</code> — Short Answer</span>
+                <span><code className="bg-muted px-1 rounded">MG</code> — Matching</span>
+                <span><code className="bg-muted px-1 rounded">SEQ</code> — Sequence</span>
+                <span><code className="bg-muted px-1 rounded">NUMG</code> — Numeric</span>
+                <span><code className="bg-muted px-1 rounded">ESS</code> — Essay</span>
+                <span><code className="bg-muted px-1 rounded">IS</code> — Info Slide</span>
+                <span><code className="bg-muted px-1 rounded">PO / PM / SA</code> — Survey</span>
+              </div>
+              <p className="text-muted-foreground text-xs mt-2">Mark correct answers with an asterisk prefix: <code className="bg-muted px-1 rounded">*Answer text</code></p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setImportInfoOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Upgrade Prompt */}
       <UpgradePromptDialog
         open={upgradeOpen}

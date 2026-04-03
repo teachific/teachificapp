@@ -9,6 +9,7 @@ import {
   InsertContentFolder,
   InsertUser,
   orgMembers,
+  orgSubscriptions,
   organizations,
   permissions,
   playSessions,
@@ -177,7 +178,25 @@ export async function getOrgBySlug(slug: string) {
 export async function getAllOrgs() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(organizations).orderBy(desc(organizations.createdAt));
+  const rows = await db
+    .select({
+      id: organizations.id,
+      name: organizations.name,
+      slug: organizations.slug,
+      description: organizations.description,
+      logoUrl: organizations.logoUrl,
+      customDomain: organizations.customDomain,
+      ownerId: organizations.ownerId,
+      isActive: organizations.isActive,
+      createdAt: organizations.createdAt,
+      updatedAt: organizations.updatedAt,
+      plan: orgSubscriptions.plan,
+      subStatus: orgSubscriptions.status,
+    })
+    .from(organizations)
+    .leftJoin(orgSubscriptions, eq(orgSubscriptions.orgId, organizations.id))
+    .orderBy(desc(organizations.createdAt));
+  return rows;
 }
 
 export async function updateOrg(id: number, data: Partial<typeof organizations.$inferInsert>) {
