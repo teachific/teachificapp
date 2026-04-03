@@ -62,10 +62,11 @@ export const organizations = mysqlTable("organizations", {
   requireTermsAgreement: boolean("requireTermsAgreement").default(false).notNull(),
   // Footer navigation links (JSON array of {label, url})
   footerLinks: text("footerLinks"),
+  // Primary org flag — the owner's default org shown on login
+  isPrimary: boolean("isPrimary").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = typeof organizations.$inferInsert;
 

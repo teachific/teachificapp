@@ -1790,3 +1790,5 @@
 - [x] Fix default org selection: owner's dashboard should default to Teachific org, not All About Ultrasound
 - [x] Investigate org ordering/priority logic in myOrgs procedure
 - [x] Set Teachific as the primary/default org for the owner user
+- [x] Add isPrimary column to organizations table; set Teachific (id=30002) as isPrimary=true
+- [x] Update myContext, getOrgsByUserId, getOrgIdForUser to sort by isPrimary first
