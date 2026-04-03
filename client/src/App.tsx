@@ -71,6 +71,7 @@ import AssignmentsPage from "./pages/members/AssignmentsPage";
 import MembershipsPage from "./pages/products/MembershipsPage";
 import BundlesPage from "./pages/products/BundlesPage";
 import CommunityPage from "./pages/products/CommunityPage";
+import CommunityLearnerPage from "./pages/lms/CommunityLearnerPage";
 import CommunityManagePage from "./pages/products/CommunityManagePage";
 import CategoriesPage from "./pages/products/CategoriesPage";
 
@@ -133,6 +134,7 @@ function BareRouter() {
       {/* Member portal routes — require auth, show member sidebar */}
       <Route path="/school/:orgSlug/my-courses" component={SchoolMyCoursesPage} />
       <Route path="/school/my-courses" component={SchoolMyCoursesPage} />
+      <Route path="/community/:hubId" component={CommunityLearnerPage} />
       <Route path="/policies/:orgSlug" component={OrgPoliciesPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />

@@ -655,6 +655,7 @@ export default function CourseBuilderPage() {
         onClose={() => { setLessonEditorOpen(false); setEditingLessonId(null); }}
         onSaved={() => { refetch(); }}
         orgId={orgId}
+        courseTitle={course?.title}
       />
 
       {/* Add Section Dialog */}
@@ -706,6 +707,7 @@ function CourseSettingsTab({
 }) {
   const { data: orgs } = trpc.orgs.myOrgs.useQuery();
   const orgId = orgs?.[0]?.id ?? 0;
+  const { data: instructors } = trpc.lms.instructors.list.useQuery({ orgId }, { enabled: !!orgId });
   const { plan, can, limits } = useOrgPlan(orgId);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState("");
@@ -748,6 +750,8 @@ function CourseSettingsTab({
     footerCode: course.footerCode ?? "",
     // Cover image
     thumbnailUrl: course.thumbnailUrl ?? "",
+    // Instructor
+    instructorId: course.instructorId ?? null,
   });
 
   const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
@@ -826,7 +830,25 @@ function CourseSettingsTab({
                 <SelectItem value="ja">Japanese</SelectItem>
                 <SelectItem value="ar">Arabic</SelectItem>
               </SelectContent>
+              </Select>
+          </div>
+          <div>
+            <Label>Instructor</Label>
+            <Select
+              value={form.instructorId ? String(form.instructorId) : "none"}
+              onValueChange={(v) => set("instructorId", v === "none" ? null : parseInt(v))}
+            >
+              <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select instructor..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No instructor assigned</SelectItem>
+                {(instructors ?? []).map((inst: any) => (
+                  <SelectItem key={inst.id} value={String(inst.id)}>{inst.name}{inst.title ? ` — ${inst.title}` : ""}</SelectItem>
+                ))}
+              </SelectContent>
             </Select>
+            {!instructors?.length && (
+              <p className="text-xs text-muted-foreground mt-1">No instructors found. Add instructors in Org Settings → Instructors.</p>
+            )}
           </div>
         </div>
         <div>

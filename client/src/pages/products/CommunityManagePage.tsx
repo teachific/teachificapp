@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   ArrowLeft, Settings, Layers, Users, Shield, Mail, ExternalLink,
-  Plus, Trash2, Edit2, Eye, EyeOff, GripVertical, X, Check, Ban
+  Plus, Trash2, Edit2, Eye, EyeOff, GripVertical, X, Check, Ban, ImageIcon
 } from "lucide-react";
 
 export default function CommunityManagePage() {
@@ -155,6 +155,8 @@ export default function CommunityManagePage() {
   const [spaceDescription, setSpaceDescription] = useState("");
   const [spaceEmoji, setSpaceEmoji] = useState("💬");
   const [spaceAccessType, setSpaceAccessType] = useState<"open" | "invite_only" | "course_enrollment" | "purchase">("open");
+  const [spaceCoverImageUrl, setSpaceCoverImageUrl] = useState("");
+  const [spaceCoverUploading, setSpaceCoverUploading] = useState(false);
 
   // Invite state
   const [inviteEmail, setInviteEmail] = useState("");
@@ -166,6 +168,7 @@ export default function CommunityManagePage() {
     setSpaceDescription("");
     setSpaceEmoji("💬");
     setSpaceAccessType("open");
+    setSpaceCoverImageUrl("");
     setSpaceDialog(true);
   };
 
@@ -175,7 +178,25 @@ export default function CommunityManagePage() {
     setSpaceDescription(space.description ?? "");
     setSpaceEmoji(space.emoji ?? "💬");
     setSpaceAccessType(space.accessType ?? "open");
+    setSpaceCoverImageUrl(space.coverImageUrl ?? "");
     setSpaceDialog(true);
+  };
+
+  const handleSpaceCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
+    setSpaceCoverUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "community-covers");
+      const res = await fetch("/api/media/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (json.url) setSpaceCoverImageUrl(json.url);
+      else toast.error("Upload failed");
+    } catch { toast.error("Upload failed"); }
+    finally { setSpaceCoverUploading(false); }
   };
 
   const handleSaveSpace = () => {
@@ -187,6 +208,7 @@ export default function CommunityManagePage() {
         description: spaceDescription,
         emoji: spaceEmoji,
         accessType: spaceAccessType,
+        coverImageUrl: spaceCoverImageUrl || undefined,
       });
     } else {
       createSpace.mutate({
@@ -196,6 +218,7 @@ export default function CommunityManagePage() {
         description: spaceDescription,
         emoji: spaceEmoji,
         accessType: spaceAccessType,
+        coverImageUrl: spaceCoverImageUrl || undefined,
       });
     }
   };
@@ -341,6 +364,9 @@ export default function CommunityManagePage() {
                   <CardContent className="py-3 px-4 flex items-center gap-3">
                     <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                     <span className="text-xl">{space.emoji}</span>
+                    {(space as any).coverImageUrl && (
+                      <img src={(space as any).coverImageUrl} alt="" className="h-8 w-12 object-cover rounded" />
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{space.name}</p>
                       {space.description && (
@@ -615,6 +641,31 @@ export default function CommunityManagePage() {
                 placeholder="What is this space for?"
                 rows={2}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Cover Image</Label>
+              <div className="flex items-center gap-3">
+                {spaceCoverImageUrl ? (
+                  <div className="relative">
+                    <img src={spaceCoverImageUrl} alt="Cover" className="h-16 w-24 object-cover rounded-lg border" />
+                    <button
+                      type="button"
+                      className="absolute -top-1.5 -right-1.5 bg-destructive text-white rounded-full h-4 w-4 flex items-center justify-center text-xs leading-none"
+                      onClick={() => setSpaceCoverImageUrl("")}
+                    >&times;</button>
+                  </div>
+                ) : (
+                  <div className="h-16 w-24 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground">
+                    <ImageIcon className="h-5 w-5" />
+                  </div>
+                )}
+                <label className="cursor-pointer">
+                  <input type="file" accept="image/*" className="hidden" onChange={handleSpaceCoverUpload} />
+                  <Button type="button" variant="outline" size="sm" disabled={spaceCoverUploading} asChild>
+                    <span>{spaceCoverUploading ? "Uploading..." : "Upload Image"}</span>
+                  </Button>
+                </label>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>Access Type</Label>

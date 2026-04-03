@@ -43,7 +43,9 @@ import {
   Plus,
   Trash2,
   X,
+  Sparkles,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -84,6 +86,7 @@ interface LessonEditorSheetProps {
   onClose: () => void;
   onSaved: () => void;
   orgId: number;
+  courseTitle?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -363,16 +366,96 @@ function VideoPreview({ url, provider }: { url: string; provider: string }) {
   );
 }
 
-function TextEditor({ form, set }: { form: any; set: (k: string, v: any) => void }) {
+function TextEditor({ form, set, lessonTitle, courseTitle }: { form: any; set: (k: string, v: any) => void; lessonTitle?: string; courseTitle?: string }) {
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiType, setAiType] = useState<"text" | "outline" | "summary" | "quiz_questions">("text");
+  const [aiPreview, setAiPreview] = useState("");
+  const generateContent = trpc.lms.ai.generateContent.useMutation({
+    onSuccess: (data) => { setAiPreview(data.content); },
+    onError: (e) => { toast.error(e.message); },
+  });
   return (
     <div className="flex flex-col gap-2">
-      <Label>Content</Label>
+      <div className="flex items-center justify-between">
+        <Label>Content</Label>
+        <button
+          type="button"
+          onClick={() => setAiOpen(true)}
+          className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          AI Generate
+        </button>
+      </div>
       <RichTextEditor
         value={form.contentJson ?? ""}
         onChange={(v) => set("contentJson", v)}
         placeholder="Write your lesson content here..."
         minHeight={300}
       />
+      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              AI Content Generator
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap gap-2">
+              {(["text", "outline", "summary", "quiz_questions"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setAiType(t)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    aiType === t ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"
+                  }`}
+                >
+                  {t === "quiz_questions" ? "Quiz Questions" : t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Additional context (optional)</Label>
+              <Textarea
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="e.g. Focus on beginner-friendly explanations with real-world examples..."
+                rows={2}
+              />
+            </div>
+            {aiPreview && (
+              <div className="border border-border rounded-lg p-4 bg-muted/30 max-h-64 overflow-y-auto">
+                <p className="text-xs text-muted-foreground mb-2 font-medium">Preview</p>
+                <div className="text-sm prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: aiPreview }} />
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            {aiPreview && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  set("contentJson", aiPreview);
+                  setAiOpen(false);
+                  setAiPreview("");
+                  toast.success("Content inserted!");
+                }}
+              >
+                Insert Content
+              </Button>
+            )}
+            <Button
+              onClick={() => generateContent.mutate({ lessonTitle: lessonTitle ?? "Lesson", courseTitle, prompt: aiPrompt || undefined, contentType: aiType })}
+              disabled={generateContent.isPending}
+            >
+              {generateContent.isPending ? "Generating..." : (aiPreview ? "Regenerate" : "Generate")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -808,6 +891,7 @@ export function LessonEditorSheet({
   onClose,
   onSaved,
   orgId,
+  courseTitle,
 }: LessonEditorSheetProps) {
   const utils = trpc.useUtils();
 
@@ -885,7 +969,7 @@ export function LessonEditorSheet({
       case "video":
         return <VideoEditor form={form} set={set} orgId={orgId} />;
       case "text":
-        return <TextEditor form={form} set={set} />;
+        return <TextEditor form={form} set={set} lessonTitle={lesson.title} courseTitle={courseTitle} />;
       case "audio":
         return <AudioEditor form={form} set={set} orgId={orgId} />;
       case "pdf":
@@ -912,7 +996,7 @@ export function LessonEditorSheet({
       case "zoom":
         return <ZoomEditor form={form} set={set} />;
       default:
-        return <TextEditor form={form} set={set} />;
+        return <TextEditor form={form} set={set} lessonTitle={lesson.title} courseTitle={courseTitle} />;
     }
   };
 

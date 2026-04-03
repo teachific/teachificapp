@@ -808,9 +808,9 @@
 ## Course Builder Content Editor Improvements
 - [ ] Move lesson content editor from left slide-out to a right-side panel (full height, wide enough for proper editing)
 - [ ] Editor panel should keep curriculum list visible on the left while editor opens on the right
-- [ ] Add AI content generator button in the lesson editor toolbar
+- [x] Add AI content generator button in the lesson editor toolbar
 - [ ] AI generator: prompt input → generates lesson text, summaries, quiz questions, or outlines
-- [ ] AI generator uses invokeLLM server-side via a new tRPC mutation (lms.lessons.generateContent)
+- [x] AI generator uses invokeLLM server-side via a new tRPC mutation (lms.lessons.generateContent)
 - [ ] Show generated content in a preview/insert dialog before applying to the editor
 
 ## Lesson Banner Editor Improvements
@@ -1356,13 +1356,13 @@
 - [ ] Form Analytics: track per-page drop-off (not just per-field)
 
 ## Video Player Branding & Watermark
-- [ ] Add watermarkImageUrl and watermarkOpacity columns to orgThemes table in schema
-- [ ] Add watermarkImageUrl and watermarkOpacity columns to courses table (per-course override)
-- [ ] Org Branding settings: add watermark image upload and opacity slider
+- [x] Add watermarkImageUrl and watermarkOpacity columns to orgThemes table in schema
+- [x] Add watermarkImageUrl and watermarkOpacity columns to courses table (per-course override)
+- [x] Org Branding settings: add watermark image upload and opacity slider
 - [ ] Course editor: add per-course watermark override toggle + image upload
 - [ ] Video player component: apply org primary color to controls bar background and progress bar
-- [ ] Video player component: render watermark image at bottom-left corner with configurable opacity
-- [ ] Video player component: inherit watermark from org theme, allow per-course override
+- [x] Video player component: render watermark image at bottom-left corner with configurable opacity
+- [x] Video player component: inherit watermark from org theme, allow per-course override
 
 ## Platform Admin Fixes (Apr 3)
 - [x] Fix org table text color: always show org name in teal (not invisible until hover)
@@ -1407,9 +1407,9 @@
 - [ ] Backend: DM procedures (sendDm, listConversations, getConversation, markRead)
 - [ ] Community Admin UI: management page with Posts moderation tab
 - [ ] Community Admin UI: Member Access tab (list members, invite, revoke)
-- [ ] Community Admin UI: Space Settings tab (cover image upload, access type, linked course, price)
-- [ ] Community Admin UI: Enter Community button linking to learner-facing hub
-- [ ] Community learner UI: space cards with cover image
+- [x] Community Admin UI: Space Settings tab (cover image upload, access type, linked course, price)
+- [x] Community Admin UI: Enter Community button linking to learner-facing hub
+- [x] Community learner UI: space cards with cover image
 - [ ] Community learner UI: invite-only lock indicator on locked spaces
 - [ ] Community learner UI: sales/landing page for community access with join CTA
 - [ ] Community learner UI: DMs panel with conversation list sidebar and thread view
@@ -1458,8 +1458,8 @@
 - [x] CommunityEditorPage: Members tab (list members per space, ban/unban, role change)
 - [x] CommunityEditorPage: Moderation tab (hidden/flagged posts queue, restore/delete actions)
 - [x] CommunityEditorPage: Invites tab (send invite by email, list pending/revoked invites)
-- [ ] CommunityEditorPage: "Enter Community" button linking to learner view
-- [ ] Community learner view at /community/:hubId (spaces sidebar, posts feed, DMs panel)
+- [x] CommunityEditorPage: "Enter Community" button linking to learner view
+- [x] Community learner view at /community/:hubId (spaces sidebar, posts feed, DMs panel)
 
 ## Course Pre-Start Page (Teachable-style)
 - [x] Course overview page at /learn/:courseId/overview - Teachable-style pre-start page
@@ -1471,16 +1471,16 @@
 - [x] Progress data pulled from real course_progress / lesson_completions tables
 
 ## AI Course Generation Wizard
-- [ ] "Create with AI" button on Courses page alongside "New Course"
-- [ ] Multi-step wizard dialog/page:
-  - [ ] Step 1: Course topic, description, target audience, difficulty (Beginner/Intermediate/Advanced), number of modules (3-10)
-  - [ ] Step 2: AI generates course outline - title, subtitle, description, modules with lesson names and descriptions
-  - [ ] Step 3: Review & edit generated outline - editable module/lesson names, add/remove lessons
-  - [ ] Step 4: AI generates landing page content - hero headline, course description, what you'll learn bullets, suggested pricing
-- [ ] Backend tRPC procedure: lms.ai.generateCourseOutline using invokeLLM
-- [ ] Backend tRPC procedure: lms.ai.generateLandingPage using invokeLLM
-- [ ] Auto-create course with all modules and lessons in DB after user confirms
-- [ ] Navigate to course builder after creation for further customization
+- [x] "Create with AI" button on Courses page alongside "New Course"
+- [x] Multi-step wizard dialog/page:
+  - [x] Step 1: Course topic, description, target audience, difficulty (Beginner/Intermediate/Advanced), number of modules (3-10)
+  - [x] Step 2: AI generates course outline - title, subtitle, description, modules with lesson names and descriptions
+  - [x] Step 3: Review & edit generated outline - editable module/lesson names, add/remove lessons
+  - [x] Step 4: AI generates landing page content - hero headline, course description, what you'll learn bullets, suggested pricing
+- [x] Backend tRPC procedure: lms.ai.generateCourseOutline using invokeLLM
+- [x] Backend tRPC procedure: lms.ai.generateLandingPage using invokeLLM
+- [x] Auto-create course with all modules and lessons in DB after user confirms
+- [x] Navigate to course builder after creation for further customization
 
 ## Instructors Management Page (Org Settings)
 - [ ] Add "Instructors" nav item under Org Settings sidebar (between Branding and Integrations)
@@ -1492,7 +1492,7 @@
 - [x] Delete instructor with confirmation (warn if assigned to courses)
 - [ ] Backend: instructors table (id, orgId, name, title, bio, avatarUrl, email, linkedinUrl, twitterUrl, websiteUrl, createdAt)
 - [x] Backend tRPC procedures: instructors.list, instructors.create, instructors.update, instructors.delete
-- [ ] Course Builder: instructor selector dropdown on course settings tab (link course to instructor)
+- [x] Course Builder: instructor selector dropdown on course settings tab (link course to instructor)
 - [ ] Course pre-start page: pull instructor info from linked instructor record
 
 ## WYSIWYG Page Editor (Thinkific Site Builder Style)

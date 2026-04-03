@@ -303,6 +303,7 @@ export const lmsRouter = router({
           targetAudience: z.string().optional(),
           instructorBio: z.string().optional(),
           preStartPageEnabled: z.boolean().optional(),
+          instructorId: z.number().nullable().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -1158,9 +1159,119 @@ export const lmsRouter = router({
           return { cards: [] };
         }
       }),
+    generateLandingPage: protectedProcedure
+      .input(
+        z.object({
+          topic: z.string().min(3),
+          title: z.string().min(1),
+          description: z.string().optional(),
+          targetAudience: z.string().optional(),
+          difficulty: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: "You are an expert course marketer. Return valid JSON only, no markdown." },
+            { role: "user", content: `Generate landing page content for a course titled "${input.title}" about "${input.topic}"${input.targetAudience ? ` for ${input.targetAudience}` : ""}${input.difficulty ? ` at ${input.difficulty} level` : ""}. Return JSON: { "heroHeadline": string, "heroSubtitle": string, "shortDescription": string, "whatYouLearn": string[], "requirements": string[], "targetAudience": string, "suggestedPriceFree": boolean, "suggestedPrice": number }` },
+          ],
+        });
+        const rawContent = response.choices?.[0]?.message?.content ?? "{}";
+        const content = typeof rawContent === "string" ? rawContent : "{}";
+        try {
+          const cleaned = content.replace(/```json\n?|```\n?/g, "").trim();
+          return JSON.parse(cleaned);
+        } catch {
+          return { heroHeadline: input.title, heroSubtitle: "", shortDescription: "", whatYouLearn: [], requirements: [], targetAudience: "", suggestedPriceFree: true, suggestedPrice: 0 };
+        }
+      }),
+    generateContent: protectedProcedure
+      .input(
+        z.object({
+          lessonTitle: z.string().min(1),
+          courseTitle: z.string().optional(),
+          prompt: z.string().optional(),
+          contentType: z.enum(["text", "outline", "summary", "quiz_questions"]).default("text"),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const typeInstructions: Record<string, string> = {
+          text: "Generate rich lesson content in HTML format (use <h2>, <p>, <ul>, <strong> tags). Write 3-5 paragraphs with practical examples.",
+          outline: "Generate a structured lesson outline as HTML with numbered sections and bullet points.",
+          summary: "Generate a concise 2-3 paragraph summary of the lesson content in HTML.",
+          quiz_questions: "Generate 5 multiple-choice quiz questions as a JSON array: [{\"question\": string, \"options\": string[], \"correct\": number, \"explanation\": string}]. Return only the JSON array.",
+        };
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: `You are an expert course content writer. ${typeInstructions[input.contentType]}` },
+            { role: "user", content: `Lesson: "${input.lessonTitle}"${input.courseTitle ? ` (Course: "${input.courseTitle}")` : ""}${input.prompt ? `\nAdditional context: ${input.prompt}` : ""}` },
+          ],
+        });
+        const content = response.choices?.[0]?.message?.content ?? "";
+        return { content: typeof content === "string" ? content : JSON.stringify(content) };
+      }),
+    createCourseFromOutline: protectedProcedure
+      .input(
+        z.object({
+          orgId: z.number(),
+          title: z.string().min(1),
+          description: z.string().optional(),
+          shortDescription: z.string().optional(),
+          whatYouLearn: z.string().optional(),
+          requirements: z.string().optional(),
+          targetAudience: z.string().optional(),
+          modules: z.array(z.object({
+            title: z.string(),
+            lessons: z.array(z.object({
+              title: z.string(),
+              type: z.string(),
+              description: z.string().optional(),
+            })),
+          })),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+          const sub = await getOrgSubscription(input.orgId);
+          if (!getLimits(sub?.plan).aiGeneration) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "AI course generation requires a Starter plan or higher." });
+          }
+        }
+        const slug = input.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + nanoid(4);
+        const course = await createCourse({
+          orgId: input.orgId,
+          title: input.title,
+          slug,
+          description: input.description,
+          shortDescription: input.shortDescription,
+          whatYouLearn: input.whatYouLearn,
+          requirements: input.requirements,
+          targetAudience: input.targetAudience,
+          instructorId: ctx.user.id,
+        });
+        if (!course) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create course" });
+        for (let mi = 0; mi < input.modules.length; mi++) {
+          const mod = input.modules[mi];
+          const section = await createSection({ courseId: course.id, title: mod.title, sortOrder: mi });
+          if (!section) continue;
+          for (let li = 0; li < mod.lessons.length; li++) {
+            const les = mod.lessons[li];
+            const lessonType = ["text", "video", "quiz", "assignment", "audio", "pdf"].includes(les.type) ? les.type : "text";
+            await createLesson({
+              courseId: course.id,
+              sectionId: section.id,
+              title: les.title,
+              lessonType: lessonType as any,
+              sortOrder: li,
+              contentJson: les.description ? `<p>${les.description}</p>` : "",
+            });
+          }
+        }
+        return course;
+      }),
   }),
-
-  // ── Dashboard Analytics ─────────────────────────────────────────────────
+  // ── Dashboard Analyticss ─────────────────────────────────────────────────
 
   dashboard: router({
     metrics: protectedProcedure

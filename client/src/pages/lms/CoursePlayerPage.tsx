@@ -15,8 +15,9 @@ import {
   CheckCircle2, Circle, PlayCircle, FileText, Headphones,
   FileDown, Link2, Video, BookOpen, ClipboardList, Zap,
   Calendar, Home, Menu, X, Maximize2, Settings,
-  RotateCcw, Lock, Clock,
+  RotateCcw, Lock, Clock, Search, StickyNote, Award, Download,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 // ─── Lesson Banner ────────────────────────────────────────────────────────────
 function playBannerSound(soundId: string) {
@@ -264,12 +265,13 @@ function QuizPlayer({
 
 // ─── Lesson Content Renderer ──────────────────────────────────────────────────
 function LessonContent({
-  lesson, primaryColor, onComplete, packageProxyBase,
+  lesson, primaryColor, onComplete, packageProxyBase, watermark,
 }: {
   lesson: any;
   primaryColor: string;
   onComplete?: () => void;
   packageProxyBase: string;
+  watermark?: { url: string; opacity: number; size: number; position: string } | null;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -312,15 +314,34 @@ function LessonContent({
           const id = url.match(/vimeo\.com\/(\d+)/)?.[1];
           embedUrl = id ? `https://player.vimeo.com/video/${id}` : url;
         }
+        const wmPos = watermark?.position || "bottom-right";
+        const wmStyle: React.CSSProperties = {
+          width: `${watermark?.size || 80}px`,
+          opacity: (watermark?.opacity || 30) / 100,
+          ...(wmPos === "bottom-left" ? { bottom: "12px", left: "12px" } :
+            wmPos === "bottom-right" ? { bottom: "12px", right: "12px" } :
+            wmPos === "top-left" ? { top: "12px", left: "12px" } :
+            wmPos === "top-right" ? { top: "12px", right: "12px" } :
+            { top: "50%", left: "50%", transform: "translate(-50%, -50%)" }),
+        };
         return (
           <div className="flex flex-col gap-4">
-            <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg">
+            <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-lg">
               {url ? (
                 <iframe src={embedUrl} className="w-full h-full" allowFullScreen allow="autoplay; fullscreen" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white/50">
                   <PlayCircle className="h-16 w-16" />
                 </div>
+              )}
+              {watermark?.url && (
+                <img
+                  src={watermark.url}
+                  alt=""
+                  className="absolute pointer-events-none select-none"
+                  style={wmStyle}
+                  draggable={false}
+                />
               )}
             </div>
           </div>
@@ -534,6 +555,10 @@ export default function CoursePlayerPage() {
   const [currentLessonId, setCurrentLessonId] = useState<number | null>(
     params.lessonId ? parseInt(params.lessonId) : null
   );
+  const [sidebarSearch, setSidebarSearch] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [showCompletion, setShowCompletion] = useState(false);
   const [activeBanner, setActiveBanner] = useState<{
     message: string;
     imageUrl?: string | null;
@@ -632,6 +657,14 @@ export default function CoursePlayerPage() {
     };
   }, [currentLesson?.id]);
 
+  // Load notes from localStorage when lesson changes
+  useEffect(() => {
+    if (currentLesson) {
+      const key = `notes-${courseId}-${currentLesson.id}`;
+      setNoteText(localStorage.getItem(key) ?? "");
+    }
+  }, [currentLesson?.id, courseId]);
+
   const handleComplete = useCallback(async () => {
     if (!currentLesson) return;
     try {
@@ -655,6 +688,9 @@ export default function CoursePlayerPage() {
       }
       if (nextLesson) {
         setTimeout(() => setCurrentLessonId(nextLesson.id), 1200);
+      } else {
+        // Last lesson — show completion screen
+        setTimeout(() => setShowCompletion(true), 800);
       }
     } catch {
       toast.error("Failed to update progress.");
@@ -681,6 +717,18 @@ export default function CoursePlayerPage() {
 
   const overallProgress = progressData?.enrollment?.progressPct || 0;
   const showCompleteButton = course?.showCompleteButton !== false; // default true
+  const showLessonIcons = course?.playerShowLessonIcons !== false; // default true
+  const allowNotes = course?.playerAllowNotes === true;
+
+  // Filtered lessons for sidebar search
+  const filteredCurriculum = sidebarSearch
+    ? (curriculum as any[]).map((s: any) => ({
+        ...s,
+        lessons: (s.lessons || []).filter((l: any) =>
+          l.title.toLowerCase().includes(sidebarSearch.toLowerCase())
+        ),
+      })).filter((s: any) => s.lessons.length > 0)
+    : (curriculum as any[]);
 
   if (!course || !curriculum) {
     return (
@@ -769,11 +817,47 @@ export default function CoursePlayerPage() {
               Next <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           )}
+          {allowNotes && (
+            <button
+              onClick={() => setNotesOpen((n) => !n)}
+              className={cn(
+                "h-8 w-8 flex items-center justify-center rounded transition-colors",
+                notesOpen ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground"
+              )}
+              title="Notes"
+            >
+              <StickyNote className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </header>
 
+      {/* Completion screen overlay */}
+      {showCompletion && (
+        <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-card border border-border rounded-2xl p-8 max-w-md w-full mx-4 flex flex-col items-center gap-6 shadow-2xl">
+            <div className="h-20 w-20 rounded-full flex items-center justify-center" style={{ backgroundColor: primaryColor + "20" }}>
+              <Award className="h-10 w-10" style={{ color: primaryColor }} />
+            </div>
+            <div className="text-center">
+              <h2 className="text-2xl font-bold">Course Complete!</h2>
+              <p className="text-muted-foreground mt-2">Congratulations on completing <strong>{course.title}</strong>.</p>
+            </div>
+            {(course as any).enableCertificate && (
+              <Button style={{ backgroundColor: primaryColor }} className="text-white gap-2">
+                <Download className="h-4 w-4" /> Download Certificate
+              </Button>
+            )}
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setShowCompletion(false)}>Review Course</Button>
+              <Button variant="outline" onClick={() => setLocation("/school")}>Back to School</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Body */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar */}
         <aside
           className={cn(
@@ -795,9 +879,23 @@ export default function CoursePlayerPage() {
             )}
           </div>
 
+          {/* Sidebar search */}
+          <div className="px-3 py-2 border-b border-border">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search lessons..."
+                value={sidebarSearch}
+                onChange={(e) => setSidebarSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted/50 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+
           {/* Sections & Lessons */}
           <div className="flex-1 overflow-y-auto py-2">
-            {(curriculum as any[]).map((section: any, si: number) => {
+            {filteredCurriculum.map((section: any, si: number) => {
               const isExpanded = expandedSections[si] !== false; // default expanded
               const sectionCompleted = (section.lessons || []).every(
                 (l: any) => getLessonStatus(l.id) === "completed"
@@ -850,7 +948,9 @@ export default function CoursePlayerPage() {
                             ) : (
                               <Circle className="h-4 w-4 shrink-0 text-muted-foreground/50" />
                             )}
-                            <LessonIcon type={lesson.lessonType} className={locked ? "text-muted-foreground/40" : isActive ? "text-primary" : "text-muted-foreground"} />
+                            {showLessonIcons && (
+                              <LessonIcon type={lesson.lessonType} className={locked ? "text-muted-foreground/40" : isActive ? "text-primary" : "text-muted-foreground"} />
+                            )}
                             <span className={cn("text-xs flex-1 leading-snug", locked ? "text-muted-foreground/50" : isActive ? "font-medium" : "text-muted-foreground")}>
                               {lesson.title}
                             </span>
@@ -927,6 +1027,12 @@ export default function CoursePlayerPage() {
                   primaryColor={primaryColor}
                   onComplete={handleComplete}
                   packageProxyBase="/api/embed"
+                  watermark={theme?.watermarkImageUrl ? {
+                    url: theme.watermarkImageUrl,
+                    opacity: theme.watermarkOpacity ?? 30,
+                    size: theme.watermarkSize ?? 80,
+                    position: theme.watermarkPosition ?? "bottom-right",
+                  } : null}
                 />
               )}
 
@@ -971,6 +1077,50 @@ export default function CoursePlayerPage() {
             </div>
           )}
         </main>
+
+        {/* Notes panel */}
+        {allowNotes && notesOpen && (
+          <aside className="w-80 border-l border-border bg-background flex flex-col shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <StickyNote className="h-4 w-4 text-primary" />
+                <span className="font-medium text-sm">My Notes</span>
+              </div>
+              <button
+                onClick={() => setNotesOpen(false)}
+                className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="flex-1 p-4 flex flex-col gap-3">
+              <p className="text-xs text-muted-foreground">
+                Notes for: <span className="font-medium text-foreground">{currentLesson?.title ?? "this lesson"}</span>
+              </p>
+              <Textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Type your notes here..."
+                className="flex-1 min-h-[200px] resize-none text-sm"
+              />
+              <Button
+                size="sm"
+                className="w-full"
+                style={{ backgroundColor: primaryColor }}
+                onClick={() => {
+                  // Save to localStorage keyed by lesson
+                  if (currentLesson) {
+                    const key = `notes-${courseId}-${currentLesson.id}`;
+                    localStorage.setItem(key, noteText);
+                    toast.success("Notes saved!");
+                  }
+                }}
+              >
+                Save Notes
+              </Button>
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   );
