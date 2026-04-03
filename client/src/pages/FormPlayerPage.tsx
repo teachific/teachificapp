@@ -261,6 +261,7 @@ export default function FormPlayerPage() {
   const [errors, setErrors] = useState<Record<number, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [currentPage, setCurrentPage] = useState(0);
   const sessionTokenRef = useRef(generateSessionToken());
   const sessionIdRef = useRef<number | null>(null);
   const startTimeRef = useRef(Date.now());
@@ -363,6 +364,24 @@ export default function FormPlayerPage() {
     [form, visibleFieldIds]
   );
 
+  // Split visible fields into pages using page_break as dividers
+  const pages = useMemo(() => {
+    const result: typeof visibleFields[] = [];
+    let current: typeof visibleFields = [];
+    for (const field of visibleFields) {
+      if (field.type === "page_break") {
+        result.push(current);
+        current = [];
+      } else {
+        current.push(field);
+      }
+    }
+    result.push(current);
+    return result.filter((p) => p.length > 0);
+  }, [visibleFields]);
+  const totalPages = pages.length;
+  const currentFields = pages[currentPage] ?? [];
+
   // Auto-submit if a rule triggers it
   useEffect(() => {
     if (!form || submitted) return;
@@ -382,11 +401,11 @@ export default function FormPlayerPage() {
     }
   };
 
-  const validate = (): boolean => {
+  const validatePage = (fields: typeof visibleFields): boolean => {
     const newErrors: Record<number, string> = {};
-    for (const field of visibleFields) {
+    for (const field of fields) {
       if (!field.required) continue;
-      if (["section_break", "statement"].includes(field.type)) continue;
+      if (["section_break", "statement", "page_break"].includes(field.type)) continue;
       const val = answers[field.id];
       if (!val || (Array.isArray(val) && val.length === 0) || String(val).trim() === "") {
         newErrors[field.id] = "This field is required.";
@@ -394,6 +413,33 @@ export default function FormPlayerPage() {
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const validate = (): boolean => {
+    const newErrors: Record<number, string> = {};
+    for (const field of visibleFields) {
+      if (!field.required) continue;
+      if (["section_break", "statement", "page_break"].includes(field.type)) continue;
+      const val = answers[field.id];
+      if (!val || (Array.isArray(val) && val.length === 0) || String(val).trim() === "") {
+        newErrors[field.id] = "This field is required.";
+      }
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNextPage = () => {
+    if (!validatePage(currentFields)) return;
+    setErrors({});
+    setCurrentPage((p) => Math.min(p + 1, totalPages - 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handlePrevPage = () => {
+    setErrors({});
+    setCurrentPage((p) => Math.max(p - 1, 0));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSubmit = () => {
@@ -505,9 +551,25 @@ export default function FormPlayerPage() {
           </div>
         )}
 
-        {/* Fields */}
+        {/* Multi-page progress bar */}
+        {totalPages > 1 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+              <span>Step {currentPage + 1} of {totalPages}</span>
+              <span>{Math.round(((currentPage + 1) / totalPages) * 100)}% complete</span>
+            </div>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{ width: `${((currentPage + 1) / totalPages) * 100}%`, backgroundColor: branding.primary }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Fields for current page */}
         <div className="space-y-6">
-          {visibleFields.map((field) => (
+          {currentFields.map((field) => (
             <FieldRenderer
               key={field.id}
               field={field}
@@ -527,17 +589,36 @@ export default function FormPlayerPage() {
           </p>
         )}
 
-        {/* Submit */}
-        <div className="mt-8">
-          <Button
-            onClick={handleSubmit}
-            disabled={submitMutation.isPending}
-            className="w-full h-11 text-base font-semibold"
-            style={{ backgroundColor: branding.button, color: branding.buttonText }}
-          >
-            {submitMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            {submitMutation.isPending ? "Submitting..." : "Submit"}
-          </Button>
+        {/* Navigation / Submit */}
+        <div className="mt-8 flex gap-3">
+          {totalPages > 1 && currentPage > 0 && (
+            <Button
+              variant="outline"
+              onClick={handlePrevPage}
+              className="flex-1 h-11 text-base"
+            >
+              ← Back
+            </Button>
+          )}
+          {totalPages > 1 && currentPage < totalPages - 1 ? (
+            <Button
+              onClick={handleNextPage}
+              className="flex-1 h-11 text-base font-semibold"
+              style={{ backgroundColor: branding.button, color: branding.buttonText }}
+            >
+              Next →
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={submitMutation.isPending}
+              className="flex-1 h-11 text-base font-semibold"
+              style={{ backgroundColor: branding.button, color: branding.buttonText }}
+            >
+              {submitMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {submitMutation.isPending ? "Submitting..." : "Submit"}
+            </Button>
+          )}
         </div>
 
         {/* Powered by */}

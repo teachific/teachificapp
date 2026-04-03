@@ -1615,6 +1615,7 @@ export const communityHubs = mysqlTable("community_hubs", {
   logoUrl: text("logoUrl"),
   primaryColor: varchar("primaryColor", { length: 20 }).default("#0d9488"),
   isEnabled: boolean("isEnabled").default(true).notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

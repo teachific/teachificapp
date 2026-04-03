@@ -1,66 +1,66 @@
 # SCORM Host Platform - TODO
 
 ## Phase 1: Database Schema & Migrations
-- [ ] Organizations table (multi-tenant workspaces)
-- [ ] Update users table with org membership and roles (site_owner, admin, user)
-- [ ] Content packages table (uploaded ZIP files with metadata)
-- [ ] Content versions table (version control per package)
-- [ ] File assets table (extracted files within a package)
-- [ ] Permissions table (per-file granular permissions)
-- [ ] Play sessions table (tracking playback events)
-- [ ] SCORM interactions table (LMS data storage)
-- [ ] Analytics events table (engagement metrics)
-- [ ] Run migrations via webdev_execute_sql
+- [x] Organizations table (multi-tenant workspaces)
+- [x] Update users table with org membership and roles (site_owner, admin, user)
+- [x] Content packages table (uploaded ZIP files with metadata)
+- [x] Content versions table (version control per package)
+- [x] File assets table (extracted files within a package)
+- [x] Permissions table (per-file granular permissions)
+- [x] Play sessions table (tracking playback events)
+- [x] SCORM interactions table (LMS data storage)
+- [x] Analytics events table (engagement metrics)
+- [x] Run migrations via webdev_execute_sql
 
 ## Phase 2: Backend API Routes
-- [ ] File upload endpoint (multipart, S3 storage)
-- [ ] ZIP extraction and file asset indexing
-- [ ] SCORM manifest parser (imsmanifest.xml, SCORM 1.2 + 2004)
-- [ ] LLM content analysis on upload (metadata, tags, description)
-- [ ] Organization CRUD procedures
-- [ ] User/member management procedures
-- [ ] Content package CRUD procedures
-- [ ] Version control procedures (create version, rollback, diff)
-- [ ] Permission management procedures (per-file settings)
-- [ ] Secure content serving endpoint (with permission checks)
-- [ ] SCORM LMS API endpoint (cmi data persistence)
-- [ ] Play session tracking procedures
-- [ ] Analytics aggregation procedures
-- [ ] Report export procedures
+- [x] File upload endpoint (multipart, S3 storage)
+- [x] ZIP extraction and file asset indexing
+- [x] SCORM manifest parser (imsmanifest.xml, SCORM 1.2 + 2004)
+- [x] LLM content analysis on upload (metadata, tags, description)
+- [x] Organization CRUD procedures
+- [x] User/member management procedures
+- [x] Content package CRUD procedures
+- [x] Version control procedures (create version, rollback, diff)
+- [x] Permission management procedures (per-file settings)
+- [x] Secure content serving endpoint (with permission checks)
+- [x] SCORM LMS API endpoint (cmi data persistence)
+- [x] Play session tracking procedures
+- [x] Analytics aggregation procedures
+- [x] Report export procedures
 
 ## Phase 3: Admin Panel UI
-- [ ] Dashboard layout with sidebar navigation
-- [ ] Overview dashboard (stats cards, recent activity)
-- [ ] File management page (upload, list, search, filter)
-- [ ] File detail page (metadata, versions, permissions)
-- [ ] Upload modal with drag-and-drop and progress
-- [ ] Organization management page (create, edit, members)
-- [ ] User management page (roles, invites)
-- [ ] Permission editor component (per-file settings)
-- [ ] Version history panel with rollback UI
+- [x] Dashboard layout with sidebar navigation
+- [x] Overview dashboard (stats cards, recent activity)
+- [x] File management page (upload, list, search, filter)
+- [x] File detail page (metadata, versions, permissions)
+- [x] Upload modal with drag-and-drop and progress)
+- [x] Organization management page (create, edit, members)
+- [x] User management page (roles, invites)
+- [x] Permission editor component (per-file settings)
+- [x] Version history panel with rollback UI
 
 ## Phase 4: Content Viewer
-- [ ] Secure viewer page with permission enforcement
-- [ ] Sandboxed iframe for HTML/SCORM content
-- [ ] SCORM 1.2 LMS API (API object)
-- [ ] SCORM 2004 LMS API (API_1484_11 object)
-- [ ] Play limit enforcement (max plays per user)
-- [ ] Download button with permission check
-- [ ] External link controls
-- [ ] Viewer analytics event emission
+- [x] Secure viewer page with permission enforcement
+- [x] Sandboxed iframe for HTML/SCORM content
+- [x] SCORM 1.2 LMS API (API object)
+- [x] SCORM 2004 LMS API (API_1484_11 object)
+- [x] Play limit enforcement (max plays per user)
+- [x] Download button with permission check
+- [x] External link controls
+- [x] Viewer analytics event emission
 
 ## Phase 5: Analytics Dashboard
-- [ ] Analytics overview page (play counts, completions, durations)
-- [ ] Per-file analytics breakdown
-- [ ] Per-organization analytics
-- [ ] SCORM interaction logs viewer
-- [ ] Exportable CSV/JSON reports
-- [ ] Real-time engagement tracking
+- [x] Analytics overview page (play counts, completions, durations)
+- [x] Per-file analytics breakdown
+- [x] Per-organization analytics
+- [x] SCORM interaction logs viewer
+- [x] Exportable CSV/JSON reports
+- [x] Real-time engagement tracking
 
 ## Phase 6: Testing & Delivery
-- [ ] Vitest unit tests for key procedures
-- [ ] Save checkpoint
-- [ ] Deliver to user
+- [x] Vitest unit tests for key procedures
+- [x] Save checkpoint
+- [x] Deliver to user
 
 ## Display Mode & Quiz System (New Requirements)
 - [ ] Add displayMode field to content_packages (native, lms_presentation, quiz)
@@ -554,7 +554,7 @@
 - [ ] CoursePlayerPage: Completion screen with certificate download
 - [ ] CoursePlayerPage: showCompleteButton respect course setting
 - [ ] CoursePlayerPage: requireSequential lock future lessons
-- [ ] Student My Courses dashboard (/school/my-courses)
+- [x] Student My Courses dashboard (/school/my-courses and /school/:orgSlug/my-courses)
 - [ ] Enrollment flow: enroll button, confirm, redirect to player
 - [ ] Free course auto-enrollment on click
 - [ ] Preview access: free preview lessons without enrollment
@@ -745,15 +745,13 @@
 - [x] Add /lms/courses/:id/curriculum, /settings, /pricing, /drip, /after_purchase routes to App.tsx
 - [x] CourseBuilderPage derives active tab from URL sub-path
 
-## Org Admin Dashboard Redesign
-- [ ] Replace the current Dashboard.tsx with an org-focused analytics dashboard
-- [ ] Welcome header with org name and greeting
-- [ ] Key metrics cards: Total Revenue (past 30 days), New Registrations (past 30 days), Course Sales (past 30 days), Active Members
-- [ ] Revenue/enrollment chart with daily/weekly/monthly toggle (line chart showing revenue or enrollment trend)
-- [ ] Live activity feed (right sidebar): recent enrollments, course purchases, logins — show user name, course name, timestamp, price (if sale)
-- [ ] Recently edited courses section: grid of course cards with thumbnail, title, status badge (Published/Draft), last edited timestamp
-- [ ] All data scoped to the org admin's organization (org_admin sees their org only, site_owner/site_admin see all orgs or selected org)
-
+#- [x] Org Admin Dashboard Redesign (LmsDashboardPage.ts- [x] Replace the current Dashboard.tsx with an org-focused analytics dashboard
+- [x] Welcome header with org name and greeting
+- [x] Key metrics cards: Total Revenue (past 30 days), New Registrations (past 30 days), Course Sales (past 30 days), Active Members
+- [x] Revenue/enrollment chart with daily/weekly/monthly toggle (line chart showing revenue or enrollment trend)
+- [x] Live activity feed (right sidebar): recent enrollments, course purchases, logins — show user name, course name, timestamp, price (if sale)
+- [x] Recently edited courses section: grid of course cards with thumbnail, title, status badge (Published/Draft), last edited timestamp
+- [x] All data scoped to the org admin's organization (org_admin sees their org only, site_owner/site_admin see all orgs or selected org)
 ## Member (Learner) Dashboard
 - [ ] When logged-in user role is "user" (org member), show a learner home dashboard instead of the admin dashboard
 - [ ] Display course cards for all courses the member is enrolled in or has access to
@@ -1090,18 +1088,18 @@
 - [x] Add Settings accordion group back to sidebar nav
 
 ## Org Settings Cleanup (Apr 2, 2026)
-- [ ] Remove Email Sender tab from Organization Settings
-- [ ] Remove Email Templates tab from Organization Settings
-- [ ] Replace Logo URL text field with file upload control on Branding tab
-- [ ] Backend: uploadOrgLogo procedure (S3 upload, returns URL, saves to org)
+- [x] Remove Email Sender tab from Organization Settings
+- [x] Remove Email Templates tab from Organization Settings
+- [x] Replace Logo URL text field with file upload control on Branding tab
+- [x] Backend: uploadOrgLogo procedure (S3 upload, returns URL, saves to org)
 
 ## Full Feature Build-Out (Apr 2, 2026)
 
 ### Phase 1 - Org Settings
-- [ ] Remove Email Sender tab from Org Settings
-- [ ] Remove Email Templates tab from Org Settings
-- [ ] Replace Logo URL text field with file upload (S3) on Branding tab
-- [ ] Backend: orgs.uploadLogo procedure (presigned S3 upload)
+- [x] Remove Email Sender tab from Org Settings
+- [x] Remove Email Templates tab from Org Settings
+- [x] Replace Logo URL text field with file upload (S3) on Branding tab
+- [x] Backend: orgs.uploadLogo procedure (presigned S3 upload)
 
 ### Phase 2 - Members Section
 - [ ] Groups page: seat management tool, group seat managers, seat assignment/change
@@ -1218,15 +1216,15 @@
 - [ ] AffiliatesPage: real CRUD wired to backend
 - [ ] Course player: respect showProgressBar and showProgressPercent flags
 - [ ] Course settings: toggle for showProgressBar and showProgressPercent
-- [ ] Dashboard enrollment chart: real Recharts bar chart with enrollment data
+- [x] Dashboard enrollment chart: real Recharts bar chart with enrollment data (LmsDashboardPage)
 - [ ] Analytics pages: real data with Recharts visualizations
 
 ## School Storefront Footer - Org Policies (Apr 3, 2026)
-- [ ] Add publicLegalDocsBySlug backend endpoint (public, lookup by org slug)
-- [ ] Add /school/:orgSlug route in App.tsx for slug-based school pages
-- [ ] Update SchoolPage to resolve org by slug param (falls back to user's first org)
-- [ ] Footer already exists in SchoolPage - verify it shows ToS/Privacy links per org
-- [ ] Add org-scoped footer to school storefront with Terms of Service and Privacy Policy links
+- [x] Add publicLegalDocsBySlug backend endpoint (public, lookup by org slug)
+- [x] Add /school/:orgSlug route in App.tsx for slug-based school pages
+- [x] Update SchoolPage to resolve org by slug param (falls back to user's first org)
+- [x] Footer already exists in SchoolPage - verify it shows ToS/Privacy links per org
+- [x] Add org-scoped footer to school storefront with Terms of Service and Privacy Policy links
 
 ## Form Generator (Products)
 - [x] DB schema: forms, form_fields, form_branching_rules, form_submissions tables
@@ -1329,13 +1327,13 @@
 
 ## Custom Form URL & Digital Downloads Fix
 - [ ] Fix Digital Downloads upload: change from presigned PUT to server-side proxy upload via /api/media-upload
-- [ ] Add custom form slug editor in Form Settings > General tab (editable URL field with live preview)
-- [ ] Add slug uniqueness validation in formsRouter.update (check no other form in org has same slug)
-- [ ] Show full form URL preview in Share tab (domain + /forms/ + slug)
+- [x] Add custom form slug editor in Form Settings > General tab (editable URL field with live preview)
+- [x] Add slug uniqueness validation in formsRouter.update (check no other form in org has same slug)
+- [x] Show full form URL preview in Share tab (domain + /forms/ + slug)
 - [ ] Allow slug to be edited from the Share tab Links section as well
-- [ ] Add redirectUrl column to forms table (nullable text)
-- [ ] Add redirect URL field in Form Settings > Success Pages section
-- [ ] Form Player: after successful submission, redirect to redirectUrl if set (otherwise show thank-you message)
+- [x] Add redirectUrl column to forms table (nullable text)
+- [x] Add redirect URL field in Form Settings > Success Pages section
+- [x] Form Player: after successful submission, redirect to redirectUrl if set (otherwise show thank-you message)
 - [ ] Show redirect URL in Share tab for reference
 
 ## Rich Text in Forms
@@ -1347,13 +1345,13 @@
 - [ ] Rich Text field in form player: render HTML content block inline within the form
 
 ## Form Pagination (Multi-Page Forms)
-- [ ] Add pageBreak field type to form builder (inserts a page break between questions)
-- [ ] Add pageBreak to form_fields type enum in schema
-- [ ] Form Builder: show page numbers in the field list (Page 1, Page 2, etc.) with visual separator
-- [ ] Form Player: split fields into pages at pageBreak boundaries, show one page at a time
-- [ ] Form Player: show Next/Back navigation buttons between pages
-- [ ] Form Player: show page progress indicator (e.g., "Page 2 of 4" or a step progress bar)
-- [ ] Form Player: validate required fields on current page before advancing to next page
+- [x] Add pageBreak field type to form builder (inserts a page break between questions)
+- [x] Add pageBreak to form_fields type enum in schema
+- [x] Form Builder: show page numbers in the field list (Page 1, Page 2, etc.) with visual separator
+- [x] Form Player: split fields into pages at pageBreak boundaries, show one page at a time
+- [x] Form Player: show Next/Back navigation buttons between pages
+- [x] Form Player: show page progress indicator (e.g., "Page 2 of 4" or a step progress bar)
+- [x] Form Player: validate required fields on current page before advancing to next page
 - [ ] Form Settings > General: add "Show page progress bar" toggle
 - [ ] Form Analytics: track per-page drop-off (not just per-field)
 
@@ -1367,30 +1365,30 @@
 - [ ] Video player component: inherit watermark from org theme, allow per-course override
 
 ## Platform Admin Fixes (Apr 3)
-- [ ] Fix org table text color: always show org name in teal (not invisible until hover)
-- [ ] Add light teal hover background to org table rows
-- [ ] Add plan/subscription selector to Edit Organization dialog
+- [x] Fix org table text color: always show org name in teal (not invisible until hover)
+- [x] Add light teal hover background to org table rows
+- [x] Add plan/subscription selector to Edit Organization dialog
 - [ ] Fix tier-gated "Insufficient permissions" errors to show upgrade message (e.g., webinars require Builder+)
 
 ## Platform Admin: Impersonation & Granular Editing (Apr 3)
-- [ ] Backend: impersonation JWT endpoint (site_owner/site_admin only)
-- [ ] Backend: impersonation session cookie with impersonatedBy metadata
-- [ ] Backend: end impersonation endpoint (restore original session)
-- [ ] Backend: fix requireOrgRole to allow site_owner/site_admin to bypass org membership check
-- [ ] Backend: add webinar tier check with clear "upgrade to Builder+" message
-- [ ] Platform Admin UI: "Login as Customer" button per org row
-- [ ] Platform Admin UI: impersonation banner shown when active (who you're impersonating + exit button)
-- [ ] Platform Admin UI: granular Edit Org dialog (name, slug, description, domain, logo, plan, status, admin notes)
-- [ ] Platform Admin UI: fix org table text always visible in teal, light teal hover on rows
+- [x] Backend: impersonation JWT endpoint (site_owner/site_admin only)
+- [x] Backend: impersonation session cookie with impersonatedBy metadata
+- [x] Backend: end impersonation endpoint (restore original session)
+- [x] Backend: fix requireOrgRole to allow site_owner/site_admin to bypass org membership check
+- [x] Backend: add webinar tier check with clear "upgrade to Builder+" message
+- [x] Platform Admin UI: "Login as Customer" button per org row
+- [x] Platform Admin UI: impersonation banner shown when active (who you're impersonating + exit button)
+- [x] Platform Admin UI: granular Edit Org dialog (name, slug, description, domain, logo, plan, status, admin notes)
+- [x] Platform Admin UI: fix org table text always visible in teal, light teal hover on rows
 
 ## Course Reordering (Apr 3, 2026)
-- [ ] Add sortOrder column to courses table in schema
-- [ ] Generate and apply migration SQL
-- [ ] Add lms.courses.reorder tRPC procedure (accepts ordered array of courseIds)
-- [ ] CoursesPage (admin): drag-and-drop reorder using @dnd-kit, persist on drop
-- [ ] SchoolPage (catalog): render courses in sortOrder sequence
-- [ ] CoursesPage: show drag handle icon on each course card/row
-- [ ] Reorder persists across page refreshes (stored in DB)
+- [x] Add sortOrder column to courses table in schema
+- [x] Generate and apply migration SQL
+- [x] Add lms.courses.reorder tRPC procedure (accepts ordered array of courseIds)
+- [x] CoursesPage (admin): drag-and-drop reorder using @dnd-kit, persist on drop
+- [x] SchoolPage (catalog): render courses in sortOrder sequence
+- [x] CoursesPage: show drag handle icon on each course card/row
+- [x] Reorder persists across page refreshes (stored in DB)
 
 ## Community Enhancements (Apr 3, 2026)
 - [ ] Schema: add coverImageUrl to community_spaces table
@@ -1448,12 +1446,12 @@
 - [x] CommunityPage: Grid/List view toggle
 - [x] CommunityPage: "New community" button (tier-gated: Free=0, Starter=1, Builder=2, Pro=5, Enterprise=unlimited)
 - [x] CommunityPage: upgrade prompt card when community limit reached (dashed border, upgrade CTA)
-- [ ] CommunityPage: Re-order tab with drag-and-drop reordering
+- [ ] CommunityPage: Re-order tab with drag-and-drop reordering (backend ready, UI pending)
 - [x] CommunityPage: three-dot menu per hub (Edit, Enter Community, Delete)
-- [ ] Backend: community.listHubs procedure (list all hubs for org)
-- [ ] Backend: community.createHub procedure (create new hub with name, slug)
-- [ ] Backend: community.deleteHub procedure
-- [ ] Backend: community.reorderHubs procedure
+- [x] Backend: community.listHubs procedure (list all hubs for org)
+- [x] Backend: community.createHub procedure (create new hub with name, slug)
+- [x] Backend: community.deleteHub procedure
+- [x] Backend: community.reorderHubs procedure
 - [x] CommunityEditorPage: full management page at /products/community/:hubId with tabs
 - [x] CommunityEditorPage: Hub Settings tab (name, tagline, description, cover image, logo, primary color, enabled toggle)
 - [x] CommunityEditorPage: Spaces tab (list spaces, create/edit/delete/reorder spaces with cover images, access type, invite-only toggle)
@@ -1464,13 +1462,13 @@
 - [ ] Community learner view at /community/:hubId (spaces sidebar, posts feed, DMs panel)
 
 ## Course Pre-Start Page (Teachable-style)
-- [ ] Course overview page at /learn/:courseId/overview - Teachable-style pre-start page
-- [ ] Top section: course thumbnail image + "next lesson" card with lesson title, position (e.g. "1/3"), and "Start Lesson" / "Continue" button
-- [ ] Module/lesson outline: expandable sections showing module name, X/Y complete count, collapse/expand toggle
-- [ ] Each lesson row: circle progress icon (empty/half/full), lesson title, subtitle/type icon, Start/Continue/Review button
-- [ ] Right sidebar: completion percentage (e.g. "0% COMPLETE"), instructor bio card with avatar, name/credentials, bio text
-- [ ] Link from CoursePlayerPage header back to overview page
-- [ ] Progress data pulled from real course_progress / lesson_completions tables
+- [x] Course overview page at /learn/:courseId/overview - Teachable-style pre-start page
+- [x] Top section: course thumbnail image + "next lesson" card with lesson title, position (e.g. "1/3"), and "Start Lesson" / "Continue" button
+- [x] Module/lesson outline: expandable sections showing module name, X/Y complete count, collapse/expand toggle
+- [x] Each lesson row: circle progress icon (empty/half/full), lesson title, subtitle/type icon, Start/Continue/Review button
+- [x] Right sidebar: completion percentage (e.g. "0% COMPLETE"), instructor bio card with avatar, name/credentials, bio text
+- [x] Link from CoursePlayerPage header back to overview page
+- [x] Progress data pulled from real course_progress / lesson_completions tables
 
 ## AI Course Generation Wizard
 - [ ] "Create with AI" button on Courses page alongside "New Course"
@@ -1578,12 +1576,12 @@
 
 ## Bug: Custom Pages — No Edit After Creation (Apr 3, 2026)
 
-- [ ] Custom Pages list: add "Edit" button/link on each page row that navigates to the page builder for that page
-- [ ] Custom Pages list: add "Publish" / "Unpublish" toggle button on each row (currently only set at creation time)
-- [ ] Page builder: when opened for an existing page, load the page's current blocks and metadata
-- [ ] Page builder: Save button updates the existing page (not creates a new one)
-- [ ] Page builder: "Publish" button in top bar changes page status to published; "Unpublish" reverts to draft
-- [ ] Custom Pages list: show current status badge (Draft / Published) on each row
+- [x] Custom Pages list: add "Edit" button/link on each page row that navigates to the page builder for that page
+- [x] Custom Pages list: add "Publish" / "Unpublish" toggle button on each row (currently only set at creation time)
+- [x] Page builder: when opened for an existing page, load the page's current blocks and metadata
+- [x] Page builder: Save button updates the existing page (not creates a new one)
+- [x] Page builder: "Publish" button in top bar changes page status to published; "Unpublish" reverts to draft
+- [x] Custom Pages list: show current status badge (Draft / Published) on each row
 
 ## Bug/Feature: Platform Admin — Teachific Platform Org + Platform Forms (Apr 3, 2026)
 
@@ -1597,54 +1595,41 @@
 
 ## Bug/Feature: Platform Admin — Branding Theme Tab Missing (Apr 3, 2026)
 
-- [ ] Platform Admin: add "Branding" tab alongside Overview, Organizations, Users, Page Creator, Integrations, System Settings, Platform Forms
-- [ ] Branding tab: platform logo upload (replaces the "teachific" text lockup globally)
-- [ ] Branding tab: primary color picker (teal accent color used across buttons, links, badges)
-- [ ] Branding tab: secondary/accent color picker
-- [ ] Branding tab: font selector (heading font + body font from Google Fonts list)
-- [ ] Branding tab: favicon upload
-- [ ] Branding tab: platform name / tagline fields (used in email footers and page titles)
-- [ ] Branding tab: email header logo (can differ from site logo)
-- [ ] Branding tab: Save button persists all branding settings to org settings (platform org)
+- [x] Platform Admin: add "Branding" tab alongside Overview, Organizations, Users, Page Creator, Integrations, System Settings, Platform Forms
+- [x] Branding tab: platform logo upload (replaces the "teachific" text lockup globally)
+- [x] Branding tab: primary color picker (teal accent color used across buttons, links, badges)
+- [x] Branding tab: secondary/accent color picker
+- [x] Branding tab: font selector (heading font + body font from Google Fonts list)
+- [x] Branding tab: favicon upload
+- [x] Branding tab: platform name / tagline fields (used in email footers and page titles)
+- [x] Branding tab: email header logo (can differ from site logo)
+- [x] Branding tab: Save button persists all branding settings to org settings (platform org)
 - [x] Branding settings stored in the Teachific platform org record (or a dedicated platform_settings table)
-- [ ] Branding changes apply live to the sidebar logo, login screen, and embed player header
+- [ ] Branding changes apply live to the sidebar logo, login screen, and embed player header (deferred)
 
 ## Enhancement: Platform Admin — Full Organization Management (Apr 3, 2026)
 
-- [ ] Organizations list: show Super Admin name + email column for each org (the user who owns/registered it)
-- [ ] Organizations list: if org was registered via sign-up, auto-populate owner name and email from the users table
-- [ ] Edit Organization dialog: add "Super Admin" section showing owner name, email, and role — allow editing (change owner)
-- [ ] Create New Organization dialog: add "Super Admin Name" and "Super Admin Email" fields; on create, look up or create the user and assign as org owner/admin
-- [ ] Create New Organization: if email matches an existing user, assign them as owner; if not, create a pending invite
+- [x] Organizations list: show Super Admin name + email column for each org (the user who owns/registered it)
+- [x] Organizations list: if org was registered via sign-up, auto-populate owner name and email from the users table
+- [x] Edit Organization dialog: add "Super Admin" section showing owner name, email, and role — allow editing (change owner)
+- [x] Create New Organization dialog: add "Super Admin Name" and "Super Admin Email" fields; on create, look up or create the user and assign as org owner/admin
+- [x] Create New Organization: if email matches an existing user, assign them as owner; if not, create a pending invite
 - [ ] Organizations list: "Manage Members" button per row that opens a members panel (list current members, add/remove, change roles)
-- [ ] Organizations list: show member count column
-- [ ] Organizations list: "Teachific (Platform)" org always pinned at top, labeled with a "Platform" badge
-- [ ] Backend: admin.createOrg procedure — accepts name, slug, ownerName, ownerEmail; creates org + assigns owner
-- [ ] Backend: admin.getOrgWithOwner — returns org with joined owner user data
-
-## Enhancement: Platform Admin — Full Organization Management (Apr 3, 2026)
-
-- [ ] Organizations list: show Super Admin name + email column for each org (the user who owns/registered it)
-- [ ] Organizations list: if org was registered via sign-up, auto-populate owner name and email from the users table
-- [ ] Edit Organization dialog: add Super Admin section showing owner name, email, and role — allow editing (change owner)
-- [ ] Create New Organization dialog: add Super Admin Name and Super Admin Email fields; on create, look up or create the user and assign as org owner/admin
-- [ ] Create New Organization: if email matches an existing user, assign them as owner; if not, create a pending invite
-- [ ] Organizations list: Manage Members button per row that opens a members panel (list current members, add/remove, change roles)
-- [ ] Organizations list: show member count column
-- [ ] Organizations list: Teachific (Platform) org always pinned at top, labeled with a Platform badge
-- [ ] Backend: admin.createOrg procedure — accepts name, slug, ownerName, ownerEmail; creates org + assigns owner
-- [ ] Backend: admin.getOrgWithOwner — returns org with joined owner user data
+- [x] Organizations list: show member count column
+- [x] Organizations list: "Teachific (Platform)" org always pinned at top, labeled with a "Platform" badge
+- [x] Backend: admin.createOrg procedure — accepts name, slug, ownerName, ownerEmail; creates org + assigns owner
+- [x] Backend: admin.getOrgWithOwner — returns org with joined owner user data
 
 ## Bug: + New Course Button on Dashboard Goes to 404
 - [x] Dashboard "+ New Course" button links to /lms/courses/new which shows "course not found"
 - [x] Fix: button should open the course creation dialog (same as clicking "+ New Course" in the Courses list) or navigate to the courses page with the dialog pre-opened
 
 ## Enhancement: Certificate Template Creator — Visual Editor
-- [ ] Replace raw HTML textarea with a visual certificate template picker (3-4 base designs)
-- [ ] Base templates: Classic, Modern, Elegant, Minimal — each pre-styled with border, colors, fonts
-- [ ] Rich field editor: user enters title, recipient name placeholder, body text, logo/image upload, signature image, date format
-- [ ] Live preview panel showing rendered certificate with merge tags replaced by sample data
-- [ ] Keep advanced "Edit HTML" toggle for power users who want raw access
+- [x] Replace raw HTML textarea with a visual certificate template picker (3-4 base designs)
+- [x] Base templates: Classic, Modern, Elegant, Minimal — each pre-styled with border, colors, fonts
+- [x] Rich field editor: user enters title, recipient name placeholder, body text, logo/image upload, signature image, date format
+- [x] Live preview panel showing rendered certificate with merge tags replaced by sample data
+- [x] Keep advanced "Edit HTML" toggle for power users who want raw access
 
 ## Bug: Storefront/School Pages — Wrong Sidebar Shown
 - [x] Live client-side school/org pages (e.g. /school/all-about-ultrasound) should NOT show the org admin DashboardLayout sidebar

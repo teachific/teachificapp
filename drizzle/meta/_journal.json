@@ -281,6 +281,13 @@
       "when": 1775196879442,
       "tag": "0039_stale_clint_barton",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "5",
+      "when": 1775199264384,
+      "tag": "0040_careless_molten_man",
+      "breakpoints": true
     }
   ]
 }

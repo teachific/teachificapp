@@ -302,6 +302,7 @@ function OrgsTab() {
               <TableHead className="text-slate-700">Super Admin</TableHead>
               <TableHead className="text-slate-700">Slug</TableHead>
               <TableHead className="text-slate-700">Domain</TableHead>
+              <TableHead className="text-slate-700">Members</TableHead>
               <TableHead className="text-slate-700">Plan</TableHead>
               <TableHead className="text-slate-700 w-12"></TableHead>
             </TableRow>
@@ -325,6 +326,10 @@ function OrgsTab() {
                 </TableCell>
                 <TableCell className="text-slate-700 font-mono text-xs">{org.slug}</TableCell>
                 <TableCell className="text-slate-700 text-xs">{(org as any).customDomain || "—"}</TableCell>
+                <TableCell className="text-slate-700 text-xs">
+                  <span className="font-semibold text-teal-600">{(org as any).memberCount ?? 0}</span>
+                  <span className="text-slate-400 ml-1">members</span>
+                </TableCell>
                 <TableCell>
                   <PlanBadge plan={(org.plan as string) ?? "free"} />
                 </TableCell>

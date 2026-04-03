@@ -41,6 +41,8 @@ import FormAnalyticsPage from "./pages/lms/FormAnalyticsPage";
 import FormPlayerPage from "./pages/FormPlayerPage";
 import CourseSalesPage from "./pages/lms/CourseSalesPage";
 import CoursePlayerPage from "./pages/lms/CoursePlayerPage";
+import CourseOverviewPage from "./pages/lms/CourseOverviewPage";
+import OrgPoliciesPage from "./pages/OrgPoliciesPage";
 import CustomPagesPage from "./pages/admin/CustomPagesPage";
 import DigitalProductsPage from "./pages/admin/DigitalProductsPage";
 import DigitalProductEditorPage from "./pages/admin/DigitalProductEditorPage";
@@ -116,6 +118,7 @@ function BareRouter() {
   return (
     <Switch>
       <Route path="/embed/:id" component={EmbedPage} />
+      <Route path="/learn/:courseId/overview" component={CourseOverviewPage} />
       <Route path="/learn/:courseId" component={CoursePlayerPage} />
       <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
       <Route path="/p/:slug" component={PublicPagePage} />
@@ -130,6 +133,7 @@ function BareRouter() {
       {/* Member portal routes — require auth, show member sidebar */}
       <Route path="/school/:orgSlug/my-courses" component={SchoolMyCoursesPage} />
       <Route path="/school/my-courses" component={SchoolMyCoursesPage} />
+      <Route path="/policies/:orgSlug" component={OrgPoliciesPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />

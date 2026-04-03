@@ -196,13 +196,22 @@ export const formsRouter = router({
       requireLogin: z.boolean().optional(),
       allowMultipleSubmissions: z.boolean().optional(),
       primaryColor: z.string().optional().nullable(),
+      slug: z.string().min(1).max(200).regex(/^[a-z0-9-]+$/, "Slug may only contain lowercase letters, numbers, and hyphens").optional(),
     }))
     .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      const { id, notifyEmails, ...rest } = input;
+      const { id, notifyEmails, slug, ...rest } = input;
+      // Verify slug uniqueness if changing it
+      if (slug) {
+        const existing = await db.select({ id: forms.id }).from(forms).where(eq(forms.slug, slug)).limit(1);
+        if (existing.length > 0 && existing[0].id !== id) {
+          throw new TRPCError({ code: "CONFLICT", message: "This URL slug is already in use by another form." });
+        }
+      }
       await db.update(forms).set({
         ...rest,
+        ...(slug ? { slug } : {}),
         notifyEmails: notifyEmails ? JSON.stringify(notifyEmails) : undefined,
         updatedAt: new Date(),
       }).where(eq(forms.id, id));

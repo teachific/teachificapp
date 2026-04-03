@@ -78,7 +78,7 @@ export const communityRouter = router({
         .select()
         .from(communityHubs)
         .where(eq(communityHubs.orgId, input.orgId))
-        .orderBy(asc(communityHubs.id));
+        .orderBy(asc(communityHubs.sortOrder), asc(communityHubs.id));
     }),
 
   createHub: protectedProcedure
@@ -118,6 +118,18 @@ export const communityRouter = router({
     .input(z.object({ hubId: z.number() }))
     .mutation(async ({ input }) => {
       await db.delete(communityHubs).where(eq(communityHubs.id, input.hubId));
+      return { success: true };
+    }),
+
+  reorderHubs: protectedProcedure
+    .input(z.object({ orderedIds: z.array(z.number()) }))
+    .mutation(async ({ input }) => {
+      for (let i = 0; i < input.orderedIds.length; i++) {
+        await db
+          .update(communityHubs)
+          .set({ sortOrder: i })
+          .where(eq(communityHubs.id, input.orderedIds[i]));
+      }
       return { success: true };
     }),
 

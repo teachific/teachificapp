@@ -63,6 +63,7 @@ import {
   Calendar,
   Minus,
   MessageSquare,
+  Columns,
   Loader2,
   Globe,
   Lock,
@@ -97,7 +98,8 @@ type FieldType =
   | "number"
   | "date"
   | "section_break"
-  | "statement";
+  | "statement"
+  | "page_break";
 
 interface FieldOption {
   value: string;
@@ -143,6 +145,7 @@ const FIELD_TYPES: Array<{ type: FieldType; label: string; icon: React.ReactNode
   { type: "checkbox", label: "Checkboxes", icon: <CheckSquare className="h-4 w-4" />, group: "Choice" },
   { type: "section_break", label: "Section Break", icon: <Minus className="h-4 w-4" />, group: "Layout" },
   { type: "statement", label: "Statement", icon: <MessageSquare className="h-4 w-4" />, group: "Layout" },
+  { type: "page_break", label: "Page Break", icon: <Columns className="h-4 w-4" />, group: "Layout" },
 ];
 
 const CHOICE_TYPES: FieldType[] = ["dropdown", "radio", "checkbox"];
@@ -263,7 +266,7 @@ function FieldEditor({
         />
       </div>
 
-      {field.type !== "section_break" && field.type !== "statement" && (
+      {field.type !== "section_break" && field.type !== "statement" && field.type !== "page_break" && (
         <div className="space-y-1.5">
           <Label>Placeholder</Label>
           <Input
@@ -1017,7 +1020,7 @@ function MemberVarsPanel({
   onFieldChange: (id: string | number, patch: Partial<FormField>) => void;
 }) {
   const inputFields = fields.filter(
-    (f) => !["section_break", "statement"].includes(f.type)
+    (f) => !["section_break", "statement", "page_break"].includes(f.type)
   );
 
   return (
@@ -1268,7 +1271,7 @@ function FormResultsTable({ formId, fields }: { formId: number; fields: FormFiel
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const submissions = filtered.slice((page - 1) * pageSize, page * pageSize);
-  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+  const inputFields = fields.filter((f) => !["section_break", "statement", "page_break"].includes(f.type));
 
   const exportCsv = () => {
     const headers = ["#", "Submitted At", ...inputFields.map((f) => f.label || f.type)];
@@ -1437,7 +1440,7 @@ function FormFiltersManager({ formId, fields }: { formId: number; fields: FormFi
   const [newField, setNewField] = useState("");
   const [newOp, setNewOp] = useState("equals");
   const [newVal, setNewVal] = useState("");
-  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+  const inputFields = fields.filter((f) => !["section_break", "statement", "page_break"].includes(f.type));
 
   const addFilter = () => {
     if (!newName.trim() || !newField) return;
@@ -1489,7 +1492,7 @@ function FormViewsManager({ formId, fields }: { formId: number; fields: FormFiel
   const deleteMutation = trpc.forms.views.delete.useMutation({ onSuccess: () => { refetch(); toast.success("View deleted"); } });
   const [newName, setNewName] = useState("");
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
-  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+  const inputFields = fields.filter((f) => !["section_break", "statement", "page_break"].includes(f.type));
 
   const toggleField = (id: string) => setSelectedFields((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
@@ -1537,7 +1540,7 @@ function FormLabelsManager({ formId, fields }: { formId: number; fields: FormFie
   const { data: labels = [], refetch } = trpc.forms.labels.list.useQuery({ formId }, { enabled: !!formId });
   const upsertMutation = trpc.forms.labels.save.useMutation({ onSuccess: () => { refetch(); toast.success("Labels saved"); } });
   const [localLabels, setLocalLabels] = useState<Record<string, string>>({});
-  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+  const inputFields = fields.filter((f) => !["section_break", "statement", "page_break"].includes(f.type));
 
   useEffect(() => {
     const map: Record<string, string> = {};
@@ -1579,7 +1582,7 @@ function FormDocsManager({ formId, fields }: { formId: number; fields: FormField
   const deleteMutation = trpc.forms.docs.delete.useMutation({ onSuccess: () => { refetch(); toast.success("Doc deleted"); } });
   const [newName, setNewName] = useState("");
   const [newTemplate, setNewTemplate] = useState("");
-  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+  const inputFields = fields.filter((f) =>!["section_break", "statement", "page_break"].includes(f.type));
 
   return (
     <div className="space-y-4">
@@ -1784,7 +1787,7 @@ function FormImportPanel({ formId, fields }: { formId: number; fields: FormField
     onSuccess: (d: any) => toast.success(`Imported ${d.count ?? 0} responses`),
     onError: (e: any) => toast.error(e.message),
   });
-  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+  const inputFields = fields.filter((f) => !["section_break", "statement", "page_break"].includes(f.type));
 
   const handleImport = () => {
     if (!csvText.trim()) return;
@@ -2325,7 +2328,7 @@ export default function FormBuilderPage() {
                       placeholder="My Form"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                   <div className="space-y-1.5">
                     <Label>Description</Label>
                     <Textarea
                       value={formSettings.description ?? ""}
@@ -2334,9 +2337,25 @@ export default function FormBuilderPage() {
                       className="min-h-[80px]"
                     />
                   </div>
+                  <div className="space-y-1.5">
+                    <Label>Custom URL Slug</Label>
+                    <p className="text-xs text-muted-foreground">Customize the public URL for this form. Only lowercase letters, numbers, and hyphens.</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground shrink-0">/f/</span>
+                      <Input
+                        value={formSettings.slug ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+                          updateFormSettings({ slug: val });
+                        }}
+                        placeholder="my-form-slug"
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Current URL: <span className="font-mono text-foreground">{window.location.origin}/f/{formSettings.slug}</span></p>
+                  </div>
                 </div>
               )}
-
               {settingsSubTab === "open-close" && formSettings && (
                 <div className="space-y-5">
                   <div>

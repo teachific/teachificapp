@@ -194,6 +194,7 @@ export async function getAllOrgs() {
       subStatus: orgSubscriptions.status,
       ownerName: users.name,
       ownerEmail: users.email,
+      memberCount: sql<number>`(SELECT COUNT(*) FROM org_members WHERE org_members.org_id = ${organizations.id})`,
     })
     .from(organizations)
     .leftJoin(orgSubscriptions, eq(orgSubscriptions.orgId, organizations.id))
