@@ -192,9 +192,12 @@ export async function getAllOrgs() {
       updatedAt: organizations.updatedAt,
       plan: orgSubscriptions.plan,
       subStatus: orgSubscriptions.status,
+      ownerName: users.name,
+      ownerEmail: users.email,
     })
     .from(organizations)
     .leftJoin(orgSubscriptions, eq(orgSubscriptions.orgId, organizations.id))
+    .leftJoin(users, eq(users.id, organizations.ownerId))
     .orderBy(desc(organizations.createdAt));
   return rows;
 }

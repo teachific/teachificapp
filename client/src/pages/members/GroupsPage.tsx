@@ -2,24 +2,36 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Users, Plus, MoreVertical, Edit, Trash2, UserPlus, GraduationCap } from "lucide-react";
+import {
+  Users, Plus, MoreVertical, Edit, Trash2, UserPlus, GraduationCap,
+  Mail, Phone, Briefcase, Package, Send, ChevronDown, ChevronUp,
+  UserCheck, AlertCircle
+} from "lucide-react";
 
 export default function GroupsPage() {
-  const { orgId, ready } = useOrgScope();
+  const { orgId, ready, showOrgSelector, orgs, setSelectedOrgId } = useOrgScope();
   const utils = trpc.useUtils();
-  const { data: groups, isLoading } = trpc.lms.groups.list.useQuery({ orgId: orgId! }, { enabled: ready && !!orgId });
-  const { data: courses } = trpc.lms.courses.list.useQuery({ orgId: orgId! }, { enabled: ready && !!orgId });
+  const { data: groups, isLoading } = trpc.lms.groups.list.useQuery(
+    { orgId: orgId! }, { enabled: ready && !!orgId }
+  );
+  const { data: courses } = trpc.lms.courses.list.useQuery(
+    { orgId: orgId! }, { enabled: ready && !!orgId }
+  );
 
   const createMut = trpc.lms.groups.create.useMutation({
     onSuccess: () => { utils.lms.groups.list.invalidate(); toast.success("Group created"); setCreateOpen(false); resetForm(); },
@@ -37,12 +49,14 @@ export default function GroupsPage() {
     onSuccess: () => { utils.lms.groups.list.invalidate(); toast.success("Member added"); setAddMemberOpen(false); setMemberEmail(""); setMemberName(""); },
     onError: (e) => toast.error(e.message),
   });
+  const removeMemberMut = trpc.lms.groups.removeMember.useMutation({
+    onSuccess: () => { utils.lms.groups.list.invalidate(); toast.success("Member removed"); },
+    onError: (e) => toast.error(e.message),
+  });
   const bulkEnrollMut = trpc.lms.groups.bulkEnroll.useMutation({
     onSuccess: (res) => {
       toast.success(`Enrolled ${res.enrolled} member${res.enrolled !== 1 ? "s" : ""}${res.skipped > 0 ? ` (${res.skipped} already enrolled)` : ""}`);
-      setBulkEnrollOpen(false);
-      setBulkCourseId("");
-      setBulkEnrollGroupId(null);
+      setBulkEnrollOpen(false); setBulkCourseId(""); setBulkEnrollGroupId(null);
     },
     onError: (e) => toast.error(e.message),
   });
@@ -51,160 +65,395 @@ export default function GroupsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [bulkEnrollOpen, setBulkEnrollOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [addMemberGroupId, setAddMemberGroupId] = useState<number | null>(null);
   const [bulkEnrollGroupId, setBulkEnrollGroupId] = useState<number | null>(null);
+  const [viewMembersGroup, setViewMembersGroup] = useState<any | null>(null);
   const [bulkCourseId, setBulkCourseId] = useState("");
-  const [name, setName] = useState(""); const [managerName, setManagerName] = useState(""); const [seats, setSeats] = useState("10"); const [notes, setNotes] = useState("");
-  const [memberEmail, setMemberEmail] = useState(""); const [memberName, setMemberName] = useState("");
 
-  const resetForm = () => { setName(""); setManagerName(""); setSeats("10"); setNotes(""); };
-  const handleCreate = () => {
-    if (!name.trim()) { toast.error("Name is required"); return; }
-    createMut.mutate({ orgId: orgId!, name, managerName: managerName || undefined, seats: parseInt(seats) || 10, notes: notes || undefined });
+  const [name, setName] = useState("");
+  const [managerName, setManagerName] = useState("");
+  const [managerTitle, setManagerTitle] = useState("");
+  const [managerEmail, setManagerEmail] = useState("");
+  const [managerPhone, setManagerPhone] = useState("");
+  const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
+  const [seats, setSeats] = useState("10");
+  const [notes, setNotes] = useState("");
+  const [sendWelcomeEmail, setSendWelcomeEmail] = useState(false);
+  const [memberEmail, setMemberEmail] = useState("");
+  const [memberName, setMemberName] = useState("");
+  const [showProductPicker, setShowProductPicker] = useState(false);
+
+  const resetForm = () => {
+    setName(""); setManagerName(""); setManagerTitle(""); setManagerEmail("");
+    setManagerPhone(""); setSelectedProductIds([]); setSeats("10"); setNotes("");
+    setSendWelcomeEmail(false); setShowProductPicker(false);
   };
-  const openEdit = (g: any) => { setEditId(g.id); setName(g.name); setManagerName(g.managerName ?? ""); setSeats(String(g.seats)); setNotes(g.notes ?? ""); setEditOpen(true); };
+
+  const handleCreate = () => {
+    if (!name.trim()) { toast.error("Group name is required"); return; }
+    if (sendWelcomeEmail && !managerEmail.trim()) { toast.error("Manager email required to send welcome email"); return; }
+    createMut.mutate({
+      orgId: orgId!, name,
+      managerName: managerName || undefined,
+      managerTitle: managerTitle || undefined,
+      managerEmail: managerEmail || undefined,
+      managerPhone: managerPhone || undefined,
+      productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
+      seats: parseInt(seats) || 10,
+      notes: notes || undefined,
+      sendWelcomeEmail,
+    });
+  };
+
+  const openEdit = (g: any) => {
+    setEditId(g.id); setName(g.name); setManagerName(g.managerName ?? "");
+    setManagerTitle(g.managerTitle ?? ""); setManagerEmail(g.managerEmail ?? "");
+    setManagerPhone(g.managerPhone ?? "");
+    let pids: number[] = [];
+    try { if (g.productIds) pids = JSON.parse(g.productIds); } catch {}
+    setSelectedProductIds(pids);
+    setSeats(String(g.seats)); setNotes(g.notes ?? ""); setSendWelcomeEmail(false);
+    setShowProductPicker(false); setEditOpen(true);
+  };
+
   const handleUpdate = () => {
     if (!editId || !name.trim()) return;
-    updateMut.mutate({ id: editId, name, managerName: managerName || undefined, seats: parseInt(seats) || 10, notes: notes || undefined });
+    if (sendWelcomeEmail && !managerEmail.trim()) { toast.error("Manager email required to send welcome email"); return; }
+    updateMut.mutate({
+      id: editId, name,
+      managerName: managerName || undefined,
+      managerTitle: managerTitle || undefined,
+      managerEmail: managerEmail || null,
+      managerPhone: managerPhone || null,
+      productIds: selectedProductIds.length > 0 ? selectedProductIds : null,
+      seats: parseInt(seats) || 10,
+      notes: notes || undefined,
+      sendWelcomeEmail,
+    });
   };
+
+  const toggleProduct = (id: number) =>
+    setSelectedProductIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
   const totalSeats = groups?.reduce((s, g) => s + g.seats, 0) ?? 0;
   const usedSeats = groups?.reduce((s, g) => s + g.usedSeats, 0) ?? 0;
+
+  const FormFields = () => (
+    <div className="space-y-5 py-2 pr-2">
+      <div className="space-y-2">
+        <Label>Group Name <span className="text-destructive">*</span></Label>
+        <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Q1 Cohort - Acme Corp" />
+      </div>
+      <div className="space-y-2">
+        <Label>Number of Seats</Label>
+        <Input type="number" min="1" value={seats} onChange={e => setSeats(e.target.value)} />
+      </div>
+      <Separator />
+      <div>
+        <p className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+          <UserCheck className="h-4 w-4 text-primary" />Group Manager
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Full Name</Label>
+            <Input value={managerName} onChange={e => setManagerName(e.target.value)} placeholder="Jane Smith" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs flex items-center gap-1"><Briefcase className="h-3 w-3" />Title / Role</Label>
+            <Input value={managerTitle} onChange={e => setManagerTitle(e.target.value)} placeholder="Training Manager" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs flex items-center gap-1"><Mail className="h-3 w-3" />Email</Label>
+            <Input type="email" value={managerEmail} onChange={e => setManagerEmail(e.target.value)} placeholder="jane@company.com" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" />Phone</Label>
+            <Input value={managerPhone} onChange={e => setManagerPhone(e.target.value)} placeholder="+1 555 000 0000" />
+          </div>
+        </div>
+        <div className="flex items-center justify-between mt-3 p-3 rounded-lg bg-muted/50 border">
+          <div>
+            <p className="text-sm font-medium flex items-center gap-1.5"><Send className="h-3.5 w-3.5 text-primary" />Send Welcome Email</p>
+            <p className="text-xs text-muted-foreground">Notify the manager of their assignment</p>
+          </div>
+          <Switch checked={sendWelcomeEmail} onCheckedChange={setSendWelcomeEmail} />
+        </div>
+        {sendWelcomeEmail && !managerEmail && (
+          <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
+            <AlertCircle className="h-3 w-3" />Manager email required to send welcome email
+          </p>
+        )}
+      </div>
+      <Separator />
+      <div>
+        <button type="button" className="flex items-center justify-between w-full text-sm font-semibold" onClick={() => setShowProductPicker(v => !v)}>
+          <span className="flex items-center gap-1.5">
+            <Package className="h-4 w-4 text-primary" />Assign Courses / Products
+            {selectedProductIds.length > 0 && <Badge variant="secondary" className="text-xs">{selectedProductIds.length}</Badge>}
+          </span>
+          {showProductPicker ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+        {showProductPicker && (
+          <div className="mt-2 border rounded-lg divide-y max-h-48 overflow-y-auto">
+            {!(courses as any[])?.length ? (
+              <p className="text-xs text-muted-foreground p-3">No courses available yet.</p>
+            ) : (courses as any[]).map((c: any) => (
+              <label key={c.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 cursor-pointer">
+                <Checkbox checked={selectedProductIds.includes(c.id)} onCheckedChange={() => toggleProduct(c.id)} />
+                <span className="text-sm">{c.title}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+      <Separator />
+      <div className="space-y-2">
+        <Label>Internal Notes</Label>
+        <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes about this group..." rows={2} />
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Users className="h-6 w-6 text-primary" />Groups</h1><p className="text-muted-foreground mt-0.5">Manage group seat registrations and bulk course enrollments</p></div>
-        <Button className="gap-2" onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4" />New Group</Button>
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Users className="h-6 w-6 text-primary" />Groups</h1>
+          <p className="text-muted-foreground mt-0.5">Manage group seat registrations and bulk course enrollments</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {showOrgSelector && (
+            <Select value={String(orgId ?? "")} onValueChange={(v) => setSelectedOrgId(v ? Number(v) : null)}>
+              <SelectTrigger className="w-56"><SelectValue placeholder="Select organization..." /></SelectTrigger>
+              <SelectContent>{(orgs as any[]).map((o: any) => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
+
       <div className="grid grid-cols-3 gap-4">
-        {[{ l: "Total Groups", v: groups?.length ?? 0 }, { l: "Total Seats", v: totalSeats }, { l: "Seats Used", v: usedSeats }].map(s => (
-          <Card key={s.l}><CardContent className="pt-6"><p className="text-sm text-muted-foreground">{s.l}</p><p className="text-3xl font-bold">{s.v}</p></CardContent></Card>
-        ))}
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Total Groups</p><p className="text-3xl font-bold">{groups?.length ?? 0}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><p className="text-sm text-muted-foreground">Total Seats</p><p className="text-3xl font-bold">{totalSeats}</p></CardContent></Card>
+        <Card><CardContent className="pt-4">
+          <p className="text-sm text-muted-foreground">Seats Used</p>
+          <p className="text-3xl font-bold">{usedSeats}</p>
+          {totalSeats > 0 && <Progress value={(usedSeats / totalSeats) * 100} className="mt-2 h-1.5" />}
+        </CardContent></Card>
       </div>
-      {isLoading ? <div className="grid gap-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}</div>
-        : !groups?.length ? (
-          <Card><CardContent className="flex flex-col items-center justify-center py-16 gap-3">
-            <Users className="h-12 w-12 text-muted-foreground/40" />
-            <p className="text-muted-foreground">No groups yet. Create a group to manage seat-based enrollments.</p>
-            <Button onClick={() => { resetForm(); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Create Group</Button>
-          </CardContent></Card>
-        ) : (
-          <div className="grid gap-4">
-            {groups.map(g => (
-              <Card key={g.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1"><CardTitle className="text-base">{g.name}</CardTitle>{g.managerName && <p className="text-xs text-muted-foreground mt-0.5">Manager: {g.managerName}</p>}</div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="gap-1" onClick={() => { setAddMemberGroupId(g.id); setAddMemberOpen(true); }}>
-                        <UserPlus className="h-3.5 w-3.5" />Add Member
+
+      {isLoading ? (
+        <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-24 w-full" />)}</div>
+      ) : !(groups as any[])?.length ? (
+        <Card><CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+          <Users className="h-10 w-10 text-muted-foreground/40" />
+          <p className="text-muted-foreground">No groups yet. Create your first group to get started.</p>
+          <Button onClick={() => { resetForm(); setCreateOpen(true); }}>Create Group</Button>
+        </CardContent></Card>
+      ) : (
+        <div className="space-y-3">
+          {(groups as any[]).map((g: any) => (
+            <Card key={g.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold text-base">{g.name}</h3>
+                      {g.welcomeEmailSent && (
+                        <Badge variant="outline" className="text-xs gap-1 text-green-600 border-green-200">
+                          <Mail className="h-3 w-3" />Welcome sent
+                        </Badge>
+                      )}
+                    </div>
+                    {(g.managerName || g.managerEmail) && (
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        {g.managerName && (
+                          <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <UserCheck className="h-3.5 w-3.5" />{g.managerName}
+                            {g.managerTitle && <span className="text-xs"> - {g.managerTitle}</span>}
+                          </span>
+                        )}
+                        {g.managerEmail && (
+                          <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Mail className="h-3.5 w-3.5" />{g.managerEmail}
+                          </span>
+                        )}
+                        {g.managerPhone && (
+                          <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Phone className="h-3.5 w-3.5" />{g.managerPhone}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-sm text-muted-foreground">{g.usedSeats}/{g.seats} seats used</span>
+                      <Progress value={g.seats > 0 ? (g.usedSeats / g.seats) * 100 : 0} className="h-1.5 w-24" />
+                      {g.usedSeats >= g.seats && <Badge variant="destructive" className="text-xs">Full</Badge>}
+                    </div>
+                    {(() => {
+                      try {
+                        if (!g.productIds) return null;
+                        const ids: number[] = JSON.parse(g.productIds);
+                        if (!ids.length) return null;
+                        const names = ids.map((id: number) => (courses as any[])?.find((c: any) => c.id === id)?.title).filter(Boolean);
+                        return names.length > 0 ? (
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                            {names.map((n: string, i: number) => <Badge key={i} variant="secondary" className="text-xs">{n}</Badge>)}
+                          </div>
+                        ) : null;
+                      } catch { return null; }
+                    })()}
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(g)}><Edit className="h-4 w-4 mr-2" />Edit Group</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setViewMembersGroup(g); setMembersOpen(true); }}>
+                        <Users className="h-4 w-4 mr-2" />View Members ({g.usedSeats})
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setAddMemberGroupId(g.id); setAddMemberOpen(true); }}>
+                        <UserPlus className="h-4 w-4 mr-2" />Add Member
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setBulkEnrollGroupId(g.id); setBulkEnrollOpen(true); }}>
+                        <GraduationCap className="h-4 w-4 mr-2" />Bulk Enroll
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirmId(g.id)}>
+                        <Trash2 className="h-4 w-4 mr-2" />Delete Group
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" />Create New Group</DialogTitle>
+            <DialogDescription>Set up a group with seat allocations and assign a manager.</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[65vh] pr-1"><FormFields /></ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={createMut.isPending}>{createMut.isPending ? "Creating..." : "Create Group"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Edit className="h-5 w-5 text-primary" />Edit Group</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[65vh] pr-1"><FormFields /></ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdate} disabled={updateMut.isPending}>{updateMut.isPending ? "Saving..." : "Save Changes"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={membersOpen} onOpenChange={setMembersOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" />{viewMembersGroup?.name} - Members</DialogTitle>
+            <DialogDescription>{viewMembersGroup?.usedSeats ?? 0} of {viewMembersGroup?.seats ?? 0} seats used</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-80">
+            {!viewMembersGroup?.members?.length ? (
+              <div className="flex flex-col items-center py-8 gap-2 text-muted-foreground">
+                <Users className="h-8 w-8 opacity-30" /><p className="text-sm">No members yet</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {viewMembersGroup.members.map((m: any) => (
+                  <div key={m.id} className="flex items-center justify-between py-2.5 px-1">
+                    <div>
+                      <p className="text-sm font-medium">{m.name || m.email}</p>
+                      {m.name && <p className="text-xs text-muted-foreground">{m.email}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={m.status === "active" ? "default" : "secondary"} className="text-xs">{m.status}</Badge>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={() => removeMemberMut.mutate({ memberId: m.id })} disabled={removeMemberMut.isPending}>
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="outline" size="sm" className="gap-1" onClick={() => { setBulkEnrollGroupId(g.id); setBulkEnrollOpen(true); }}>
-                        <GraduationCap className="h-3.5 w-3.5" />Enroll in Course
-                      </Button>
-                      <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(g)}><Edit className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => { if (confirm("Delete this group?")) deleteMut.mutate({ id: g.id }); }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between text-sm mb-2"><span className="text-muted-foreground">Seat usage</span><span className="font-medium">{g.usedSeats} / {g.seats} seats</span></div>
-                  <Progress value={g.seats > 0 ? (g.usedSeats / g.seats) * 100 : 0} className="h-2" />
-                  <div className="flex items-center justify-between mt-3">
-                    <Badge variant={g.usedSeats >= g.seats ? "destructive" : "secondary"} className="text-xs">{g.usedSeats >= g.seats ? "Full" : `${g.seats - g.usedSeats} seats available`}</Badge>
-                    {g.expiresAt && <span className="text-xs text-muted-foreground">Expires {new Date(g.expiresAt).toLocaleDateString()}</span>}
-                  </div>
-                  {g.notes && <p className="text-xs text-muted-foreground mt-2 italic">{g.notes}</p>}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-      {/* Create Group Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent><DialogHeader><DialogTitle>New Group</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Group Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Echo Fundamentals — Batch 1" /></div>
-            <div className="space-y-2"><Label>Group Manager</Label><Input value={managerName} onChange={e => setManagerName(e.target.value)} placeholder="HR Department" /></div>
-            <div className="space-y-2"><Label>Number of Seats</Label><Input type="number" min="1" value={seats} onChange={e => setSeats(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes" rows={2} /></div>
-          </div>
-          <DialogFooter><Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button><Button onClick={handleCreate} disabled={createMut.isPending}>{createMut.isPending ? "Creating..." : "Create Group"}</Button></DialogFooter>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { if (viewMembersGroup) { setAddMemberGroupId(viewMembersGroup.id); setMembersOpen(false); setAddMemberOpen(true); } }}>
+              <UserPlus className="h-4 w-4 mr-2" />Add Member
+            </Button>
+            <Button onClick={() => setMembersOpen(false)}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Group Dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent><DialogHeader><DialogTitle>Edit Group</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Group Name *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Group Manager</Label><Input value={managerName} onChange={e => setManagerName(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Number of Seats</Label><Input type="number" min="1" value={seats} onChange={e => setSeats(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
-          </div>
-          <DialogFooter><Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button><Button onClick={handleUpdate} disabled={updateMut.isPending}>{updateMut.isPending ? "Saving..." : "Save Changes"}</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Member Dialog */}
       <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
-        <DialogContent><DialogHeader><DialogTitle>Add Member to Group</DialogTitle></DialogHeader>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add Member to Group</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Email *</Label><Input type="email" value={memberEmail} onChange={e => setMemberEmail(e.target.value)} placeholder="member@example.com" /></div>
+            <div className="space-y-2"><Label>Email <span className="text-destructive">*</span></Label><Input type="email" value={memberEmail} onChange={e => setMemberEmail(e.target.value)} placeholder="member@example.com" /></div>
             <div className="space-y-2"><Label>Name</Label><Input value={memberName} onChange={e => setMemberName(e.target.value)} placeholder="Optional" /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setAddMemberOpen(false)}>Cancel</Button><Button onClick={() => { if (!memberEmail.trim() || !addMemberGroupId) return; addMemberMut.mutate({ groupId: addMemberGroupId, email: memberEmail, name: memberName || undefined }); }} disabled={addMemberMut.isPending}>{addMemberMut.isPending ? "Adding..." : "Add Member"}</Button></DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddMemberOpen(false)}>Cancel</Button>
+            <Button onClick={() => { if (!memberEmail.trim() || !addMemberGroupId) return; addMemberMut.mutate({ groupId: addMemberGroupId, email: memberEmail, name: memberName || undefined }); }} disabled={addMemberMut.isPending}>
+              {addMemberMut.isPending ? "Adding..." : "Add Member"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Enroll Dialog */}
       <Dialog open={bulkEnrollOpen} onOpenChange={(open) => { setBulkEnrollOpen(open); if (!open) { setBulkCourseId(""); setBulkEnrollGroupId(null); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <GraduationCap className="h-5 w-5" />
-              Bulk Enroll Group in Course
-            </DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5" />Bulk Enroll Group in Course</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">
-              All members of this group will be enrolled in the selected course. Members who are already enrolled will be skipped automatically.
-            </p>
+            <p className="text-sm text-muted-foreground">All active members will be enrolled. Already-enrolled members are skipped automatically.</p>
             <div className="space-y-2">
-              <Label>Select Course *</Label>
+              <Label>Select Course <span className="text-destructive">*</span></Label>
               <Select value={bulkCourseId} onValueChange={setBulkCourseId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a course..." />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Choose a course..." /></SelectTrigger>
                 <SelectContent>
-                  {(courses || []).map((c: any) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.title}
-                    </SelectItem>
-                  ))}
+                  {((courses as any[]) || []).map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.title}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {!courses?.length && (
-                <p className="text-xs text-muted-foreground">No courses available. Create a course first.</p>
-              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkEnrollOpen(false)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                if (!bulkEnrollGroupId || !bulkCourseId) { toast.error("Please select a course"); return; }
-                bulkEnrollMut.mutate({ groupId: bulkEnrollGroupId, courseId: parseInt(bulkCourseId) });
-              }}
-              disabled={bulkEnrollMut.isPending || !bulkCourseId}
-            >
+            <Button onClick={() => { if (!bulkEnrollGroupId || !bulkCourseId) { toast.error("Please select a course"); return; } bulkEnrollMut.mutate({ groupId: bulkEnrollGroupId, courseId: parseInt(bulkCourseId) }); }} disabled={bulkEnrollMut.isPending || !bulkCourseId}>
               {bulkEnrollMut.isPending ? "Enrolling..." : "Enroll All Members"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Group?</DialogTitle>
+            <DialogDescription>This will permanently delete the group and all seat assignments. This cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => { if (deleteConfirmId) { deleteMut.mutate({ id: deleteConfirmId }); setDeleteConfirmId(null); } }} disabled={deleteMut.isPending}>
+              {deleteMut.isPending ? "Deleting..." : "Delete Group"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -306,7 +306,7 @@ export default function QuizBuilderPage() {
             <div>
               <Label>Topic or Subject</Label>
               <Textarea
-                placeholder="e.g. Cardiac anatomy and physiology"
+                placeholder="e.g. Workplace Safety Fundamentals"
                 value={aiTopic}
                 onChange={(e) => setAiTopic(e.target.value)}
                 className="mt-1.5 resize-none"

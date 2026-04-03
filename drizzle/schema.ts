@@ -57,6 +57,8 @@ export const organizations = mysqlTable("organizations", {
   termsOfService: text("termsOfService"),
   privacyPolicy: text("privacyPolicy"),
   requireTermsAgreement: boolean("requireTermsAgreement").default(false).notNull(),
+  // Footer navigation links (JSON array of {label, url})
+  footerLinks: text("footerLinks"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -512,6 +514,12 @@ export const courses = mysqlTable("courses", {
   copiedFromId: int("copiedFromId"),
   // Notification overrides at course level (JSON): { enrollment, completion, quizResult, reminder } — null = inherit from org
   notificationOverrides: text("notificationOverrides"),
+  // Pre-start page / course overview fields
+  whatYouLearn: text("whatYouLearn"), // JSON array of strings
+  requirements: text("requirements"), // JSON array of strings
+  targetAudience: text("targetAudience"), // JSON array of strings
+  instructorBio: text("instructorBio"), // Rich text bio for the instructor shown on pre-start page
+  preStartPageEnabled: boolean("preStartPageEnabled").default(true).notNull(),
   // Sort order for catalog/admin reordering
   sortOrder: int("sortOrder").default(0).notNull(),
   // Counters
@@ -1093,6 +1101,11 @@ export const groups = mysqlTable("groups", {
   name: varchar("name", { length: 255 }).notNull(),
   managerId: int("managerId"),
   managerName: varchar("managerName", { length: 255 }),
+  managerTitle: varchar("managerTitle", { length: 255 }),
+  managerEmail: varchar("managerEmail", { length: 320 }),
+  managerPhone: varchar("managerPhone", { length: 50 }),
+  productIds: text("productIds"), // JSON array of course/product IDs assigned to this group
+  welcomeEmailSent: boolean("welcomeEmailSent").default(false).notNull(),
   seats: int("seats").default(10).notNull(),
   usedSeats: int("usedSeats").default(0).notNull(),
   courseId: int("courseId"),

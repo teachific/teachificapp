@@ -246,7 +246,7 @@ export default function BrandingPage() {
               <Input
                 value={form.schoolName}
                 onChange={(e) => set("schoolName", e.target.value)}
-                placeholder="e.g. All About Ultrasound Academy"
+                placeholder="e.g. Acme Training Academy"
               />
             </CardContent>
           </Card>

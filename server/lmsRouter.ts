@@ -130,6 +130,8 @@ import {
   getGroupMembers,
   addGroupMember,
   removeGroupMember,
+  getGroupsByManager,
+  getGroupMemberById,
   getDiscussionsByOrg,
   getDiscussionById,
   createDiscussion,
@@ -295,14 +297,21 @@ export const lmsRouter = router({
           trackProgress: z.boolean().optional(),
           requireSequential: z.boolean().optional(),
           language: z.string().optional(),
+          // Pre-start page fields
+          whatYouLearn: z.string().optional(),
+          requirements: z.string().optional(),
+          targetAudience: z.string().optional(),
+          instructorBio: z.string().optional(),
+          preStartPageEnabled: z.boolean().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
         const course = await getCourseById(input.id);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
         const member = await requireOrgRole(ctx.user.id, course.orgId, undefined, ctx.user.role);
-        // Gate hidden/private to Pro and Enterprise tiers
-        if (input.status === "hidden" || input.status === "private") {
+        // Gate hidden/private to Pro and Enterprise tiers (bypassed for platform admins)
+        if ((input.status === "hidden" || input.status === "private") &&
+            ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
           const sub = await getOrgSubscription(course.orgId);
           const tier = sub?.plan || "free";
           if (!tier.includes("pro") && !tier.includes("enterprise")) {
@@ -373,8 +382,9 @@ export const lmsRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        // Tier gate: drip scheduling requires Builder+
-        if ((input.drip || input.dripDays) && input.courseId) {
+        // Tier gate: drip scheduling requires Builder+ (bypassed for platform admins)
+        const _isPlatformAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin";
+        if (!_isPlatformAdmin && (input.drip || input.dripDays) && input.courseId) {
           const course = await getCourseById(input.courseId);
           if (course) {
             const sub = await getOrgSubscription(course.orgId);
@@ -1058,10 +1068,12 @@ export const lmsRouter = router({
       )
       .mutation(async ({ input, ctx }) => {
         await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
-        // Tier gate: AI generation requires Starter+
-        const sub = await getOrgSubscription(input.orgId);
-        if (!getLimits(sub?.plan).aiGeneration) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "AI course generation requires a Starter plan or higher. Please upgrade to use this feature." });
+        // Tier gate: AI generation requires Starter+ (bypassed for platform admins)
+        if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+          const sub = await getOrgSubscription(input.orgId);
+          if (!getLimits(sub?.plan).aiGeneration) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "AI course generation requires a Starter plan or higher. Please upgrade to use this feature." });
+          }
         }
         const response = await invokeLLM({
           messages: [
@@ -1706,13 +1718,15 @@ export const lmsRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
-        // Webinars require Builder plan or higher
-        const sub = await getOrgSubscription(input.orgId);
-        if (!getLimits(sub?.plan).upsellFunnels) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Webinars require a Builder plan or higher. Please upgrade your organization's plan to access this feature.",
-          });
+        // Webinars require Builder plan or higher (bypassed for platform admins)
+        if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+          const sub = await getOrgSubscription(input.orgId);
+          if (!getLimits(sub?.plan).upsellFunnels) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Webinars require a Builder plan or higher. Please upgrade your organization's plan to access this feature.",
+            });
+          }
         }
         return createWebinar(input as any);
       }),
@@ -2111,19 +2125,76 @@ export const lmsRouter = router({
         return { ...g, members };
       }),
     create: protectedProcedure
-      .input(z.object({ orgId: z.number(), name: z.string().min(1), managerName: z.string().optional(), seats: z.number().default(10), courseId: z.number().optional(), notes: z.string().optional(), expiresAt: z.date().optional() }))
+      .input(z.object({
+        orgId: z.number(),
+        name: z.string().min(1),
+        managerName: z.string().optional(),
+        managerTitle: z.string().optional(),
+        managerEmail: z.string().email().optional(),
+        managerPhone: z.string().optional(),
+        productIds: z.array(z.number()).optional(),
+        seats: z.number().default(10),
+        courseId: z.number().optional(),
+        notes: z.string().optional(),
+        expiresAt: z.date().optional(),
+        sendWelcomeEmail: z.boolean().optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
-        return createGroup({ ...input, managerId: ctx.user.id });
+        const { sendWelcomeEmail, productIds, ...rest } = input;
+        const group = await createGroup({
+          ...rest,
+          managerId: ctx.user.id,
+          productIds: productIds ? JSON.stringify(productIds) : null,
+        });
+        if (sendWelcomeEmail && input.managerEmail && group) {
+          const org = await getOrgById(input.orgId);
+          await sendEmail({
+            to: input.managerEmail,
+            subject: `You've been assigned as Group Manager: ${input.name}`,
+            html: `<p>Hi ${input.managerName ?? 'there'},</p><p>You have been assigned as the Group Manager for <strong>${input.name}</strong>${org ? ` at <strong>${org.name}</strong>` : ''}.</p><p>Your group has <strong>${input.seats} seat${input.seats !== 1 ? 's' : ''}</strong> available.</p><p>Log in to your portal to manage your group members and track enrollments.</p><p>Best,<br/>The Teachific Team</p>`,
+          });
+          await updateGroup(group.id, { welcomeEmailSent: true });
+        }
+        return group;
       }),
     update: protectedProcedure
-      .input(z.object({ id: z.number(), name: z.string().optional(), managerName: z.string().optional(), seats: z.number().optional(), courseId: z.number().optional().nullable(), notes: z.string().optional(), expiresAt: z.date().optional().nullable() }))
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        managerName: z.string().optional(),
+        managerTitle: z.string().optional(),
+        managerEmail: z.string().email().optional().nullable(),
+        managerPhone: z.string().optional().nullable(),
+        productIds: z.array(z.number()).optional().nullable(),
+        seats: z.number().optional(),
+        courseId: z.number().optional().nullable(),
+        notes: z.string().optional(),
+        expiresAt: z.date().optional().nullable(),
+        sendWelcomeEmail: z.boolean().optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const g = await getGroupById(input.id);
         if (!g) throw new TRPCError({ code: "NOT_FOUND" });
         await requireOrgAdmin(ctx.user.id, g.orgId, ctx.user.role);
-        const { id, ...data } = input;
-        return updateGroup(id, data);
+        const { id, sendWelcomeEmail, productIds, ...rest } = input;
+        const updated = await updateGroup(id, {
+          ...rest,
+          productIds: productIds !== undefined ? (productIds ? JSON.stringify(productIds) : null) : undefined,
+        });
+        if (sendWelcomeEmail && (input.managerEmail ?? g.managerEmail)) {
+          const targetEmail = (input.managerEmail ?? g.managerEmail)!;
+          const targetName = input.managerName ?? g.managerName ?? 'there';
+          const groupName = input.name ?? g.name;
+          const org = await getOrgById(g.orgId);
+          await sendEmail({
+            to: targetEmail,
+            subject: `Group Manager Assignment: ${groupName}`,
+            html: `<p>Hi ${targetName},</p><p>You have been assigned as the Group Manager for <strong>${groupName}</strong>${org ? ` at <strong>${org.name}</strong>` : ''}.</p><p>Log in to your portal to manage your group members and track enrollments.</p><p>Best,<br/>The Teachific Team</p>`,
+          });
+          await updateGroup(id, { welcomeEmailSent: true });
+        }
+        return updated;
       }),
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
@@ -2174,6 +2245,43 @@ export const lmsRouter = router({
         // Update group courseId if not set
         if (!g.courseId) await updateGroup(input.groupId, { courseId: input.courseId });
         return { enrolled, skipped, total: members.length };
+      }),
+    // Group Manager Portal: list groups where the current user is the manager (matched by email)
+    listManaged: protectedProcedure
+      .query(async ({ ctx }) => {
+        const managed = ctx.user.email ? await getGroupsByManager(ctx.user.email) : [];
+        // Attach members to each group
+        const result = [];
+        for (const g of managed) {
+          const members = await getGroupMembers(g.id);
+          result.push({ ...g, members });
+        }
+        return result;
+      }),
+    // Seat tool: assign a seat to a specific email within a managed group
+    assignSeat: protectedProcedure
+      .input(z.object({ groupId: z.number(), email: z.string().email(), name: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const g = await getGroupById(input.groupId);
+        if (!g) throw new TRPCError({ code: 'NOT_FOUND' });
+        // Allow if user is the group manager OR an org admin
+        const isManager = g.managerId === ctx.user.id;
+        if (!isManager) await requireOrgAdmin(ctx.user.id, g.orgId, ctx.user.role);
+        if (g.usedSeats >= g.seats) throw new TRPCError({ code: 'BAD_REQUEST', message: 'No seats available in this group' });
+        return addGroupMember({ groupId: input.groupId, email: input.email, name: input.name, status: 'active' });
+      }),
+    // Revoke a seat
+    revokeSeat: protectedProcedure
+      .input(z.object({ memberId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const member = await getGroupMemberById(input.memberId);
+        if (!member) throw new TRPCError({ code: 'NOT_FOUND' });
+        const g = await getGroupById(member.groupId);
+        if (!g) throw new TRPCError({ code: 'NOT_FOUND' });
+        const isManager = ctx.user.email && g.managerEmail === ctx.user.email;
+        if (!isManager) await requireOrgAdmin(ctx.user.id, g.orgId, ctx.user.role);
+        await removeGroupMember(input.memberId);
+        return { ok: true };
       }),
   }),
   // ── Discussions ───────────────────────────────────────────────────────────

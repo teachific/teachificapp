@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
@@ -92,6 +92,13 @@ export default function CoursesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published" | "archived">("all");
   const [createOpen, setCreateOpen] = useState(false);
+  const urlSearch = useSearch();
+  // Auto-open create dialog when ?create=1 is in the URL
+  const [autoOpened, setAutoOpened] = useState(false);
+  if (!autoOpened && urlSearch.includes('create=1') && !createOpen) {
+    setAutoOpened(true);
+    setCreateOpen(true);
+  }
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -532,7 +539,7 @@ export default function CoursesPage() {
             <div>
               <Label>Course Topic</Label>
               <Textarea
-                placeholder="e.g. Advanced Cardiac Sonography for Beginners"
+                placeholder="e.g. New Employee Onboarding Essentials"
                 value={aiTopic}
                 onChange={(e) => setAiTopic(e.target.value)}
                 className="mt-1.5 resize-none"
@@ -613,7 +620,7 @@ export default function CoursesPage() {
             <Label htmlFor="course-title">Course Title</Label>
             <Input
               id="course-title"
-              placeholder="e.g. Advanced Cardiac Sonography"
+              placeholder="e.g. Leadership Skills for New Managers"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}

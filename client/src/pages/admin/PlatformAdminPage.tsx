@@ -50,6 +50,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { PageBuilder, Block } from "@/components/PageBuilder";
 import { toast } from "sonner";
 import {
   Shield,
@@ -83,7 +85,9 @@ import {
   ClipboardList,
   UserCheck,
   LogIn,
-} from "lucide-react";
+  Palette,
+  Video,
+} from "lucide-react"
 import { cn } from "@/lib/utils";
 
 // ─── Plan badge ──────────────────────────────────────────────────────────────
@@ -264,6 +268,12 @@ function OrgsTab() {
     onError: (e) => toast.error(e.message),
   });
 
+  const [createOrgOpen, setCreateOrgOpen] = useState(false);
+  const [createOrgForm, setCreateOrgForm] = useState({ orgName: "", orgSlug: "", adminName: "", adminEmail: "", plan: "free" as "free"|"starter"|"builder"|"pro"|"enterprise" });
+  const createOrgWithAdmin = trpc.platformAdmin.createOrgWithAdmin.useMutation({
+    onSuccess: () => { refetch(); setCreateOrgOpen(false); setCreateOrgForm({ orgName: "", orgSlug: "", adminName: "", adminEmail: "", plan: "free" }); toast.success("Organization created"); },
+    onError: (e) => toast.error(e.message),
+  });
   const handleOpenEdit = (org: typeof orgs[0]) => {
     setEditOrg(org);
     setEditForm({
@@ -280,12 +290,16 @@ function OrgsTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-700">{orgs.length} organizations</p>
+        <Button size="sm" className="gap-1.5 bg-teal-600 hover:bg-teal-700" onClick={() => setCreateOrgOpen(true)}>
+          <Plus className="w-3.5 h-3.5" /> New Organization
+        </Button>
       </div>
       <div className="rounded-lg border border-gray-200 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="border-gray-200 hover:bg-transparent">
               <TableHead className="text-slate-700">Organization</TableHead>
+              <TableHead className="text-slate-700">Super Admin</TableHead>
               <TableHead className="text-slate-700">Slug</TableHead>
               <TableHead className="text-slate-700">Domain</TableHead>
               <TableHead className="text-slate-700">Plan</TableHead>
@@ -294,9 +308,20 @@ function OrgsTab() {
           </TableHeader>
           <TableBody>
             {orgs.map((org) => (
-              <TableRow key={org.id} className="border-gray-200 hover:bg-gray-50 transition-colors">
+              <TableRow key={org.id} className={`border-gray-200 hover:bg-gray-50 transition-colors ${org.name === "Teachific" ? "bg-teal-50/30" : ""}`}>
                 <TableCell>
-                  <span className="text-teal-400 font-semibold">{org.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-teal-400 font-semibold">{org.name}</span>
+                    {org.name === "Teachific" && <Badge variant="outline" className="text-xs border-teal-500/40 text-teal-600 bg-teal-50">Platform</Badge>}
+                  </div>
+                </TableCell>
+                <TableCell className="text-slate-700 text-xs">
+                  {(org as any).ownerName || (org as any).ownerEmail ? (
+                    <div>
+                      <p className="font-medium text-slate-800">{(org as any).ownerName || "—"}</p>
+                      <p className="text-slate-500">{(org as any).ownerEmail || ""}</p>
+                    </div>
+                  ) : "—"}
                 </TableCell>
                 <TableCell className="text-slate-700 font-mono text-xs">{org.slug}</TableCell>
                 <TableCell className="text-slate-700 text-xs">{(org as any).customDomain || "—"}</TableCell>
@@ -448,6 +473,55 @@ function OrgsTab() {
               className="bg-teal-600 hover:bg-gray-500 text-slate-900"
             >
               {(updateOrg.isPending || setOrgPlan.isPending) ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Create Org Dialog */}
+      <Dialog open={createOrgOpen} onOpenChange={setCreateOrgOpen}>
+        <DialogContent className="bg-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900">Create New Organization</DialogTitle>
+            <DialogDescription className="text-slate-600">Create a new organization and assign a Super Admin.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 text-sm">Organization Name *</Label>
+                <Input value={createOrgForm.orgName} onChange={e => { const v = e.target.value; setCreateOrgForm(f => ({ ...f, orgName: v, orgSlug: v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") })); }} placeholder="Acme Corp" className="bg-white border-gray-300 text-slate-900" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 text-sm">Slug *</Label>
+                <Input value={createOrgForm.orgSlug} onChange={e => setCreateOrgForm(f => ({ ...f, orgSlug: e.target.value }))} placeholder="acme-corp" className="bg-white border-gray-300 text-slate-900 font-mono text-sm" />
+              </div>
+            </div>
+            <div className="border-t border-gray-200 pt-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Super Admin</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-slate-700 text-sm">Admin Name *</Label>
+                  <Input value={createOrgForm.adminName} onChange={e => setCreateOrgForm(f => ({ ...f, adminName: e.target.value }))} placeholder="Jane Smith" className="bg-white border-gray-300 text-slate-900" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-slate-700 text-sm">Admin Email *</Label>
+                  <Input type="email" value={createOrgForm.adminEmail} onChange={e => setCreateOrgForm(f => ({ ...f, adminEmail: e.target.value }))} placeholder="jane@acme.com" className="bg-white border-gray-300 text-slate-900" />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Subscription Plan</Label>
+              <Select value={createOrgForm.plan} onValueChange={v => setCreateOrgForm(f => ({ ...f, plan: v as any }))}>
+                <SelectTrigger className="bg-white border-gray-300 text-slate-900"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["free","starter","builder","pro","enterprise"].map(p => <SelectItem key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOrgOpen(false)} className="text-slate-700">Cancel</Button>
+            <Button onClick={() => createOrgWithAdmin.mutate(createOrgForm)} disabled={createOrgWithAdmin.isPending || !createOrgForm.orgName || !createOrgForm.orgSlug || !createOrgForm.adminName || !createOrgForm.adminEmail} className="bg-teal-600 hover:bg-teal-700">
+              {createOrgWithAdmin.isPending ? "Creating..." : "Create Organization"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -797,8 +871,25 @@ function PageCreatorTab() {
   const { data: pages = [], refetch } = trpc.lms.pages.list.useQuery({orgId:selectedOrgId??0},{enabled:!!selectedOrgId});
   const [createOpen, setCreateOpen] = useState(false);
   const [newPage, setNewPage] = useState({title:"",slug:"",isPublished:false});
+  const [editingPage, setEditingPage] = useState<any>(null);
   const createPage = trpc.lms.pages.create.useMutation({onSuccess:()=>{refetch();setCreateOpen(false);setNewPage({title:"",slug:"",isPublished:false});toast.success("Page created");},onError:(e)=>toast.error(e.message)});
+  const updatePage = trpc.lms.pages.update.useMutation({onSuccess:()=>{refetch();toast.success("Page saved");},onError:(e)=>toast.error(e.message)});
   const deletePage = trpc.lms.pages.delete.useMutation({onSuccess:()=>{refetch();toast.success("Page deleted");},onError:(e)=>toast.error(e.message)});
+  const handleSavePage = () => {
+    if (!editingPage?.id) return;
+    updatePage.mutate({
+      id: editingPage.id,
+      title: editingPage.title,
+      slug: editingPage.slug,
+      blocksJson: editingPage.blocksJson,
+      isPublished: editingPage.isPublished,
+      showHeader: editingPage.showHeader,
+      showFooter: editingPage.showFooter,
+      metaTitle: editingPage.metaTitle,
+      metaDescription: editingPage.metaDescription,
+      customCss: editingPage.customCss,
+    });
+  };
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
@@ -824,7 +915,12 @@ function PageCreatorTab() {
                   <TableCell className="text-slate-900 font-semibold">{page.title}</TableCell>
                   <TableCell className="text-slate-700 font-mono text-xs">/{page.slug}</TableCell>
                   <TableCell><Badge variant="outline" className={page.isPublished?"border-green-500/40 text-green-300":"border-gray-300 text-slate-700"}>{page.isPublished?"Published":"Draft"}</Badge></TableCell>
-                  <TableCell className="text-right"><Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-300" onClick={()=>{if(confirm("Delete this page?"))deletePage.mutate({id:page.id});}}><Trash2 className="w-3.5 h-3.5"/></Button></TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-teal-600 hover:text-teal-700" onClick={()=>setEditingPage(page)} title="Edit page"><Edit className="w-3.5 h-3.5"/></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-300" onClick={()=>{if(confirm("Delete this page?"))deletePage.mutate({id:page.id});}}><Trash2 className="w-3.5 h-3.5"/></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
               {pages.length===0&&<TableRow className="border-gray-200"><TableCell colSpan={4} className="text-center text-slate-500 py-8">No pages yet — create one above</TableCell></TableRow>}
@@ -832,6 +928,49 @@ function PageCreatorTab() {
           </Table>
         </Card>
       )}
+      {/* Edit Page Sheet */}
+      <Sheet open={!!editingPage} onOpenChange={(open)=>{ if(!open) setEditingPage(null); }}>
+        <SheetContent className="w-full sm:max-w-[85vw] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Edit Page: {editingPage?.title}</SheetTitle>
+          </SheetHeader>
+          {editingPage && (
+            <div className="mt-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Page Title</Label>
+                  <Input value={editingPage.title} onChange={(e)=>setEditingPage({...editingPage,title:e.target.value})} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>URL Slug</Label>
+                  <Input value={editingPage.slug} onChange={(e)=>setEditingPage({...editingPage,slug:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,"")})} className="font-mono" />
+                </div>
+              </div>
+              <PageBuilder
+                initialBlocks={(() => { try { return JSON.parse(editingPage.blocksJson || "[]"); } catch { return []; } })()}
+                onChange={(blocks: Block[]) => setEditingPage((p: any) => ({...p, blocksJson: JSON.stringify(blocks)}))}
+              />
+              <div className="flex items-center gap-6 pt-2">
+                <div className="flex items-center gap-2">
+                  <Switch checked={editingPage.showHeader ?? true} onCheckedChange={(v)=>setEditingPage({...editingPage,showHeader:v})} />
+                  <Label>Show Header</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch checked={editingPage.showFooter ?? true} onCheckedChange={(v)=>setEditingPage({...editingPage,showFooter:v})} />
+                  <Label>Show Footer</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch checked={editingPage.isPublished ?? false} onCheckedChange={(v)=>setEditingPage({...editingPage,isPublished:v})} />
+                  <Label>Published</Label>
+                </div>
+                <Button onClick={handleSavePage} disabled={updatePage.isPending} className="ml-auto bg-teal-600 hover:bg-teal-700 gap-2">
+                  {updatePage.isPending ? "Saving..." : <><Edit className="h-4 w-4"/> Save Page</>}
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="bg-gray-50 border-gray-200 text-slate-900">
           <DialogHeader><DialogTitle>Create New Page</DialogTitle></DialogHeader>
@@ -961,6 +1100,9 @@ export default function PlatformAdminPage() {
           <TabsTrigger value="settings" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <Settings className="w-3.5 h-3.5" /> System Settings
           </TabsTrigger>
+          <TabsTrigger value="branding" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
+            <Palette className="w-3.5 h-3.5" /> Branding
+          </TabsTrigger>
           <TabsTrigger value="forms" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <ClipboardList className="w-3.5 h-3.5" /> Platform Forms
           </TabsTrigger>
@@ -983,6 +1125,9 @@ export default function PlatformAdminPage() {
         <TabsContent value="settings">
           <SettingsTab />
         </TabsContent>
+        <TabsContent value="branding">
+          <BrandingTab />
+        </TabsContent>
         <TabsContent value="forms">
           <PlatformFormsTab />
         </TabsContent>
@@ -992,12 +1137,124 @@ export default function PlatformAdminPage() {
 }
 
 // ─── Platform Forms Tab ──────────────────────────────────────────────────────
+function BrandingTab() {
+  const { data: branding, refetch } = trpc.platformAdmin.getBranding.useQuery();
+  const updateBranding = trpc.platformAdmin.updateBranding.useMutation({
+    onSuccess: () => { refetch(); toast.success("Branding saved"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const [form, setForm] = useState<{
+    platformName?: string;
+    logoUrl?: string | null;
+    faviconUrl?: string | null;
+    primaryColor?: string;
+    accentColor?: string;
+    watermarkImageUrl?: string | null;
+    watermarkOpacity?: number;
+    watermarkPosition?: string;
+    watermarkSize?: number;
+  }>({});
+  const merged = { ...branding, ...form };
+  return (
+    <div className="space-y-6">
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-slate-900 flex items-center gap-2">
+            <Palette className="w-4 h-4 text-teal-400" />
+            Platform Identity
+          </CardTitle>
+          <CardDescription className="text-slate-700">Configure the platform name, logo, and brand colors.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-slate-700 text-sm">Platform Name</Label>
+            <Input value={merged.platformName ?? "Teachific"} onChange={e => setForm(f => ({ ...f, platformName: e.target.value }))} className="bg-white border-gray-300 text-slate-900 max-w-sm" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Logo URL</Label>
+              <Input value={merged.logoUrl ?? ""} onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value || null }))} placeholder="https://..." className="bg-white border-gray-300 text-slate-900" />
+              {merged.logoUrl && <img src={merged.logoUrl} alt="Logo preview" className="h-12 mt-2 rounded border border-gray-200 object-contain bg-white p-1" />}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Favicon URL</Label>
+              <Input value={merged.faviconUrl ?? ""} onChange={e => setForm(f => ({ ...f, faviconUrl: e.target.value || null }))} placeholder="https://..." className="bg-white border-gray-300 text-slate-900" />
+              {merged.faviconUrl && <img src={merged.faviconUrl} alt="Favicon preview" className="h-8 mt-2 rounded border border-gray-200 object-contain bg-white p-1" />}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Primary Color</Label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={merged.primaryColor ?? "#189aa1"} onChange={e => setForm(f => ({ ...f, primaryColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
+                <Input value={merged.primaryColor ?? "#189aa1"} onChange={e => setForm(f => ({ ...f, primaryColor: e.target.value }))} className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Accent Color</Label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={merged.accentColor ?? "#4ad9e0"} onChange={e => setForm(f => ({ ...f, accentColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
+                <Input value={merged.accentColor ?? "#4ad9e0"} onChange={e => setForm(f => ({ ...f, accentColor: e.target.value }))} className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-slate-900 flex items-center gap-2">
+            <Video className="w-4 h-4 text-teal-400" />
+            Video Watermark
+          </CardTitle>
+          <CardDescription className="text-slate-700">Apply a watermark to all videos across the platform.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-slate-700 text-sm">Watermark Image URL</Label>
+            <Input value={merged.watermarkImageUrl ?? ""} onChange={e => setForm(f => ({ ...f, watermarkImageUrl: e.target.value || null }))} placeholder="https://..." className="bg-white border-gray-300 text-slate-900" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Opacity ({merged.watermarkOpacity ?? 30}%)</Label>
+              <input type="range" min={0} max={100} value={merged.watermarkOpacity ?? 30} onChange={e => setForm(f => ({ ...f, watermarkOpacity: Number(e.target.value) }))} className="w-full" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Position</Label>
+              <Select value={merged.watermarkPosition ?? "bottom-left"} onValueChange={v => setForm(f => ({ ...f, watermarkPosition: v }))}>
+                <SelectTrigger className="bg-white border-gray-300 text-slate-900 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["top-left","top-right","bottom-left","bottom-right","center"].map(p => <SelectItem key={p} value={p}>{p.replace("-"," ")}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Size (px)</Label>
+              <Input type="number" value={merged.watermarkSize ?? 120} onChange={e => setForm(f => ({ ...f, watermarkSize: Number(e.target.value) }))} className="bg-white border-gray-300 text-slate-900" min={20} max={400} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <div className="flex justify-end">
+        <Button onClick={() => updateBranding.mutate(form)} disabled={updateBranding.isPending || Object.keys(form).length === 0} className="bg-teal-600 hover:bg-teal-700">
+          {updateBranding.isPending ? "Saving..." : "Save Branding"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 function PlatformFormsTab() {
   const { data: orgs = [] } = trpc.platformAdmin.listOrgs.useQuery();
   const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
 
-  const { data: forms = [], isLoading } = trpc.forms.list.useQuery(
+  const [createFormOpen, setCreateFormOpen] = useState(false);
+  const [newFormTitle, setNewFormTitle] = useState("");
+  const createForm = trpc.forms.create.useMutation({
+    onSuccess: () => { void refetchForms(); setCreateFormOpen(false); setNewFormTitle(""); toast.success("Form created"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const { data: forms = [], isLoading, refetch: refetchForms } = trpc.forms.list.useQuery(
     { orgId: selectedOrgId ?? 0 },
     { enabled: !!selectedOrgId }
   );
@@ -1051,15 +1308,20 @@ function PlatformFormsTab() {
               </SelectContent>
             </Select>
             {selectedOrgId && (
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-700" />
-                <Input
-                  placeholder="Search forms..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-8 bg-gray-50 border-gray-300 text-slate-900 w-56"
-                />
-              </div>
+              <>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-700" />
+                  <Input
+                    placeholder="Search forms..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-8 bg-gray-50 border-gray-300 text-slate-900 w-56"
+                  />
+                </div>
+                <Button size="sm" className="gap-1.5 bg-teal-600 hover:bg-teal-700 ml-auto" onClick={() => setCreateFormOpen(true)}>
+                  <Plus className="w-3.5 h-3.5" /> New Form
+                </Button>
+              </>
             )}
           </div>
         </CardContent>
@@ -1125,6 +1387,28 @@ function PlatformFormsTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Create Form Dialog */}
+      <Dialog open={createFormOpen} onOpenChange={setCreateFormOpen}>
+        <DialogContent className="bg-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900">New Form</DialogTitle>
+            <DialogDescription className="text-slate-600">Create a new form for {(orgs as any[]).find((o: any) => o.id === selectedOrgId)?.name ?? "this organization"}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 text-sm">Form Title *</Label>
+              <Input value={newFormTitle} onChange={e => setNewFormTitle(e.target.value)} placeholder="e.g. Contact Us" className="bg-white border-gray-300 text-slate-900" autoFocus />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateFormOpen(false)} className="text-slate-700">Cancel</Button>
+            <Button onClick={() => selectedOrgId && createForm.mutate({ orgId: selectedOrgId, title: newFormTitle })} disabled={createForm.isPending || !newFormTitle.trim() || !selectedOrgId} className="bg-teal-600 hover:bg-teal-700">
+              {createForm.isPending ? "Creating..." : "Create Form"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

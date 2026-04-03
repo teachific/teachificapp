@@ -253,6 +253,27 @@
       "when": 1775189837686,
       "tag": "0035_open_blackheart",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "5",
+      "when": 1775192057755,
+      "tag": "0036_shiny_cloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "5",
+      "when": 1775193659448,
+      "tag": "0037_fixed_morph",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "5",
+      "when": 1775193917265,
+      "tag": "0038_special_titania",
+      "breakpoints": true
     }
   ]
 }

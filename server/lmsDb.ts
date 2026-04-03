@@ -1292,6 +1292,13 @@ export async function removeGroupMember(id: number) {
     await db.update(groups).set({ usedSeats: count[0]?.cnt ?? 0 }).where(eq(groups.id, rows[0].groupId));
   }
 }
+export async function getGroupsByManager(managerEmail: string) {
+  return db.select().from(groups).where(eq(groups.managerEmail, managerEmail)).orderBy(desc(groups.createdAt));
+}
+export async function getGroupMemberById(id: number) {
+  const rows = await db.select().from(groupMembers).where(eq(groupMembers.id, id));
+  return rows[0] ?? null;
+}
 
 // ─── Discussions ─────────────────────────────────────────────────────────────
 

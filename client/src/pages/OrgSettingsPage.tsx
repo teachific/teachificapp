@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Settings, Building2, Palette, Globe, CreditCard,
   Check, AlertCircle, Crown, Zap, Rocket, Bell, Upload, ImageIcon, X, FileText, Video,
-  UserCircle, Plus, Trash2, Edit2, Link as LinkIcon,
+  UserCircle, Plus, Trash2, Edit2, Link as LinkIcon, Link2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -975,6 +975,7 @@ function SitePoliciesTab({ orgId }: { orgId?: number }) {
   const [termsHtml, setTermsHtml] = useState("");
   const [privacyHtml, setPrivacyHtml] = useState("");
   const [requireAgreement, setRequireAgreement] = useState(false);
+  const [footerLinks, setFooterLinks] = useState<Array<{label: string; url: string}>>([]);
   const [initialized, setInitialized] = useState(false);
 
   const { data: legalDocs, isLoading } = trpc.orgs.getLegalDocs.useQuery(
@@ -987,6 +988,7 @@ function SitePoliciesTab({ orgId }: { orgId?: number }) {
       setTermsHtml(legalDocs.termsOfService ?? "");
       setPrivacyHtml(legalDocs.privacyPolicy ?? "");
       setRequireAgreement(legalDocs.requireTermsAgreement ?? false);
+      try { setFooterLinks(JSON.parse(legalDocs.footerLinks || "[]")); } catch { setFooterLinks([]); }
       setInitialized(true);
     }
   }, [legalDocs, initialized]);
@@ -1062,9 +1064,45 @@ function SitePoliciesTab({ orgId }: { orgId?: number }) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
+      {/* Footer Links */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="h-4 w-4" /> Footer Links
+          </CardTitle>
+          <CardDescription>
+            Links shown in the site footer (e.g. Terms, Privacy, Contact). These appear on your school storefront.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {footerLinks.map((link, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                placeholder="Label (e.g. Terms of Service)"
+                value={link.label}
+                onChange={(e) => { const u = [...footerLinks]; u[i] = { ...u[i], label: e.target.value }; setFooterLinks(u); }}
+                className="flex-1 text-sm"
+              />
+              <Input
+                placeholder="URL (e.g. /terms or https://...)"
+                value={link.url}
+                onChange={(e) => { const u = [...footerLinks]; u[i] = { ...u[i], url: e.target.value }; setFooterLinks(u); }}
+                className="flex-1 text-sm"
+              />
+              <Button variant="ghost" size="icon" onClick={() => setFooterLinks(footerLinks.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive shrink-0">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={() => setFooterLinks([...footerLinks, { label: "", url: "" }])} className="gap-2">
+            <Plus className="h-3.5 w-3.5" /> Add Link
+          </Button>
+          {footerLinks.length === 0 && <p className="text-xs text-muted-foreground italic">No footer links yet.</p>}
+        </CardContent>
+      </Card>
+            <div className="flex justify-end">
         <Button
-          onClick={() => updateLegalDocs.mutate({ orgId: orgId!, termsOfService: termsHtml, privacyPolicy: privacyHtml, requireTermsAgreement: requireAgreement })}
+          onClick={() => updateLegalDocs.mutate({ orgId: orgId!, termsOfService: termsHtml, privacyPolicy: privacyHtml, requireTermsAgreement: requireAgreement, footerLinks: JSON.stringify(footerLinks) })}
           disabled={updateLegalDocs.isPending}
           className="gap-2"
         >

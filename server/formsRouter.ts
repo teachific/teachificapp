@@ -148,17 +148,20 @@ export const formsRouter = router({
       title: z.string().min(1),
       description: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      // Enforce subscription plan limit
-      const limit = await getOrgFormLimit(input.orgId);
-      const existing = await db.select().from(forms).where(eq(forms.orgId, input.orgId));
-      if (existing.length >= limit) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: `Your plan allows up to ${limit} form${limit === 1 ? "" : "s"}. Please upgrade to create more.`,
-        });
+      // Enforce subscription plan limit (bypassed for platform admins)
+      const _isPlatformAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin";
+      if (!_isPlatformAdmin) {
+        const limit = await getOrgFormLimit(input.orgId);
+        const existing = await db.select().from(forms).where(eq(forms.orgId, input.orgId));
+        if (existing.length >= limit) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: `Your plan allows up to ${limit} form${limit === 1 ? "" : "s"}. Please upgrade to create more.`,
+          });
+        }
       }
       const baseSlug = slugify(input.title) || "form";
       const slug = `${baseSlug}-${nanoid(6)}`;

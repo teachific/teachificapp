@@ -371,10 +371,10 @@ export const appRouter = router({
           throw new TRPCError({ code: 'FORBIDDEN' });
         }
         const target = org ?? await getOrgById(input.orgId);
-        return { termsOfService: target?.termsOfService ?? '', privacyPolicy: target?.privacyPolicy ?? '', requireTermsAgreement: target?.requireTermsAgreement ?? false };
+        return { termsOfService: target?.termsOfService ?? '', privacyPolicy: target?.privacyPolicy ?? '', requireTermsAgreement: target?.requireTermsAgreement ?? false, footerLinks: target?.footerLinks ?? '' };
       }),
     updateLegalDocs: protectedProcedure
-      .input(z.object({ orgId: z.number(), termsOfService: z.string().optional(), privacyPolicy: z.string().optional(), requireTermsAgreement: z.boolean().optional() }))
+      .input(z.object({ orgId: z.number(), termsOfService: z.string().optional(), privacyPolicy: z.string().optional(), requireTermsAgreement: z.boolean().optional(), footerLinks: z.string().optional() }))
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
@@ -398,7 +398,7 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const org = await getOrgById(input.orgId);
         if (!org) return { termsOfService: '', privacyPolicy: '', requireTermsAgreement: false };
-        return { termsOfService: org.termsOfService ?? '', privacyPolicy: org.privacyPolicy ?? '', requireTermsAgreement: org.requireTermsAgreement ?? false };
+        return { termsOfService: org.termsOfService ?? '', privacyPolicy: org.privacyPolicy ?? '', requireTermsAgreement: org.requireTermsAgreement ?? false, footerLinks: org.footerLinks ?? '' };
       }),
     // Public endpoint: fetch legal docs by org slug (for school storefront footer, no auth required)
     publicLegalDocsBySlug: publicProcedure
@@ -406,7 +406,7 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const org = await getOrgBySlug(input.slug);
         if (!org) return { termsOfService: '', privacyPolicy: '', requireTermsAgreement: false, orgId: null as number | null, orgName: '' };
-        return { termsOfService: org.termsOfService ?? '', privacyPolicy: org.privacyPolicy ?? '', requireTermsAgreement: org.requireTermsAgreement ?? false, orgId: org.id, orgName: org.name };
+        return { termsOfService: org.termsOfService ?? '', privacyPolicy: org.privacyPolicy ?? '', requireTermsAgreement: org.requireTermsAgreement ?? false, orgId: org.id, orgName: org.name, footerLinks: org.footerLinks ?? '' };
       }),
     // Public endpoint: fetch school/org info by slug (for storefront, no auth required)
     publicSchoolBySlug: publicProcedure
@@ -1457,6 +1457,87 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
       }),
 
     // End impersonation — restore original admin session
+    createOrgWithAdmin: adminProcedure
+      .input(z.object({
+        orgName: z.string().min(1),
+        orgSlug: z.string().min(1).regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only"),
+        adminName: z.string().min(1),
+        adminEmail: z.string().email(),
+        plan: z.enum(["free", "starter", "builder", "pro", "enterprise"]).optional().default("free"),
+      }))
+      .mutation(async ({ input }) => {
+        const db2 = await getDb();
+        if (!db2) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { users: usersTable, organizations: orgsTable, orgMembers: orgMembersTable, orgSubscriptions: orgSubTable } = await import("../drizzle/schema");
+        const { eq: eqOp } = await import("drizzle-orm");
+        // Check slug uniqueness
+        const existing = await db2.select({ id: orgsTable.id }).from(orgsTable).where(eqOp(orgsTable.slug, input.orgSlug)).limit(1);
+        if (existing.length) throw new TRPCError({ code: "CONFLICT", message: "An organization with this slug already exists" });
+        // Check if user exists by email, create if not
+        const existingUsers = await db2.select().from(usersTable).where(eqOp(usersTable.email, input.adminEmail)).limit(1);
+        let adminUserId: number;
+        if (existingUsers.length) {
+          adminUserId = existingUsers[0].id;
+          // Upgrade to org_admin if needed
+          if (existingUsers[0].role === "user") {
+            await db2.update(usersTable).set({ role: "org_admin", name: input.adminName }).where(eqOp(usersTable.id, adminUserId));
+          }
+        } else {
+          const { nanoid } = await import("nanoid");
+          const openId = `manual_${nanoid(16)}`;
+          const [result] = await db2.insert(usersTable).values({
+            openId,
+            name: input.adminName,
+            email: input.adminEmail,
+            role: "org_admin",
+          });
+          adminUserId = (result as any).insertId;
+        }
+        // Create the org
+        const [orgResult] = await db2.insert(orgsTable).values({
+          name: input.orgName,
+          slug: input.orgSlug,
+          ownerId: adminUserId,
+          isActive: true,
+        });
+        const orgId = (orgResult as any).insertId;
+        // Add admin as org_admin member
+        await db2.insert(orgMembersTable).values({ orgId, userId: adminUserId, role: "org_admin" }).onDuplicateKeyUpdate({ set: { role: "org_admin" } });
+        // Set subscription plan
+        await db2.insert(orgSubTable).values({ orgId, plan: input.plan, status: "active" }).onDuplicateKeyUpdate({ set: { plan: input.plan, status: "active" } });
+        return { orgId, adminUserId };
+      }),
+    getBranding: adminProcedure.query(async () => {
+      const db2 = await getDb();
+      if (!db2) return null;
+      const { platformSettings: psTable } = await import("../drizzle/schema");
+      const rows = await db2.select().from(psTable).limit(1);
+      return rows[0] ?? null;
+    }),
+    updateBranding: adminProcedure
+      .input(z.object({
+        logoUrl: z.string().optional().nullable(),
+        faviconUrl: z.string().optional().nullable(),
+        primaryColor: z.string().optional(),
+        accentColor: z.string().optional(),
+        platformName: z.string().optional(),
+        watermarkImageUrl: z.string().optional().nullable(),
+        watermarkOpacity: z.number().int().min(0).max(100).optional(),
+        watermarkPosition: z.string().optional(),
+        watermarkSize: z.number().int().min(20).max(400).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db2 = await getDb();
+        if (!db2) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { platformSettings: psTable } = await import("../drizzle/schema");
+        const existing = await db2.select({ id: psTable.id }).from(psTable).limit(1);
+        if (existing.length) {
+          await db2.update(psTable).set(input as any);
+        } else {
+          await db2.insert(psTable).values(input as any);
+        }
+        return { success: true };
+      }),
     endImpersonation: protectedProcedure
       .mutation(async ({ ctx }) => {
         const cookieHeader = ctx.req.headers.cookie ?? "";

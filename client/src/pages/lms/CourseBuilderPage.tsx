@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { LessonEditorSheet } from "@/components/lms/LessonEditorSheet";
+import CourseOverviewTab from "@/components/lms/CourseOverviewTab";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,9 @@ import {
   CheckCircle,
   Copy,
   ExternalLink,
+  LayoutList,
+  Users,
+  BookOpen,
 } from "lucide-react";
 import {
   DndContext,
@@ -425,13 +429,14 @@ export default function CourseBuilderPage() {
   const [location, setLocation] = useLocation();
   const utils = trpc.useUtils();
   // Derive active tab from URL sub-path (e.g. /lms/courses/5/curriculum → "curriculum")
-  const tabFromUrl = ((): "curriculum" | "settings" | "pricing" | "after_purchase" | "drip" => {
+  type TabId = "overview" | "curriculum" | "settings" | "pricing" | "after_purchase" | "drip";
+  const tabFromUrl = ((): TabId => {
     const seg = location.split("/").pop() ?? "";
-    if (["curriculum", "settings", "pricing", "after_purchase", "drip"].includes(seg))
-      return seg as "curriculum" | "settings" | "pricing" | "after_purchase" | "drip";
+    if (["overview", "curriculum", "settings", "pricing", "after_purchase", "drip"].includes(seg))
+      return seg as TabId;
     return "curriculum";
   })();
-  const [activeTab, setActiveTab] = useState<"curriculum" | "settings" | "pricing" | "after_purchase" | "drip">(tabFromUrl);
+  const [activeTab, setActiveTab] = useState<TabId>(tabFromUrl);
   const [addSectionOpen, setAddSectionOpen] = useState(false);
   const [newSectionTitle, setNewSectionTitle] = useState("");
   const [editingLessonId, setEditingLessonId] = useState<number | null>(null);
@@ -475,6 +480,7 @@ export default function CourseBuilderPage() {
   });
 
   const tabs = [
+    { id: "overview", label: "Overview", icon: LayoutList },
     { id: "curriculum", label: "Curriculum", icon: FileText },
     { id: "settings", label: "Settings", icon: Settings },
     { id: "pricing", label: "Pricing", icon: DollarSign },
@@ -571,6 +577,12 @@ export default function CourseBuilderPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
+        {activeTab === "overview" && (
+          <CourseOverviewTab
+            course={course}
+            onSave={(data) => updateCourse.mutate({ id: courseId, ...data })}
+          />
+        )}
         {activeTab === "curriculum" && (
           <div className="max-w-3xl mx-auto flex flex-col gap-4">
             {curriculumLoading ? (

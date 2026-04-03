@@ -146,7 +146,7 @@ function OrgAdminDashboard({ orgId, orgName }: { orgId: number; orgName: string 
           <p className="text-muted-foreground mt-0.5">{orgName}</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => navigate("/lms/courses/new")} className="gap-2">
+          <Button onClick={() => navigate("/lms/courses?create=1")} className="gap-2">
             <Plus className="h-4 w-4" /> Create Course
           </Button>
         </div>

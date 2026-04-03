@@ -88,15 +88,19 @@ export const communityRouter = router({
       tagline: z.string().optional(),
       description: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
-      const [sub] = await db.select().from(orgSubscriptions).where(eq(orgSubscriptions.orgId, input.orgId)).limit(1);
-      const limits = getLimits(sub?.plan);
-      const existing = await db.select().from(communityHubs).where(eq(communityHubs.orgId, input.orgId));
-      if (limits.maxCommunities !== null && existing.length >= limits.maxCommunities) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: `Your plan allows up to ${limits.maxCommunities} communit${limits.maxCommunities === 1 ? 'y' : 'ies'}. Upgrade to create more.`,
-        });
+    .mutation(async ({ input, ctx }) => {
+      // Platform admins bypass community count limits
+      const _isPlatformAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin";
+      if (!_isPlatformAdmin) {
+        const [sub] = await db.select().from(orgSubscriptions).where(eq(orgSubscriptions.orgId, input.orgId)).limit(1);
+        const limits = getLimits(sub?.plan);
+        const existing = await db.select().from(communityHubs).where(eq(communityHubs.orgId, input.orgId));
+        if (limits.maxCommunities !== null && existing.length >= limits.maxCommunities) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: `Your plan allows up to ${limits.maxCommunities} communit${limits.maxCommunities === 1 ? 'y' : 'ies'}. Upgrade to create more.`,
+          });
+        }
       }
       const slug = input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const [result] = await db.insert(communityHubs).values({

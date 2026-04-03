@@ -1443,23 +1443,23 @@
 - [ ] Integration: Insert from Record Library button in Course Lesson editor and Webinar media picker
 
 ## Community Hub List Page (Thinkific-style)
-- [ ] CommunityPage: Thinkific-style list of community hubs with cover image, name, share button, published status badge
-- [ ] CommunityPage: search/filter by name
-- [ ] CommunityPage: Grid/List view toggle
-- [ ] CommunityPage: "New community" button (tier-gated: Free=0, Starter=1, Builder=2, Pro=5, Enterprise=unlimited)
-- [ ] CommunityPage: upgrade prompt card when community limit reached (dashed border, upgrade CTA)
+- [x] CommunityPage: Thinkific-style list of community hubs with cover image, name, share button, published status badge
+- [x] CommunityPage: search/filter by name
+- [x] CommunityPage: Grid/List view toggle
+- [x] CommunityPage: "New community" button (tier-gated: Free=0, Starter=1, Builder=2, Pro=5, Enterprise=unlimited)
+- [x] CommunityPage: upgrade prompt card when community limit reached (dashed border, upgrade CTA)
 - [ ] CommunityPage: Re-order tab with drag-and-drop reordering
-- [ ] CommunityPage: three-dot menu per hub (Edit, Enter Community, Delete)
+- [x] CommunityPage: three-dot menu per hub (Edit, Enter Community, Delete)
 - [ ] Backend: community.listHubs procedure (list all hubs for org)
 - [ ] Backend: community.createHub procedure (create new hub with name, slug)
 - [ ] Backend: community.deleteHub procedure
 - [ ] Backend: community.reorderHubs procedure
-- [ ] CommunityEditorPage: full management page at /products/community/:hubId with tabs
-- [ ] CommunityEditorPage: Hub Settings tab (name, tagline, description, cover image, logo, primary color, enabled toggle)
-- [ ] CommunityEditorPage: Spaces tab (list spaces, create/edit/delete/reorder spaces with cover images, access type, invite-only toggle)
-- [ ] CommunityEditorPage: Members tab (list members per space, ban/unban, role change)
-- [ ] CommunityEditorPage: Moderation tab (hidden/flagged posts queue, restore/delete actions)
-- [ ] CommunityEditorPage: Invites tab (send invite by email, list pending/revoked invites)
+- [x] CommunityEditorPage: full management page at /products/community/:hubId with tabs
+- [x] CommunityEditorPage: Hub Settings tab (name, tagline, description, cover image, logo, primary color, enabled toggle)
+- [x] CommunityEditorPage: Spaces tab (list spaces, create/edit/delete/reorder spaces with cover images, access type, invite-only toggle)
+- [x] CommunityEditorPage: Members tab (list members per space, ban/unban, role change)
+- [x] CommunityEditorPage: Moderation tab (hidden/flagged posts queue, restore/delete actions)
+- [x] CommunityEditorPage: Invites tab (send invite by email, list pending/revoked invites)
 - [ ] CommunityEditorPage: "Enter Community" button linking to learner view
 - [ ] Community learner view at /community/:hubId (spaces sidebar, posts feed, DMs panel)
 
@@ -1487,22 +1487,22 @@
 ## Instructors Management Page (Org Settings)
 - [ ] Add "Instructors" nav item under Org Settings sidebar (between Branding and Integrations)
 - [ ] Route: /org/instructors
-- [ ] Instructors list page: table/card view of all instructors for the org
-- [ ] Each instructor card: avatar, name, credentials/title, bio preview, course count, actions (Edit, Delete)
-- [ ] Add Instructor dialog: name, title/credentials, bio, avatar upload, email, social links (LinkedIn, Twitter, website)
-- [ ] Edit Instructor dialog: same fields as add
-- [ ] Delete instructor with confirmation (warn if assigned to courses)
+- [x] Instructors list page: table/card view of all instructors for the org
+- [x] Each instructor card: avatar, name, credentials/title, bio preview, course count, actions (Edit, Delete)
+- [x] Add Instructor dialog: name, title/credentials, bio, avatar upload, email, social links (LinkedIn, Twitter, website)
+- [x] Edit Instructor dialog: same fields as add
+- [x] Delete instructor with confirmation (warn if assigned to courses)
 - [ ] Backend: instructors table (id, orgId, name, title, bio, avatarUrl, email, linkedinUrl, twitterUrl, websiteUrl, createdAt)
-- [ ] Backend tRPC procedures: instructors.list, instructors.create, instructors.update, instructors.delete
+- [x] Backend tRPC procedures: instructors.list, instructors.create, instructors.update, instructors.delete
 - [ ] Course Builder: instructor selector dropdown on course settings tab (link course to instructor)
 - [ ] Course pre-start page: pull instructor info from linked instructor record
 
 ## WYSIWYG Page Editor (Thinkific Site Builder Style)
-- [ ] Full-screen editor layout: narrow left panel + wide live preview pane
+- [x] Full-screen editor layout: narrow left panel + wide live preview pane
 - [ ] Left panel: Page tab with Header (Default badge), Sections list with drag handles, Footer (Default badge), Add section button
 - [ ] Left panel: Theme Settings tab (fonts, colors, button styles)
-- [ ] Live preview: Desktop / Mobile / Fullscreen toggle in top bar
-- [ ] Live preview: Discard / Save buttons in top bar with draft/published status indicator
+- [x] Live preview: Desktop / Mobile / Fullscreen toggle in top bar
+- [x] Live preview: Discard / Save buttons in top bar with draft/published status indicator
 - [ ] Live preview: Section hover highlights with blue border + "Edit" overlay button
 - [ ] Section editor panel: clicking section opens settings (Headings, Background, Image or Video, Size & alignment, Blocks, Delete section)
 - [ ] Add section modal: grid of section type cards with thumbnail previews and descriptions
@@ -1530,21 +1530,21 @@
 - [ ] Videos stored in media library and linkable to courses/products
 
 ## Flashcard Creator (Media Library)
-- [ ] Add "Flashcards" tab/section to Media Library page
-- [ ] Flashcard deck management: create deck with name, description, category/tags
-- [ ] Flashcard card editor: front (term/question with optional image), back (definition/answer with optional image)
-- [ ] AI generation: input topic or paste text → AI generates N flashcard pairs using LLM
-- [ ] Excel import: upload .xlsx with columns (Front, Back, Front Image URL, Back Image URL) → bulk import
-- [ ] Excel export: download deck as .xlsx for offline use or sharing
-- [ ] Deck study mode: flip animation, shuffle/randomize, progress tracking (known/unknown)
+- [x] Add "Flashcards" tab/section to Media Library page
+- [x] Flashcard deck management: create deck with name, description, category/tags
+- [x] Flashcard card editor: front (term/question with optional image), back (definition/answer with optional image)
+- [x] AI generation: input topic or paste text → AI generates N flashcard pairs using LLM
+- [x] Excel import: upload .xlsx with columns (Front, Back, Front Image URL, Back Image URL) → bulk import
+- [x] Excel export: download deck as .xlsx for offline use or sharing
+- [x] Deck study mode: flip animation, shuffle/randomize, progress tracking (known/unknown)
 - [ ] Incorporate flashcard decks into course lessons as a "Flashcards" lesson type
-- [ ] Backend: flashcard_decks table (id, orgId, title, description, category, cardCount, createdAt)
-- [ ] Backend: flashcard_cards table (id, deckId, front, back, frontImageUrl, backImageUrl, sortOrder)
-- [ ] Backend tRPC procedures: flashcards.listDecks, flashcards.getDeck, flashcards.createDeck, flashcards.updateDeck, flashcards.deleteDeck
-- [ ] Backend tRPC procedures: flashcards.listCards, flashcards.createCard, flashcards.updateCard, flashcards.deleteCard, flashcards.reorderCards
-- [ ] Backend: flashcards.generateWithAI procedure using invokeLLM
-- [ ] Backend: flashcards.importFromExcel procedure using xlsx library
-- [ ] Backend: flashcards.exportToExcel procedure
+- [x] Backend: flashcard_decks table (id, orgId, title, description, category, cardCount, createdAt)
+- [x] Backend: flashcard_cards table (id, deckId, front, back, frontImageUrl, backImageUrl, sortOrder)
+- [x] Backend tRPC procedures: flashcards.listDecks, flashcards.getDeck, flashcards.createDeck, flashcards.updateDeck, flashcards.deleteDeck
+- [x] Backend tRPC procedures: flashcards.listCards, flashcards.createCard, flashcards.updateCard, flashcards.deleteCard, flashcards.reorderCards
+- [x] Backend: flashcards.generateWithAI procedure using invokeLLM
+- [x] Backend: flashcards.importFromExcel procedure using xlsx library
+- [x] Backend: flashcards.exportToExcel procedure
 - [ ] Tier gating: limit number of flashcard decks per plan
 
 ## Quiz Import Template ZIP with Bundled Media
@@ -1575,3 +1575,79 @@
 - [ ] Frontend: Seat registration tool (invite by email, assign to products, view progress)
 - [ ] Frontend: Group Manager sees only their group(s), not full org admin views
 - [ ] Frontend: DashboardLayout sidebar shows Group Management link for group_manager role
+
+## Bug: Custom Pages — No Edit After Creation (Apr 3, 2026)
+
+- [ ] Custom Pages list: add "Edit" button/link on each page row that navigates to the page builder for that page
+- [ ] Custom Pages list: add "Publish" / "Unpublish" toggle button on each row (currently only set at creation time)
+- [ ] Page builder: when opened for an existing page, load the page's current blocks and metadata
+- [ ] Page builder: Save button updates the existing page (not creates a new one)
+- [ ] Page builder: "Publish" button in top bar changes page status to published; "Unpublish" reverts to draft
+- [ ] Custom Pages list: show current status badge (Draft / Published) on each row
+
+## Bug/Feature: Platform Admin — Teachific Platform Org + Platform Forms (Apr 3, 2026)
+
+- [x] Ensure a "Teachific" organization exists in the DB as the platform-level org (owned by site owner, id=1 or auto-provisioned on first boot)
+- [x] Platform Admin > Organizations list: always show "Teachific (Platform)" as the first entry, clearly labeled as the platform org
+- [x] Platform Admin > Page Creator: include "Teachific (Platform)" in the org selector so platform-level pages can be created
+- [x] Platform Admin > Platform Forms tab: include "Teachific (Platform)" in the org selector so platform-level forms can be created
+- [x] Platform Admin > Platform Forms tab: "New Form" button should be enabled when "Teachific (Platform)" is selected (currently no org is pre-selected so button may be disabled)
+- [ ] Platform org tracks all platform-level data: forms, pages, analytics under the Teachific brand
+- [x] Backend: ensure auto-provisioning of the Teachific platform org on server startup if it does not exist (idempotent)
+
+## Bug/Feature: Platform Admin — Branding Theme Tab Missing (Apr 3, 2026)
+
+- [ ] Platform Admin: add "Branding" tab alongside Overview, Organizations, Users, Page Creator, Integrations, System Settings, Platform Forms
+- [ ] Branding tab: platform logo upload (replaces the "teachific" text lockup globally)
+- [ ] Branding tab: primary color picker (teal accent color used across buttons, links, badges)
+- [ ] Branding tab: secondary/accent color picker
+- [ ] Branding tab: font selector (heading font + body font from Google Fonts list)
+- [ ] Branding tab: favicon upload
+- [ ] Branding tab: platform name / tagline fields (used in email footers and page titles)
+- [ ] Branding tab: email header logo (can differ from site logo)
+- [ ] Branding tab: Save button persists all branding settings to org settings (platform org)
+- [x] Branding settings stored in the Teachific platform org record (or a dedicated platform_settings table)
+- [ ] Branding changes apply live to the sidebar logo, login screen, and embed player header
+
+## Enhancement: Platform Admin — Full Organization Management (Apr 3, 2026)
+
+- [ ] Organizations list: show Super Admin name + email column for each org (the user who owns/registered it)
+- [ ] Organizations list: if org was registered via sign-up, auto-populate owner name and email from the users table
+- [ ] Edit Organization dialog: add "Super Admin" section showing owner name, email, and role — allow editing (change owner)
+- [ ] Create New Organization dialog: add "Super Admin Name" and "Super Admin Email" fields; on create, look up or create the user and assign as org owner/admin
+- [ ] Create New Organization: if email matches an existing user, assign them as owner; if not, create a pending invite
+- [ ] Organizations list: "Manage Members" button per row that opens a members panel (list current members, add/remove, change roles)
+- [ ] Organizations list: show member count column
+- [ ] Organizations list: "Teachific (Platform)" org always pinned at top, labeled with a "Platform" badge
+- [ ] Backend: admin.createOrg procedure — accepts name, slug, ownerName, ownerEmail; creates org + assigns owner
+- [ ] Backend: admin.getOrgWithOwner — returns org with joined owner user data
+
+## Enhancement: Platform Admin — Full Organization Management (Apr 3, 2026)
+
+- [ ] Organizations list: show Super Admin name + email column for each org (the user who owns/registered it)
+- [ ] Organizations list: if org was registered via sign-up, auto-populate owner name and email from the users table
+- [ ] Edit Organization dialog: add Super Admin section showing owner name, email, and role — allow editing (change owner)
+- [ ] Create New Organization dialog: add Super Admin Name and Super Admin Email fields; on create, look up or create the user and assign as org owner/admin
+- [ ] Create New Organization: if email matches an existing user, assign them as owner; if not, create a pending invite
+- [ ] Organizations list: Manage Members button per row that opens a members panel (list current members, add/remove, change roles)
+- [ ] Organizations list: show member count column
+- [ ] Organizations list: Teachific (Platform) org always pinned at top, labeled with a Platform badge
+- [ ] Backend: admin.createOrg procedure — accepts name, slug, ownerName, ownerEmail; creates org + assigns owner
+- [ ] Backend: admin.getOrgWithOwner — returns org with joined owner user data
+
+## Bug: + New Course Button on Dashboard Goes to 404
+- [x] Dashboard "+ New Course" button links to /lms/courses/new which shows "course not found"
+- [x] Fix: button should open the course creation dialog (same as clicking "+ New Course" in the Courses list) or navigate to the courses page with the dialog pre-opened
+
+## Enhancement: Certificate Template Creator — Visual Editor
+- [ ] Replace raw HTML textarea with a visual certificate template picker (3-4 base designs)
+- [ ] Base templates: Classic, Modern, Elegant, Minimal — each pre-styled with border, colors, fonts
+- [ ] Rich field editor: user enters title, recipient name placeholder, body text, logo/image upload, signature image, date format
+- [ ] Live preview panel showing rendered certificate with merge tags replaced by sample data
+- [ ] Keep advanced "Edit HTML" toggle for power users who want raw access
+
+## Bug: Storefront/School Pages — Wrong Sidebar Shown
+- [x] Live client-side school/org pages (e.g. /school/all-about-ultrasound) should NOT show the org admin DashboardLayout sidebar
+- [x] School pages should show a learner/member sidebar only when the user is logged in
+- [x] The main org landing page (storefront) should have NO sidebar at all — public-facing layout only
+- [ ] The learner sidebar (My Courses, My Certificates, Account, etc.) should appear only on authenticated learner routes

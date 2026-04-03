@@ -59,6 +59,7 @@ import PublicPagePage from "./pages/PublicPagePage";
 
 // Members section
 import GroupsPage from "./pages/members/GroupsPage";
+import GroupManagerPortalPage from "./pages/members/GroupManagerPortalPage";
 import MemberCertificatesPage from "./pages/members/MemberCertificatesPage";
 import DiscussionsPage from "./pages/members/DiscussionsPage";
 import AssignmentsPage from "./pages/members/AssignmentsPage";
@@ -121,6 +122,10 @@ function BareRouter() {
       <Route path="/webinar/:slug/watch" component={WebinarWatchPage} />
       <Route path="/shop/:slug" component={DigitalProductSalesPage} />
       <Route path="/forms/:slug" component={FormPlayerPage} />
+      <Route path="/school" component={SchoolPage} />
+      <Route path="/school/:orgSlug" component={SchoolPage} />
+      <Route path="/school/courses/:courseId" component={CourseSalesPage} />
+      <Route path="/school/:orgSlug/courses/:courseId" component={CourseSalesPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
@@ -145,6 +150,7 @@ function AdminRouter() {
         {/* ── Members ── */}
         <Route path="/members/users" component={MembersPage} />
         <Route path="/members/groups" component={GroupsPage} />
+        <Route path="/members/group-manager" component={GroupManagerPortalPage} />
         <Route path="/members/certificates" component={MemberCertificatesPage} />
         <Route path="/members/discussions" component={DiscussionsPage} />
         <Route path="/members/assignments" component={AssignmentsPage} />
@@ -237,10 +243,6 @@ function AdminRouter() {
         <Route path="/lms/courses/:courseId/page-builder" component={PageBuilderPage} />
         <Route path="/lms/custom-pages" component={CustomPagesPage} />
         <Route path="/lms/settings" component={OrgSettingsPage} />
-        <Route path="/school" component={SchoolPage} />
-        <Route path="/school/:orgSlug" component={SchoolPage} />
-        <Route path="/school/courses/:courseId" component={CourseSalesPage} />
-        <Route path="/school/:orgSlug/courses/:courseId" component={CourseSalesPage} />
         <Route path="/learn/:courseId" component={CoursePlayerPage} />
         <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
 
@@ -257,6 +259,7 @@ function Router() {
   const isBare =
     path.startsWith("/embed/") ||
     path.startsWith("/learn/") ||
+    path.startsWith("/school") ||
     path.startsWith("/p/") ||
     path.startsWith("/webinar/") ||
     path.startsWith("/shop/") ||

@@ -1449,7 +1449,7 @@ function FormFiltersManager({ formId, fields }: { formId: number; fields: FormFi
     <div className="space-y-4">
       <div className="border border-border rounded-lg p-4 space-y-3">
         <p className="text-sm font-medium">New Results Filter</p>
-        <Input placeholder="Filter name (e.g. ACS, Adult Echo)" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <Input placeholder="Filter name (e.g. Sales, Compliance, IT)" value={newName} onChange={(e) => setNewName(e.target.value)} />
         <div className="grid grid-cols-3 gap-2">
           <Select value={newField} onValueChange={setNewField}>
             <SelectTrigger className="text-xs"><SelectValue placeholder="Field" /></SelectTrigger>
