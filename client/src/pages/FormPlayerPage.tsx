@@ -61,6 +61,7 @@ interface PublicForm {
   fontFamily?: string | null;
   headerImageUrl?: string | null;
   useOrgBranding?: boolean;
+  customCss?: string | null;
   orgPrimaryColor?: string | null;
   orgFontFamily?: string | null;
   fields: FormField[];
@@ -517,9 +518,13 @@ export default function FormPlayerPage() {
 
   return (
     <div
-      className={`${isEmbed ? "" : "min-h-screen bg-background"} pb-10`}
+      className={`${isEmbed ? "" : "min-h-screen bg-background"} pb-10 tf-form`}
       style={{ fontFamily: branding.font, background: isEmbed ? undefined : `linear-gradient(135deg, ${branding.primary}08 0%, transparent 60%)` }}
     >
+      {/* Inject custom CSS */}
+      {form.customCss && (
+        <style dangerouslySetInnerHTML={{ __html: form.customCss }} />
+      )}
       {/* Header image */}
       {branding.headerImage && (
         <div className="w-full h-48 overflow-hidden">

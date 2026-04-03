@@ -1689,3 +1689,14 @@
 - [ ] PageBuilder: Duplicate top toolbar (Show Header/Footer/Published + Save Page) to appear above the canvas too
 - [ ] PageBuilder: Numbered Steps + Checklist Steps - add layout direction (left/right), center alignment when no text, image/video per item (above/below/replace text)
 - [ ] PageBuilder: Banner block - add preview page URL option (opens a preview/demo page link)
+
+## Recent Fixes & Features
+- [x] Fix duplicate profile header in RecordPage (removed nested DashboardLayout)
+- [x] Add CSS code editor to Form Settings style tab (CodeMirror, customCss column, injected in FormPlayerPage)
+- [x] Add org slug to form URLs (/forms/:orgSlug/:slug)
+- [x] Allow editing form URL slug inline in Share tab
+- [x] Fix Forms share sidebar tabs (Links, Preview, Embed Code, QR Code now switch content)
+- [x] Remove Group Manager Portal from sidebar nav, add as button in Groups page header
+- [x] Add video background support to Banner and CTA blocks in Page Builder
+- [x] Add HTML iframe preview in Page Builder HTML block
+- [x] Add previewPageUrl button to BannerPreview

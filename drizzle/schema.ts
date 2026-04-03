@@ -1349,6 +1349,8 @@ export const forms = mysqlTable("forms", {
   headerImageUrl: text("headerImageUrl"),
   // When true, inherit org site settings for branding
   useOrgBranding: boolean("useOrgBranding").default(true).notNull(),
+  // Custom CSS injected into the form player
+  customCss: text("customCss"),
   // Member variable field mappings (JSON: [{fieldId, varName}])
   memberVarMappings: text("memberVarMappings"),
   submissionCount: int("submissionCount").default(0).notNull(),

@@ -206,6 +206,14 @@ export const formsRouter = router({
       requireLogin: z.boolean().optional(),
       allowMultipleSubmissions: z.boolean().optional(),
       primaryColor: z.string().optional().nullable(),
+      buttonColor: z.string().optional().nullable(),
+      buttonTextColor: z.string().optional().nullable(),
+      headerBgColor: z.string().optional().nullable(),
+      headerTextColor: z.string().optional().nullable(),
+      fontFamily: z.string().optional().nullable(),
+      headerImageUrl: z.string().optional().nullable(),
+      useOrgBranding: z.boolean().optional(),
+      customCss: z.string().optional().nullable(),
       slug: z.string().min(1).max(200).regex(/^[a-z0-9-]+$/, "Slug may only contain lowercase letters, numbers, and hyphens").optional(),
     }))
     .mutation(async ({ input }) => {
@@ -455,6 +463,7 @@ export const formsRouter = router({
         fontFamily: form.fontFamily,
         headerImageUrl: form.headerImageUrl,
         useOrgBranding: form.useOrgBranding,
+        customCss: form.customCss,
         orgPrimaryColor,
         orgFontFamily,
         fields: fields.map((f) => ({

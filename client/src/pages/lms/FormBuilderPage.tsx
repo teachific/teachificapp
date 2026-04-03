@@ -86,8 +86,15 @@ import {
   Clock,
   Edit,
   Save,
+  Code,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { useEffect as useEffectCM, useRef as useRefCM } from "react";
+import { EditorView } from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
+import { basicSetup } from "@codemirror/basic-setup";
+import { css } from "@codemirror/lang-css";
+import { oneDark } from "@codemirror/theme-one-dark";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -956,6 +963,51 @@ const FONT_OPTIONS = [
   "Inter", "Roboto", "Open Sans", "Lato", "Poppins", "Montserrat", "Nunito", "Raleway",
 ];
 
+// ── CSS Code Editor ─────────────────────────────────────────────────────────
+function CssCodeEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const containerRef = useRefCM<HTMLDivElement>(null);
+  const viewRef = useRefCM<EditorView | null>(null);
+
+  useEffectCM(() => {
+    if (!containerRef.current) return;
+    const state = EditorState.create({
+      doc: value ?? "",
+      extensions: [
+        basicSetup,
+        css(),
+        oneDark,
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            onChange(update.state.doc.toString());
+          }
+        }),
+        EditorView.theme({
+          "&": { fontSize: "12px", maxHeight: "300px", borderRadius: "6px", overflow: "hidden" },
+          ".cm-scroller": { overflow: "auto", maxHeight: "300px" },
+        }),
+      ],
+    });
+    const view = new EditorView({ state, parent: containerRef.current! });
+    viewRef.current = view;
+    return () => view.destroy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync external value changes (e.g. when form loads)
+  useEffectCM(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const current = view.state.doc.toString();
+    if (current !== (value ?? "")) {
+      view.dispatch({
+        changes: { from: 0, to: current.length, insert: value ?? "" },
+      });
+    }
+  }, [value]);
+
+  return <div ref={containerRef} className="rounded-md border border-border overflow-hidden" />;
+}
+
 function BrandingPanel({
   formId,
   orgId,
@@ -1102,6 +1154,23 @@ function BrandingPanel({
           </Button>
           <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
         </label>
+      </div>
+
+      <Separator />
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold flex items-center gap-1.5">
+          <Code className="h-4 w-4" /> Custom CSS
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          Write custom CSS to override form styles. Use <code className="bg-muted px-1 rounded text-xs">.tf-form</code> as the root selector.
+        </p>
+        <CssCodeEditor
+          value={formSettings.customCss ?? ""}
+          onChange={(v) => onUpdate({ customCss: v || null })}
+        />
+        <p className="text-xs text-muted-foreground">
+          Example: <code className="bg-muted px-1 rounded text-xs">.tf-form button &#123; border-radius: 0; &#125;</code>
+        </p>
       </div>
     </div>
   );

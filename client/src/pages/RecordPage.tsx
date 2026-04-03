@@ -10,7 +10,6 @@ import {
   Pause, Play, Download, Trash2, Settings, Camera, ChevronDown,
   CheckCircle, Loader2, Clock, Library, FileText,
 } from "lucide-react";
-import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -334,8 +333,7 @@ export default function RecordPage() {
   const isRecording = recordState === "recording" || recordState === "paused";
 
   return (
-    <DashboardLayout>
-      <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div>
@@ -702,7 +700,6 @@ export default function RecordPage() {
             </div>
           </div>
         </div>
-      </div>
-    </DashboardLayout>
+    </div>
   );
 }
