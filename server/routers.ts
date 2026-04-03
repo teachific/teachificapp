@@ -98,6 +98,7 @@ import { storagePut } from "./storage";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { lmsRouter } from "./lmsRouter";
+import { formsRouter } from "./formsRouter";
 import { customAuthRouter } from "./customAuthRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { ENV } from "./_core/env";
@@ -131,6 +132,7 @@ export const appRouter = router({
   system: systemRouter,
   lms: lmsRouter,
   customAuth: customAuthRouter,
+  forms: formsRouter,
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   auth: router({
@@ -394,6 +396,22 @@ export const appRouter = router({
         const org = await getOrgById(input.orgId);
         if (!org) return { termsOfService: '', privacyPolicy: '', requireTermsAgreement: false };
         return { termsOfService: org.termsOfService ?? '', privacyPolicy: org.privacyPolicy ?? '', requireTermsAgreement: org.requireTermsAgreement ?? false };
+      }),
+    // Public endpoint: fetch legal docs by org slug (for school storefront footer, no auth required)
+    publicLegalDocsBySlug: publicProcedure
+      .input(z.object({ slug: z.string() }))
+      .query(async ({ input }) => {
+        const org = await getOrgBySlug(input.slug);
+        if (!org) return { termsOfService: '', privacyPolicy: '', requireTermsAgreement: false, orgId: null as number | null, orgName: '' };
+        return { termsOfService: org.termsOfService ?? '', privacyPolicy: org.privacyPolicy ?? '', requireTermsAgreement: org.requireTermsAgreement ?? false, orgId: org.id, orgName: org.name };
+      }),
+    // Public endpoint: fetch school/org info by slug (for storefront, no auth required)
+    publicSchoolBySlug: publicProcedure
+      .input(z.object({ slug: z.string() }))
+      .query(async ({ input }) => {
+        const org = await getOrgBySlug(input.slug);
+        if (!org) return null;
+        return { id: org.id, name: org.name, slug: org.slug, description: (org as any).description ?? '' };
       }),
     members: router({
       list: protectedProcedure.input(z.object({ orgId: z.number() })).query(async ({ input, ctx }) => {

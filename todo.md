@@ -1220,3 +1220,30 @@
 - [ ] Course settings: toggle for showProgressBar and showProgressPercent
 - [ ] Dashboard enrollment chart: real Recharts bar chart with enrollment data
 - [ ] Analytics pages: real data with Recharts visualizations
+
+## School Storefront Footer - Org Policies (Apr 3, 2026)
+- [ ] Add publicLegalDocsBySlug backend endpoint (public, lookup by org slug)
+- [ ] Add /school/:orgSlug route in App.tsx for slug-based school pages
+- [ ] Update SchoolPage to resolve org by slug param (falls back to user's first org)
+- [ ] Footer already exists in SchoolPage - verify it shows ToS/Privacy links per org
+- [ ] Add org-scoped footer to school storefront with Terms of Service and Privacy Policy links
+
+## Form Generator (Products)
+- [x] DB schema: forms, form_fields, form_branching_rules, form_submissions tables
+- [x] Migration applied
+- [x] formsRouter.ts: list, create, get, update, delete, duplicate procedures
+- [x] formsRouter.ts: fields.upsert, rules.upsert procedures
+- [x] formsRouter.ts: publicGet, publicSubmit procedures
+- [x] formsRouter.ts: submissions.list, submissions.delete procedures
+- [x] formsRouter.ts: emailAccessCheck (gated by subscription plan)
+- [x] FormsPage.tsx: list, create, duplicate, delete forms
+- [x] FormBuilderPage.tsx: drag-and-drop field palette (10 field types)
+- [x] FormBuilderPage.tsx: branching rules editor (IF/THEN logic)
+- [x] FormBuilderPage.tsx: email routing panel (pro-gated)
+- [x] FormBuilderPage.tsx: share panel (URL + embed code)
+- [x] FormPlayerPage.tsx: public form player with branching engine
+- [x] FormResponsesPage.tsx: view and export responses as CSV
+- [x] Routes: /lms/forms, /lms/forms/:id, /lms/forms/:id/responses, /forms/:slug
+- [x] Forms added to Products section in sidebar
+- [x] TypeScript errors fixed (sonner toast, type casts)
+- [x] Production build verified clean

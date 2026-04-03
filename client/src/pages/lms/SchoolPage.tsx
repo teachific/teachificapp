@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { Search, Star, Clock, BookOpen, GraduationCap, Users, ChevronRight, Play, FileText } from "lucide-react";
+import { Search, Clock, BookOpen, GraduationCap, ChevronRight, Play, FileText } from "lucide-react";
 
 function CourseCard({
   course,
@@ -88,17 +88,35 @@ function CourseCard({
 }
 
 export default function SchoolPage() {
+  // orgSlug param is present when visiting /school/:orgSlug
   const params = useParams<{ orgSlug?: string }>();
+  const orgSlug = params?.orgSlug;
+
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [policyModal, setPolicyModal] = useState<"terms" | "privacy" | null>(null);
 
-  // For now, use the user's first org — in production this would be resolved by subdomain/slug
-  const { data: orgs } = trpc.orgs.myOrgs.useQuery();
-  const orgId = orgs?.[0]?.id;
+  // ── Slug-based resolution (public, no auth required) ──────────────────────
+  // When a slug is in the URL, look up the org by slug first (works for unauthenticated visitors).
+  const { data: orgBySlug } = trpc.orgs.publicSchoolBySlug.useQuery(
+    { slug: orgSlug! },
+    { enabled: !!orgSlug }
+  );
 
+  // ── Fallback: user's own org (for /school without a slug) ─────────────────
+  const { data: orgs } = trpc.orgs.myOrgs.useQuery(undefined, {
+    // Only fetch if we don't have a slug (or slug lookup hasn't resolved yet)
+    enabled: !orgSlug,
+  });
+
+  // Resolved orgId: prefer slug-based lookup, fall back to user's first org
+  const orgId: number | undefined = orgSlug
+    ? (orgBySlug?.id ?? undefined)
+    : (orgs?.[0]?.id ?? undefined);
+
+  // ── Data queries (all keyed on orgId) ────────────────────────────────────
   const { data: courses, isLoading: coursesLoading } = trpc.lms.courses.list.useQuery(
     { orgId: orgId! },
     { enabled: !!orgId }
@@ -109,13 +127,20 @@ export default function SchoolPage() {
     { enabled: !!orgId }
   );
 
-  const { data: legalDocs } = trpc.orgs.publicLegalDocs.useQuery(
-    { orgId: orgId! },
-    { enabled: !!orgId }
+  // ── Legal docs: use slug-based endpoint when slug is present ─────────────
+  const { data: legalDocsBySlug } = trpc.orgs.publicLegalDocsBySlug.useQuery(
+    { slug: orgSlug! },
+    { enabled: !!orgSlug }
   );
+  const { data: legalDocsByOrgId } = trpc.orgs.publicLegalDocs.useQuery(
+    { orgId: orgId! },
+    { enabled: !orgSlug && !!orgId }
+  );
+  // Use whichever source is available
+  const legalDocs = orgSlug ? legalDocsBySlug : legalDocsByOrgId;
 
   const primaryColor = theme?.studentPrimaryColor || theme?.primaryColor || "#189aa1";
-  const schoolName = theme?.schoolName || orgs?.[0]?.name || "Our School";
+  const schoolName = theme?.schoolName || orgBySlug?.name || orgs?.[0]?.name || "Our School";
 
   const filteredCourses = (courses || []).filter((c: any) => {
     const matchesSearch = !search || c.title.toLowerCase().includes(search.toLowerCase());
@@ -124,6 +149,15 @@ export default function SchoolPage() {
   });
 
   const categories = Array.from(new Set((courses || []).filter((c: any) => c.category).map((c: any) => c.category)));
+
+  // Course click: navigate to the org-slug-aware course URL when slug is present
+  const handleCourseClick = (courseId: number) => {
+    if (orgSlug) {
+      setLocation(`/school/${orgSlug}/courses/${courseId}`);
+    } else {
+      setLocation(`/school/courses/${courseId}`);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -295,7 +329,7 @@ export default function SchoolPage() {
                 key={course.id}
                 course={course}
                 primaryColor={primaryColor}
-                onClick={() => setLocation(`/school/courses/${course.id}`)}
+                onClick={() => handleCourseClick(course.id)}
               />
             ))}
           </div>
@@ -304,44 +338,71 @@ export default function SchoolPage() {
 
       {/* Footer */}
       <footer className="border-t border-border mt-12">
-        <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div
-              className="h-6 w-6 rounded-md flex items-center justify-center text-white font-bold text-xs"
-              style={{ backgroundColor: primaryColor }}
-            >
-              {schoolName[0]}
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          {/* Top row: branding + copyright + policy links */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* School branding */}
+            <div className="flex items-center gap-2">
+              {theme?.adminLogoUrl ? (
+                <img src={theme.adminLogoUrl} alt={schoolName} className="h-6 object-contain" />
+              ) : (
+                <div
+                  className="h-6 w-6 rounded-md flex items-center justify-center text-white font-bold text-xs"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  {schoolName[0]}
+                </div>
+              )}
+              <span className="text-sm font-medium">{schoolName}</span>
             </div>
-            <span className="text-sm font-medium">{schoolName}</span>
+
+            {/* Copyright */}
+            <p className="text-xs text-muted-foreground">
+              &copy; {new Date().getFullYear()} {schoolName}. All rights reserved.
+            </p>
+
+            {/* Policy links — shown only when the org has configured them */}
+            {(legalDocs?.termsOfService || legalDocs?.privacyPolicy) ? (
+              <div className="flex items-center gap-3">
+                {legalDocs.termsOfService && (
+                  <button
+                    onClick={() => setPolicyModal("terms")}
+                    className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors flex items-center gap-1"
+                  >
+                    <FileText className="h-3 w-3" />
+                    Terms of Service
+                  </button>
+                )}
+                {legalDocs.termsOfService && legalDocs.privacyPolicy && (
+                  <span className="text-muted-foreground/40 text-xs">·</span>
+                )}
+                {legalDocs.privacyPolicy && (
+                  <button
+                    onClick={() => setPolicyModal("privacy")}
+                    className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors flex items-center gap-1"
+                  >
+                    <FileText className="h-3 w-3" />
+                    Privacy Policy
+                  </button>
+                )}
+              </div>
+            ) : (
+              /* Spacer to keep layout balanced when no policies are set */
+              <div className="hidden md:block" />
+            )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} {schoolName}. All rights reserved.
-          </p>
-          {(legalDocs?.termsOfService || legalDocs?.privacyPolicy) && (
-            <div className="flex items-center gap-3">
-              {legalDocs?.termsOfService && (
-                <button
-                  onClick={() => setPolicyModal("terms")}
-                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors flex items-center gap-1"
-                >
-                  <FileText className="h-3 w-3" />
-                  Terms of Service
-                </button>
-              )}
-              {legalDocs?.termsOfService && legalDocs?.privacyPolicy && (
-                <span className="text-muted-foreground/40 text-xs">·</span>
-              )}
-              {legalDocs?.privacyPolicy && (
-                <button
-                  onClick={() => setPolicyModal("privacy")}
-                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors flex items-center gap-1"
-                >
-                  <FileText className="h-3 w-3" />
-                  Privacy Policy
-                </button>
-              )}
-            </div>
-          )}
+
+          {/* Powered-by line */}
+          <div className="mt-6 pt-4 border-t border-border/50 text-center">
+            <p className="text-xs text-muted-foreground/50">
+              Powered by{" "}
+              <span className="font-semibold">
+                <span className="text-foreground/60">teach</span>
+                <span style={{ color: primaryColor }}>ific</span>
+                <span className="text-foreground/60">™</span>
+              </span>
+            </p>
+          </div>
         </div>
       </footer>
 

@@ -125,6 +125,7 @@ const navGroups: NavGroup[] = [
           { label: "Webinars", path: "/lms/webinars" },
           { label: "Memberships", path: "/products/memberships" },
           { label: "Bundles", path: "/products/bundles" },
+          { label: "Forms", path: "/lms/forms" },
           { label: "Community", path: "/products/community" },
           { label: "Categories", path: "/products/categories" },
           { label: "Media Library", path: "/media-library" },

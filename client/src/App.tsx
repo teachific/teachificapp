@@ -33,6 +33,10 @@ import MembersPage from "./pages/lms/MembersPage";
 import LmsAnalyticsPage from "./pages/lms/LmsAnalyticsPage";
 import PageBuilderPage from "./pages/lms/PageBuilderPage";
 import SchoolPage from "./pages/lms/SchoolPage";
+import FormsPage from "./pages/lms/FormsPage";
+import FormBuilderPage from "./pages/lms/FormBuilderPage";
+import FormResponsesPage from "./pages/lms/FormResponsesPage";
+import FormPlayerPage from "./pages/FormPlayerPage";
 import CourseSalesPage from "./pages/lms/CourseSalesPage";
 import CoursePlayerPage from "./pages/lms/CoursePlayerPage";
 import CustomPagesPage from "./pages/admin/CustomPagesPage";
@@ -114,6 +118,7 @@ function BareRouter() {
       <Route path="/webinar/:slug/register" component={WebinarRegisterPage} />
       <Route path="/webinar/:slug/watch" component={WebinarWatchPage} />
       <Route path="/shop/:slug" component={DigitalProductSalesPage} />
+      <Route path="/forms/:slug" component={FormPlayerPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
@@ -162,6 +167,9 @@ function AdminRouter() {
         <Route path="/lms/webinars/:id/edit" component={WebinarEditorPage} />
         <Route path="/products/memberships" component={MembershipsPage} />
         <Route path="/products/bundles" component={BundlesPage} />
+        <Route path="/lms/forms" component={FormsPage} />
+        <Route path="/lms/forms/:id/responses" component={FormResponsesPage} />
+        <Route path="/lms/forms/:id" component={FormBuilderPage} />
         <Route path="/products/community" component={CommunityPage} />
         <Route path="/products/categories" component={CategoriesPage} />
         <Route path="/media-library" component={MediaLibraryPage} />
@@ -226,7 +234,9 @@ function AdminRouter() {
         <Route path="/lms/custom-pages" component={CustomPagesPage} />
         <Route path="/lms/settings" component={OrgSettingsPage} />
         <Route path="/school" component={SchoolPage} />
+        <Route path="/school/:orgSlug" component={SchoolPage} />
         <Route path="/school/courses/:courseId" component={CourseSalesPage} />
+        <Route path="/school/:orgSlug/courses/:courseId" component={CourseSalesPage} />
         <Route path="/learn/:courseId" component={CoursePlayerPage} />
         <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
 
@@ -246,6 +256,7 @@ function Router() {
     path.startsWith("/p/") ||
     path.startsWith("/webinar/") ||
     path.startsWith("/shop/") ||
+    path.startsWith("/forms/") ||
     AUTH_PATHS.some((p) => path === p || path.startsWith(p + "?"));
   return isBare ? <BareRouter /> : <AdminRouter />;
 }

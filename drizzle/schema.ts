@@ -1277,3 +1277,95 @@ export const bundles = mysqlTable("bundles", {
 });
 export type Bundle = typeof bundles.$inferSelect;
 export type InsertBundle = typeof bundles.$inferInsert;
+
+// ─── Forms ────────────────────────────────────────────────────────────────────
+export const forms = mysqlTable("forms", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  slug: varchar("slug", { length: 200 }).notNull(),
+  status: mysqlEnum("status", ["draft", "published", "closed"]).default("draft").notNull(),
+  // Email routing: list of email addresses (JSON array) to notify on submission
+  notifyEmails: text("notifyEmails"),
+  // Whether to send a confirmation email to the respondent
+  sendConfirmation: boolean("sendConfirmation").default(false).notNull(),
+  confirmationEmailField: varchar("confirmationEmailField", { length: 100 }),
+  confirmationSubject: varchar("confirmationSubject", { length: 255 }),
+  confirmationBody: text("confirmationBody"),
+  // Post-submit settings
+  successMessage: text("successMessage"),
+  redirectUrl: text("redirectUrl"),
+  // Access
+  requireLogin: boolean("requireLogin").default(false).notNull(),
+  allowMultipleSubmissions: boolean("allowMultipleSubmissions").default(true).notNull(),
+  // Styling
+  primaryColor: varchar("primaryColor", { length: 20 }),
+  submissionCount: int("submissionCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type Form = typeof forms.$inferSelect;
+export type InsertForm = typeof forms.$inferInsert;
+
+// ─── Form Fields ──────────────────────────────────────────────────────────────
+export const formFields = mysqlTable("form_fields", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  // Field type: short_answer, long_answer, dropdown, radio, checkbox, email, number, date, section_break, statement
+  type: varchar("type", { length: 50 }).notNull(),
+  label: text("label").notNull(),
+  placeholder: text("placeholder"),
+  helpText: text("helpText"),
+  required: boolean("required").default(false).notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  // Options for choice fields (JSON array of {value, label})
+  options: text("options"),
+  // Validation
+  minLength: int("minLength"),
+  maxLength: int("maxLength"),
+  // Whether this field can trigger branching rules
+  isBranchingSource: boolean("isBranchingSource").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type FormField = typeof formFields.$inferSelect;
+export type InsertFormField = typeof formFields.$inferInsert;
+
+// ─── Form Branching Rules ─────────────────────────────────────────────────────
+// Each rule: IF field X [operator] value THEN [action] field/page Y
+export const formBranchingRules = mysqlTable("form_branching_rules", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  // The field whose answer triggers this rule
+  sourceFieldId: int("sourceFieldId").notNull(),
+  // Operator: equals, not_equals, contains, not_contains, is_empty, is_not_empty
+  operator: varchar("operator", { length: 50 }).notNull(),
+  // The value to compare against
+  value: text("value"),
+  // Action: show_field, hide_field, jump_to_field, submit_form
+  action: varchar("action", { length: 50 }).notNull(),
+  // Target field id (for show/hide/jump actions)
+  targetFieldId: int("targetFieldId"),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type FormBranchingRule = typeof formBranchingRules.$inferSelect;
+export type InsertFormBranchingRule = typeof formBranchingRules.$inferInsert;
+
+// ─── Form Submissions ─────────────────────────────────────────────────────────
+export const formSubmissions = mysqlTable("form_submissions", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  // Respondent info (may be anonymous)
+  userId: int("userId"),
+  respondentEmail: varchar("respondentEmail", { length: 255 }),
+  respondentName: varchar("respondentName", { length: 255 }),
+  // Answers stored as JSON: { fieldId: value }
+  answers: text("answers").notNull(),
+  // Metadata
+  ipAddress: varchar("ipAddress", { length: 50 }),
+  userAgent: text("userAgent"),
+  submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+});
+export type FormSubmission = typeof formSubmissions.$inferSelect;
+export type InsertFormSubmission = typeof formSubmissions.$inferInsert;
