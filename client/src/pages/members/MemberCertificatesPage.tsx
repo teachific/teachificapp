@@ -437,7 +437,7 @@ function CertificateEditorDialog({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function MemberCertificatesPage() {
-  const { orgId, ready, OrgSelectorBar } = useOrgScope();
+  const { orgId, ready, showOrgSelector, orgs, setSelectedOrgId } = useOrgScope();
   const utils = trpc.useUtils();
 
   const { data: templates, isLoading } = trpc.lms.certificateTemplates.list.useQuery(
@@ -478,7 +478,20 @@ export default function MemberCertificatesPage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-7xl mx-auto">
-      <OrgSelectorBar />
+      {showOrgSelector && (
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-muted-foreground">Organization:</label>
+          <select
+            value={orgId ?? ""}
+            onChange={(e) => setSelectedOrgId(e.target.value ? Number(e.target.value) : null)}
+            className="text-sm border rounded px-2 py-1 bg-background"
+          >
+            {orgs.map((o) => (
+              <option key={o.id} value={o.id}>{o.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <div>
