@@ -226,13 +226,29 @@ export async function getOrgsByUserId(userId: number) {
   const members = await db.select().from(orgMembers).where(eq(orgMembers.userId, userId));
   if (members.length === 0) return [];
   const orgIds = members.map((m) => m.orgId);
-  return db.select().from(organizations).where(inArray(organizations.id, orgIds));
+  // Order: orgs owned by this user come first (so the user's own org is always the default),
+  // then by org name alphabetically.
+  const orgs = await db.select().from(organizations).where(inArray(organizations.id, orgIds));
+  return orgs.sort((a, b) => {
+    const aOwned = a.ownerId === userId ? 0 : 1;
+    const bOwned = b.ownerId === userId ? 0 : 1;
+    if (aOwned !== bOwned) return aOwned - bOwned;
+    return a.name.localeCompare(b.name);
+  });
 }
 
-/** Returns the primary orgId for an org_admin user (first membership row). Returns null if none found. */
+/** Returns the primary orgId for a user — prefers orgs they own, then falls back to first membership. */
 export async function getOrgIdForUser(userId: number): Promise<number | null> {
   const db = await getDb();
   if (!db) return null;
+  // First try to find an org owned by this user
+  const ownedOrg = await db
+    .select({ id: organizations.id })
+    .from(organizations)
+    .where(eq(organizations.ownerId, userId))
+    .limit(1);
+  if (ownedOrg[0]) return ownedOrg[0].id;
+  // Fall back to first membership row
   const rows = await db.select({ orgId: orgMembers.orgId }).from(orgMembers).where(eq(orgMembers.userId, userId)).limit(1);
   return rows[0]?.orgId ?? null;
 }

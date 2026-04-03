@@ -1785,3 +1785,8 @@
 - [x] Text-to-Speech sub-tab: textarea (max 4096 chars with counter), voice selector (alloy/echo/fable/onyx/nova/shimmer with descriptions), speed slider (0.25–4.0), file name input, Generate button, audio preview player, Save to Media Library button
 - [x] StudioTab type extended to include "audio"
 - [x] Write vitest tests for TTS input validation and audio format helpers (15 new tests, 49 total)
+
+## Default Org Fix
+- [x] Fix default org selection: owner's dashboard should default to Teachific org, not All About Ultrasound
+- [x] Investigate org ordering/priority logic in myOrgs procedure
+- [x] Set Teachific as the primary/default org for the owner user

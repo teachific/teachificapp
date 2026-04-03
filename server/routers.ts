@@ -72,7 +72,7 @@ import {
   getOrgLimitsEnriched,
 } from "./db";
 import { courseEnrollments, organizations, orgMembers } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   getOrgSubscription,
   upsertOrgSubscription,
@@ -379,6 +379,8 @@ export const appRouter = router({
         .from(orgMembers)
         .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
         .where(eq(orgMembers.userId, ctx.user.id))
+        // Orgs owned by this user come first (ownerId = userId → 0, else 1)
+        .orderBy(sql`CASE WHEN ${organizations.ownerId} = ${ctx.user.id} THEN 0 ELSE 1 END`, organizations.name)
         .limit(1);
       if (!rows[0]) return null;
       const subscription = await getOrgSubscription(rows[0].org.id);
