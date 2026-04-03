@@ -302,6 +302,27 @@
       "when": 1775231837705,
       "tag": "0042_mixed_ghost_rider",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "5",
+      "when": 1775232572231,
+      "tag": "0043_nasty_champions",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "5",
+      "when": 1775232707841,
+      "tag": "0044_silky_meggan",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "5",
+      "when": 1775233173567,
+      "tag": "0045_late_vector",
+      "breakpoints": true
     }
   ]
 }

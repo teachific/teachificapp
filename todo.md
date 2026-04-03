@@ -1666,14 +1666,14 @@
 - [ ] Platform Admin UI: when Org Member selected, show sub-role selector (Basic Member, Instructor, Group Manager, Group Member)
 - [ ] Platform Admin UI: when Group Manager or Group Member selected, show group assignment dropdown
 - [ ] Platform Admin UI: subscription limits tab (plan x feature grid, inline edit)
-- [ ] Platform Admin UI: org limits panel in org edit dialog (Limits tab)
+- [x] Platform Admin UI: org limits panel in org edit dialog (Limits tab)
 - [ ] Platform Admin UI: org delete button with confirmation dialog
 
 ## Bug Fixes - Apr 3 2026 (Session 2)
 
 - [ ] PageBuilder banner block: add button color fields (primary button bg + text color, secondary button bg + text color)
 - [ ] Platform Admin: add Subscription Plans tab with editable plan limits grid (features × plans)
-- [ ] Platform Admin: add org limits override panel inside org edit dialog
+- [x] Platform Admin: add org limits override panel inside org edit dialog
 - [ ] Platform Admin: add Delete Organization button with confirmation
 - [ ] PageBuilder: fix null validation error on page save (metaTitle/metaDescription/customCss sent as null)
 - [ ] PageBuilder: collapsible block editing — blocks show live preview when collapsed, settings panel when expanded/selected
@@ -1700,3 +1700,29 @@
 - [x] Add video background support to Banner and CTA blocks in Page Builder
 - [x] Add HTML iframe preview in Page Builder HTML block
 - [x] Add previewPageUrl button to BannerPreview
+
+## Branding Color System
+- [ ] Expand platform_settings branding to include buttonColor, sidebarBgColor, sidebarTextColor, pageBgColor, accentColor fields
+- [ ] Add color pickers for button/sidebar/background in Platform Admin Branding tab
+- [ ] Load branding on app startup via publicBranding query and inject as CSS variables
+- [ ] Apply CSS variables to DashboardLayout sidebar and buttons
+
+## Two-Tier Branding System
+- [ ] Add buttonColor, sidebarBgColor, sidebarTextColor, sidebarActiveColor, pageBgColor to org_settings table
+- [ ] Create resolvedBranding public procedure: returns platform branding for site admins, org branding for org members
+- [ ] Add color pickers for button/sidebar/background in Platform Admin Branding tab
+- [ ] Add color pickers for button/sidebar/background in Org Settings branding section
+- [ ] Load resolvedBranding on app startup and inject as CSS variables
+- [ ] Apply CSS variables to DashboardLayout sidebar, buttons, and page background
+
+## GoDaddy Wildcard DNS & Org Subdomain Routing
+- [ ] Store GODADDY_API_KEY and GODADDY_API_SECRET as project secrets
+- [ ] Verify/create wildcard DNS record *.teachific.app pointing to Manus deployment
+- [ ] Add orgSubdomain field to organizations table
+- [ ] Create server procedure to resolve org from subdomain
+- [ ] On app load, detect subdomain from hostname and load org context
+- [ ] Apply org branding when accessed via subdomain
+- [ ] Add subdomain field to Org Settings so admins can configure their subdomain
+- [x] Add per-org subscription plan editing in Platform Admin Organizations tab (plan selector + limit overrides per org)
+- [ ] Fix org edit dialog save — subscription plan changes not persisting
+- [x] Add Subscription tab in org edit dialog showing plan defaults + per-org limit overrides inline

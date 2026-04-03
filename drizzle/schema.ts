@@ -46,6 +46,9 @@ export const organizations = mysqlTable("organizations", {
   maxStorageBytes: bigint("maxStorageBytes", { mode: "number" }).default(10737418240),
   usedStorageBytes: bigint("usedStorageBytes", { mode: "number" }).default(0),
   isActive: boolean("isActive").default(true).notNull(),
+  // Subdomain on teachific.app (uses org slug by default)
+  subdomainEnabled: boolean("subdomainEnabled").default(false).notNull(),
+  customSubdomain: varchar("customSubdomain", { length: 100 }),
   // Custom domain for Pro+ orgs
   customDomain: varchar("customDomain", { length: 255 }),
   // Custom sender email for Builder+ orgs
@@ -399,6 +402,12 @@ export const orgThemes = mysqlTable("org_themes", {
   bgMode: mysqlEnum("bgMode", ["light", "dark"]).default("light").notNull(),
   primaryColor: varchar("primaryColor", { length: 32 }).default("#189aa1").notNull(),
   accentColor: varchar("accentColor", { length: 32 }).default("#4ad9e0").notNull(),
+  buttonColor: varchar("buttonColor", { length: 32 }),
+  buttonTextColor: varchar("buttonTextColor", { length: 32 }),
+  sidebarBgColor: varchar("sidebarBgColor", { length: 32 }),
+  sidebarTextColor: varchar("sidebarTextColor", { length: 32 }),
+  sidebarActiveColor: varchar("sidebarActiveColor", { length: 32 }),
+  pageBgColor: varchar("pageBgColor", { length: 32 }),
   fontFamily: varchar("fontFamily", { length: 128 }).default("Inter").notNull(),
   // School branding (student-facing)
   schoolName: varchar("schoolName", { length: 255 }),
@@ -766,6 +775,12 @@ export const platformSettings = mysqlTable("platform_settings", {
   faviconUrl: text("faviconUrl"),
   primaryColor: varchar("primaryColor", { length: 32 }).default("#189aa1").notNull(),
   accentColor: varchar("accentColor", { length: 32 }).default("#4ad9e0").notNull(),
+  buttonColor: varchar("buttonColor", { length: 32 }),
+  buttonTextColor: varchar("buttonTextColor", { length: 32 }),
+  sidebarBgColor: varchar("sidebarBgColor", { length: 32 }),
+  sidebarTextColor: varchar("sidebarTextColor", { length: 32 }),
+  sidebarActiveColor: varchar("sidebarActiveColor", { length: 32 }),
+  pageBgColor: varchar("pageBgColor", { length: 32 }),
   tagline: varchar("tagline", { length: 500 }),
   headingFont: varchar("headingFont", { length: 128 }).default("Inter"),
   bodyFont: varchar("bodyFont", { length: 128 }).default("Inter"),

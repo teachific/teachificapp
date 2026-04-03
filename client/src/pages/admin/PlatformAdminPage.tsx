@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,8 @@ import {
   Palette,
   Video,
   X,
+  Check,
+  Pencil,
 } from "lucide-react"
 import { cn } from "@/lib/utils";
 
@@ -261,11 +263,9 @@ function OrgsTab() {
   });
 
   const updateOrg = trpc.platformAdmin.updateOrg.useMutation({
-    onSuccess: () => { refetch(); },
     onError: (e) => toast.error(e.message),
   });
   const setOrgPlan = trpc.platformAdmin.setOrgPlan.useMutation({
-    onSuccess: () => { refetch(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -276,17 +276,18 @@ function OrgsTab() {
 
   const [deleteConfirmOrg, setDeleteConfirmOrg] = useState<typeof orgs[0] | null>(null);
   const [showLimitsPanel, setShowLimitsPanel] = useState(false);
-
-  const { data: orgLimitsData = [] } = trpc.platformAdmin.getOrgLimits.useQuery(
+  const [activeTab, setActiveTab] = useState("details");
+  const { data: orgLimitsRaw = [], refetch: refetchLimits } = trpc.platformAdmin.getOrgLimitsEnriched.useQuery(
     { orgId: editOrg?.id ?? 0 },
-    { enabled: !!editOrg && showLimitsPanel }
+    { enabled: !!editOrg && activeTab === "limits" }
   );
+  const orgLimitsData = orgLimitsRaw;
   const upsertOrgLimit = trpc.platformAdmin.upsertOrgLimitOverride.useMutation({
-    onSuccess: () => toast.success("Override saved"),
+    onSuccess: () => { refetchLimits(); toast.success("Override saved"); },
     onError: (e) => toast.error(e.message),
   });
   const deleteOrgLimit = trpc.platformAdmin.deleteOrgLimitOverride.useMutation({
-    onSuccess: () => toast.success("Override removed"),
+    onSuccess: () => { refetchLimits(); toast.success("Override removed"); },
     onError: (e) => toast.error(e.message),
   });
   const [editingLimit, setEditingLimit] = useState<{ featureKey: string; value: string } | null>(null);
@@ -305,7 +306,7 @@ function OrgsTab() {
       description: org.description ?? "",
       domain: (org as any).customDomain ?? "",
       plan: ((org.plan as string) ?? "free") as typeof editForm.plan,
-      planStatus: "active",
+      planStatus: ((org as any).subStatus ?? "active") as typeof editForm.planStatus,
     });
   };
 
@@ -400,7 +401,7 @@ function OrgsTab() {
 
       {/* Consolidated Edit + Plan Dialog */}
       <Dialog open={!!editOrg} onOpenChange={(o) => !o && setEditOrg(null)}>
-        <DialogContent className="bg-gray-50 border-gray-200 text-slate-900 max-w-lg">
+        <DialogContent className="bg-gray-50 border-gray-200 text-slate-900 max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-teal-400" />
@@ -408,45 +409,118 @@ function OrgsTab() {
             </DialogTitle>
             <DialogDescription className="text-slate-700">Update organization details and subscription plan.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5 col-span-2">
-                <Label className="text-slate-800">Name</Label>
-                <Input value={editForm.name ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="bg-white border-gray-300 text-slate-900" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-slate-800">Slug</Label>
-                <Input value={editForm.slug ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, slug: e.target.value }))} className="bg-white border-gray-300 text-slate-900 font-mono" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-slate-800">Custom Domain</Label>
-                <Input value={editForm.domain ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, domain: e.target.value }))} placeholder="app.example.com" className="bg-white border-gray-300 text-slate-900" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-slate-800">Description</Label>
-              <Textarea value={editForm.description ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} className="bg-white border-gray-300 text-slate-900" rows={2} />
-            </div>
+          <Tabs defaultValue="details" onValueChange={setActiveTab}>
+            <TabsList className="bg-gray-100 border border-gray-200 w-full">
+              <TabsTrigger value="details" className="flex-1 text-slate-700 data-[state=active]:bg-white data-[state=active]:text-slate-900">Details</TabsTrigger>
+              <TabsTrigger value="subscription" className="flex-1 text-slate-700 data-[state=active]:bg-white data-[state=active]:text-slate-900">Subscription</TabsTrigger>
+              <TabsTrigger value="limits" className="flex-1 text-slate-700 data-[state=active]:bg-white data-[state=active]:text-slate-900">Limit Overrides</TabsTrigger>
+            </TabsList>
 
-            {/* Subscription plan */}
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
-              <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
-                <Crown className="w-3.5 h-3.5 text-amber-400" /> Subscription Plan
-              </p>
-              {editOrgSub && (
-                <div className="text-xs text-slate-700">
-                  Current: <PlanBadge plan={editOrgSub.plan} />
-                  {editOrgSub.customPriceLabel && <span className="ml-2">({editOrgSub.customPriceLabel})</span>}
-                </div>
-              )}
+            {/* Details Tab */}
+            <TabsContent value="details" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5 col-span-2">
+                  <Label className="text-slate-800">Name</Label>
+                  <Input value={editForm.name ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="bg-white border-gray-300 text-slate-900" />
+                </div>
                 <div className="space-y-1.5">
-                  <Label className="text-slate-800 text-xs">Plan</Label>
+                  <Label className="text-slate-800">Slug</Label>
+                  <Input value={editForm.slug ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, slug: e.target.value }))} className="bg-white border-gray-300 text-slate-900 font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-slate-800">Custom Domain</Label>
+                  <Input value={editForm.domain ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, domain: e.target.value }))} placeholder="app.example.com" className="bg-white border-gray-300 text-slate-900" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-800">Description</Label>
+                <Textarea value={editForm.description ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} className="bg-white border-gray-300 text-slate-900" rows={2} />
+              </div>
+            </TabsContent>
+
+            {/* Subscription Tab */}
+            <TabsContent value="subscription" className="space-y-4 mt-4">
+              <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+                <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 text-amber-400" /> Subscription Plan
+                </p>
+                {editOrgSub && (
+                  <div className="text-xs text-slate-600 flex items-center gap-2">
+                    Current saved plan: <PlanBadge plan={editOrgSub.plan} />
+                    {editOrgSub.customPriceLabel && <span>({editOrgSub.customPriceLabel})</span>}
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-slate-800 text-xs">Plan</Label>
+                    <Select
+                      value={editForm.plan ?? "free"}
+                      onValueChange={(v) => setEditForm((f) => ({ ...f, plan: v as typeof editForm.plan }))}
+                    >
+                      <SelectTrigger className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border-gray-200">
+                        {["free", "starter", "builder", "pro", "enterprise"].map((p) => (
+                          <SelectItem key={p} value={p} className="text-slate-900 focus:bg-gray-100 text-xs">
+                            {p.charAt(0).toUpperCase() + p.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-slate-800 text-xs">Status</Label>
+                    <Select
+                      value={editForm.planStatus ?? "active"}
+                      onValueChange={(v) => setEditForm((f) => ({ ...f, planStatus: v as typeof editForm.planStatus }))}
+                    >
+                      <SelectTrigger className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border-gray-200">
+                        {["active", "trialing", "past_due", "cancelled", "unpaid"].map((s) => (
+                          <SelectItem key={s} value={s} className="text-slate-900 focus:bg-gray-100 text-xs">
+                            {s.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {editForm.plan === "enterprise" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-slate-800 text-xs">Custom Price (USD cents)</Label>
+                      <Input type="number" value={editForm.customPriceUsd ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, customPriceUsd: parseInt(e.target.value) || undefined }))} placeholder="e.g. 49900" className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-slate-800 text-xs">Price Label</Label>
+                      <Input value={editForm.customPriceLabel ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, customPriceLabel: e.target.value }))} placeholder="e.g. $499/mo" className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs" />
+                    </div>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label className="text-slate-800 text-xs">Admin Notes (internal)</Label>
+                  <Textarea value={editForm.adminNotes ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, adminNotes: e.target.value }))} placeholder="Notes about this org..." className="bg-gray-50 border-gray-300 text-slate-900 text-xs" rows={2} />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Limit Overrides Tab */}
+            <TabsContent value="limits" className="mt-4 space-y-3">
+              {/* Subscription plan quick-change within Limits tab */}
+              <div className="rounded-md border border-gray-200 bg-white p-3 space-y-2">
+                <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 text-amber-400" /> Subscription Plan Override
+                </p>
+                <p className="text-xs text-slate-500">Change the plan to update the default limits below. Existing per-org overrides are preserved.</p>
+                <div className="flex items-center gap-2">
                   <Select
                     value={editForm.plan ?? "free"}
                     onValueChange={(v) => setEditForm((f) => ({ ...f, plan: v as typeof editForm.plan }))}
                   >
-                    <SelectTrigger className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs">
+                    <SelectTrigger className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs flex-1">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white border-gray-200">
@@ -457,64 +531,60 @@ function OrgsTab() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-slate-800 text-xs">Status</Label>
-                  <Select
-                    value={editForm.planStatus ?? "active"}
-                    onValueChange={(v) => setEditForm((f) => ({ ...f, planStatus: v as typeof editForm.planStatus }))}
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs bg-teal-600 hover:bg-teal-700 shrink-0"
+                    disabled={setOrgPlan.isPending}
+                    onClick={async () => {
+                      if (!editOrg) return;
+                      await setOrgPlan.mutateAsync({
+                        orgId: editOrg.id,
+                        plan: editForm.plan ?? "free",
+                        status: editForm.planStatus ?? "active",
+                        customPriceUsd: editForm.customPriceUsd ?? null,
+                        customPriceLabel: editForm.customPriceLabel ?? null,
+                        adminNotes: editForm.adminNotes ?? null,
+                      });
+                      await refetchLimits();
+                      toast.success("Plan updated — limits refreshed");
+                    }}
                   >
-                    <SelectTrigger className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border-gray-200">
-                      {["active", "trialing", "past_due", "cancelled", "unpaid"].map((s) => (
-                        <SelectItem key={s} value={s} className="text-slate-900 focus:bg-gray-100 text-xs">
-                          {s.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    {setOrgPlan.isPending ? "Saving..." : "Apply Plan"}
+                  </Button>
                 </div>
               </div>
-              {editForm.plan === "enterprise" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-slate-800 text-xs">Custom Price (USD cents)</Label>
-                    <Input type="number" value={editForm.customPriceUsd ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, customPriceUsd: parseInt(e.target.value) || undefined }))} placeholder="e.g. 49900" className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-slate-800 text-xs">Price Label</Label>
-                    <Input value={editForm.customPriceLabel ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, customPriceLabel: e.target.value }))} placeholder="e.g. $499/mo" className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs" />
-                  </div>
-                </div>
-              )}
-              <div className="space-y-1.5">
-                <Label className="text-slate-800 text-xs">Admin Notes (internal)</Label>
-                <Textarea value={editForm.adminNotes ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, adminNotes: e.target.value }))} placeholder="Notes about this org..." className="bg-gray-50 border-gray-300 text-slate-900 text-xs" rows={2} />
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-teal-300 text-teal-700 hover:bg-teal-50 mr-auto"
-              onClick={() => { setShowLimitsPanel(true); }}
-            >
-              <Lock className="w-3.5 h-3.5 mr-1.5" /> Limit Overrides
-            </Button>
+              <OrgLimitsInlinePanel
+                orgId={editOrg?.id ?? 0}
+                orgLimitsData={orgLimitsData}
+                editingLimit={editingLimit}
+                setEditingLimit={setEditingLimit}
+                upsertOrgLimit={upsertOrgLimit}
+                deleteOrgLimit={deleteOrgLimit}
+              />
+            </TabsContent>
+          </Tabs>
+          <DialogFooter className="gap-2 flex-wrap mt-2">
             <Button variant="outline" onClick={() => setEditOrg(null)} className="border-gray-300 text-slate-800">Cancel</Button>
             <Button
               onClick={async () => {
                 if (!editOrg) return;
-                await updateOrg.mutateAsync({ orgId: editOrg.id, name: editForm.name, slug: editForm.slug, description: editForm.description, domain: editForm.domain });
-                if (editForm.plan) {
-                  await setOrgPlan.mutateAsync({ orgId: editOrg.id, plan: editForm.plan, status: editForm.planStatus, customPriceUsd: editForm.customPriceUsd, customPriceLabel: editForm.customPriceLabel, adminNotes: editForm.adminNotes });
+                try {
+                  await updateOrg.mutateAsync({ orgId: editOrg.id, name: editForm.name, slug: editForm.slug, description: editForm.description, domain: editForm.domain });
+                  // Always upsert subscription — even if plan is "free" to ensure row exists
+                  await setOrgPlan.mutateAsync({
+                    orgId: editOrg.id,
+                    plan: editForm.plan ?? "free",
+                    status: editForm.planStatus ?? "active",
+                    customPriceUsd: editForm.customPriceUsd ?? null,
+                    customPriceLabel: editForm.customPriceLabel ?? null,
+                    adminNotes: editForm.adminNotes ?? null,
+                  });
+                  await refetch();
+                  setEditOrg(null);
+                  toast.success("Organization saved");
+                } catch {
+                  // errors handled by mutation onError
                 }
-                refetch();
-                setEditOrg(null);
-                toast.success("Organization saved");
               }}
               disabled={updateOrg.isPending || setOrgPlan.isPending}
               className="bg-teal-600 hover:bg-gray-500 text-slate-900"
@@ -658,6 +728,95 @@ function OrgsTab() {
           </div>
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
+
+// ─── Org Limits Inline Panel ─────────────────────────────────────────────────
+function OrgLimitsInlinePanel({
+  orgId,
+  orgLimitsData,
+  editingLimit,
+  setEditingLimit,
+  upsertOrgLimit,
+  deleteOrgLimit,
+}: {
+  orgId: number;
+  orgLimitsData: Array<{ featureKey: string; featureLabel: string; limitValue: number; planDefault: number; isOverride: boolean; plan: string }>;
+  editingLimit: { featureKey: string; value: string } | null;
+  setEditingLimit: (v: { featureKey: string; value: string } | null) => void;
+  upsertOrgLimit: ReturnType<typeof trpc.platformAdmin.upsertOrgLimitOverride.useMutation>;
+  deleteOrgLimit: ReturnType<typeof trpc.platformAdmin.deleteOrgLimitOverride.useMutation>;
+}) {
+  if (!orgId) return <p className="text-sm text-slate-500 py-4 text-center">Select an organization to view limits.</p>;
+  const plan = orgLimitsData[0]?.plan ?? null;
+  if (orgLimitsData.length === 0) return (
+    <div className="py-6 text-center text-sm text-slate-500">
+      <p>No limit data available for this plan.</p>
+      <p className="text-xs mt-1">Assign a plan in the Subscription tab first.</p>
+    </div>
+  );
+  const overrideCount = orgLimitsData.filter(r => r.isOverride).length;
+  return (
+    <div className="space-y-2">
+      {/* Plan summary banner */}
+      <div className="flex items-center justify-between rounded-md bg-teal-50 border border-teal-200 px-3 py-2">
+        <div className="flex items-center gap-2">
+          <Crown className="w-3.5 h-3.5 text-teal-600" />
+          <span className="text-xs font-semibold text-teal-800 capitalize">{plan} plan defaults</span>
+        </div>
+        {overrideCount > 0 && (
+          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">{overrideCount} override{overrideCount !== 1 ? "s" : ""} active</span>
+        )}
+      </div>
+      <p className="text-xs text-slate-500">Set per-org overrides below. Amber values supersede the plan default. Remove an override to revert to the plan default.</p>
+      <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+        {orgLimitsData.map((row) => (
+          <div key={row.featureKey} className={`flex items-center gap-2 rounded-md border px-3 py-2 ${row.isOverride ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white"}`}>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-slate-800 truncate">{row.featureLabel}</p>
+              <p className="text-xs text-slate-400 font-mono">plan default: {row.planDefault === -1 ? "∞" : row.planDefault}</p>
+            </div>
+            {editingLimit?.featureKey === row.featureKey ? (
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  value={editingLimit.value}
+                  onChange={(e) => setEditingLimit({ featureKey: row.featureKey, value: e.target.value })}
+                  className="w-20 h-7 text-xs bg-white border-gray-300 text-slate-900"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      upsertOrgLimit.mutate({ orgId, featureKey: row.featureKey, limitValue: parseInt(editingLimit.value) || 0 });
+                      setEditingLimit(null);
+                    }
+                    if (e.key === "Escape") setEditingLimit(null);
+                  }}
+                  autoFocus
+                />
+                <Button size="icon" className="h-7 w-7 bg-teal-600 hover:bg-teal-700" onClick={() => {
+                  upsertOrgLimit.mutate({ orgId, featureKey: row.featureKey, limitValue: parseInt(editingLimit.value) || 0 });
+                  setEditingLimit(null);
+                }}><Check className="w-3 h-3" /></Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-500" onClick={() => setEditingLimit(null)}><X className="w-3 h-3" /></Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-mono px-2 py-0.5 rounded font-semibold ${row.isOverride ? "bg-amber-200 text-amber-800" : "bg-gray-100 text-slate-600"}`}>
+                  {row.limitValue === -1 ? "∞" : row.limitValue}
+                </span>
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-500 hover:text-slate-700" onClick={() => setEditingLimit({ featureKey: row.featureKey, value: String(row.limitValue) })}>
+                  <Pencil className="w-3 h-3" />
+                </Button>
+                {row.isOverride && (
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-600" title="Reset to plan default" onClick={() => deleteOrgLimit.mutate({ orgId, featureKey: row.featureKey })}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1294,6 +1453,12 @@ function BrandingTab() {
     faviconUrl?: string | null;
     primaryColor?: string;
     accentColor?: string;
+    buttonColor?: string | null;
+    buttonTextColor?: string | null;
+    sidebarBgColor?: string | null;
+    sidebarTextColor?: string | null;
+    sidebarActiveColor?: string | null;
+    pageBgColor?: string | null;
     watermarkImageUrl?: string | null;
     watermarkOpacity?: number;
     watermarkPosition?: string;
@@ -1398,6 +1563,60 @@ function BrandingTab() {
               <div className="flex items-center gap-2">
                 <input type="color" value={merged.accentColor ?? "#4ad9e0"} onChange={e => setForm(f => ({ ...f, accentColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
                 <Input value={merged.accentColor ?? "#4ad9e0"} onChange={e => setForm(f => ({ ...f, accentColor: e.target.value }))} className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
+              </div>
+            </div>
+          </div>
+          {/* UI Color Controls */}
+          <div className="pt-2 border-t border-gray-200">
+            <p className="text-sm font-semibold text-slate-700 mb-3">UI Color Controls</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 text-sm">Button Color <span className="text-xs text-slate-400">(default: primary)</span></Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={merged.buttonColor ?? merged.primaryColor ?? "#189aa1"} onChange={e => setForm(f => ({ ...f, buttonColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
+                  <Input value={merged.buttonColor ?? ""} onChange={e => setForm(f => ({ ...f, buttonColor: e.target.value || null }))} placeholder="inherit from primary" className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
+                  {merged.buttonColor && <button type="button" onClick={() => setForm(f => ({ ...f, buttonColor: null }))} className="text-xs text-slate-400 hover:text-red-500">✕</button>}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 text-sm">Button Text Color <span className="text-xs text-slate-400">(default: white)</span></Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={merged.buttonTextColor ?? "#ffffff"} onChange={e => setForm(f => ({ ...f, buttonTextColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
+                  <Input value={merged.buttonTextColor ?? ""} onChange={e => setForm(f => ({ ...f, buttonTextColor: e.target.value || null }))} placeholder="#ffffff" className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
+                  {merged.buttonTextColor && <button type="button" onClick={() => setForm(f => ({ ...f, buttonTextColor: null }))} className="text-xs text-slate-400 hover:text-red-500">✕</button>}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 text-sm">Sidebar Background <span className="text-xs text-slate-400">(default: dark)</span></Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={merged.sidebarBgColor ?? "#0f172a"} onChange={e => setForm(f => ({ ...f, sidebarBgColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
+                  <Input value={merged.sidebarBgColor ?? ""} onChange={e => setForm(f => ({ ...f, sidebarBgColor: e.target.value || null }))} placeholder="inherit from theme" className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
+                  {merged.sidebarBgColor && <button type="button" onClick={() => setForm(f => ({ ...f, sidebarBgColor: null }))} className="text-xs text-slate-400 hover:text-red-500">✕</button>}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 text-sm">Sidebar Text Color <span className="text-xs text-slate-400">(default: light)</span></Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={merged.sidebarTextColor ?? "#e2e8f0"} onChange={e => setForm(f => ({ ...f, sidebarTextColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
+                  <Input value={merged.sidebarTextColor ?? ""} onChange={e => setForm(f => ({ ...f, sidebarTextColor: e.target.value || null }))} placeholder="inherit from theme" className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
+                  {merged.sidebarTextColor && <button type="button" onClick={() => setForm(f => ({ ...f, sidebarTextColor: null }))} className="text-xs text-slate-400 hover:text-red-500">✕</button>}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 text-sm">Sidebar Active Item Color <span className="text-xs text-slate-400">(default: primary)</span></Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={merged.sidebarActiveColor ?? merged.primaryColor ?? "#189aa1"} onChange={e => setForm(f => ({ ...f, sidebarActiveColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
+                  <Input value={merged.sidebarActiveColor ?? ""} onChange={e => setForm(f => ({ ...f, sidebarActiveColor: e.target.value || null }))} placeholder="inherit from primary" className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
+                  {merged.sidebarActiveColor && <button type="button" onClick={() => setForm(f => ({ ...f, sidebarActiveColor: null }))} className="text-xs text-slate-400 hover:text-red-500">✕</button>}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 text-sm">Page Background Color <span className="text-xs text-slate-400">(default: white)</span></Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={merged.pageBgColor ?? "#f8fafc"} onChange={e => setForm(f => ({ ...f, pageBgColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
+                  <Input value={merged.pageBgColor ?? ""} onChange={e => setForm(f => ({ ...f, pageBgColor: e.target.value || null }))} placeholder="inherit from theme" className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
+                  {merged.pageBgColor && <button type="button" onClick={() => setForm(f => ({ ...f, pageBgColor: null }))} className="text-xs text-slate-400 hover:text-red-500">✕</button>}
+                </div>
               </div>
             </div>
           </div>

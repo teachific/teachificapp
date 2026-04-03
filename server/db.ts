@@ -645,6 +645,38 @@ export async function upsertOrgLimitOverride(data: {
   }
 }
 
+/** Returns plan limits merged with org overrides for a given org.
+ * Each row has featureKey, featureLabel, planDefault, limitValue (effective), isOverride.
+ */
+export async function getOrgLimitsEnriched(orgId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  // Get org's current plan
+  const subRows = await db.select({ plan: orgSubscriptions.plan })
+    .from(orgSubscriptions)
+    .where(eq(orgSubscriptions.orgId, orgId))
+    .limit(1);
+  const plan = subRows[0]?.plan ?? "free";
+  // Get plan limits for that plan
+  const planLimits = await db.select()
+    .from(subscriptionPlanLimits)
+    .where(eq(subscriptionPlanLimits.plan, plan))
+    .orderBy(subscriptionPlanLimits.featureKey);
+  // Get org overrides
+  const overrides = await db.select()
+    .from(orgLimitOverrides)
+    .where(eq(orgLimitOverrides.orgId, orgId));
+  const overrideMap = new Map(overrides.map(o => [o.featureKey, o.limitValue]));
+  return planLimits.map(pl => ({
+    featureKey: pl.featureKey,
+    featureLabel: pl.featureLabel,
+    planDefault: pl.limitValue,
+    limitValue: overrideMap.has(pl.featureKey) ? overrideMap.get(pl.featureKey)! : pl.limitValue,
+    isOverride: overrideMap.has(pl.featureKey),
+    plan,
+  }));
+}
+
 /** Delete a per-org limit override (reverts to plan default) */
 export async function deleteOrgLimitOverride(orgId: number, featureKey: string) {
   const db = await getDb();

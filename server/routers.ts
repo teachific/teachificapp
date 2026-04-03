@@ -69,6 +69,7 @@ import {
   upsertOrgLimitOverride,
   deleteOrgLimitOverride,
   deleteOrgCascade,
+  getOrgLimitsEnriched,
 } from "./db";
 import { courseEnrollments, organizations, orgMembers } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
@@ -152,6 +153,105 @@ export const appRouter = router({
       return { success: true } as const;
     }),
   }),
+
+  // ── Resolved Branding (public) ─────────────────────────────────────────────
+  // Returns platform branding for site admins/owners, or org branding for org members
+  resolvedBranding: publicProcedure.query(async ({ ctx }) => {
+    const db2 = await getDb();
+    if (!db2) return null;
+    const { platformSettings: psTable, orgThemes, orgMembers: omTable, organizations } = await import("../drizzle/schema");
+    // If user is logged in and belongs to an org, return org branding
+    if (ctx.user) {
+      const membership = await db2
+        .select({ orgId: omTable.orgId })
+        .from(omTable)
+        .where(eq(omTable.userId, ctx.user.id))
+        .limit(1);
+      if (membership.length) {
+        const orgId = membership[0].orgId;
+        const orgTheme = await db2.select().from(orgThemes).where(eq(orgThemes.orgId, orgId)).limit(1);
+        if (orgTheme.length) {
+          const t = orgTheme[0];
+          return {
+            source: "org" as const,
+            primaryColor: t.primaryColor,
+            accentColor: t.accentColor,
+            buttonColor: t.buttonColor,
+            buttonTextColor: t.buttonTextColor,
+            sidebarBgColor: t.sidebarBgColor,
+            sidebarTextColor: t.sidebarTextColor,
+            sidebarActiveColor: t.sidebarActiveColor,
+            pageBgColor: t.pageBgColor,
+            logoUrl: t.adminLogoUrl,
+            faviconUrl: t.faviconUrl,
+            platformName: null,
+            headingFont: t.fontFamily,
+            bodyFont: t.fontFamily,
+          };
+        }
+      }
+    }
+    // Fall back to platform branding
+    const rows = await db2.select().from(psTable).limit(1);
+    if (!rows.length) return null;
+    const p = rows[0];
+    return {
+      source: "platform" as const,
+      primaryColor: p.primaryColor,
+      accentColor: p.accentColor,
+      buttonColor: p.buttonColor,
+      buttonTextColor: p.buttonTextColor,
+      sidebarBgColor: p.sidebarBgColor,
+      sidebarTextColor: p.sidebarTextColor,
+      sidebarActiveColor: p.sidebarActiveColor,
+      pageBgColor: p.pageBgColor,
+      logoUrl: p.logoUrl,
+      faviconUrl: p.faviconUrl,
+      platformName: p.platformName,
+      headingFont: p.headingFont,
+      bodyFont: p.bodyFont,
+    };
+  }),
+
+  // ── Subdomain Resolution (public) ──────────────────────────────────────────
+  // Resolves org info from a subdomain slug (e.g. "myorg" from myorg.teachific.app)
+  resolveBySubdomain: publicProcedure
+    .input(z.object({ subdomain: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const db2 = await getDb();
+      if (!db2) return null;
+      const { organizations: orgsTable, orgThemes } = await import("../drizzle/schema");
+      // Match by customSubdomain first, then by slug
+      const orgs = await db2
+        .select()
+        .from(orgsTable)
+        .where(eq(orgsTable.isActive, true))
+        .limit(100);
+      const org = orgs.find(o =>
+        (o.customSubdomain && o.customSubdomain.toLowerCase() === input.subdomain.toLowerCase()) ||
+        o.slug.toLowerCase() === input.subdomain.toLowerCase()
+      );
+      if (!org) return null;
+      // Get org theme
+      const theme = await db2.select().from(orgThemes).where(eq(orgThemes.orgId, org.id)).limit(1);
+      const t = theme[0];
+      return {
+        orgId: org.id,
+        orgName: org.name,
+        orgSlug: org.slug,
+        logoUrl: t?.adminLogoUrl ?? org.logoUrl,
+        primaryColor: t?.primaryColor,
+        accentColor: t?.accentColor,
+        buttonColor: t?.buttonColor,
+        buttonTextColor: t?.buttonTextColor,
+        sidebarBgColor: t?.sidebarBgColor,
+        sidebarTextColor: t?.sidebarTextColor,
+        sidebarActiveColor: t?.sidebarActiveColor,
+        pageBgColor: t?.pageBgColor,
+        headingFont: t?.fontFamily,
+        bodyFont: t?.fontFamily,
+      };
+    }),
 
   // ── Users (admin) ─────────────────────────────────────────────────────────
   users: router({
@@ -1668,6 +1768,12 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         faviconUrl: z.string().optional().nullable(),
         primaryColor: z.string().optional(),
         accentColor: z.string().optional(),
+        buttonColor: z.string().optional().nullable(),
+        buttonTextColor: z.string().optional().nullable(),
+        sidebarBgColor: z.string().optional().nullable(),
+        sidebarTextColor: z.string().optional().nullable(),
+        sidebarActiveColor: z.string().optional().nullable(),
+        pageBgColor: z.string().optional().nullable(),
         platformName: z.string().optional(),
         tagline: z.string().optional().nullable(),
         headingFont: z.string().optional(),
@@ -1704,6 +1810,9 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     getOrgLimits: adminProcedure
       .input(z.object({ orgId: z.number() }))
       .query(({ input }) => getOrgLimitOverrides(input.orgId)),
+    getOrgLimitsEnriched: adminProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(({ input }) => getOrgLimitsEnriched(input.orgId)),
     upsertOrgLimitOverride: adminProcedure
       .input(z.object({
         orgId: z.number(),
