@@ -348,6 +348,7 @@ function BannerPreview({ data }: { data: Record<string, any> }) {
         <div style={{ display: "flex", gap: "12px", justifyContent: data.alignment === "center" ? "center" : "flex-start", flexWrap: "wrap" }}>
           {data.ctaText && <a href={data.ctaUrl || "#"} style={{ backgroundColor: data.ctaBgColor || "#6366f1", color: data.ctaTextColor || "#fff", padding: "12px 28px", borderRadius: "8px", textDecoration: "none", fontWeight: 600, fontSize: "1rem" }}>{data.ctaText}</a>}
           {data.ctaSecondaryText && <a href={data.ctaSecondaryUrl || "#"} style={{ backgroundColor: data.ctaSecondaryBgColor || "transparent", color: data.ctaSecondaryTextColor || data.textColor || "#fff", padding: "12px 28px", borderRadius: "8px", textDecoration: "none", fontWeight: 600, fontSize: "1rem", border: `2px solid ${data.ctaSecondaryBgColor || data.textColor || "#fff"}` }}>{data.ctaSecondaryText}</a>}
+          {data.previewPageUrl && <a href={data.previewPageUrl} style={{ backgroundColor: "transparent", color: data.textColor || "#fff", padding: "12px 28px", borderRadius: "8px", textDecoration: "none", fontWeight: 500, fontSize: "0.95rem", border: "1.5px solid rgba(255,255,255,0.5)", opacity: 0.85 }}>Preview</a>}
         </div>
       </div>
     </div>
