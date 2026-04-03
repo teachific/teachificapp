@@ -1309,3 +1309,20 @@
 - [x] Form Player: member variable auto-population from auth user and URL params
 - [x] Form Player: session tracking (start, field view, complete)
 - [x] Forms list: Analytics button added to each form card
+
+## Form Builder Phase 3 (completed)
+- [x] Rebuild FormBuilderPage with FormSite-style top nav (Form Editor / Form Settings / Share / Results tabs)
+- [x] Form name dropdown switcher in top nav
+- [x] Form Editor tab: Build / Style / Rules left sidebar
+- [x] Form Settings tab: General / Notifications / Success Pages / Custom Text / Save & Return / Payments / Integrations sidebar
+- [x] Share tab: Links (Form Link, Pre-populate Link, Directory) / Preview / Embed Code / QR Code sidebar
+- [x] Results tab: Results Table / Analytics / Results Filters / Results Views / Results Labels / Results Docs / Results Reports / Export / Scheduled Exports / Import / Delete Results sidebar
+- [x] Field-based filtering in Results Table (pick field + operator + value)
+- [x] Column show/hide in Results Table
+- [x] Notification settings: notify org admin, notify respondent, custom email addresses
+- [x] notifyOrgAdmin and notifyRespondent columns added to forms table
+- [x] MediaLibraryPicker component (browse by tag/type + upload + tag management)
+- [x] Platform Admin Forms tab (view forms by org, form limits reference table)
+- [x] Form limits enforced: Free=0, Starter=3, Builder=10, Pro=50, Enterprise=200
+- [x] org_media_library table with tags support
+- [x] form_filters, form_views, form_labels, form_docs, form_scheduled_exports tables

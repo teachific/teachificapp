@@ -1288,6 +1288,10 @@ export const forms = mysqlTable("forms", {
   status: mysqlEnum("status", ["draft", "published", "closed"]).default("draft").notNull(),
   // Email routing: list of email addresses (JSON array) to notify on submission
   notifyEmails: text("notifyEmails"),
+  // Notify the org admin on every submission
+  notifyOrgAdmin: boolean("notifyOrgAdmin").default(false).notNull(),
+  // Send a copy of the submission to the respondent
+  notifyRespondent: boolean("notifyRespondent").default(false).notNull(),
   // Whether to send a confirmation email to the respondent
   sendConfirmation: boolean("sendConfirmation").default(false).notNull(),
   confirmationEmailField: varchar("confirmationEmailField", { length: 100 }),
@@ -1445,3 +1449,121 @@ export const formIntegrations = mysqlTable("form_integrations", {
 });
 export type FormIntegration = typeof formIntegrations.$inferSelect;
 export type InsertFormIntegration = typeof formIntegrations.$inferInsert;
+
+// ─── Organization Media Library ───────────────────────────────────────────────
+// Central store for all media assets uploaded by an org (images, videos, docs).
+// All uploads across courses, forms, and other org contexts register here.
+export const orgMediaLibrary = mysqlTable("org_media_library", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  uploadedBy: int("uploadedBy").notNull(), // userId
+  // Original filename
+  filename: varchar("filename", { length: 500 }).notNull(),
+  // MIME type (image/jpeg, video/mp4, application/pdf, etc.)
+  mimeType: varchar("mimeType", { length: 100 }).notNull(),
+  // File size in bytes
+  fileSize: int("fileSize").default(0).notNull(),
+  // S3 key
+  fileKey: varchar("fileKey", { length: 1000 }).notNull(),
+  // Public CDN URL
+  url: text("url").notNull(),
+  // Optional alt text / caption
+  altText: varchar("altText", { length: 500 }),
+  // Tags as JSON array of strings e.g. ["course", "banner", "2024"]
+  tags: text("tags"),
+  // Source context: where the upload originated
+  source: mysqlEnum("source", ["form", "course", "direct", "other"]).default("direct").notNull(),
+  // Optional reference to the source entity (formId, courseId, etc.)
+  sourceId: int("sourceId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type OrgMediaLibraryItem = typeof orgMediaLibrary.$inferSelect;
+export type InsertOrgMediaLibraryItem = typeof orgMediaLibrary.$inferInsert;
+
+// ─── Form Filters ─────────────────────────────────────────────────────────────
+// Named saved filters that can be applied to the Results Table or Export
+export const formFilters = mysqlTable("form_filters", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  // JSON array of conditions: [{fieldId, operator, value}]
+  conditions: text("conditions").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type FormFilter = typeof formFilters.$inferSelect;
+export type InsertFormFilter = typeof formFilters.$inferInsert;
+
+// ─── Form Views ───────────────────────────────────────────────────────────────
+// Named column visibility configurations for the Results Table
+export const formViews = mysqlTable("form_views", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  // JSON array of fieldIds to show
+  visibleFieldIds: text("visibleFieldIds").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type FormView = typeof formViews.$inferSelect;
+export type InsertFormView = typeof formViews.$inferInsert;
+
+// ─── Form Labels ──────────────────────────────────────────────────────────────
+// Custom display labels for field headers in the Results Table
+export const formLabels = mysqlTable("form_labels", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  fieldId: int("fieldId").notNull(),
+  customLabel: varchar("customLabel", { length: 500 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type FormLabel = typeof formLabels.$inferSelect;
+export type InsertFormLabel = typeof formLabels.$inferInsert;
+
+// ─── Form Docs ────────────────────────────────────────────────────────────────
+// PDF/DOCX document templates generated from submission data
+export const formDocs = mysqlTable("form_docs", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  // "custom_pdf" | "merged_pdf" | "merged_docx"
+  docType: varchar("docType", { length: 50 }).notNull().default("merged_pdf"),
+  // Template content with {{fieldId}} merge tags
+  template: text("template"),
+  // S3 URL of the uploaded template file (for merged docs)
+  templateFileUrl: text("templateFileUrl"),
+  templateFileKey: varchar("templateFileKey", { length: 1000 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type FormDoc = typeof formDocs.$inferSelect;
+export type InsertFormDoc = typeof formDocs.$inferInsert;
+
+// ─── Form Scheduled Exports ───────────────────────────────────────────────────
+// Recurring export jobs that send results to an email on a schedule
+export const formScheduledExports = mysqlTable("form_scheduled_exports", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  // "daily" | "weekly" | "monthly"
+  frequency: varchar("frequency", { length: 20 }).notNull().default("weekly"),
+  // Day of week (0=Sun) for weekly, day of month for monthly
+  dayValue: int("dayValue"),
+  // Hour of day (0-23) in UTC
+  hourUtc: int("hourUtc").default(8).notNull(),
+  // Delivery email
+  deliveryEmail: varchar("deliveryEmail", { length: 320 }).notNull(),
+  // Export format: "csv" | "xlsx"
+  format: varchar("format", { length: 10 }).notNull().default("csv"),
+  // Optional filterId to apply
+  filterId: int("filterId"),
+  isActive: boolean("isActive").default(true).notNull(),
+  lastRunAt: timestamp("lastRunAt"),
+  nextRunAt: timestamp("nextRunAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type FormScheduledExport = typeof formScheduledExports.$inferSelect;
+export type InsertFormScheduledExport = typeof formScheduledExports.$inferInsert;

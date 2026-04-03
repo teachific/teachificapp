@@ -8,6 +8,8 @@ import { storagePut } from "./storage";
 import {
   forms, formFields, formBranchingRules, formSubmissions, orgSubscriptions,
   formSessions, formAnalyticsEvents, formIntegrations, orgThemes,
+  orgMediaLibrary, formFilters, formViews, formLabels, formDocs, formScheduledExports,
+  organizations,
 } from "../drizzle/schema";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -40,6 +42,23 @@ async function getRulesByForm(formId: number) {
 
 function slugify(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+// ── Subscription plan form limits ───────────────────────────────────────────
+const FORM_LIMITS: Record<string, number> = {
+  free: 0,
+  starter: 3,
+  builder: 10,
+  pro: 50,
+  enterprise: 200,
+};
+
+async function getOrgFormLimit(orgId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.select().from(orgSubscriptions).where(eq(orgSubscriptions.orgId, orgId)).limit(1);
+  const plan = (rows[0]?.plan ?? "free").toLowerCase();
+  return FORM_LIMITS[plan] ?? 0;
 }
 
 // ── Check if org has email workflow access (enterprise plan) ──────────────────
@@ -111,6 +130,17 @@ export const formsRouter = router({
       return { ...form, fields, rules };
     }),
 
+  // ── Get form limit for org ───────────────────────────────────────────────
+  getLimit: protectedProcedure
+    .input(z.object({ orgId: z.number() }))
+    .query(async ({ input }) => {
+      const limit = await getOrgFormLimit(input.orgId);
+      const db = await getDb();
+      if (!db) return { limit, current: 0 };
+      const rows = await db.select().from(forms).where(eq(forms.orgId, input.orgId));
+      return { limit, current: rows.length };
+    }),
+
   // ── Create a form ─────────────────────────────────────────────────────────
   create: protectedProcedure
     .input(z.object({
@@ -121,6 +151,15 @@ export const formsRouter = router({
     .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      // Enforce subscription plan limit
+      const limit = await getOrgFormLimit(input.orgId);
+      const existing = await db.select().from(forms).where(eq(forms.orgId, input.orgId));
+      if (existing.length >= limit) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Your plan allows up to ${limit} form${limit === 1 ? "" : "s"}. Please upgrade to create more.`,
+        });
+      }
       const baseSlug = slugify(input.title) || "form";
       const slug = `${baseSlug}-${nanoid(6)}`;
       await db.insert(forms).values({
@@ -143,6 +182,8 @@ export const formsRouter = router({
       description: z.string().optional().nullable(),
       status: z.enum(["draft", "published", "closed"]).optional(),
       notifyEmails: z.array(z.string().email()).optional(),
+      notifyOrgAdmin: z.boolean().optional(),
+      notifyRespondent: z.boolean().optional(),
       sendConfirmation: z.boolean().optional(),
       confirmationEmailField: z.string().optional().nullable(),
       confirmationSubject: z.string().optional().nullable(),
@@ -721,7 +762,6 @@ export const formsRouter = router({
 
   // ── Member variable resolution ────────────────────────────────────────────
   memberVars: router({
-    // Resolve member variable values for a given user (for pre-population preview in builder)
     resolve: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ ctx }) => {
@@ -730,8 +770,441 @@ export const formsRouter = router({
           name: user.name ?? "",
           email: user.email ?? "",
           userId: String(user.id),
-          // Additional vars can be extended here
         };
       }),
   }),
+
+  // ── Media Library ─────────────────────────────────────────────────────────
+  media: router({
+    list: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        mimeType: z.string().optional(), // filter by mime prefix e.g. "image/"
+        tag: z.string().optional(),
+        page: z.number().default(1),
+        pageSize: z.number().default(30),
+      }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { items: [], total: 0 };
+        let q = db.select().from(orgMediaLibrary).where(eq(orgMediaLibrary.orgId, input.orgId));
+        const rows = await q.orderBy(desc(orgMediaLibrary.createdAt));
+        let filtered = rows;
+        if (input.mimeType) filtered = filtered.filter(r => r.mimeType.startsWith(input.mimeType!));
+        if (input.tag) filtered = filtered.filter(r => {
+          const tags: string[] = r.tags ? JSON.parse(r.tags) : [];
+          return tags.includes(input.tag!);
+        });
+        const total = filtered.length;
+        const start = (input.page - 1) * input.pageSize;
+        return { items: filtered.slice(start, start + input.pageSize), total };
+      }),
+
+    upload: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        base64: z.string(),
+        mimeType: z.string(),
+        filename: z.string(),
+        altText: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        source: z.enum(["form", "course", "direct", "other"]).default("direct"),
+        sourceId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const base64Data = input.base64.replace(/^data:[^;]+;base64,/, "");
+        const buffer = Buffer.from(base64Data, "base64");
+        const ext = input.filename.split(".").pop() ?? "bin";
+        const key = `org-media/${input.orgId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { url } = await storagePut(key, buffer, input.mimeType);
+        const [result] = await db.insert(orgMediaLibrary).values({
+          orgId: input.orgId,
+          uploadedBy: ctx.user.id,
+          filename: input.filename,
+          mimeType: input.mimeType,
+          fileSize: buffer.length,
+          fileKey: key,
+          url,
+          altText: input.altText ?? null,
+          tags: input.tags ? JSON.stringify(input.tags) : null,
+          source: input.source,
+          sourceId: input.sourceId ?? null,
+        });
+        const id = (result as any).insertId as number;
+        const rows = await db.select().from(orgMediaLibrary).where(eq(orgMediaLibrary.id, id)).limit(1);
+        return rows[0];
+      }),
+
+    updateTags: protectedProcedure
+      .input(z.object({ id: z.number(), tags: z.array(z.string()), altText: z.string().optional() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        await db.update(orgMediaLibrary)
+          .set({ tags: JSON.stringify(input.tags), altText: input.altText ?? null, updatedAt: new Date() })
+          .where(eq(orgMediaLibrary.id, input.id));
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        await db.delete(orgMediaLibrary).where(eq(orgMediaLibrary.id, input.id));
+        return { success: true };
+      }),
+  }),
+
+  // ── Results Filters ───────────────────────────────────────────────────────
+  filters: router({
+    list: protectedProcedure
+      .input(z.object({ formId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        return db.select().from(formFilters).where(eq(formFilters.formId, input.formId)).orderBy(formFilters.name);
+      }),
+
+    save: protectedProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        formId: z.number(),
+        name: z.string().min(1),
+        conditions: z.array(z.object({
+          fieldId: z.number(),
+          operator: z.string(), // "equals"|"contains"|"not_equals"|"is_empty"|"is_not_empty"
+          value: z.string().optional(),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const conditionsJson = JSON.stringify(input.conditions);
+        if (input.id) {
+          await db.update(formFilters)
+            .set({ name: input.name, conditions: conditionsJson, updatedAt: new Date() })
+            .where(eq(formFilters.id, input.id));
+          return { id: input.id };
+        }
+        const [r] = await db.insert(formFilters).values({
+          formId: input.formId,
+          name: input.name,
+          conditions: conditionsJson,
+        });
+        return { id: (r as any).insertId as number };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        await db.delete(formFilters).where(eq(formFilters.id, input.id));
+        return { success: true };
+      }),
+  }),
+
+  // ── Results Views ─────────────────────────────────────────────────────────
+  views: router({
+    list: protectedProcedure
+      .input(z.object({ formId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        return db.select().from(formViews).where(eq(formViews.formId, input.formId)).orderBy(formViews.name);
+      }),
+
+    save: protectedProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        formId: z.number(),
+        name: z.string().min(1),
+        visibleFieldIds: z.array(z.number()),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const json = JSON.stringify(input.visibleFieldIds);
+        if (input.id) {
+          await db.update(formViews).set({ name: input.name, visibleFieldIds: json, updatedAt: new Date() }).where(eq(formViews.id, input.id));
+          return { id: input.id };
+        }
+        const [r] = await db.insert(formViews).values({ formId: input.formId, name: input.name, visibleFieldIds: json });
+        return { id: (r as any).insertId as number };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        await db.delete(formViews).where(eq(formViews.id, input.id));
+        return { success: true };
+      }),
+  }),
+
+  // ── Results Labels ────────────────────────────────────────────────────────
+  labels: router({
+    list: protectedProcedure
+      .input(z.object({ formId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        return db.select().from(formLabels).where(eq(formLabels.formId, input.formId));
+      }),
+
+    save: protectedProcedure
+      .input(z.object({
+        formId: z.number(),
+        fieldId: z.number(),
+        customLabel: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Upsert
+        const existing = await db.select().from(formLabels)
+          .where(and(eq(formLabels.formId, input.formId), eq(formLabels.fieldId, input.fieldId)))
+          .limit(1);
+        if (existing[0]) {
+          await db.update(formLabels).set({ customLabel: input.customLabel, updatedAt: new Date() }).where(eq(formLabels.id, existing[0].id));
+        } else {
+          await db.insert(formLabels).values({ formId: input.formId, fieldId: input.fieldId, customLabel: input.customLabel });
+        }
+        return { success: true };
+      }),
+  }),
+
+  // ── Results Docs ──────────────────────────────────────────────────────────
+  docs: router({
+    list: protectedProcedure
+      .input(z.object({ formId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        return db.select().from(formDocs).where(eq(formDocs.formId, input.formId)).orderBy(formDocs.name);
+      }),
+
+    save: protectedProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        formId: z.number(),
+        name: z.string().min(1),
+        docType: z.string().default("merged_pdf"),
+        template: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        if (input.id) {
+          await db.update(formDocs).set({ name: input.name, docType: input.docType, template: input.template ?? null, updatedAt: new Date() }).where(eq(formDocs.id, input.id));
+          return { id: input.id };
+        }
+        const [r] = await db.insert(formDocs).values({ formId: input.formId, name: input.name, docType: input.docType, template: input.template ?? null });
+        return { id: (r as any).insertId as number };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        await db.delete(formDocs).where(eq(formDocs.id, input.id));
+        return { success: true };
+      }),
+  }),
+
+  // ── Scheduled Exports ─────────────────────────────────────────────────────
+  scheduledExports: router({
+    list: protectedProcedure
+      .input(z.object({ formId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        return db.select().from(formScheduledExports).where(eq(formScheduledExports.formId, input.formId)).orderBy(formScheduledExports.name);
+      }),
+
+    save: protectedProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        formId: z.number(),
+        name: z.string().min(1),
+        frequency: z.enum(["daily", "weekly", "monthly"]).default("weekly"),
+        dayValue: z.number().optional(),
+        hourUtc: z.number().default(8),
+        deliveryEmail: z.string().email(),
+        format: z.enum(["csv", "xlsx"]).default("csv"),
+        filterId: z.number().optional(),
+        isActive: z.boolean().default(true),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const vals = {
+          formId: input.formId,
+          name: input.name,
+          frequency: input.frequency,
+          dayValue: input.dayValue ?? null,
+          hourUtc: input.hourUtc,
+          deliveryEmail: input.deliveryEmail,
+          format: input.format,
+          filterId: input.filterId ?? null,
+          isActive: input.isActive,
+        };
+        if (input.id) {
+          await db.update(formScheduledExports).set({ ...vals, updatedAt: new Date() }).where(eq(formScheduledExports.id, input.id));
+          return { id: input.id };
+        }
+        const [r] = await db.insert(formScheduledExports).values(vals);
+        return { id: (r as any).insertId as number };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        await db.delete(formScheduledExports).where(eq(formScheduledExports.id, input.id));
+        return { success: true };
+      }),
+  }),
+
+  // ── Export (immediate download) ───────────────────────────────────────────
+  exportResults: protectedProcedure
+    .input(z.object({
+      formId: z.number(),
+      format: z.enum(["csv", "xlsx"]).default("csv"),
+      filterId: z.number().optional(),
+      dateFrom: z.string().optional(), // ISO date string
+      dateTo: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const form = await getFormById(input.formId);
+      if (!form) throw new TRPCError({ code: "NOT_FOUND" });
+      const fields = await getFieldsByForm(input.formId);
+
+      let submissions = await db.select().from(formSubmissions)
+        .where(eq(formSubmissions.formId, input.formId))
+        .orderBy(desc(formSubmissions.submittedAt));
+
+      // Date filter
+      if (input.dateFrom) {
+        const from = new Date(input.dateFrom);
+        submissions = submissions.filter(s => s.submittedAt >= from);
+      }
+      if (input.dateTo) {
+        const to = new Date(input.dateTo);
+        to.setHours(23, 59, 59, 999);
+        submissions = submissions.filter(s => s.submittedAt <= to);
+      }
+
+      // Field filter
+      if (input.filterId) {
+        const filterRows = await db.select().from(formFilters).where(eq(formFilters.id, input.filterId)).limit(1);
+        if (filterRows[0]) {
+          const conditions: Array<{ fieldId: number; operator: string; value?: string }> = JSON.parse(filterRows[0].conditions);
+          submissions = submissions.filter(sub => {
+            const answers: Record<string, string> = sub.answers ? JSON.parse(sub.answers) : {};
+            return conditions.every(cond => {
+              const val = answers[cond.fieldId] ?? "";
+              switch (cond.operator) {
+                case "equals": return val === (cond.value ?? "");
+                case "not_equals": return val !== (cond.value ?? "");
+                case "contains": return val.toLowerCase().includes((cond.value ?? "").toLowerCase());
+                case "is_empty": return !val;
+                case "is_not_empty": return !!val;
+                default: return true;
+              }
+            });
+          });
+        }
+      }
+
+      // Build CSV
+      const headers = ["Reference #", "Submitted At", "Respondent Email", "Respondent Name", ...fields.map(f => f.label)];
+      const rows = submissions.map((sub, i) => {
+        const answers: Record<string, string> = sub.answers ? JSON.parse(sub.answers) : {};
+        return [
+          String(10000000 + i + 1),
+          sub.submittedAt.toISOString(),
+          sub.respondentEmail ?? "",
+          sub.respondentName ?? "",
+          ...fields.map(f => answers[f.id] ?? ""),
+        ];
+      });
+
+      const csvLines = [headers, ...rows].map(row =>
+        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+      );
+      const csv = csvLines.join("\n");
+
+      return { csv, filename: `${form.title.replace(/[^a-z0-9]/gi, "_")}_results.csv`, count: submissions.length };
+    }),
+
+  // ── Import submissions from CSV ───────────────────────────────────────────
+  importResults: protectedProcedure
+    .input(z.object({
+      formId: z.number(),
+      // CSV content as string
+      csv: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const lines = input.csv.split("\n").filter(Boolean);
+      if (lines.length < 2) return { imported: 0 };
+      const headers = lines[0].split(",").map(h => h.replace(/^"|"$/g, "").trim());
+      let imported = 0;
+      for (const line of lines.slice(1)) {
+        const cells = line.split(",").map(c => c.replace(/^"|"$/g, "").trim());
+        const answers: Record<string, string> = {};
+        headers.forEach((h, i) => { answers[h] = cells[i] ?? ""; });
+        await db.insert(formSubmissions).values({
+          formId: input.formId,
+          answers: JSON.stringify(answers),
+          respondentEmail: answers["Respondent Email"] || null,
+          respondentName: answers["Respondent Name"] || null,
+        });
+        imported++;
+      }
+      return { imported };
+    }),
+
+  // ── Delete all results ────────────────────────────────────────────────────
+  deleteAllResults: protectedProcedure
+    .input(z.object({ formId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.delete(formSubmissions).where(eq(formSubmissions.formId, input.formId));
+      await db.update(forms).set({ submissionCount: 0, updatedAt: new Date() }).where(eq(forms.id, input.formId));
+      return { success: true };
+    }),
+
+  // ── Notification settings update ──────────────────────────────────────────
+  updateNotifications: protectedProcedure
+    .input(z.object({
+      formId: z.number(),
+      notifyOrgAdmin: z.boolean().optional(),
+      notifyRespondent: z.boolean().optional(),
+      notifyEmails: z.array(z.string().email()).optional(),
+      confirmationSubject: z.string().optional(),
+      confirmationBody: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { formId, notifyEmails, ...rest } = input;
+      await db.update(forms).set({
+        ...rest,
+        notifyEmails: notifyEmails !== undefined ? JSON.stringify(notifyEmails) : undefined,
+        updatedAt: new Date(),
+      }).where(eq(forms.id, formId));
+      return { success: true };
+    }),
 });

@@ -76,6 +76,13 @@ import {
   LayoutTemplate,
   Eye as EyeIcon,
   EyeOff,
+  Search,
+  Download,
+  BarChart2,
+  Filter,
+  Table,
+  Tag,
+  Clock,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -601,12 +608,46 @@ function EmailRoutingPanel({
 
   return (
     <div className="space-y-6">
-      {/* Notification emails */}
+      {/* Org admin notification */}
       <div className="space-y-3">
         <div>
-          <Label className="text-sm font-semibold">Notify on Submission</Label>
+          <Label className="text-sm font-semibold">Notifications</Label>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Send an email to these addresses whenever a new response is submitted.
+            Choose who receives an email when a new response is submitted.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+            <div>
+              <p className="text-sm font-medium">Notify Organization Admin</p>
+              <p className="text-xs text-muted-foreground">Send to the organization's admin account email</p>
+            </div>
+            <Switch
+              checked={form.notifyOrgAdmin ?? false}
+              onCheckedChange={(v) => onUpdate({ notifyOrgAdmin: v })}
+            />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+            <div>
+              <p className="text-sm font-medium">Notify Respondent</p>
+              <p className="text-xs text-muted-foreground">Send a copy of their answers to the respondent</p>
+            </div>
+            <Switch
+              checked={form.notifyRespondent ?? false}
+              onCheckedChange={(v) => onUpdate({ notifyRespondent: v })}
+            />
+          </div>
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Custom notification emails */}
+      <div className="space-y-3">
+        <div>
+          <Label className="text-sm font-semibold">Additional Email Addresses</Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Also notify these specific addresses on every submission.
           </p>
         </div>
         <div className="flex gap-2">
@@ -1200,6 +1241,615 @@ function IntegrationsPanel({ formId, orgId }: { formId: number; orgId: number })
   );
 }
 
+// ── Results sub-panel components ────────────────────────────────────────────
+
+function FormResultsTable({ formId, fields }: { formId: number; fields: FormField[] }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [activeFilterId, setActiveFilterId] = useState<number | null>(null);
+  const pageSize = 50;
+
+  const { data: rawSubmissions, isLoading, refetch } = trpc.forms.submissions.list.useQuery(
+    { formId },
+    { enabled: !!formId }
+  );
+  const { data: savedFilters = [] } = trpc.forms.filters.list.useQuery({ formId }, { enabled: !!formId });
+  const deleteMutation = trpc.forms.submissions.delete.useMutation({
+    onSuccess: () => { refetch(); toast.success("Response deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const allSubmissions: any[] = (rawSubmissions as any[]) ?? [];
+  const filtered = allSubmissions.filter((s: any) => {
+    if (!searchTerm) return true;
+    const answers = s.answers ? JSON.parse(s.answers) : {};
+    return Object.values(answers).some((v) => String(v).toLowerCase().includes(searchTerm.toLowerCase()));
+  });
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const submissions = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+
+  const exportCsv = () => {
+    const headers = ["#", "Submitted At", ...inputFields.map((f) => f.label || f.type)];
+    const rows = submissions.map((s: any, i: number) => {
+      const answers = s.answers ? JSON.parse(s.answers) : {};
+      return [String(i + 1 + (page - 1) * pageSize), new Date(s.createdAt).toLocaleString(),
+        ...inputFields.map((f) => String(answers[String(f.id)] ?? ""))];
+    });
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = `form-${formId}-results.csv`;
+    a.click();
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Toolbar */}
+      <div className="p-4 border-b border-border flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search responses..."
+            value={searchTerm}
+            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
+        <Select
+          value={activeFilterId ? String(activeFilterId) : "none"}
+          onValueChange={(v) => { setActiveFilterId(v === "none" ? null : parseInt(v)); setPage(1); }}
+        >
+          <SelectTrigger className="h-8 text-xs w-40">
+            <SelectValue placeholder="No Filter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">No Filter</SelectItem>
+            {(savedFilters as any[]).map((f: any) => (
+              <SelectItem key={f.id} value={String(f.id)}>{f.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs" onClick={exportCsv}>
+          <Download className="h-3.5 w-3.5" /> Export CSV
+        </Button>
+        <span className="text-xs text-muted-foreground">{total} result{total !== 1 ? "s" : ""}</span>
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 overflow-auto">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        ) : submissions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-2">
+            <FileText className="h-8 w-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">No responses yet.</p>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 sticky top-0">
+              <tr>
+                <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground w-8"></th>
+                <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Ref #</th>
+                <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Submitted</th>
+                {inputFields.slice(0, 5).map((f) => (
+                  <th key={f.id} className="text-left px-3 py-2 text-xs font-medium text-muted-foreground max-w-[150px]">
+                    <span className="truncate block">{f.label || f.type}</span>
+                  </th>
+                ))}
+                <th className="text-right px-3 py-2 text-xs font-medium text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {submissions.map((s: any, i: number) => {
+                const answers = s.answers ? JSON.parse(s.answers) : {};
+                return (
+                  <tr key={s.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-3 py-2">
+                      <input type="checkbox" className="rounded" />
+                    </td>
+                    <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{(page - 1) * pageSize + i + 1}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(s.createdAt).toLocaleString()}
+                    </td>
+                    {inputFields.slice(0, 5).map((f) => (
+                      <td key={f.id} className="px-3 py-2 text-xs max-w-[150px]">
+                        <span className="truncate block">{String(answers[String(f.id)] ?? "")}</span>
+                      </td>
+                    ))}
+                    <td className="px-3 py-2 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                        onClick={() => deleteMutation.mutate({ id: s.id })}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="p-3 border-t border-border flex items-center justify-between">
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
+            Previous
+          </Button>
+          <span className="text-xs text-muted-foreground">Page {page} of {totalPages}</span>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+            Next
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FormAnalyticsEmbed({ formId }: { formId: number }) {
+  const { data: summaryData, isLoading } = trpc.forms.analytics.summary.useQuery({ formId }, { enabled: !!formId });
+  const { data: dropoffData } = trpc.forms.analytics.fieldDropoff.useQuery({ formId }, { enabled: !!formId });
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (!summaryData) return <p className="text-sm text-muted-foreground">No analytics data yet.</p>;
+  const d = summaryData as any;
+  const dropoff = (dropoffData as any) ?? [];
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-3 gap-4">
+        {[{label: "Total Starts", value: d.totalStarts ?? 0}, {label: "Completions", value: d.completions ?? 0}, {label: "Completion Rate", value: `${d.completionRate ?? 0}%`}].map((s) => (
+          <div key={s.label} className="border border-border rounded-lg p-4 text-center">
+            <p className="text-2xl font-bold">{s.value}</p>
+            <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+          </div>
+        ))}
+      </div>
+      {dropoff && dropoff.length > 0 && (
+        <div>
+          <p className="text-sm font-semibold mb-3">Drop-off by Question</p>
+          <div className="space-y-2">
+            {(dropoff as any[]).map((f: any) => (
+              <div key={f.fieldId} className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground w-32 truncate">{f.label}</span>
+                <div className="flex-1 bg-muted rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full" style={{ width: `${f.viewRate ?? 0}%` }} />
+                </div>
+                <span className="text-xs w-10 text-right">{f.viewRate ?? 0}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FormFiltersManager({ formId, fields }: { formId: number; fields: FormField[] }) {
+  const { data: filters = [], refetch } = trpc.forms.filters.list.useQuery({ formId }, { enabled: !!formId });
+  const upsertMutation = trpc.forms.filters.save.useMutation({ onSuccess: () => { refetch(); toast.success("Filter saved"); } });
+  const deleteMutation = trpc.forms.filters.delete.useMutation({ onSuccess: () => { refetch(); toast.success("Filter deleted"); } });
+  const [newName, setNewName] = useState("");
+  const [newField, setNewField] = useState("");
+  const [newOp, setNewOp] = useState("equals");
+  const [newVal, setNewVal] = useState("");
+  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+
+  const addFilter = () => {
+    if (!newName.trim() || !newField) return;
+    upsertMutation.mutate({ formId, name: newName, conditions: JSON.stringify([{ fieldId: newField, operator: newOp, value: newVal }]) } as any);
+    setNewName(""); setNewField(""); setNewVal("");
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="border border-border rounded-lg p-4 space-y-3">
+        <p className="text-sm font-medium">New Results Filter</p>
+        <Input placeholder="Filter name (e.g. ACS, Adult Echo)" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <div className="grid grid-cols-3 gap-2">
+          <Select value={newField} onValueChange={setNewField}>
+            <SelectTrigger className="text-xs"><SelectValue placeholder="Field" /></SelectTrigger>
+            <SelectContent>{inputFields.map((f) => <SelectItem key={String(f.id)} value={String(f.id)} className="text-xs">{f.label || f.type}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={newOp} onValueChange={setNewOp}>
+            <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {["equals","not_equals","contains","not_contains","starts_with","ends_with","is_empty","is_not_empty"].map((o) => <SelectItem key={o} value={o} className="text-xs">{o.replace(/_/g, " ")}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input placeholder="Value" value={newVal} onChange={(e) => setNewVal(e.target.value)} className="text-xs" />
+        </div>
+        <Button size="sm" onClick={addFilter} disabled={!newName.trim() || !newField} className="gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Add Filter
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {(filters as any[]).map((f: any) => (
+          <div key={f.id} className="flex items-center justify-between border border-border rounded-lg px-4 py-3">
+            <span className="text-sm font-medium">{f.name}</span>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: f.id })}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FormViewsManager({ formId, fields }: { formId: number; fields: FormField[] }) {
+  const { data: views = [], refetch } = trpc.forms.views.list.useQuery({ formId }, { enabled: !!formId });
+  const upsertMutation = trpc.forms.views.save.useMutation({ onSuccess: () => { refetch(); toast.success("View saved"); } });
+  const deleteMutation = trpc.forms.views.delete.useMutation({ onSuccess: () => { refetch(); toast.success("View deleted"); } });
+  const [newName, setNewName] = useState("");
+  const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+
+  const toggleField = (id: string) => setSelectedFields((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+
+  const saveView = () => {
+    if (!newName.trim()) return;
+    upsertMutation.mutate({ formId, name: newName, visibleFieldIds: JSON.stringify(selectedFields) } as any);
+    setNewName(""); setSelectedFields([]);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="border border-border rounded-lg p-4 space-y-3">
+        <p className="text-sm font-medium">New Results View</p>
+        <Input placeholder="View name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Select columns to show:</p>
+          <div className="grid grid-cols-2 gap-1">
+            {inputFields.map((f) => (
+              <label key={String(f.id)} className="flex items-center gap-2 text-xs cursor-pointer">
+                <input type="checkbox" checked={selectedFields.includes(String(f.id))} onChange={() => toggleField(String(f.id))} className="rounded" />
+                <span className="truncate">{f.label || f.type}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <Button size="sm" onClick={saveView} disabled={!newName.trim()} className="gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Save View
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {(views as any[]).map((v: any) => (
+          <div key={v.id} className="flex items-center justify-between border border-border rounded-lg px-4 py-3">
+            <span className="text-sm font-medium">{v.name}</span>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: v.id })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FormLabelsManager({ formId, fields }: { formId: number; fields: FormField[] }) {
+  const { data: labels = [], refetch } = trpc.forms.labels.list.useQuery({ formId }, { enabled: !!formId });
+  const upsertMutation = trpc.forms.labels.save.useMutation({ onSuccess: () => { refetch(); toast.success("Labels saved"); } });
+  const [localLabels, setLocalLabels] = useState<Record<string, string>>({});
+  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+
+  useEffect(() => {
+    const map: Record<string, string> = {};
+    (labels as any[]).forEach((l: any) => { map[String(l.fieldId)] = l.label; });
+    setLocalLabels(map);
+  }, [labels]);
+
+  const save = () => {
+    const entries = Object.entries(localLabels).filter(([, v]) => v.trim());
+    upsertMutation.mutate({ formId, labels: entries.map(([fieldId, label]) => ({ fieldId: parseInt(fieldId), customLabel: label })) } as any);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-3">
+        {inputFields.map((f) => (
+          <div key={String(f.id)} className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Original: {f.label || f.type}</Label>
+            <Input
+              placeholder={f.label || f.type}
+              value={localLabels[String(f.id)] ?? ""}
+              onChange={(e) => setLocalLabels((prev) => ({ ...prev, [String(f.id)]: e.target.value }))}
+              className="text-sm"
+            />
+          </div>
+        ))}
+      </div>
+      <Button onClick={save} disabled={upsertMutation.isPending} className="gap-1.5">
+        {upsertMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        Save Labels
+      </Button>
+    </div>
+  );
+}
+
+function FormDocsManager({ formId, fields }: { formId: number; fields: FormField[] }) {
+  const { data: docs = [], refetch } = trpc.forms.docs.list.useQuery({ formId }, { enabled: !!formId });
+  const createMutation = trpc.forms.docs.save.useMutation({ onSuccess: () => { refetch(); toast.success("Doc template saved"); } });
+  const deleteMutation = trpc.forms.docs.delete.useMutation({ onSuccess: () => { refetch(); toast.success("Doc deleted"); } });
+  const [newName, setNewName] = useState("");
+  const [newTemplate, setNewTemplate] = useState("");
+  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+
+  return (
+    <div className="space-y-4">
+      <div className="border border-border rounded-lg p-4 space-y-3">
+        <p className="text-sm font-medium">New Results Doc</p>
+        <Input placeholder="Document name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <div className="space-y-1">
+          <Label className="text-xs">Template (use merge tags like <code className="bg-muted px-1 rounded">{'{{fieldLabel}}'}</code>)</Label>
+          <Textarea
+            value={newTemplate}
+            onChange={(e) => setNewTemplate(e.target.value)}
+            placeholder="Dear {{First Name}},\n\nThank you for submitting the form..."
+            className="min-h-[120px] text-sm font-mono"
+          />
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Available merge tags:</p>
+          <div className="flex flex-wrap gap-1">
+            {inputFields.map((f) => (
+              <Badge key={String(f.id)} variant="outline" className="text-xs cursor-pointer hover:bg-muted"
+                onClick={() => setNewTemplate((t) => t + `{{${f.label || f.type}}}`)}
+              >
+                {`{{${f.label || f.type}}}`}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        <Button size="sm" onClick={() => { createMutation.mutate({ formId, name: newName, template: newTemplate } as any); setNewName(""); setNewTemplate(""); }} disabled={!newName.trim()} className="gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Save Doc Template
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {(docs as any[]).map((d: any) => (
+          <div key={d.id} className="flex items-center justify-between border border-border rounded-lg px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">{d.name}</p>
+              <p className="text-xs text-muted-foreground">Type: {d.docType ?? "PDF"}</p>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: d.id })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FormReportsPanel({ formId, fields }: { formId: number; fields: FormField[] }) {
+  const { data, isLoading } = trpc.forms.analytics.summary.useQuery({ formId }, { enabled: !!formId });
+  const choiceFields = fields.filter((f) => ["dropdown", "radio", "checkbox"].includes(f.type));
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (!data || choiceFields.length === 0) return <p className="text-sm text-muted-foreground">No choice fields to report on yet.</p>;
+  const d = data as any;
+  const fieldStats: Record<string, Record<string, number>> = d.fieldStats ?? {};
+  return (
+    <div className="space-y-8">
+      {choiceFields.map((f) => {
+        const stats = fieldStats[String(f.id)] ?? {};
+        const total = Object.values(stats).reduce((a: number, b) => a + (b as number), 0);
+        const opts: string[] = (f.options ?? []).map((o: any) => typeof o === "string" ? o : o.label ?? String(o));
+        return (
+          <div key={String(f.id)} className="space-y-3">
+            <p className="text-sm font-semibold">{f.label || f.type}</p>
+            <div className="space-y-2">
+              {opts.map((opt) => {
+                const count = stats[opt] ?? 0;
+                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                return (
+                  <div key={opt} className="flex items-center gap-3">
+                    <span className="text-xs w-32 truncate">{opt}</span>
+                    <div className="flex-1 bg-muted rounded-full h-4 overflow-hidden">
+                      <div className="bg-primary h-4 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-xs w-16 text-right">{count} ({pct}%)</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FormExportPanel({ formId, fields }: { formId: number; fields: FormField[] }) {
+  const [format, setFormat] = useState("csv");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [delivery, setDelivery] = useState("wait");
+  const [deliveryEmail, setDeliveryEmail] = useState("");
+
+  const exportNow = () => {
+    const params = new URLSearchParams({ formId: String(formId), format });
+    if (dateFrom) params.set("from", dateFrom);
+    if (dateTo) params.set("to", dateTo);
+    window.open(`/api/forms/export?${params}`, "_blank");
+    toast.success("Export started");
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="space-y-1.5">
+        <Label>Results format</Label>
+        <div className="flex gap-4">
+          {[{v:"csv",l:"CSV"},{v:"json",l:"JSON"}].map(({v,l}) => (
+            <label key={v} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="radio" name="format" value={v} checked={format===v} onChange={() => setFormat(v)} />
+              {l}
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Restrict by date <span className="text-xs text-muted-foreground">(optional)</span></Label>
+        <div className="flex gap-2">
+          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="text-sm" />
+          <span className="flex items-center text-muted-foreground text-sm">to</span>
+          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="text-sm" />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Data delivery</Label>
+        <div className="flex gap-4">
+          {[{v:"wait",l:"I'll wait"},{v:"email",l:"Email me at"}].map(({v,l}) => (
+            <label key={v} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="radio" name="delivery" value={v} checked={delivery===v} onChange={() => setDelivery(v)} />
+              {l}
+            </label>
+          ))}
+          {delivery === "email" && (
+            <Input
+              type="email"
+              placeholder="admin@example.com"
+              value={deliveryEmail}
+              onChange={(e) => setDeliveryEmail(e.target.value)}
+              className="text-sm h-7 w-48"
+            />
+          )}
+        </div>
+      </div>
+      <Button onClick={exportNow} className="gap-1.5">
+        <Download className="h-4 w-4" /> Export Results
+      </Button>
+    </div>
+  );
+}
+
+function FormScheduledExportsPanel({ formId }: { formId: number }) {
+  const { data: exports = [], refetch } = trpc.forms.scheduledExports.list.useQuery({ formId }, { enabled: !!formId });
+  const createMutation = trpc.forms.scheduledExports.save.useMutation({ onSuccess: () => { refetch(); toast.success("Scheduled export created"); } });
+  const deleteMutation = trpc.forms.scheduledExports.delete.useMutation({ onSuccess: () => { refetch(); toast.success("Deleted"); } });
+  const [freq, setFreq] = useState("daily");
+  const [email, setEmail] = useState("");
+
+  return (
+    <div className="space-y-4">
+      <div className="border border-border rounded-lg p-4 space-y-3">
+        <p className="text-sm font-medium">New Scheduled Export</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Frequency</Label>
+            <Select value={freq} onValueChange={setFreq}>
+              <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Deliver to email</Label>
+            <Input type="email" placeholder="admin@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="text-xs" />
+          </div>
+        </div>
+        <Button size="sm" onClick={() => createMutation.mutate({ formId, frequency: freq, deliveryEmail: email } as any)} disabled={!email.trim()} className="gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Schedule Export
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {(exports as any[]).map((e: any) => (
+          <div key={e.id} className="flex items-center justify-between border border-border rounded-lg px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">{e.frequency} export</p>
+              <p className="text-xs text-muted-foreground">{e.deliveryEmail}</p>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteMutation.mutate({ id: e.id })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FormImportPanel({ formId, fields }: { formId: number; fields: FormField[] }) {
+  const [csvText, setCsvText] = useState("");
+  const importMutation = trpc.forms.importResults.useMutation({
+    onSuccess: (d: any) => toast.success(`Imported ${d.count ?? 0} responses`),
+    onError: (e: any) => toast.error(e.message),
+  });
+  const inputFields = fields.filter((f) => !["section_break", "statement"].includes(f.type));
+
+  const handleImport = () => {
+    if (!csvText.trim()) return;
+    importMutation.mutate({ formId, csv: csvText } as any);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <p className="text-sm text-muted-foreground">Expected CSV columns (in order):</p>
+        <div className="bg-muted rounded p-2 text-xs font-mono">
+          {inputFields.map((f) => f.label || f.type).join(", ")}
+        </div>
+      </div>
+      <Textarea
+        value={csvText}
+        onChange={(e) => setCsvText(e.target.value)}
+        placeholder={`${inputFields.map((f) => f.label || f.type).join(",")}\nJohn Doe,john@example.com,...`}
+        className="min-h-[200px] text-xs font-mono"
+      />
+      <Button onClick={handleImport} disabled={!csvText.trim() || importMutation.isPending} className="gap-1.5">
+        {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+        Import Responses
+      </Button>
+    </div>
+  );
+}
+
+function FormDeleteResultsPanel({ formId, onDeleted }: { formId: number; onDeleted: () => void }) {
+  const [confirmed, setConfirmed] = useState(false);
+  const deleteMutation = trpc.forms.submissions.delete.useMutation({
+    onSuccess: () => { toast.success("All responses deleted"); onDeleted(); setConfirmed(false); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="border border-destructive/30 bg-destructive/5 rounded-lg p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <Trash2 className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium text-destructive">Delete All Results</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              This will permanently delete all responses for this form. This action cannot be undone.
+            </p>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="rounded" />
+          I understand this action is permanent and cannot be undone
+        </label>
+        <Button
+          variant="destructive"
+          onClick={() => deleteMutation.mutate({ id: -1, formId } as any)}
+          disabled={!confirmed || deleteMutation.isPending}
+          className="gap-1.5"
+        >
+          {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          Delete All Results
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main FormBuilderPage ──────────────────────────────────────────────────────
 
 export default function FormBuilderPage() {
@@ -1210,7 +1860,13 @@ export default function FormBuilderPage() {
   const [rules, setRules] = useState<BranchingRule[]>([]);
   const [formSettings, setFormSettings] = useState<any>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string | number | null>(null);
-  const [activeTab, setActiveTab] = useState("build");
+  // Top-level tabs: form-editor | form-settings | share | results
+  const [activeTopTab, setActiveTopTab] = useState("form-editor");
+  // Sub-tabs within each top-level tab
+  const [editorSubTab, setEditorSubTab] = useState("build");
+  const [settingsSubTab, setSettingsSubTab] = useState("description");
+  const [shareSubTab, setShareSubTab] = useState("links");
+  const [resultsSubTab, setResultsSubTab] = useState("results-table");
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -1241,6 +1897,8 @@ export default function FormBuilderPage() {
       description: formData.description,
       status: formData.status,
       notifyEmails: formData.notifyEmails,
+      notifyOrgAdmin: formData.notifyOrgAdmin,
+      notifyRespondent: formData.notifyRespondent,
       sendConfirmation: formData.sendConfirmation,
       confirmationEmailField: formData.confirmationEmailField,
       confirmationSubject: formData.confirmationSubject,
@@ -1319,9 +1977,9 @@ export default function FormBuilderPage() {
     setIsSaving(true);
     try {
       // Save form settings
-      const { notifyEmails, ...rest } = formSettings;
+      const { notifyEmails, notifyOrgAdmin, notifyRespondent, ...rest } = formSettings;
       const emails = notifyEmails ? JSON.parse(notifyEmails) : [];
-      await updateMutation.mutateAsync({ id: formId, ...rest, notifyEmails: emails });
+      await updateMutation.mutateAsync({ id: formId, ...rest, notifyEmails: emails, notifyOrgAdmin, notifyRespondent });
 
       // Save fields
       const fieldPayload = fields.map((f, i) => ({
@@ -1390,237 +2048,616 @@ export default function FormBuilderPage() {
     );
   }
 
+  // Helper to update form settings
+  const updateFormSettings = (patch: any) => {
+    setFormSettings((s: any) => {
+      const updated = { ...s };
+      if ("notifyEmails" in patch && Array.isArray(patch.notifyEmails)) {
+        updated.notifyEmails = JSON.stringify(patch.notifyEmails);
+      } else {
+        Object.assign(updated, patch);
+      }
+      return updated;
+    });
+    markDirty();
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background">
-      {/* Top bar */}
-      <header className="border-b border-border bg-background/95 backdrop-blur z-30 px-4 h-14 flex items-center gap-3 shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setLocation("/lms/forms")}
-          className="gap-1.5 text-muted-foreground"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Forms
-        </Button>
-        <Separator orientation="vertical" className="h-5" />
-        <div className="flex-1 min-w-0">
-          <Input
-            value={formSettings?.title ?? ""}
-            onChange={(e) => {
-              setFormSettings((s: any) => ({ ...s, title: e.target.value }));
-              markDirty();
-            }}
-            className="h-8 border-0 bg-transparent text-sm font-semibold px-0 focus-visible:ring-0 focus-visible:ring-offset-0 max-w-xs"
-            placeholder="Form title"
-          />
+      {/* ── FormSite-style top navigation ── */}
+      <header className="border-b border-border bg-background z-30 shrink-0">
+        {/* Row 1: form name + status + actions */}
+        <div className="px-4 h-12 flex items-center gap-3">
+          {/* Form name with back link */}
+          <button
+            onClick={() => setLocation("/lms/forms")}
+            className="flex items-center gap-1.5 text-sm font-semibold hover:text-primary transition-colors min-w-0 max-w-xs"
+          >
+            <ChevronLeft className="h-4 w-4 shrink-0" />
+            <span className="truncate">{formSettings?.title || "Untitled Form"}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          </button>
+
+          <div className="flex-1" />
+
+          {/* Status selector */}
+          {formSettings && (
+            <Select
+              value={formSettings.status}
+              onValueChange={(v) => { setFormSettings((s: any) => ({ ...s, status: v })); markDirty(); }}
+            >
+              <SelectTrigger className="h-7 text-xs w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Save button */}
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={isSaving || !isDirty}
+            variant={isDirty ? "default" : "outline"}
+            className="gap-1.5 h-7 text-xs"
+          >
+            {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+            {isSaving ? "Saving..." : isDirty ? "Save" : "Saved"}
+          </Button>
+
+          {/* View Form */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(`/forms/${formData.slug}`, "_blank")}
+            className="gap-1.5 h-7 text-xs"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            View Form
+          </Button>
         </div>
 
-        {/* Status badge */}
-        {formSettings && (
-          <Select
-            value={formSettings.status}
-            onValueChange={(v) => { setFormSettings((s: any) => ({ ...s, status: v })); markDirty(); }}
-          >
-            <SelectTrigger className="h-7 text-xs w-28 border-0 bg-muted">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="published">Published</SelectItem>
-              <SelectItem value="closed">Closed</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => window.open(`/forms/${formData.slug}`, "_blank")}
-          className="gap-1.5"
-        >
-          <Eye className="h-3.5 w-3.5" />
-          Preview
-        </Button>
-
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={isSaving || !isDirty}
-          className="gap-1.5"
-        >
-          {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-          {isSaving ? "Saving..." : isDirty ? "Save" : "Saved"}
-        </Button>
+        {/* Row 2: top-level tabs */}
+        <div className="px-4 flex items-end gap-0 border-t border-border">
+          {([
+            { id: "form-editor", label: "Form Editor" },
+            { id: "form-settings", label: "Form Settings" },
+            { id: "share", label: "Share" },
+            { id: "results", label: "Results" },
+          ] as { id: string; label: string }[]).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTopTab(tab.id)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTopTab === tab.id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </header>
 
-      {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Field Palette */}
-        <aside className="w-52 border-r border-border bg-muted/20 overflow-y-auto shrink-0 p-3 space-y-4">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">Add Field</p>
-          {["Text", "Choice", "Layout"].map((group) => (
-            <div key={group} className="space-y-1">
-              <p className="text-xs text-muted-foreground px-1">{group}</p>
-              {FIELD_TYPES.filter((t) => t.group === group).map((ft) => (
+      {/* ── Form Editor tab ── */}
+      {activeTopTab === "form-editor" && (
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left: Field Palette + sub-tabs */}
+          <aside className="w-56 border-r border-border bg-muted/20 flex flex-col shrink-0">
+            {/* Build / Style / Rules sub-tabs */}
+            <div className="flex border-b border-border">
+              {(["Build", "Style", "Rules"] as const).map((sub) => (
                 <button
-                  key={ft.type}
-                  onClick={() => handleAddField(ft.type)}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                  key={sub}
+                  onClick={() => setEditorSubTab(sub.toLowerCase())}
+                  className={`flex-1 py-2 text-xs font-medium border-b-2 transition-colors ${
+                    editorSubTab === sub.toLowerCase()
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
                 >
-                  <span className="text-muted-foreground">{ft.icon}</span>
-                  {ft.label}
+                  {sub}
                 </button>
               ))}
             </div>
-          ))}
-        </aside>
 
-        {/* Center: Form Canvas */}
-        <main className="flex-1 overflow-y-auto p-4">
-          <div className="max-w-2xl mx-auto space-y-2">
-            {/* Form header preview */}
-            <div className="mb-6 p-4 rounded-xl border border-border bg-card">
-              <h2 className="text-lg font-bold">{formSettings?.title || "Untitled Form"}</h2>
-              {formSettings?.description && (
-                <p className="text-sm text-muted-foreground mt-1">{formSettings.description}</p>
-              )}
-            </div>
-
-            {fields.length === 0 ? (
-              <div className="border-2 border-dashed border-border rounded-xl p-12 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Click a field type in the left panel to add your first question.
-                </p>
-              </div>
-            ) : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={fields.map((f) => String(f.id))} strategy={verticalListSortingStrategy}>
-                  {fields.map((field) => (
-                    <SortableFieldRow
-                      key={String(field.id)}
-                      field={field}
-                      isSelected={String(selectedFieldId) === String(field.id)}
-                      onSelect={() => setSelectedFieldId(field.id)}
-                      onDelete={() => handleDeleteField(field.id)}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
-            )}
-          </div>
-        </main>
-
-        {/* Right: Tabs panel */}
-        <aside className="w-80 border-l border-border bg-background overflow-y-auto shrink-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-            <TabsList className="w-full rounded-none border-b border-border bg-transparent h-10 shrink-0">
-              <TabsTrigger value="build" className="flex-1 text-xs gap-1 rounded-none">
-                <Settings className="h-3.5 w-3.5" />
-                Field
-              </TabsTrigger>
-              <TabsTrigger value="logic" className="flex-1 text-xs gap-1 rounded-none">
-                <GitBranch className="h-3.5 w-3.5" />
-                Logic
-              </TabsTrigger>
-              <TabsTrigger value="email" className="flex-1 text-xs gap-1 rounded-none">
-                <Mail className="h-3.5 w-3.5" />
-                Email
-              </TabsTrigger>
-              <TabsTrigger value="share" className="flex-1 text-xs gap-1 rounded-none">
-                <Share2 className="h-3.5 w-3.5" />
-                Share
-              </TabsTrigger>
-              <TabsTrigger value="branding" className="flex-1 text-xs gap-1 rounded-none">
-                <Palette className="h-3.5 w-3.5" />
-                Brand
-              </TabsTrigger>
-              <TabsTrigger value="members" className="flex-1 text-xs gap-1 rounded-none">
-                <User className="h-3.5 w-3.5" />
-                Vars
-              </TabsTrigger>
-              <TabsTrigger value="integrations" className="flex-1 text-xs gap-1 rounded-none">
-                <Link2 className="h-3.5 w-3.5" />
-                Links
-              </TabsTrigger>
-            </TabsList>
-
-            <div className="flex-1 overflow-y-auto p-4">
-              <TabsContent value="build" className="mt-0">
-                {selectedField ? (
-                  <FieldEditor
-                    field={selectedField}
-                    onChange={(patch) => handleFieldChange(selectedField.id, patch)}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
-                    <Settings className="h-8 w-8 text-muted-foreground/40" />
-                    <p className="text-sm text-muted-foreground">
-                      Select a field in the canvas to edit its properties.
-                    </p>
+            {editorSubTab === "build" && (
+              <div className="flex-1 overflow-y-auto p-3 space-y-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">Add Field</p>
+                {["Text", "Choice", "Layout"].map((group) => (
+                  <div key={group} className="space-y-1">
+                    <p className="text-xs text-muted-foreground px-1">{group}</p>
+                    {FIELD_TYPES.filter((t) => t.group === group).map((ft) => (
+                      <button
+                        key={ft.type}
+                        onClick={() => handleAddField(ft.type)}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs hover:bg-primary/10 hover:text-primary transition-colors text-left"
+                      >
+                        <span className="text-muted-foreground">{ft.icon}</span>
+                        {ft.label}
+                      </button>
+                    ))}
                   </div>
-                )}
-              </TabsContent>
+                ))}
+              </div>
+            )}
 
-              <TabsContent value="logic" className="mt-0">
-                <BranchingRulesEditor
-                  fields={fields}
-                  rules={rules}
-                  onChange={(r) => { setRules(r); markDirty(); }}
-                />
-              </TabsContent>
-
-              <TabsContent value="email" className="mt-0">
-                {formSettings && (
-                  <EmailRoutingPanel
-                    form={formSettings}
-                    fields={fields}
-                    hasEmailAccess={emailAccess?.hasAccess ?? false}
-                    onUpdate={(patch) => {
-                      setFormSettings((s: any) => {
-                        const updated = { ...s };
-                        if ("notifyEmails" in patch && Array.isArray(patch.notifyEmails)) {
-                          updated.notifyEmails = JSON.stringify(patch.notifyEmails);
-                        } else {
-                          Object.assign(updated, patch);
-                        }
-                        return updated;
-                      });
-                      markDirty();
-                    }}
-                  />
-                )}
-              </TabsContent>
-
-              <TabsContent value="share" className="mt-0">
-                {formSettings && <SharePanel form={{ ...formData, ...formSettings }} />}
-              </TabsContent>
-
-              <TabsContent value="branding" className="mt-0">
+            {editorSubTab === "style" && (
+              <div className="flex-1 overflow-y-auto p-3">
                 {formSettings && (
                   <BrandingPanel
                     formId={formId}
                     orgId={orgId!}
                     formSettings={formSettings}
-                    onUpdate={(patch) => { setFormSettings((s: any) => ({ ...s, ...patch })); markDirty(); }}
+                    onUpdate={updateFormSettings}
                   />
                 )}
-              </TabsContent>
+              </div>
+            )}
 
-              <TabsContent value="members" className="mt-0">
-                <MemberVarsPanel
+            {editorSubTab === "rules" && (
+              <div className="flex-1 overflow-y-auto p-3">
+                <BranchingRulesEditor
                   fields={fields}
-                  onFieldChange={(id, patch) => { handleFieldChange(id, patch); }}
+                  rules={rules}
+                  onChange={(r) => { setRules(r); markDirty(); }}
                 />
-              </TabsContent>
+              </div>
+            )}
+          </aside>
 
-              <TabsContent value="integrations" className="mt-0">
-                <IntegrationsPanel formId={formId} orgId={orgId!} />
-              </TabsContent>
+          {/* Center: Form Canvas */}
+          <main className="flex-1 overflow-y-auto p-4">
+            <div className="max-w-2xl mx-auto space-y-2">
+              {/* Form header preview */}
+              {formSettings?.headerImageUrl && (
+                <div className="mb-2 rounded-xl overflow-hidden border border-border">
+                  <img src={formSettings.headerImageUrl} alt="Header" className="w-full h-32 object-cover" />
+                </div>
+              )}
+              <div className="mb-6 p-4 rounded-xl border border-border bg-card">
+                <h2 className="text-lg font-bold">{formSettings?.title || "Untitled Form"}</h2>
+                {formSettings?.description && (
+                  <p className="text-sm text-muted-foreground mt-1">{formSettings.description}</p>
+                )}
+              </div>
+
+              {fields.length === 0 ? (
+                <div className="border-2 border-dashed border-border rounded-xl p-12 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Click a field type in the left panel to add your first question.
+                  </p>
+                </div>
+              ) : (
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={fields.map((f) => String(f.id))} strategy={verticalListSortingStrategy}>
+                    {fields.map((field) => (
+                      <SortableFieldRow
+                        key={String(field.id)}
+                        field={field}
+                        isSelected={String(selectedFieldId) === String(field.id)}
+                        onSelect={() => setSelectedFieldId(field.id)}
+                        onDelete={() => handleDeleteField(field.id)}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              )}
             </div>
-          </Tabs>
-        </aside>
-      </div>
+          </main>
+
+          {/* Right: Field editor panel (only when a field is selected) */}
+          {selectedField && (
+            <aside className="w-72 border-l border-border bg-background overflow-y-auto shrink-0 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Field Properties</p>
+                <button onClick={() => setSelectedFieldId(null)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <FieldEditor
+                field={selectedField}
+                onChange={(patch) => handleFieldChange(selectedField.id, patch)}
+              />
+            </aside>
+          )}
+        </div>
+      )}
+
+      {/* ── Form Settings tab ── */}
+      {activeTopTab === "form-settings" && (
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left sidebar */}
+          <aside className="w-56 border-r border-border bg-muted/20 overflow-y-auto shrink-0 p-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-3">Form Settings</p>
+            <nav className="space-y-0.5">
+              {([
+                { id: "description", label: "Description", parent: "General" },
+                { id: "open-close", label: "Open / Close", parent: "General" },
+                { id: "security", label: "Security", parent: "General" },
+                { id: "notifications", label: "Notifications", parent: null },
+                { id: "success-pages", label: "Success Pages", parent: null },
+                { id: "custom-text", label: "Custom Text", parent: null },
+                { id: "member-variables", label: "Member Variables", parent: null },
+                { id: "integrations", label: "Integrations", parent: null },
+              ] as { id: string; label: string; parent: string | null }[]).map((item, idx, arr) => {
+                const prevParent = idx > 0 ? arr[idx - 1].parent : null;
+                return (
+                  <div key={item.id}>
+                    {item.parent && item.parent !== prevParent && (
+                      <p className="text-xs text-muted-foreground px-2 pt-3 pb-1 font-medium">{item.parent}</p>
+                    )}
+                    <button
+                      onClick={() => setSettingsSubTab(item.id)}
+                      className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+                        settingsSubTab === item.id
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  </div>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* Right: content */}
+          <main className="flex-1 overflow-y-auto p-6">
+            <div className="max-w-2xl">
+              {settingsSubTab === "description" && formSettings && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-lg font-semibold">Description</h2>
+                    <p className="text-sm text-muted-foreground">Form name and description.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Form name</Label>
+                    <Input
+                      value={formSettings.title ?? ""}
+                      onChange={(e) => updateFormSettings({ title: e.target.value })}
+                      placeholder="My Form"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Description</Label>
+                    <Textarea
+                      value={formSettings.description ?? ""}
+                      onChange={(e) => updateFormSettings({ description: e.target.value })}
+                      placeholder="Describe what this form is for..."
+                      className="min-h-[80px]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {settingsSubTab === "open-close" && formSettings && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-lg font-semibold">Open / Close</h2>
+                    <p className="text-sm text-muted-foreground">Control when this form accepts responses.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Status</Label>
+                    <Select
+                      value={formSettings.status}
+                      onValueChange={(v) => updateFormSettings({ status: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Draft — not visible to respondents</SelectItem>
+                        <SelectItem value="published">Published — accepting responses</SelectItem>
+                        <SelectItem value="closed">Closed — no longer accepting responses</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {settingsSubTab === "security" && formSettings && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-lg font-semibold">Security</h2>
+                    <p className="text-sm text-muted-foreground">Control who can submit this form.</p>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                    <div>
+                      <p className="font-medium">Require Login</p>
+                      <p className="text-sm text-muted-foreground">Only logged-in members can submit</p>
+                    </div>
+                    <Switch
+                      checked={formSettings.requireLogin ?? false}
+                      onCheckedChange={(v) => updateFormSettings({ requireLogin: v })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                    <div>
+                      <p className="font-medium">Allow Multiple Submissions</p>
+                      <p className="text-sm text-muted-foreground">Same person can submit more than once</p>
+                    </div>
+                    <Switch
+                      checked={formSettings.allowMultipleSubmissions ?? true}
+                      onCheckedChange={(v) => updateFormSettings({ allowMultipleSubmissions: v })}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {settingsSubTab === "notifications" && formSettings && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-lg font-semibold">Notifications</h2>
+                    <p className="text-sm text-muted-foreground">Configure who receives emails when a response is submitted.</p>
+                  </div>
+                  <EmailRoutingPanel
+                    form={formSettings}
+                    fields={fields}
+                    hasEmailAccess={emailAccess?.hasAccess ?? false}
+                    onUpdate={updateFormSettings}
+                  />
+                </div>
+              )}
+
+              {settingsSubTab === "success-pages" && formSettings && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-lg font-semibold">Success Pages</h2>
+                    <p className="text-sm text-muted-foreground">What happens after a respondent submits the form.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Success Message</Label>
+                    <Textarea
+                      value={formSettings.successMessage ?? ""}
+                      onChange={(e) => updateFormSettings({ successMessage: e.target.value })}
+                      placeholder="Thank you for your response!"
+                      className="min-h-[80px]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Redirect URL <span className="text-muted-foreground text-xs">(optional — overrides success message)</span></Label>
+                    <Input
+                      value={formSettings.redirectUrl ?? ""}
+                      onChange={(e) => updateFormSettings({ redirectUrl: e.target.value })}
+                      placeholder="https://example.com/thank-you"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {settingsSubTab === "custom-text" && formSettings && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-lg font-semibold">Custom Text</h2>
+                    <p className="text-sm text-muted-foreground">Customize button labels and other text shown to respondents.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Submit Button Label</Label>
+                    <Input placeholder="Submit" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Next Button Label</Label>
+                    <Input placeholder="Next" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Previous Button Label</Label>
+                    <Input placeholder="Previous" />
+                  </div>
+                </div>
+              )}
+
+              {settingsSubTab === "member-variables" && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-lg font-semibold">Member Variables</h2>
+                    <p className="text-sm text-muted-foreground">Map fields to member data for auto-population.</p>
+                  </div>
+                  <MemberVarsPanel
+                    fields={fields}
+                    onFieldChange={(id, patch) => { handleFieldChange(id, patch); }}
+                  />
+                </div>
+              )}
+
+              {settingsSubTab === "integrations" && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-lg font-semibold">Integrations</h2>
+                    <p className="text-sm text-muted-foreground">Connect this form to courses, pages, and other platform features.</p>
+                  </div>
+                  <IntegrationsPanel formId={formId} orgId={orgId!} />
+                </div>
+              )}
+
+              {/* Save button at bottom of settings */}
+              <div className="mt-8 pt-4 border-t border-border">
+                <Button onClick={handleSave} disabled={isSaving || !isDirty} className="gap-1.5">
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {isSaving ? "Saving..." : "Save Settings"}
+                </Button>
+              </div>
+            </div>
+          </main>
+        </div>
+      )}
+
+      {/* ── Share tab ── */}
+      {activeTopTab === "share" && (
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left sidebar */}
+          <aside className="w-56 border-r border-border bg-muted/20 overflow-y-auto shrink-0 p-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-3">Share</p>
+            <nav className="space-y-0.5">
+              {([
+                { id: "links", label: "Links" },
+                { id: "preview", label: "Preview" },
+                { id: "embed-code", label: "Embed Code" },
+                { id: "qr-code", label: "QR Code" },
+              ] as { id: string; label: string }[]).map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setShareSubTab(item.id)}
+                  className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+                    shareSubTab === item.id
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-foreground hover:bg-muted"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          </aside>
+
+          {/* Right: content */}
+          <main className="flex-1 overflow-y-auto p-6">
+            <div className="max-w-2xl">
+              {formSettings && <SharePanel form={{ ...formData, ...formSettings }} />}
+            </div>
+          </main>
+        </div>
+      )}
+
+      {/* ── Results tab ── */}
+      {activeTopTab === "results" && (
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left sidebar */}
+          <aside className="w-56 border-r border-border bg-muted/20 overflow-y-auto shrink-0 p-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-3">Results</p>
+            <nav className="space-y-0.5">
+              {([
+                { id: "results-table", label: "Results Table" },
+                { id: "analytics", label: "Analytics" },
+                { id: "results-filters", label: "Results Filters" },
+                { id: "results-views", label: "Results Views" },
+                { id: "results-labels", label: "Results Labels" },
+                { id: "results-docs", label: "Results Docs" },
+                { id: "results-reports", label: "Results Reports" },
+                { id: "export", label: "Export" },
+                { id: "scheduled-exports", label: "Scheduled Exports" },
+                { id: "import", label: "Import" },
+                { id: "delete-results", label: "Delete Results" },
+              ] as { id: string; label: string }[]).map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setResultsSubTab(item.id)}
+                  className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+                    resultsSubTab === item.id
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-foreground hover:bg-muted"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          </aside>
+
+          {/* Right: content */}
+          <main className="flex-1 overflow-y-auto">
+            {resultsSubTab === "results-table" && (
+              <FormResultsTable formId={formId} fields={fields} />
+            )}
+            {resultsSubTab === "analytics" && (
+              <div className="p-6">
+                <div className="max-w-4xl">
+                  <h2 className="text-lg font-semibold mb-1">Analytics</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Completion rates, drop-off, and response trends.</p>
+                  <FormAnalyticsEmbed formId={formId} />
+                </div>
+              </div>
+            )}
+            {resultsSubTab === "results-filters" && (
+              <div className="p-6">
+                <div className="max-w-2xl">
+                  <h2 className="text-lg font-semibold mb-1">Results Filters</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Apply a search when viewing results.</p>
+                  <FormFiltersManager formId={formId} fields={fields} />
+                </div>
+              </div>
+            )}
+            {resultsSubTab === "results-views" && (
+              <div className="p-6">
+                <div className="max-w-2xl">
+                  <h2 className="text-lg font-semibold mb-1">Results Views</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Save column visibility configurations.</p>
+                  <FormViewsManager formId={formId} fields={fields} />
+                </div>
+              </div>
+            )}
+            {resultsSubTab === "results-labels" && (
+              <div className="p-6">
+                <div className="max-w-2xl">
+                  <h2 className="text-lg font-semibold mb-1">Results Labels</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Customize display labels for field headers in the results table.</p>
+                  <FormLabelsManager formId={formId} fields={fields} />
+                </div>
+              </div>
+            )}
+            {resultsSubTab === "results-docs" && (
+              <div className="p-6">
+                <div className="max-w-2xl">
+                  <h2 className="text-lg font-semibold mb-1">Results Docs</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Format results into PDF or DOCX files using merge tags.</p>
+                  <FormDocsManager formId={formId} fields={fields} />
+                </div>
+              </div>
+            )}
+            {resultsSubTab === "results-reports" && (
+              <div className="p-6">
+                <div className="max-w-4xl">
+                  <h2 className="text-lg font-semibold mb-1">Results Reports</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Aggregate charts per question.</p>
+                  <FormReportsPanel formId={formId} fields={fields} />
+                </div>
+              </div>
+            )}
+            {resultsSubTab === "export" && (
+              <div className="p-6">
+                <div className="max-w-2xl">
+                  <h2 className="text-lg font-semibold mb-1">Export</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Export results to save them outside of your account.</p>
+                  <FormExportPanel formId={formId} fields={fields} />
+                </div>
+              </div>
+            )}
+            {resultsSubTab === "scheduled-exports" && (
+              <div className="p-6">
+                <div className="max-w-2xl">
+                  <h2 className="text-lg font-semibold mb-1">Scheduled Exports</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Set up recurring automatic exports.</p>
+                  <FormScheduledExportsPanel formId={formId} />
+                </div>
+              </div>
+            )}
+            {resultsSubTab === "import" && (
+              <div className="p-6">
+                <div className="max-w-2xl">
+                  <h2 className="text-lg font-semibold mb-1">Import</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Bulk import submissions from a CSV file.</p>
+                  <FormImportPanel formId={formId} fields={fields} />
+                </div>
+              </div>
+            )}
+            {resultsSubTab === "delete-results" && (
+              <div className="p-6">
+                <div className="max-w-2xl">
+                  <h2 className="text-lg font-semibold mb-1">Delete Results</h2>
+                  <p className="text-sm text-muted-foreground mb-6">Permanently remove submissions from this form.</p>
+                  <FormDeleteResultsPanel formId={formId} onDeleted={() => { refetch(); }} />
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      )}
     </div>
   );
 }

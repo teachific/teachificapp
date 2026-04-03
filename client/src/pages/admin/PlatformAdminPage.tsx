@@ -80,6 +80,7 @@ import {
   Code2,
   FileText,
   Layout,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -951,6 +952,9 @@ export default function PlatformAdminPage() {
           <TabsTrigger value="settings" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
             <Settings className="w-3.5 h-3.5" /> System Settings
           </TabsTrigger>
+          <TabsTrigger value="forms" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white text-slate-400 gap-1.5">
+            <ClipboardList className="w-3.5 h-3.5" /> Platform Forms
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab />
@@ -970,7 +974,148 @@ export default function PlatformAdminPage() {
         <TabsContent value="settings">
           <SettingsTab />
         </TabsContent>
+        <TabsContent value="forms">
+          <PlatformFormsTab />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// ─── Platform Forms Tab ──────────────────────────────────────────────────────
+function PlatformFormsTab() {
+  const { data: orgs = [] } = trpc.platformAdmin.listOrgs.useQuery();
+  const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+
+  const { data: forms = [], isLoading } = trpc.forms.list.useQuery(
+    { orgId: selectedOrgId ?? 0 },
+    { enabled: !!selectedOrgId }
+  );
+
+  const FORM_LIMITS: Record<string, number> = {
+    free: 0, starter: 3, builder: 10, pro: 50, enterprise: 200,
+  };
+
+  const filteredForms = (forms as any[]).filter((f: any) =>
+    !search || f.title?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-teal-400" />
+            Platform Forms Overview
+          </CardTitle>
+          <CardDescription className="text-slate-400">
+            View and manage forms across all organizations. Form limits are enforced per subscription tier.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Form limits reference */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+            {Object.entries(FORM_LIMITS).map(([plan, limit]) => (
+              <div key={plan} className="rounded-lg bg-slate-900/60 border border-slate-700 p-3 text-center">
+                <PlanBadge plan={plan} />
+                <p className="text-lg font-bold text-white mt-2">{limit}</p>
+                <p className="text-xs text-slate-400">forms</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Org selector */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <Select
+              value={selectedOrgId ? String(selectedOrgId) : ""}
+              onValueChange={(v) => setSelectedOrgId(Number(v))}
+            >
+              <SelectTrigger className="w-64 bg-slate-900 border-slate-600 text-white">
+                <SelectValue placeholder="Select an organization..." />
+              </SelectTrigger>
+              <SelectContent>
+                {(orgs as any[]).map((org: any) => (
+                  <SelectItem key={org.id} value={String(org.id)}>{org.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedOrgId && (
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Search forms..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-8 bg-slate-900 border-slate-600 text-white w-56"
+                />
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Forms table */}
+      {selectedOrgId && (
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-white text-base">
+              Forms for {(orgs as any[]).find((o: any) => o.id === selectedOrgId)?.name ?? "Organization"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-400" />
+              </div>
+            ) : filteredForms.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                <ClipboardList className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                <p className="text-sm">No forms found for this organization.</p>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-slate-700 overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-700 hover:bg-transparent">
+                      <TableHead className="text-slate-400">Form Title</TableHead>
+                      <TableHead className="text-slate-400">Status</TableHead>
+                      <TableHead className="text-slate-400">Slug</TableHead>
+                      <TableHead className="text-slate-400">Submissions</TableHead>
+                      <TableHead className="text-slate-400">Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredForms.map((form: any) => (
+                      <TableRow key={form.id} className="border-slate-700 hover:bg-slate-800/50">
+                        <TableCell className="text-white font-medium">{form.title}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              form.status === "published"
+                                ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                                : "border-slate-500/40 text-slate-400 bg-slate-500/10"
+                            }
+                          >
+                            {form.status ?? "draft"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-slate-400 font-mono text-xs">{form.slug}</TableCell>
+                        <TableCell className="text-slate-300 text-sm">—</TableCell>
+                        <TableCell className="text-slate-400 text-xs">
+                          {form.createdAt ? new Date(form.createdAt).toLocaleDateString() : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
