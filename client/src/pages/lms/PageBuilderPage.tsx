@@ -248,6 +248,7 @@ export default function PageBuilderPage() {
                   initialBlocks={blocks}
                   onChange={handleBlocksChange}
                   courses={courseList}
+                  orgId={orgId}
                 />
               </div>
             </div>
@@ -257,6 +258,7 @@ export default function PageBuilderPage() {
                 initialBlocks={blocks}
                 onChange={handleBlocksChange}
                 courses={courseList}
+                orgId={orgId}
               />
             </div>
           )}

@@ -63,6 +63,12 @@ import {
   upsertUser,
   createManualUser,
   getDb,
+  getPlanLimits,
+  upsertPlanLimit,
+  getOrgLimitOverrides,
+  upsertOrgLimitOverride,
+  deleteOrgLimitOverride,
+  deleteOrgCascade,
 } from "./db";
 import { courseEnrollments, organizations, orgMembers } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
@@ -176,8 +182,10 @@ export const appRouter = router({
         name: z.string().min(1),
         email: z.string().email(),
         password: z.string().min(6),
-        role: z.enum(["site_admin", "org_admin", "user"]).default("user"),
+        role: z.enum(["site_admin", "org_super_admin", "org_admin", "member"]).default("member"),
         orgId: z.number().optional(),
+        memberSubRole: z.enum(["basic_member", "instructor", "group_manager", "group_member"]).optional(),
+        groupId: z.number().optional(),
       }))
       .mutation(async ({ input }) => {
         const existing = await getUserByEmail(input.email);
@@ -189,32 +197,54 @@ export const appRouter = router({
         const newUser = await getUserByEmail(input.email);
         if (!newUser) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create user" });
         if (input.orgId) {
-          const orgRole = input.role === "org_admin" ? "org_admin" : "user";
-          await addOrgMember(input.orgId, newUser.id, orgRole);
+          const orgRole = (input.role === "org_admin" || input.role === "org_super_admin") ? input.role : "member";
+          await addOrgMember(input.orgId, newUser.id, orgRole, undefined, input.memberSubRole);
+          // If group assignment requested, add to group_members
+          if (input.groupId) {
+            const db2 = await getDb();
+            if (db2) {
+              const { groupMembers: gmTable } = await import("../drizzle/schema");
+              await db2.insert(gmTable).values({ groupId: input.groupId, userId: newUser.id, email: input.email, name: input.name, status: "active" }).onDuplicateKeyUpdate({ set: { status: "active" } });
+            }
+          }
         }
         return newUser;
       }),
     // Assign a user to an org (platform admin only)
     assignToOrg: adminProcedure
-      .input(z.object({ userId: z.number(), orgId: z.number(), orgRole: z.enum(["org_admin", "user"]).default("user") }))
+      .input(z.object({
+        userId: z.number(),
+        orgId: z.number(),
+        orgRole: z.enum(["org_super_admin", "org_admin", "member"]).default("member"),
+        memberSubRole: z.enum(["basic_member", "instructor", "group_manager", "group_member"]).optional(),
+        groupId: z.number().optional(),
+      }))
       .mutation(async ({ input }) => {
         const existing = await getOrgMember(input.orgId, input.userId);
         if (existing) {
-          await updateOrgMemberRole(input.orgId, input.userId, input.orgRole);
+          await updateOrgMemberRole(input.orgId, input.userId, input.orgRole, input.memberSubRole);
         } else {
-          await addOrgMember(input.orgId, input.userId, input.orgRole);
+          await addOrgMember(input.orgId, input.userId, input.orgRole, undefined, input.memberSubRole);
+        }
+        if (input.groupId) {
+          const db2 = await getDb();
+          if (db2) {
+            const user = await getUserById(input.userId);
+            const { groupMembers: gmTable } = await import("../drizzle/schema");
+            await db2.insert(gmTable).values({ groupId: input.groupId, userId: input.userId, email: user?.email ?? "", name: user?.name ?? "", status: "active" }).onDuplicateKeyUpdate({ set: { status: "active" } });
+          }
         }
         return { success: true };
       }),
     updateRole: ownerProcedure
-      .input(z.object({ userId: z.number(), role: z.enum(["site_owner", "site_admin", "org_admin", "user"]) }))
+      .input(z.object({ userId: z.number(), role: z.enum(["site_owner", "site_admin", "org_super_admin", "org_admin", "member"]) }))
       .mutation(({ input }) => updateUserRole(input.userId, input.role)),
     update: adminProcedure
       .input(z.object({
         userId: z.number(),
         name: z.string().min(1).optional(),
         email: z.string().email().optional(),
-        role: z.enum(["site_owner", "site_admin", "org_admin", "user"]).optional(),
+        role: z.enum(["site_owner", "site_admin", "org_super_admin", "org_admin", "member"]).optional(),
       }))
       .mutation(({ input }) => { const { userId, ...data } = input; return updateUser(userId, data); }),
     delete: ownerProcedure
@@ -1365,11 +1395,32 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         userId: z.number(),
         name: z.string().min(1).optional(),
         email: z.string().email().optional(),
-        role: z.enum(["site_owner", "site_admin", "org_admin", "user"]).optional(),
+        role: z.enum(["site_owner", "site_admin", "org_super_admin", "org_admin", "member"]).optional(),
+        orgId: z.number().optional(),
+        orgRole: z.enum(["org_super_admin", "org_admin", "member"]).optional(),
+        memberSubRole: z.enum(["basic_member", "instructor", "group_manager", "group_member"]).optional(),
+        groupId: z.number().optional(),
       }))
-      .mutation(({ input }) => {
-        const { userId, ...data } = input;
-        return updateUser(userId, data);
+      .mutation(async ({ input }) => {
+        const { userId, orgId, orgRole, memberSubRole, groupId, ...data } = input;
+        await updateUser(userId, data);
+        if (orgId && orgRole) {
+          const existing = await getOrgMember(orgId, userId);
+          if (existing) {
+            await updateOrgMemberRole(orgId, userId, orgRole, memberSubRole);
+          } else {
+            await addOrgMember(orgId, userId, orgRole, undefined, memberSubRole);
+          }
+          if (groupId) {
+            const db2 = await getDb();
+            if (db2) {
+              const user = await getUserById(userId);
+              const { groupMembers: gmTable } = await import("../drizzle/schema");
+              await db2.insert(gmTable).values({ groupId, userId, email: user?.email ?? "", name: user?.name ?? "", status: "active" }).onDuplicateKeyUpdate({ set: { status: "active" } });
+            }
+          }
+        }
+        return { success: true };
       }),
     deleteUser: ownerProcedure
       .input(z.object({ userId: z.number() }))
@@ -1380,26 +1431,25 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         users: z.array(z.object({
           name: z.string().optional(),
           email: z.string().email(),
-          role: z.enum(["org_admin", "user"]).default("user"),
+          role: z.enum(["org_super_admin", "org_admin", "member"]).default("member"),
+          memberSubRole: z.enum(["basic_member", "instructor", "group_manager", "group_member"]).optional(),
         })),
       }))
       .mutation(async ({ input }) => {
         const results: { email: string; status: string; userId?: number }[] = [];
         for (const u of input.users) {
           try {
-            // Check if user exists by email
             const allUsers = await getAllUsers();
             const existing = allUsers.find((usr) => usr.email === u.email);
             if (existing) {
-              await addOrgMember(input.orgId, existing.id, u.role);
+              await addOrgMember(input.orgId, existing.id, u.role, undefined, u.memberSubRole);
               results.push({ email: u.email, status: "added_existing", userId: existing.id });
             } else {
-              // Create a placeholder user (no openId yet — they'll claim it on first login)
               const openId = `pending_${nanoid(16)}`;
-              await upsertUser({ openId, name: u.name ?? null, email: u.email, role: "user" });
+              await upsertUser({ openId, name: u.name ?? null, email: u.email, role: "member" });
               const newUser = (await getAllUsers()).find((usr) => usr.email === u.email);
               if (newUser) {
-                await addOrgMember(input.orgId, newUser.id, u.role);
+                await addOrgMember(input.orgId, newUser.id, u.role, undefined, u.memberSubRole);
                 results.push({ email: u.email, status: "created", userId: newUser.id });
               }
             }
@@ -1639,6 +1689,38 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         }
         return { success: true };
       }),
+    // ── Subscription Plan Limits ──────────────────────────────────────────────
+    getPlanLimits: adminProcedure.query(() => getPlanLimits()),
+    upsertPlanLimit: adminProcedure
+      .input(z.object({
+        plan: z.enum(["free", "starter", "builder", "pro", "enterprise"]),
+        featureKey: z.string().min(1),
+        featureLabel: z.string().min(1),
+        limitValue: z.number().int().min(-1),
+      }))
+      .mutation(({ input }) => upsertPlanLimit(input)),
+
+    // ── Org Limit Overrides ────────────────────────────────────────────────────
+    getOrgLimits: adminProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(({ input }) => getOrgLimitOverrides(input.orgId)),
+    upsertOrgLimitOverride: adminProcedure
+      .input(z.object({
+        orgId: z.number(),
+        featureKey: z.string().min(1),
+        limitValue: z.number().int().min(-1),
+        note: z.string().optional(),
+      }))
+      .mutation(({ input, ctx }) => upsertOrgLimitOverride({ ...input, overriddenByUserId: ctx.user.id })),
+    deleteOrgLimitOverride: adminProcedure
+      .input(z.object({ orgId: z.number(), featureKey: z.string() }))
+      .mutation(({ input }) => deleteOrgLimitOverride(input.orgId, input.featureKey)),
+
+    // ── Delete Org ─────────────────────────────────────────────────────────────
+    deleteOrg: adminProcedure
+      .input(z.object({ orgId: z.number() }))
+      .mutation(({ input }) => deleteOrgCascade(input.orgId)),
+
     endImpersonation: protectedProcedure
       .mutation(async ({ ctx }) => {
         const cookieHeader = ctx.req.headers.cookie ?? "";

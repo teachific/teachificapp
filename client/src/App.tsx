@@ -127,6 +127,7 @@ function BareRouter() {
       <Route path="/webinar/:slug/register" component={WebinarRegisterPage} />
       <Route path="/webinar/:slug/watch" component={WebinarWatchPage} />
       <Route path="/shop/:slug" component={DigitalProductSalesPage} />
+      <Route path="/forms/:orgSlug/:slug" component={FormPlayerPage} />
       <Route path="/forms/:slug" component={FormPlayerPage} />
       <Route path="/school" component={SchoolPage} />
       <Route path="/school/:orgSlug" component={SchoolPage} />

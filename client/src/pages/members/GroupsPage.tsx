@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 
 export default function GroupsPage() {
+  const [, setLocation] = useLocation();
   const { orgId, ready } = useOrgScope();
   const utils = trpc.useUtils();
   const { data: groups, isLoading } = trpc.lms.groups.list.useQuery(
@@ -225,7 +227,12 @@ export default function GroupsPage() {
           <p className="text-muted-foreground mt-0.5">Manage group seat registrations and bulk course enrollments</p>
         </div>
         <div className="flex items-center gap-3">
-
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setLocation("/members/group-manager")}>
+            <UserCheck className="h-4 w-4" /> Group Manager Portal
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" /> New Group
+          </Button>
         </div>
       </div>
 

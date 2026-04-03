@@ -131,7 +131,6 @@ const navGroups: NavGroup[] = [
         subItems: [
           { label: "All Users", path: "/members/users" },
           { label: "Groups", path: "/members/groups" },
-          { label: "Group Manager Portal", path: "/members/group-manager" },
           { label: "Certificates", path: "/members/certificates" },
           { label: "Discussions", path: "/members/discussions" },
           { label: "Assignments", path: "/members/assignments" },

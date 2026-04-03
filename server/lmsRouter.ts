@@ -733,7 +733,7 @@ export const lmsRouter = router({
           schoolName: z.string().optional(),
           adminLogoUrl: z.string().optional(),
           faviconUrl: z.string().optional(),
-          customCss: z.string().optional(),
+          customCss: z.string().nullish().transform(v => v ?? undefined),
           studentPrimaryColor: z.string().optional(),
           studentAccentColor: z.string().optional(),
           watermarkImageUrl: z.string().nullable().optional(),
@@ -800,9 +800,9 @@ export const lmsRouter = router({
           isPublished: z.boolean().optional(),
           showHeader: z.boolean().optional(),
           showFooter: z.boolean().optional(),
-          metaTitle: z.string().optional(),
-          metaDescription: z.string().optional(),
-          customCss: z.string().optional(),
+          metaTitle: z.string().nullish().transform(v => v ?? undefined),
+          metaDescription: z.string().nullish().transform(v => v ?? undefined),
+          customCss: z.string().nullish().transform(v => v ?? undefined),
         })
       )
       .mutation(async ({ input }) => {

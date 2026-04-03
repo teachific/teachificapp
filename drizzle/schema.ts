@@ -19,7 +19,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["site_owner", "site_admin", "org_admin", "user"]).default("user").notNull(),
+  role: mysqlEnum("role", ["site_owner", "site_admin", "org_super_admin", "org_admin", "member", "user"]).default("member").notNull(),
   // Custom Teachific auth fields
   passwordHash: varchar("passwordHash", { length: 255 }),
   emailVerified: boolean("emailVerified").default(false).notNull(),
@@ -71,7 +71,8 @@ export const orgMembers = mysqlTable("org_members", {
   id: int("id").autoincrement().primaryKey(),
   orgId: int("orgId").notNull(),
   userId: int("userId").notNull(),
-  role: mysqlEnum("role", ["org_admin", "user"]).default("user").notNull(),
+  role: mysqlEnum("role", ["org_super_admin", "org_admin", "member", "user"]).default("member").notNull(),
+  memberSubRole: mysqlEnum("memberSubRole", ["basic_member", "instructor", "group_manager", "group_member"]).default("basic_member"),
   invitedBy: int("invitedBy"),
   joinedAt: timestamp("joinedAt").defaultNow().notNull(),
 });
@@ -1765,3 +1766,32 @@ export const flashcardCards = mysqlTable("flashcard_cards", {
 });
 export type FlashcardCard = typeof flashcardCards.$inferSelect;
 export type InsertFlashcardCard = typeof flashcardCards.$inferInsert;
+
+
+// ─── Subscription Plan Limits ─────────────────────────────────────────────────
+// Default allotments per plan tier x content/product type.
+// -1 = unlimited.  0 = not available on this plan.
+export const subscriptionPlanLimits = mysqlTable("subscription_plan_limits", {
+  id: int("id").autoincrement().primaryKey(),
+  plan: mysqlEnum("plan", ["free", "starter", "builder", "pro", "enterprise"]).notNull(),
+  featureKey: varchar("featureKey", { length: 100 }).notNull(),
+  featureLabel: varchar("featureLabel", { length: 150 }).notNull(),
+  limitValue: int("limitValue").notNull().default(0),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SubscriptionPlanLimit = typeof subscriptionPlanLimits.$inferSelect;
+export type InsertSubscriptionPlanLimit = typeof subscriptionPlanLimits.$inferInsert;
+
+// ─── Org Limit Overrides ──────────────────────────────────────────────────────
+// Per-org overrides that supersede the plan defaults.
+export const orgLimitOverrides = mysqlTable("org_limit_overrides", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  featureKey: varchar("featureKey", { length: 100 }).notNull(),
+  limitValue: int("limitValue").notNull(),
+  overriddenByUserId: int("overriddenByUserId"),
+  note: varchar("note", { length: 255 }),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type OrgLimitOverride = typeof orgLimitOverrides.$inferSelect;
+export type InsertOrgLimitOverride = typeof orgLimitOverrides.$inferInsert;

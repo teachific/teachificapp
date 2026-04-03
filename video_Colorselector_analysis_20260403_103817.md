@@ -1,0 +1,5 @@
+Based on the video, here is what happens and what is broken when the user tries to use the color selector:
+
+1.  **The Action:** The user clicks the color swatch to open the color picker and selects a new shade of blue.
+2.  **The Bug/Broken Behavior:** As soon as the user clicks to select a color, the color picker closes, and the page layout shifts abruptly. Several new input fields—specifically "Secondary CTA Text," "Secondary CTA URL," and "Background Type"—suddenly appear on the screen above the color selector.
+3.  **The Impact:** This sudden appearance of hidden fields pushes the "Background Color" selector down the page, causing a jarring layout shift. The UI is broken because interacting with the color setting incorrectly triggers the display of unrelated, previously hidden fields, disrupting the user experience.

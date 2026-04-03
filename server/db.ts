@@ -8,6 +8,7 @@ import {
   fileAssets,
   InsertContentFolder,
   InsertUser,
+  orgLimitOverrides,
   orgMembers,
   orgSubscriptions,
   organizations,
@@ -15,6 +16,7 @@ import {
   playSessions,
   platformSettings,
   scormData,
+  subscriptionPlanLimits,
   users,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
@@ -97,7 +99,7 @@ export async function createManualUser(data: {
   name: string;
   email: string;
   passwordHash: string;
-  role: "site_admin" | "org_admin" | "user";
+  role: "site_admin" | "org_super_admin" | "org_admin" | "member" | "user";
   loginMethod: string;
 }) {
   const db = await getDb();
@@ -120,12 +122,12 @@ export async function getAllUsers() {
   return db.select().from(users).orderBy(desc(users.createdAt));
 }
 
-export async function updateUserRole(userId: number, role: "site_owner" | "site_admin" | "org_admin" | "user") {
+export async function updateUserRole(userId: number, role: "site_owner" | "site_admin" | "org_super_admin" | "org_admin" | "member" | "user") {
   const db = await getDb();
   if (!db) return;
   await db.update(users).set({ role }).where(eq(users.id, userId));
 }
-export async function updateUser(userId: number, data: { name?: string; email?: string; role?: "site_owner" | "site_admin" | "org_admin" | "user" }) {
+export async function updateUser(userId: number, data: { name?: string; email?: string; role?: "site_owner" | "site_admin" | "org_super_admin" | "org_admin" | "member" | "user" }) {
   const db = await getDb();
   if (!db) return;
   await db.update(users).set(data).where(eq(users.id, userId));
@@ -235,10 +237,10 @@ export async function getOrgIdForUser(userId: number): Promise<number | null> {
 }
 
 // ─── Org Members ───────────────────────────────────────────────────────────────
-export async function addOrgMember(orgId: number, userId: number, role: "org_admin" | "user", invitedBy?: number) {
+export async function addOrgMember(orgId: number, userId: number, role: "org_super_admin" | "org_admin" | "member" | "user", invitedBy?: number, memberSubRole?: "basic_member" | "instructor" | "group_manager" | "group_member") {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  await db.insert(orgMembers).values({ orgId, userId, role, invitedBy });
+  await db.insert(orgMembers).values({ orgId, userId, role, invitedBy, memberSubRole: memberSubRole ?? "basic_member" }).onDuplicateKeyUpdate({ set: { role, memberSubRole: memberSubRole ?? "basic_member" } });
 }
 
 export async function getOrgMembers(orgId: number) {
@@ -264,10 +266,12 @@ export async function removeOrgMember(orgId: number, userId: number) {
   await db.delete(orgMembers).where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)));
 }
 
-export async function updateOrgMemberRole(orgId: number, userId: number, role: "org_admin" | "user") {
+export async function updateOrgMemberRole(orgId: number, userId: number, role: "org_super_admin" | "org_admin" | "member" | "user", memberSubRole?: "basic_member" | "instructor" | "group_manager" | "group_member") {
   const db = await getDb();
   if (!db) return;
-  await db.update(orgMembers).set({ role }).where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)));
+  const updateData: Record<string, unknown> = { role };
+  if (memberSubRole) updateData.memberSubRole = memberSubRole;
+  await db.update(orgMembers).set(updateData as any).where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)));
 }
 
 // ─── Content Packages ──────────────────────────────────────────────────────────
@@ -579,4 +583,83 @@ export async function movePackageToFolder(packageId: number, folderId: number | 
   await db.update(contentPackages)
     .set({ folderId: folderId ?? null })
     .where(eq(contentPackages.id, packageId));
+}
+
+// ─── Subscription Plan Limits ──────────────────────────────────────────────────
+/** Returns all rows for all plans, ordered by plan then featureKey */
+export async function getPlanLimits() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(subscriptionPlanLimits).orderBy(subscriptionPlanLimits.plan, subscriptionPlanLimits.featureKey);
+}
+
+/** Upsert a single plan-limit row (insert or update limitValue + featureLabel) */
+export async function upsertPlanLimit(data: {
+  plan: "free" | "starter" | "builder" | "pro" | "enterprise";
+  featureKey: string;
+  featureLabel: string;
+  limitValue: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(subscriptionPlanLimits)
+    .values(data)
+    .onDuplicateKeyUpdate({ set: { limitValue: data.limitValue, featureLabel: data.featureLabel } });
+}
+
+// ─── Org Limit Overrides ───────────────────────────────────────────────────────
+/** Returns all overrides for a given org */
+export async function getOrgLimitOverrides(orgId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(orgLimitOverrides).where(eq(orgLimitOverrides.orgId, orgId));
+}
+
+/** Upsert a per-org limit override */
+export async function upsertOrgLimitOverride(data: {
+  orgId: number;
+  featureKey: string;
+  limitValue: number;
+  overriddenByUserId?: number;
+  note?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  // Try update first, then insert
+  const existing = await db.select({ id: orgLimitOverrides.id })
+    .from(orgLimitOverrides)
+    .where(and(eq(orgLimitOverrides.orgId, data.orgId), eq(orgLimitOverrides.featureKey, data.featureKey)))
+    .limit(1);
+  if (existing.length > 0) {
+    await db.update(orgLimitOverrides)
+      .set({ limitValue: data.limitValue, overriddenByUserId: data.overriddenByUserId ?? null, note: data.note ?? null })
+      .where(eq(orgLimitOverrides.id, existing[0].id));
+  } else {
+    await db.insert(orgLimitOverrides).values({
+      orgId: data.orgId,
+      featureKey: data.featureKey,
+      limitValue: data.limitValue,
+      overriddenByUserId: data.overriddenByUserId ?? null,
+      note: data.note ?? null,
+    });
+  }
+}
+
+/** Delete a per-org limit override (reverts to plan default) */
+export async function deleteOrgLimitOverride(orgId: number, featureKey: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(orgLimitOverrides)
+    .where(and(eq(orgLimitOverrides.orgId, orgId), eq(orgLimitOverrides.featureKey, featureKey)));
+}
+
+// ─── Delete Org (cascade) ──────────────────────────────────────────────────────
+export async function deleteOrgCascade(orgId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  // Remove related rows before deleting the org
+  await db.delete(orgMembers).where(eq(orgMembers.orgId, orgId));
+  await db.delete(orgSubscriptions).where(eq(orgSubscriptions.orgId, orgId));
+  await db.delete(orgLimitOverrides).where(eq(orgLimitOverrides.orgId, orgId));
+  await db.delete(organizations).where(eq(organizations.id, orgId));
 }

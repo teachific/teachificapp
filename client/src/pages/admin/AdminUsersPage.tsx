@@ -45,7 +45,7 @@ type UserRow = {
   id: number;
   name: string | null;
   email: string | null;
-  role: "site_owner" | "site_admin" | "org_admin" | "user";
+  role: "site_owner" | "site_admin" | "org_super_admin" | "org_admin" | "member" | "user";
   loginMethod: string | null;
   createdAt: Date;
   lastSignedIn: Date;
@@ -54,16 +54,20 @@ type UserRow = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  site_owner: "Site Owner",
-  site_admin: "Site Admin",
+  site_owner: "Owner",
+  site_admin: "Platform Admin",
+  org_super_admin: "Org Super Admin",
   org_admin: "Org Admin",
-  user: "User",
+  member: "Org Member",
+  user: "Org Member",
 };
 
 const ROLE_COLORS: Record<string, string> = {
   site_owner: "bg-purple-500/20 text-purple-300 border-purple-500/30",
   site_admin: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  org_super_admin: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
   org_admin: "bg-teal-500/20 text-teal-300 border-teal-500/30",
+  member: "bg-slate-500/20 text-slate-300 border-slate-500/30",
   user: "bg-slate-500/20 text-slate-300 border-slate-500/30",
 };
 
@@ -79,18 +83,20 @@ export default function AdminUsersPage() {
   const [orgFilter, setOrgFilter] = useState<string>("all");
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", email: "", role: "user" as string });
+  const [editForm, setEditForm] = useState({ name: "", email: "", role: "member" as string });
   const [enrollOrgId, setEnrollOrgId] = useState<number | null>(null);
   const [enrollCourseId, setEnrollCourseId] = useState<number | null>(null);
   const [assignOrgId, setAssignOrgId] = useState<string>("");
-  const [assignOrgRole, setAssignOrgRole] = useState<"org_admin" | "user">("user");
+  const [assignOrgRole, setAssignOrgRole] = useState<"org_super_admin" | "org_admin" | "member">("member");
+  const [assignMemberSubRole, setAssignMemberSubRole] = useState<"basic_member" | "instructor" | "group_manager" | "group_member">("basic_member");
 
   // Add User dialog state
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({
     name: "", email: "", password: "",
-    role: "user" as "site_admin" | "org_admin" | "user",
+    role: "member" as "site_admin" | "org_super_admin" | "org_admin" | "member",
     orgId: "" as string,
+    memberSubRole: "basic_member" as "basic_member" | "instructor" | "group_manager" | "group_member",
   });
   const [showPassword, setShowPassword] = useState(false);
 
@@ -107,7 +113,7 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       toast.success("User created successfully");
       setAddOpen(false);
-      setAddForm({ name: "", email: "", password: "", role: "user", orgId: "" });
+      setAddForm({ name: "", email: "", password: "", role: "member", orgId: "", memberSubRole: "basic_member" });
       refetchUsers();
     },
     onError: (e) => toast.error(e.message),
@@ -164,7 +170,7 @@ export default function AdminUsersPage() {
     setEnrollOrgId(null);
     setEnrollCourseId(null);
     setAssignOrgId(u.orgId?.toString() ?? "");
-    setAssignOrgRole("user");
+    setAssignOrgRole("member");
   }
 
   function handleSave() {
@@ -348,9 +354,10 @@ export default function AdminUsersPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="member">Org Member</SelectItem>
                     <SelectItem value="org_admin">Org Admin</SelectItem>
-                    {isOwner && <SelectItem value="site_admin">Site Admin</SelectItem>}
+                    <SelectItem value="org_super_admin">Org Super Admin</SelectItem>
+                    {isOwner && <SelectItem value="site_admin">Platform Admin</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
@@ -431,10 +438,11 @@ export default function AdminUsersPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {isOwner && <SelectItem value="site_owner">Site Owner</SelectItem>}
-                      <SelectItem value="site_admin">Site Admin</SelectItem>
+                      {isOwner && <SelectItem value="site_owner">Owner</SelectItem>}
+                      <SelectItem value="site_admin">Platform Admin</SelectItem>
+                      <SelectItem value="org_super_admin">Org Super Admin</SelectItem>
                       <SelectItem value="org_admin">Org Admin</SelectItem>
-                      <SelectItem value="user">User</SelectItem>
+                      <SelectItem value="member">Org Member</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -470,15 +478,29 @@ export default function AdminUsersPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="user">Member</SelectItem>
+                        <SelectItem value="member">Org Member</SelectItem>
                         <SelectItem value="org_admin">Org Admin</SelectItem>
+                        <SelectItem value="org_super_admin">Org Super Admin</SelectItem>
                       </SelectContent>
                     </Select>
+                    {assignOrgRole === "member" && (
+                      <Select value={assignMemberSubRole} onValueChange={(v) => setAssignMemberSubRole(v as any)}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="basic_member">Basic Member</SelectItem>
+                          <SelectItem value="instructor">Instructor</SelectItem>
+                          <SelectItem value="group_manager">Group Manager</SelectItem>
+                          <SelectItem value="group_member">Group Member</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                     {assignOrgId && (
                       <Button
                         size="sm"
                         className="w-full h-8 gap-1.5"
-                        onClick={() => assignToOrg.mutate({ userId: editUser.id, orgId: Number(assignOrgId), orgRole: assignOrgRole })}
+                        onClick={() => assignToOrg.mutate({ userId: editUser.id, orgId: Number(assignOrgId), orgRole: assignOrgRole, memberSubRole: assignMemberSubRole })}
                         disabled={assignToOrg.isPending}
                       >
                         <Building2 className="h-3.5 w-3.5" />

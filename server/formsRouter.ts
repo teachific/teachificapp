@@ -21,9 +21,19 @@ async function getFormById(id: number) {
   return rows[0];
 }
 
-async function getFormBySlug(slug: string) {
+async function getFormBySlug(slug: string, orgSlug?: string) {
   const db = await getDb();
   if (!db) return undefined;
+  if (orgSlug) {
+    // Org-scoped lookup: join with organizations to verify org slug
+    const rows = await db
+      .select({ form: forms })
+      .from(forms)
+      .innerJoin(organizations, eq(forms.orgId, organizations.id))
+      .where(and(eq(forms.slug, slug), eq(organizations.slug, orgSlug)))
+      .limit(1);
+    return rows[0]?.form;
+  }
   const rows = await db.select().from(forms).where(eq(forms.slug, slug)).limit(1);
   return rows[0];
 }
@@ -409,9 +419,9 @@ export const formsRouter = router({
 
   // ── Public: get published form by slug (for the form player) ─────────────
   publicGet: publicProcedure
-    .input(z.object({ slug: z.string() }))
+    .input(z.object({ slug: z.string(), orgSlug: z.string().optional() }))
     .query(async ({ input }) => {
-      const form = await getFormBySlug(input.slug);
+      const form = await getFormBySlug(input.slug, input.orgSlug);
       if (!form || form.status !== "published") return null;
       const fields = await getFieldsByForm(form.id);
       const rules = await getRulesByForm(form.id);

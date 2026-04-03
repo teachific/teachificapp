@@ -253,7 +253,7 @@ function generateSessionToken(): string {
 // ── Main FormPlayerPage ───────────────────────────────────────────────────────
 
 export default function FormPlayerPage() {
-  const params = useParams<{ slug: string }>();
+  const params = useParams<{ slug: string; orgSlug?: string }>();
   const slug = params?.slug ?? "";
   const isEmbed = new URLSearchParams(window.location.search).get("embed") === "1";
 
@@ -267,7 +267,7 @@ export default function FormPlayerPage() {
   const startTimeRef = useRef(Date.now());
 
   const { data: form, isLoading, error } = trpc.forms.publicGet.useQuery(
-    { slug },
+    { slug, orgSlug: params?.orgSlug },
     { enabled: !!slug }
   );
 

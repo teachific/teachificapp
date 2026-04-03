@@ -1645,3 +1645,47 @@
 - [x] Rewrite useOrgScope hook: platform admins now use platformAdmin.listOrgs (not orgs.list); auto-defaults to Teachific org
 - [x] Remove org selector dropdowns from all pages (WebinarsPage, CoursesPage, DigitalProductsPage, EngagementAnalyticsPage, MarketingAnalyticsPage, RevenueAnalyticsPage, LmsAnalyticsPage, GroupsPage, MemberCertificatesPage)
 - [x] Platform admins auto-default to "Teachific" org; regular users auto-default to their own org
+
+## Feature: Subscription Limits & Org Deletion (Apr 3 2026)
+- [ ] Add subscription_plan_limits table (plan x featureKey x limitValue)
+- [ ] Add org_limit_overrides table (per-org override of plan defaults)
+- [ ] Seed 75 default limit rows (15 features x 5 plans)
+- [ ] Backend: getPlanLimits, upsertPlanLimit, getOrgLimits, upsertOrgLimitOverride, deleteOrgLimitOverride
+- [ ] Backend: deleteOrg procedure (adminProcedure, cascades members + subscription)
+- [ ] Platform Admin UI: Subscription Plans tab - grid of plan x feature limits, inline edit
+- [ ] Platform Admin UI: Org edit dialog - Limits tab showing plan defaults + per-org overrides
+- [ ] Platform Admin UI: Org list - Delete button with confirmation dialog
+
+## Feature: Expanded Role System & Platform Admin User Management (Apr 3 2026)
+- [ ] Schema: add memberSubRole field to org_members (basic_member, instructor, group_manager, group_member)
+- [ ] Schema: update users.role enum to include org_super_admin
+- [ ] Backend: update user create/edit procedures to accept new roles and memberSubRole
+- [ ] Backend: group assignment when adding org member (assign to group by groupId)
+- [ ] Platform Admin UI: replace "user" label with "Org Member" everywhere
+- [ ] Platform Admin UI: role selector shows Owner, Platform Admin, Org Super Admin, Org Admin, Org Member
+- [ ] Platform Admin UI: when Org Member selected, show sub-role selector (Basic Member, Instructor, Group Manager, Group Member)
+- [ ] Platform Admin UI: when Group Manager or Group Member selected, show group assignment dropdown
+- [ ] Platform Admin UI: subscription limits tab (plan x feature grid, inline edit)
+- [ ] Platform Admin UI: org limits panel in org edit dialog (Limits tab)
+- [ ] Platform Admin UI: org delete button with confirmation dialog
+
+## Bug Fixes - Apr 3 2026 (Session 2)
+
+- [ ] PageBuilder banner block: add button color fields (primary button bg + text color, secondary button bg + text color)
+- [ ] Platform Admin: add Subscription Plans tab with editable plan limits grid (features × plans)
+- [ ] Platform Admin: add org limits override panel inside org edit dialog
+- [ ] Platform Admin: add Delete Organization button with confirmation
+- [ ] PageBuilder: fix null validation error on page save (metaTitle/metaDescription/customCss sent as null)
+- [ ] PageBuilder: collapsible block editing — blocks show live preview when collapsed, settings panel when expanded/selected
+- [ ] PageBuilder: direct media upload (image/video) with storage to Media Library for image/video fields
+- [ ] PageBuilder: image AND video background options in all banner and CTA blocks
+- [ ] PageBuilder: undo/redo history (Ctrl+Z / Ctrl+Y + toolbar buttons)
+- [ ] PageBuilder: Text & Media block - add image position left/right selector
+- [ ] PageBuilder: HTML block - show live sandboxed iframe preview when block is collapsed
+- [ ] PageBuilder: fix paste block (clipboard paste not working, unclear UX on new pages)
+- [ ] PageBuilder: "Import Block from Page" - modal with page search/select and block picker to import any block from any other page
+- [ ] PageBuilder: Feature Grid - replace hardcoded SVG icons with searchable Lucide icon picker + custom image option per feature card
+- [ ] PageBuilder: Add "Checklist Steps" block type (like Numbered Steps but with checkmarks instead of numbers)
+- [ ] PageBuilder: Duplicate top toolbar (Show Header/Footer/Published + Save Page) to appear above the canvas too
+- [ ] PageBuilder: Numbered Steps + Checklist Steps - add layout direction (left/right), center alignment when no text, image/video per item (above/below/replace text)
+- [ ] PageBuilder: Banner block - add preview page URL option (opens a preview/demo page link)

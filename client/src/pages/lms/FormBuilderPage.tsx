@@ -84,7 +84,10 @@ import {
   Table,
   Tag,
   Clock,
+  Edit,
+  Save,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -744,104 +747,207 @@ function EmailRoutingPanel({
 
 // ── Share Panel ───────────────────────────────────────────────────────────────
 
-function SharePanel({ form }: { form: any }) {
+function SharePanel({ form, activeTab = "links", orgSlug, onSlugSaved }: { form: any; activeTab?: string; orgSlug?: string; onSlugSaved?: (slug: string) => void }) {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
+  const [editingSlug, setEditingSlug] = useState(false);
+  const [slugDraft, setSlugDraft] = useState("");
+  const [slugError, setSlugError] = useState("");
 
-  const formUrl = `${window.location.origin}/forms/${form.slug}`;
+  const updateMut = trpc.forms.update.useMutation({
+    onSuccess: () => {
+      toast.success("URL updated");
+      setEditingSlug(false);
+      onSlugSaved?.(slugDraft);
+    },
+    onError: (e: { message: string }) => { setSlugError(e.message); },
+  });
+
+  const formSlug = form.slug ?? "";
+  const formUrl = orgSlug
+    ? `${window.location.origin}/forms/${orgSlug}/${formSlug}`
+    : `${window.location.origin}/forms/${formSlug}`;
   const embedCode = `<iframe src="${formUrl}?embed=1" width="100%" height="600" frameborder="0" style="border:none;border-radius:8px"></iframe>`;
 
-  const copyUrl = () => {
-    navigator.clipboard.writeText(formUrl);
-    setCopiedUrl(true);
-    setTimeout(() => setCopiedUrl(false), 2000);
+  const copyUrl = () => { navigator.clipboard.writeText(formUrl); setCopiedUrl(true); setTimeout(() => setCopiedUrl(false), 2000); };
+  const copyEmbed = () => { navigator.clipboard.writeText(embedCode); setCopiedEmbed(true); setTimeout(() => setCopiedEmbed(false), 2000); };
+
+  const startEditSlug = () => { setSlugDraft(formSlug); setSlugError(""); setEditingSlug(true); };
+  const saveSlug = () => {
+    if (!slugDraft.trim()) return;
+    if (!/^[a-z0-9-]+$/.test(slugDraft)) { setSlugError("Only lowercase letters, numbers, and hyphens allowed"); return; }
+    updateMut.mutate({ id: form.id, slug: slugDraft });
   };
 
-  const copyEmbed = () => {
-    navigator.clipboard.writeText(embedCode);
-    setCopiedEmbed(true);
-    setTimeout(() => setCopiedEmbed(false), 2000);
-  };
+  const draftFormUrl = orgSlug
+    ? `${window.location.origin}/forms/${orgSlug}/${slugDraft}`
+    : `${window.location.origin}/forms/${slugDraft}`;
 
-  return (
-    <div className="space-y-6">
-      {form.status !== "published" && (
-        <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-          <Lock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-          <p className="text-xs text-amber-700 dark:text-amber-400">
-            This form is currently <strong>{form.status}</strong>. Publish it to make the URL and embed code active.
-          </p>
-        </div>
-      )}
-
-      {/* Direct URL */}
-      <div className="space-y-2">
-        <Label className="flex items-center gap-1.5 text-sm font-semibold">
-          <Globe className="h-4 w-4" />
-          Direct URL
-        </Label>
-        <p className="text-xs text-muted-foreground">Share this link with respondents to open the form in a new page.</p>
-        <div className="flex gap-2">
-          <Input value={formUrl} readOnly className="flex-1 text-xs font-mono bg-muted" />
-          <Button variant="outline" size="sm" onClick={copyUrl} className="gap-1.5 shrink-0">
-            {copiedUrl ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-            {copiedUrl ? "Copied!" : "Copy"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open(formUrl, "_blank")}
-            className="shrink-0"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Embed code */}
-      <div className="space-y-2">
-        <Label className="flex items-center gap-1.5 text-sm font-semibold">
-          <Code2 className="h-4 w-4" />
-          Embed Code
-        </Label>
-        <p className="text-xs text-muted-foreground">Paste this HTML snippet into any webpage to embed the form inline.</p>
-        <div className="relative">
-          <Textarea
-            value={embedCode}
-            readOnly
-            className="text-xs font-mono bg-muted min-h-[80px] pr-20 resize-none"
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={copyEmbed}
-            className="absolute top-2 right-2 gap-1.5 h-7 text-xs"
-          >
-            {copiedEmbed ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-            {copiedEmbed ? "Copied!" : "Copy"}
-          </Button>
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Post-submit settings */}
-      <div className="space-y-3">
-        <Label className="text-sm font-semibold">After Submission</Label>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Success Message</Label>
-          <Textarea
-            className="text-xs min-h-[60px]"
-            placeholder="Thank you for your response!"
-            value={form.successMessage ?? ""}
-            readOnly
-          />
-        </div>
-      </div>
+  const statusBanner = form.status !== "published" ? (
+    <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 mb-4">
+      <Lock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+      <p className="text-xs text-amber-700">
+        This form is currently <strong>{form.status}</strong>. Publish it to make the URL and embed code active.
+      </p>
     </div>
-  );
+  ) : null;
+
+  if (activeTab === "links") {
+    return (
+      <div className="space-y-6">
+        {statusBanner}
+        {/* Direct URL */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5 text-sm font-semibold">
+            <Globe className="h-4 w-4" /> Direct URL
+          </Label>
+          <p className="text-xs text-muted-foreground">Share this link with respondents to open the form in a new page.</p>
+          <div className="flex gap-2">
+            <Input value={formUrl} readOnly className="flex-1 text-xs font-mono bg-muted" />
+            <Button variant="outline" size="sm" onClick={copyUrl} className="gap-1.5 shrink-0">
+              {copiedUrl ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+              {copiedUrl ? "Copied!" : "Copy"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => window.open(formUrl, "_blank")} className="shrink-0">
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+        <Separator />
+        {/* Editable slug */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5 text-sm font-semibold">
+            <Link2 className="h-4 w-4" /> Custom URL Slug
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Customize the last part of the form URL. Only lowercase letters, numbers, and hyphens.
+          </p>
+          {editingSlug ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono bg-muted px-3 py-2 rounded-md">
+                <span className="text-muted-foreground/60">{window.location.origin}/forms/{orgSlug ? orgSlug + "/" : ""}</span>
+                <Input
+                  value={slugDraft}
+                  onChange={e => { setSlugDraft(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setSlugError(""); }}
+                  className="h-7 text-xs font-mono border-primary flex-1 min-w-0"
+                  autoFocus
+                  onKeyDown={e => { if (e.key === "Enter") saveSlug(); if (e.key === "Escape") setEditingSlug(false); }}
+                />
+              </div>
+              {slugDraft && <p className="text-xs text-muted-foreground font-mono">{draftFormUrl}</p>}
+              {slugError && <p className="text-xs text-red-500">{slugError}</p>}
+              <div className="flex gap-2">
+                <Button size="sm" onClick={saveSlug} disabled={updateMut.isPending} className="gap-1.5 h-8">
+                  <Save className="h-3.5 w-3.5" /> {updateMut.isPending ? "Saving..." : "Save URL"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingSlug(false)} className="h-8">Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <code className="text-xs bg-muted px-3 py-2 rounded-md font-mono flex-1 truncate">{formUrl}</code>
+              <Button size="sm" variant="outline" onClick={startEditSlug} className="gap-1.5 h-8 shrink-0">
+                <Edit className="h-3.5 w-3.5" /> Edit URL
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === "preview") {
+    return (
+      <div className="space-y-4">
+        {statusBanner}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5 text-sm font-semibold">
+            <Eye className="h-4 w-4" /> Form Preview
+          </Label>
+          <p className="text-xs text-muted-foreground">See how your form looks to respondents.</p>
+        </div>
+        <div className="rounded-lg border border-border overflow-hidden" style={{ height: "600px" }}>
+          <iframe
+            src={`${formUrl}?embed=1&preview=1`}
+            className="w-full h-full border-none"
+            title="Form Preview"
+          />
+        </div>
+        <Button variant="outline" size="sm" onClick={() => window.open(formUrl, "_blank")} className="gap-1.5">
+          <ExternalLink className="h-3.5 w-3.5" /> Open in New Tab
+        </Button>
+      </div>
+    );
+  }
+
+  if (activeTab === "embed-code") {
+    return (
+      <div className="space-y-6">
+        {statusBanner}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5 text-sm font-semibold">
+            <Code2 className="h-4 w-4" /> Embed Code
+          </Label>
+          <p className="text-xs text-muted-foreground">Paste this HTML snippet into any webpage to embed the form inline.</p>
+          <div className="relative">
+            <Textarea value={embedCode} readOnly className="text-xs font-mono bg-muted min-h-[80px] pr-20 resize-none" />
+            <Button variant="outline" size="sm" onClick={copyEmbed} className="absolute top-2 right-2 gap-1.5 h-7 text-xs">
+              {copiedEmbed ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+              {copiedEmbed ? "Copied!" : "Copy"}
+            </Button>
+          </div>
+        </div>
+        <Separator />
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">Popup Embed</Label>
+          <p className="text-xs text-muted-foreground">Add a button that opens the form in a popup overlay.</p>
+          <div className="relative">
+            <Textarea
+              value={`<button onclick="document.getElementById('tf-popup').style.display='flex'" style="padding:10px 20px;background:#189aa1;color:#fff;border:none;border-radius:6px;cursor:pointer">Open Form</button>\n<div id="tf-popup" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">\n  <div style="background:#fff;border-radius:12px;width:90%;max-width:640px;height:80vh;overflow:hidden">\n    <iframe src="${formUrl}?embed=1" style="width:100%;height:100%;border:none"></iframe>\n  </div>\n</div>`}
+              readOnly
+              className="text-xs font-mono bg-muted min-h-[120px] resize-none"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === "qr-code") {
+    return (
+      <div className="space-y-6">
+        {statusBanner}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5 text-sm font-semibold">
+            <Globe className="h-4 w-4" /> QR Code
+          </Label>
+          <p className="text-xs text-muted-foreground">Scan to open the form on a mobile device. Download and print for physical distribution.</p>
+        </div>
+        <div className="flex flex-col items-center gap-4 p-6 bg-white rounded-xl border border-border">
+          <QRCodeSVG value={formUrl} size={220} level="H" includeMargin />
+          <p className="text-xs text-muted-foreground font-mono text-center break-all max-w-xs">{formUrl}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              const svg = document.querySelector("svg") as SVGElement | null;
+              if (!svg) return;
+              const blob = new Blob([svg.outerHTML], { type: "image/svg+xml" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `${formSlug}-qr.svg`;
+              a.click();
+            }}
+          >
+            <Download className="h-3.5 w-3.5" /> Download SVG
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 // ── Branding Panel ───────────────────────────────────────────────────────────
@@ -2116,7 +2222,11 @@ export default function FormBuilderPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.open(`/forms/${formData.slug}`, "_blank")}
+            onClick={() => {
+              const orgSlug = orgCtx?.org?.slug;
+              const url = orgSlug ? `/forms/${orgSlug}/${formData.slug}` : `/forms/${formData.slug}`;
+              window.open(url, "_blank");
+            }}
             className="gap-1.5 h-7 text-xs"
           >
             <Eye className="h-3.5 w-3.5" />
@@ -2538,7 +2648,7 @@ export default function FormBuilderPage() {
           {/* Right: content */}
           <main className="flex-1 overflow-y-auto p-6">
             <div className="max-w-2xl">
-              {formSettings && <SharePanel form={{ ...formData, ...formSettings }} />}
+              {formSettings && <SharePanel form={{ ...formData, ...formSettings }} activeTab={shareSubTab} orgSlug={orgCtx?.org?.slug} onSlugSaved={(newSlug: string) => { setFormSettings((s: any) => ({ ...s, slug: newSlug })); }} />}
             </div>
           </main>
         </div>

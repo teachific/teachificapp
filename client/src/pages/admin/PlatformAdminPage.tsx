@@ -87,6 +87,7 @@ import {
   LogIn,
   Palette,
   Video,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils";
 
@@ -268,6 +269,28 @@ function OrgsTab() {
     onError: (e) => toast.error(e.message),
   });
 
+  const deleteOrg = trpc.platformAdmin.deleteOrg.useMutation({
+    onSuccess: () => { refetch(); setDeleteConfirmOrg(null); toast.success("Organization deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [deleteConfirmOrg, setDeleteConfirmOrg] = useState<typeof orgs[0] | null>(null);
+  const [showLimitsPanel, setShowLimitsPanel] = useState(false);
+
+  const { data: orgLimitsData = [] } = trpc.platformAdmin.getOrgLimits.useQuery(
+    { orgId: editOrg?.id ?? 0 },
+    { enabled: !!editOrg && showLimitsPanel }
+  );
+  const upsertOrgLimit = trpc.platformAdmin.upsertOrgLimitOverride.useMutation({
+    onSuccess: () => toast.success("Override saved"),
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteOrgLimit = trpc.platformAdmin.deleteOrgLimitOverride.useMutation({
+    onSuccess: () => toast.success("Override removed"),
+    onError: (e) => toast.error(e.message),
+  });
+  const [editingLimit, setEditingLimit] = useState<{ featureKey: string; value: string } | null>(null);
+
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const [createOrgForm, setCreateOrgForm] = useState({ orgName: "", orgSlug: "", adminName: "", adminEmail: "", plan: "free" as "free"|"starter"|"builder"|"pro"|"enterprise" });
   const createOrgWithAdmin = trpc.platformAdmin.createOrgWithAdmin.useMutation({
@@ -355,6 +378,17 @@ function OrgsTab() {
                       >
                         <UserCheck className="w-3.5 h-3.5 mr-2" /> Login as Customer
                       </DropdownMenuItem>
+                      {org.name !== "Teachific" && (
+                        <>
+                          <DropdownMenuSeparator className="bg-gray-100" />
+                          <DropdownMenuItem
+                            className="text-red-500 hover:text-red-400 focus:text-red-400 focus:bg-red-50"
+                            onClick={() => setDeleteConfirmOrg(org)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete Organization
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -461,7 +495,15 @@ function OrgsTab() {
               </div>
             </div>
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-teal-300 text-teal-700 hover:bg-teal-50 mr-auto"
+              onClick={() => { setShowLimitsPanel(true); }}
+            >
+              <Lock className="w-3.5 h-3.5 mr-1.5" /> Limit Overrides
+            </Button>
             <Button variant="outline" onClick={() => setEditOrg(null)} className="border-gray-300 text-slate-800">Cancel</Button>
             <Button
               onClick={async () => {
@@ -531,6 +573,91 @@ function OrgsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Delete Org Confirm Dialog */}
+      <Dialog open={!!deleteConfirmOrg} onOpenChange={(o) => !o && setDeleteConfirmOrg(null)}>
+        <DialogContent className="bg-white border-gray-200 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-4 h-4" /> Delete Organization
+            </DialogTitle>
+            <DialogDescription className="text-slate-600">
+              This will permanently delete <strong>{deleteConfirmOrg?.name}</strong> and all its data including courses, members, and subscriptions. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmOrg(null)} className="text-slate-700">Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirmOrg && deleteOrg.mutate({ orgId: deleteConfirmOrg.id })}
+              disabled={deleteOrg.isPending}
+            >
+              {deleteOrg.isPending ? "Deleting..." : "Delete Permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Org Limits Override Sheet */}
+      <Sheet open={showLimitsPanel} onOpenChange={setShowLimitsPanel}>
+        <SheetContent className="w-[480px] sm:max-w-[480px] bg-white overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="text-slate-900 flex items-center gap-2">
+              <Lock className="w-4 h-4 text-teal-500" /> Limit Overrides — {editOrg?.name}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-slate-600">Override plan defaults for this specific organization. Use -1 for unlimited, or remove an override to revert to plan defaults.</p>
+            <div className="space-y-2">
+              {["courses","lessons_per_course","members","groups","storage_gb","forms","communities","webinars","digital_products","email_campaigns","custom_pages","bundles","memberships","affiliates","certificates"].map(key => {
+                const override = (orgLimitsData as any[]).find((o: any) => o.featureKey === key);
+                const isEditing = editingLimit?.featureKey === key;
+                return (
+                  <div key={key} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-gray-50">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800 capitalize">{key.replace(/_/g, " ")}</p>
+                      {override && <p className="text-xs text-teal-600 mt-0.5">Override: {override.limitValue === -1 ? "Unlimited" : override.limitValue}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isEditing ? (
+                        <>
+                          <Input
+                            type="number"
+                            value={editingLimit.value}
+                            onChange={e => setEditingLimit(el => el ? { ...el, value: e.target.value } : null)}
+                            className="w-20 h-7 text-xs"
+                            autoFocus
+                          />
+                          <Button size="icon" className="h-7 w-7 bg-teal-600 hover:bg-teal-700" onClick={() => {
+                            if (!editOrg) return;
+                            upsertOrgLimit.mutate({ orgId: editOrg.id, featureKey: key, limitValue: parseInt(editingLimit.value) || 0 });
+                            setEditingLimit(null);
+                          }}>
+                            <CheckCircle className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingLimit(null)}>
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditingLimit({ featureKey: key, value: String(override?.limitValue ?? 0) })}>
+                            <Edit className="w-3 h-3 mr-1" /> {override ? "Edit" : "Set Override"}
+                          </Button>
+                          {override && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => editOrg && deleteOrgLimit.mutate({ orgId: editOrg.id, featureKey: key })}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -540,7 +667,7 @@ function UsersTab() {
   const { data: users = [], refetch } = trpc.platformAdmin.listUsers.useQuery();
   const { data: orgs = [] } = trpc.platformAdmin.listOrgs.useQuery();
   const [editUser, setEditUser] = useState<typeof users[0] | null>(null);
-  const [editForm, setEditForm] = useState<{ name?: string; email?: string; role?: "site_owner" | "site_admin" | "org_admin" | "user" }>({});
+  const [editForm, setEditForm] = useState<{ name?: string; email?: string; role?: "site_owner" | "site_admin" | "org_super_admin" | "org_admin" | "member" }>({});
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkOrgId, setBulkOrgId] = useState<number | null>(null);
   const [bulkText, setBulkText] = useState("");
@@ -580,7 +707,9 @@ function UsersTab() {
       .filter(Boolean)
       .map((line) => {
         const parts = line.split(",").map((p) => p.trim());
-        return { email: parts[0], name: parts[1] ?? undefined, role: (parts[2] as "org_admin" | "user") ?? "user" };
+        const rawRole = parts[2]?.trim();
+        const role = (["org_super_admin", "org_admin", "member"].includes(rawRole ?? "") ? rawRole : "member") as "org_super_admin" | "org_admin" | "member";
+        return { email: parts[0], name: parts[1] ?? undefined, role };
       })
       .filter((u) => u.email.includes("@"));
   }
@@ -647,7 +776,7 @@ function UsersTab() {
                     <DropdownMenuContent align="end" className="bg-white border-gray-200">
                       <DropdownMenuItem
                         className="text-slate-800 hover:text-slate-900 focus:text-slate-900"
-                        onClick={() => { setEditUser(u); setEditForm({ name: u.name ?? "", email: u.email ?? "", role: (u.role as typeof editForm.role) ?? "user" }); }}
+                        onClick={() => { setEditUser(u); setEditForm({ name: u.name ?? "", email: u.email ?? "", role: (u.role as typeof editForm.role) ?? "member" }); }}
                       >
                         <Edit className="w-3.5 h-3.5 mr-2" /> Edit Profile
                       </DropdownMenuItem>
@@ -689,15 +818,16 @@ function UsersTab() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-slate-800">Platform Role</Label>
-              <Select value={editForm.role ?? "user"} onValueChange={(v) => setEditForm((f) => ({ ...f, role: v as typeof editForm.role }))}>
+              <Select value={editForm.role ?? "member"} onValueChange={(v) => setEditForm((f) => ({ ...f, role: v as typeof editForm.role }))}>
                 <SelectTrigger className="bg-white border-gray-300 text-slate-900">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white border-gray-200">
-                  <SelectItem value="user" className="text-slate-900 focus:bg-gray-100">User</SelectItem>
+                  <SelectItem value="member" className="text-slate-900 focus:bg-gray-100">Org Member</SelectItem>
                   <SelectItem value="org_admin" className="text-slate-900 focus:bg-gray-100">Org Admin</SelectItem>
-                  <SelectItem value="site_admin" className="text-slate-900 focus:bg-gray-100">Site Admin</SelectItem>
-                  <SelectItem value="site_owner" className="text-slate-900 focus:bg-gray-100">Site Owner</SelectItem>
+                  <SelectItem value="org_super_admin" className="text-slate-900 focus:bg-gray-100">Org Super Admin</SelectItem>
+                  <SelectItem value="site_admin" className="text-slate-900 focus:bg-gray-100">Platform Admin</SelectItem>
+                  <SelectItem value="site_owner" className="text-slate-900 focus:bg-gray-100">Owner</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -890,9 +1020,9 @@ function PageCreatorTab() {
       isPublished: editingPage.isPublished,
       showHeader: editingPage.showHeader,
       showFooter: editingPage.showFooter,
-      metaTitle: editingPage.metaTitle,
-      metaDescription: editingPage.metaDescription,
-      customCss: editingPage.customCss,
+      metaTitle: editingPage.metaTitle ?? "",
+      metaDescription: editingPage.metaDescription ?? "",
+      customCss: editingPage.customCss ?? "",
     });
   };
   return (
@@ -1111,6 +1241,9 @@ export default function PlatformAdminPage() {
           <TabsTrigger value="forms" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <ClipboardList className="w-3.5 h-3.5" /> Platform Forms
           </TabsTrigger>
+          <TabsTrigger value="plans" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
+            <CreditCard className="w-3.5 h-3.5" /> Subscription Plans
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab />
@@ -1135,6 +1268,9 @@ export default function PlatformAdminPage() {
         </TabsContent>
         <TabsContent value="forms">
           <PlatformFormsTab />
+        </TabsContent>
+        <TabsContent value="plans">
+          <SubscriptionPlansTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -1496,6 +1632,121 @@ function PlatformFormsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ─── Subscription Plans Tab ──────────────────────────────────────────────────
+const FEATURE_KEYS = [
+  { key: "courses", label: "Courses" },
+  { key: "lessons_per_course", label: "Lessons per Course" },
+  { key: "members", label: "Members" },
+  { key: "groups", label: "Groups" },
+  { key: "storage_gb", label: "Storage (GB)" },
+  { key: "forms", label: "Forms" },
+  { key: "communities", label: "Communities" },
+  { key: "webinars", label: "Webinars" },
+  { key: "digital_products", label: "Digital Products" },
+  { key: "email_campaigns", label: "Email Campaigns" },
+  { key: "custom_pages", label: "Custom Pages" },
+  { key: "bundles", label: "Bundles" },
+  { key: "memberships", label: "Memberships" },
+  { key: "affiliates", label: "Affiliates" },
+  { key: "certificates", label: "Certificates" },
+];
+
+const PLANS = ["free", "starter", "builder", "pro", "enterprise"] as const;
+
+function SubscriptionPlansTab() {
+  const { data: rawLimits = [], refetch } = trpc.platformAdmin.getPlanLimits.useQuery();
+  const upsert = trpc.platformAdmin.upsertPlanLimit.useMutation({
+    onSuccess: () => { refetch(); toast.success("Limit saved"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // Build a lookup: featureKey → plan → limitValue
+  const limitsMap = new Map<string, Record<string, number>>();
+  for (const row of rawLimits as any[]) {
+    if (!limitsMap.has(row.featureKey)) limitsMap.set(row.featureKey, {});
+    limitsMap.get(row.featureKey)![row.plan] = row.limitValue;
+  }
+
+  const [editing, setEditing] = useState<{ featureKey: string; plan: string; value: string } | null>(null);
+
+  const handleSave = () => {
+    if (!editing) return;
+    const feature = FEATURE_KEYS.find(f => f.key === editing.featureKey);
+    if (!feature) return;
+    upsert.mutate({
+      plan: editing.plan as any,
+      featureKey: editing.featureKey,
+      featureLabel: feature.label,
+      limitValue: parseInt(editing.value) || 0,
+    });
+    setEditing(null);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Subscription Plan Limits</h2>
+          <p className="text-sm text-slate-600 mt-0.5">Set default feature limits per plan tier. Use -1 for unlimited.</p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-gray-200 overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-gray-200 bg-gray-50">
+              <TableHead className="text-slate-700 font-semibold w-48">Feature</TableHead>
+              {PLANS.map(p => (
+                <TableHead key={p} className="text-slate-700 font-semibold text-center">
+                  <PlanBadge plan={p} />
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {FEATURE_KEYS.map(feature => (
+              <TableRow key={feature.key} className="border-gray-200 hover:bg-gray-50">
+                <TableCell className="font-medium text-slate-800 text-sm">{feature.label}</TableCell>
+                {PLANS.map(plan => {
+                  const val = limitsMap.get(feature.key)?.[plan] ?? "—";
+                  const isEditing = editing?.featureKey === feature.key && editing?.plan === plan;
+                  return (
+                    <TableCell key={plan} className="text-center">
+                      {isEditing ? (
+                        <div className="flex items-center gap-1 justify-center">
+                          <Input
+                            type="number"
+                            value={editing.value}
+                            onChange={e => setEditing(ed => ed ? { ...ed, value: e.target.value } : null)}
+                            className="w-20 h-7 text-xs text-center"
+                            autoFocus
+                            onKeyDown={e => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(null); }}
+                          />
+                          <Button size="icon" className="h-7 w-7 bg-teal-600 hover:bg-teal-700" onClick={handleSave} disabled={upsert.isPending}>
+                            <CheckCircle className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          className="text-sm font-mono text-slate-700 hover:text-teal-600 hover:underline cursor-pointer px-2 py-1 rounded hover:bg-teal-50 transition-colors"
+                          onClick={() => setEditing({ featureKey: feature.key, plan, value: String(val === "—" ? 0 : val) })}
+                          title="Click to edit"
+                        >
+                          {val === -1 ? "∞" : val}
+                        </button>
+                      )}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <p className="text-xs text-slate-500">Click any cell to edit. Use -1 for unlimited. Press Enter or click ✓ to save.</p>
     </div>
   );
 }

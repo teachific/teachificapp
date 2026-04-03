@@ -29,7 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PageBuilder, Block } from "@/components/PageBuilder";
-import { Plus, Edit, Trash2, Eye, EyeOff, Search, Building2, ChevronDown, X, Layout, Copy, Globe, GlobeLock } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, EyeOff, Search, Building2, ChevronDown, X, Layout, Copy, Globe, GlobeLock, Save, SquarePen } from "lucide-react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -252,9 +252,9 @@ export default function CustomPagesPage() {
         isPublished: editingPage.isPublished,
         showHeader: editingPage.showHeader,
         showFooter: editingPage.showFooter,
-        metaTitle: editingPage.metaTitle,
-        metaDescription: editingPage.metaDescription,
-        customCss: editingPage.customCss,
+        metaTitle: editingPage.metaTitle ?? "",
+        metaDescription: editingPage.metaDescription ?? "",
+        customCss: editingPage.customCss ?? "",
       });
     } else {
       const created = await createPage.mutateAsync({
@@ -453,6 +453,28 @@ export default function CustomPagesPage() {
                 </p>
               </div>
 
+              {/* ── Top page controls toolbar ── */}
+              <div className="flex flex-wrap items-center gap-4 px-3 py-2 bg-muted/40 border border-border rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Switch id="show-header-top" checked={editingPage.showHeader} onCheckedChange={(checked) => setEditingPage({ ...editingPage, showHeader: checked })} />
+                  <Label htmlFor="show-header-top" className="cursor-pointer">Show Header</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch id="show-footer-top" checked={editingPage.showFooter} onCheckedChange={(checked) => setEditingPage({ ...editingPage, showFooter: checked })} />
+                  <Label htmlFor="show-footer-top" className="cursor-pointer">Show Footer</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch id="is-published-top" checked={editingPage.isPublished} onCheckedChange={(checked) => setEditingPage({ ...editingPage, isPublished: checked })} />
+                  <Label htmlFor="is-published-top" className="cursor-pointer">Published</Label>
+                </div>
+                <div className="ml-auto">
+                  <Button onClick={handleSavePage} disabled={updatePage.isPending || createPage.isPending} className="gap-2">
+                    <Save className="h-4 w-4" />
+                    {editingPage.id ? "Save Page" : "Create Page"}
+                  </Button>
+                </div>
+              </div>
+
               <div>
                 <Label className="flex items-center gap-2 mb-2">
                   <Layout className="h-4 w-4" />
@@ -471,6 +493,7 @@ export default function CustomPagesPage() {
                     onChange={(blocks: Block[]) =>
                       setEditingPage({ ...editingPage, blocksJson: JSON.stringify(blocks) })
                     }
+                    orgId={selectedOrgId ?? undefined}
                   />
                 </div>
               </div>
