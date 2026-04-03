@@ -1,10 +1,14 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql, gte, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { getDb } from "./db";
-import { forms, formFields, formBranchingRules, formSubmissions, orgSubscriptions } from "../drizzle/schema";
+import { storagePut } from "./storage";
+import {
+  forms, formFields, formBranchingRules, formSubmissions, orgSubscriptions,
+  formSessions, formAnalyticsEvents, formIntegrations, orgThemes,
+} from "../drizzle/schema";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -358,6 +362,17 @@ export const formsRouter = router({
       if (!form || form.status !== "published") return null;
       const fields = await getFieldsByForm(form.id);
       const rules = await getRulesByForm(form.id);
+      // Fetch org branding defaults from orgThemes
+      let orgPrimaryColor: string | null = null;
+      let orgFontFamily: string | null = null;
+      if (form.orgId) {
+        const db = await getDb();
+        if (db) {
+          const [themeRow] = await db.select().from(orgThemes).where(eq(orgThemes.orgId, form.orgId)).limit(1);
+          orgPrimaryColor = themeRow?.primaryColor ?? null;
+          orgFontFamily = themeRow?.fontFamily ?? null;
+        }
+      }
       // Don't expose internal email config to the public
       return {
         id: form.id,
@@ -368,7 +383,17 @@ export const formsRouter = router({
         allowMultipleSubmissions: form.allowMultipleSubmissions,
         successMessage: form.successMessage,
         redirectUrl: form.redirectUrl,
+        // branding
         primaryColor: form.primaryColor,
+        buttonColor: form.buttonColor,
+        buttonTextColor: form.buttonTextColor,
+        headerBgColor: form.headerBgColor,
+        headerTextColor: form.headerTextColor,
+        fontFamily: form.fontFamily,
+        headerImageUrl: form.headerImageUrl,
+        useOrgBranding: form.useOrgBranding,
+        orgPrimaryColor,
+        orgFontFamily,
         fields: fields.map((f) => ({
           id: f.id,
           type: f.type,
@@ -379,6 +404,8 @@ export const formsRouter = router({
           sortOrder: f.sortOrder,
           options: f.options ? JSON.parse(f.options) : [],
           isBranchingSource: f.isBranchingSource,
+          isHidden: f.isHidden ?? false,
+          memberVarName: f.memberVarName ?? null,
         })),
         rules: rules.map((r) => ({
           id: r.id,
@@ -450,4 +477,261 @@ export const formsRouter = router({
       const hasAccess = await orgHasEmailAccess(input.orgId);
       return { hasAccess };
     }),
+
+  // ── Branding ──────────────────────────────────────────────────────────────
+  branding: router({
+    // Get org defaults for branding
+    orgDefaults: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const rows = await db.select().from(orgThemes).where(eq(orgThemes.orgId, input.orgId)).limit(1);
+        const theme = rows[0];
+        return {
+          primaryColor: theme?.primaryColor ?? "#189aa1",
+          accentColor: theme?.accentColor ?? "#4ad9e0",
+          fontFamily: theme?.fontFamily ?? "Inter",
+          logoUrl: theme?.adminLogoUrl ?? null,
+          schoolName: theme?.schoolName ?? null,
+        };
+      }),
+
+    // Upload header image for a form
+    uploadHeaderImage: protectedProcedure
+      .input(z.object({
+        formId: z.number(),
+        base64: z.string(), // data:image/...;base64,...
+        mimeType: z.string(),
+        fileName: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Decode base64
+        const base64Data = input.base64.replace(/^data:[^;]+;base64,/, "");
+        const buffer = Buffer.from(base64Data, "base64");
+        const key = `form-headers/${ctx.user.id}/${input.formId}-${Date.now()}-${input.fileName}`;
+        const { url } = await storagePut(key, buffer, input.mimeType);
+        // Save to form
+        await db.update(forms).set({ headerImageUrl: url }).where(eq(forms.id, input.formId));
+        return { url };
+      }),
+  }),
+
+  // ── Sessions & Analytics tracking ─────────────────────────────────────────
+  sessions: router({
+    start: publicProcedure
+      .input(z.object({
+        formId: z.number(),
+        sessionToken: z.string(),
+        memberVars: z.record(z.string(), z.string()).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) return { sessionId: 0 };
+        const [result] = await db.insert(formSessions).values({
+          formId: input.formId,
+          sessionToken: input.sessionToken,
+          userId: ctx.user?.id ?? null,
+          memberVars: input.memberVars ? JSON.stringify(input.memberVars) : null,
+        });
+        const sessionId = (result as any).insertId as number;
+        // Log form_start event
+        await db.insert(formAnalyticsEvents).values({
+          formId: input.formId,
+          sessionId,
+          event: "form_start",
+        });
+        return { sessionId };
+      }),
+
+    fieldView: publicProcedure
+      .input(z.object({
+        formId: z.number(),
+        sessionId: z.number(),
+        fieldId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return;
+        await db.insert(formAnalyticsEvents).values({
+          formId: input.formId,
+          sessionId: input.sessionId,
+          fieldId: input.fieldId,
+          event: "field_view",
+        });
+      }),
+
+    complete: publicProcedure
+      .input(z.object({
+        formId: z.number(),
+        sessionId: z.number(),
+        durationSeconds: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return;
+        await db.update(formSessions)
+          .set({ completed: true, completedAt: new Date(), durationSeconds: input.durationSeconds ?? null })
+          .where(eq(formSessions.id, input.sessionId));
+        await db.insert(formAnalyticsEvents).values({
+          formId: input.formId,
+          sessionId: input.sessionId,
+          event: "form_complete",
+        });
+      }),
+
+    dropout: publicProcedure
+      .input(z.object({
+        formId: z.number(),
+        sessionId: z.number(),
+        fieldId: z.number().optional(),
+        durationSeconds: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return;
+        await db.update(formSessions)
+          .set({ droppedAtFieldId: input.fieldId ?? null, durationSeconds: input.durationSeconds ?? null })
+          .where(eq(formSessions.id, input.sessionId));
+      }),
+  }),
+
+  // ── Analytics ─────────────────────────────────────────────────────────────
+  analytics: router({
+    summary: protectedProcedure
+      .input(z.object({ formId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const sessions = await db.select().from(formSessions).where(eq(formSessions.formId, input.formId));
+        const total = sessions.length;
+        const completed = sessions.filter(s => s.completed).length;
+        const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const durations = sessions.filter(s => s.durationSeconds != null && s.completed).map(s => s.durationSeconds!);
+        const avgDuration = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+        // Drop-off field
+        const dropCounts: Record<number, number> = {};
+        for (const s of sessions) {
+          if (!s.completed && s.droppedAtFieldId) {
+            dropCounts[s.droppedAtFieldId] = (dropCounts[s.droppedAtFieldId] ?? 0) + 1;
+          }
+        }
+        const topDropFieldId = Object.entries(dropCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+        return { total, completed, completionRate, avgDuration, topDropFieldId: topDropFieldId ? parseInt(topDropFieldId) : null };
+      }),
+
+    fieldDropoff: protectedProcedure
+      .input(z.object({ formId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Get all field_view events grouped by fieldId
+        const events = await db.select().from(formAnalyticsEvents)
+          .where(and(eq(formAnalyticsEvents.formId, input.formId), eq(formAnalyticsEvents.event, "field_view")));
+        const viewCounts: Record<number, number> = {};
+        for (const e of events) {
+          if (e.fieldId) viewCounts[e.fieldId] = (viewCounts[e.fieldId] ?? 0) + 1;
+        }
+        // Get drop-off counts per field
+        const sessions = await db.select().from(formSessions)
+          .where(and(eq(formSessions.formId, input.formId)));
+        const dropCounts: Record<number, number> = {};
+        for (const s of sessions) {
+          if (!s.completed && s.droppedAtFieldId) {
+            dropCounts[s.droppedAtFieldId] = (dropCounts[s.droppedAtFieldId] ?? 0) + 1;
+          }
+        }
+        return { viewCounts, dropCounts };
+      }),
+
+    timeSeries: protectedProcedure
+      .input(z.object({ formId: z.number(), days: z.number().default(30) }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+        const sessions = await db.select().from(formSessions)
+          .where(and(eq(formSessions.formId, input.formId), gte(formSessions.startedAt, since)));
+        // Group by date
+        const starts: Record<string, number> = {};
+        const completions: Record<string, number> = {};
+        for (const s of sessions) {
+          const d = s.startedAt.toISOString().slice(0, 10);
+          starts[d] = (starts[d] ?? 0) + 1;
+          if (s.completed) completions[d] = (completions[d] ?? 0) + 1;
+        }
+        // Build ordered array for last N days
+        const result: Array<{ date: string; starts: number; completions: number }> = [];
+        for (let i = input.days - 1; i >= 0; i--) {
+          const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+          result.push({ date: d, starts: starts[d] ?? 0, completions: completions[d] ?? 0 });
+        }
+        return result;
+      }),
+  }),
+
+  // ── Integrations ──────────────────────────────────────────────────────────
+  integrations: router({
+    list: protectedProcedure
+      .input(z.object({ formId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        return db.select().from(formIntegrations).where(eq(formIntegrations.formId, input.formId));
+      }),
+
+    upsert: protectedProcedure
+      .input(z.object({
+        formId: z.number(),
+        integrations: z.array(z.object({
+          id: z.number().optional(),
+          type: z.enum(["course", "custom_page", "landing_page"]),
+          targetId: z.number().optional(),
+          targetUrl: z.string().optional(),
+          triggerOn: z.enum(["on_submit", "on_completion"]).default("on_submit"),
+          action: z.enum(["enroll", "redirect", "tag", "embed"]),
+          label: z.string().optional(),
+          sortOrder: z.number().default(0),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Delete existing and re-insert
+        await db.delete(formIntegrations).where(eq(formIntegrations.formId, input.formId));
+        if (input.integrations.length > 0) {
+          await db.insert(formIntegrations).values(
+            input.integrations.map((ig, i) => ({
+              formId: input.formId,
+              type: ig.type,
+              targetId: ig.targetId ?? null,
+              targetUrl: ig.targetUrl ?? null,
+              triggerOn: ig.triggerOn,
+              action: ig.action,
+              label: ig.label ?? null,
+              sortOrder: i,
+            }))
+          );
+        }
+        return { success: true };
+      }),
+  }),
+
+  // ── Member variable resolution ────────────────────────────────────────────
+  memberVars: router({
+    // Resolve member variable values for a given user (for pre-population preview in builder)
+    resolve: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ ctx }) => {
+        const user = ctx.user;
+        return {
+          name: user.name ?? "",
+          email: user.email ?? "",
+          userId: String(user.id),
+          // Additional vars can be extended here
+        };
+      }),
+  }),
 });

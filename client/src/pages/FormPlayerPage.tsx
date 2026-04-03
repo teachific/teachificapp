@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,6 @@ interface FieldOption {
   value: string;
   label: string;
 }
-
 interface FormField {
   id: number;
   type: string;
@@ -33,8 +32,9 @@ interface FormField {
   sortOrder: number;
   options: FieldOption[];
   isBranchingSource: boolean;
+  isHidden?: boolean;
+  memberVarName?: string | null;
 }
-
 interface BranchingRule {
   id: number;
   sourceFieldId: number;
@@ -43,7 +43,6 @@ interface BranchingRule {
   action: string;
   targetFieldId?: number | null;
 }
-
 interface PublicForm {
   id: number;
   title: string;
@@ -53,36 +52,35 @@ interface PublicForm {
   allowMultipleSubmissions: boolean;
   successMessage?: string | null;
   redirectUrl?: string | null;
+  // branding
   primaryColor?: string | null;
+  buttonColor?: string | null;
+  buttonTextColor?: string | null;
+  headerBgColor?: string | null;
+  headerTextColor?: string | null;
+  fontFamily?: string | null;
+  headerImageUrl?: string | null;
+  useOrgBranding?: boolean;
+  orgPrimaryColor?: string | null;
+  orgFontFamily?: string | null;
   fields: FormField[];
   rules: BranchingRule[];
 }
 
 // ── Branching engine ──────────────────────────────────────────────────────────
 
-function evaluateRule(
-  rule: BranchingRule,
-  answers: Record<number, any>
-): boolean {
+function evaluateRule(rule: BranchingRule, answers: Record<number, any>): boolean {
   const answer = answers[rule.sourceFieldId];
   const val = Array.isArray(answer) ? answer : [String(answer ?? "")];
   const ruleVal = rule.value ?? "";
-
   switch (rule.operator) {
-    case "equals":
-      return val.some((v) => v === ruleVal);
-    case "not_equals":
-      return val.every((v) => v !== ruleVal);
-    case "contains":
-      return val.some((v) => v.toLowerCase().includes(ruleVal.toLowerCase()));
-    case "not_contains":
-      return val.every((v) => !v.toLowerCase().includes(ruleVal.toLowerCase()));
-    case "is_empty":
-      return !answer || (Array.isArray(answer) ? answer.length === 0 : String(answer).trim() === "");
-    case "is_not_empty":
-      return !!answer && (Array.isArray(answer) ? answer.length > 0 : String(answer).trim() !== "");
-    default:
-      return false;
+    case "equals": return val.some((v) => v === ruleVal);
+    case "not_equals": return val.every((v) => v !== ruleVal);
+    case "contains": return val.some((v) => v.toLowerCase().includes(ruleVal.toLowerCase()));
+    case "not_contains": return val.every((v) => !v.toLowerCase().includes(ruleVal.toLowerCase()));
+    case "is_empty": return !answer || (Array.isArray(answer) ? answer.length === 0 : String(answer).trim() === "");
+    case "is_not_empty": return !!answer && (Array.isArray(answer) ? answer.length > 0 : String(answer).trim() !== "");
+    default: return false;
   }
 }
 
@@ -91,25 +89,16 @@ function computeVisibleFields(
   rules: BranchingRule[],
   answers: Record<number, any>
 ): Set<number> {
-  // Start with all fields visible
   const visible = new Set(fields.map((f) => f.id));
-
   for (const rule of rules) {
     if (!evaluateRule(rule, answers)) continue;
-    if (rule.action === "show_field" && rule.targetFieldId) {
-      visible.add(rule.targetFieldId);
-    } else if (rule.action === "hide_field" && rule.targetFieldId) {
-      visible.delete(rule.targetFieldId);
-    }
+    if (rule.action === "show_field" && rule.targetFieldId) visible.add(rule.targetFieldId);
+    else if (rule.action === "hide_field" && rule.targetFieldId) visible.delete(rule.targetFieldId);
   }
-
   return visible;
 }
 
-function shouldAutoSubmit(
-  rules: BranchingRule[],
-  answers: Record<number, any>
-): boolean {
+function shouldAutoSubmit(rules: BranchingRule[], answers: Record<number, any>): boolean {
   return rules.some((r) => r.action === "submit_form" && evaluateRule(r, answers));
 }
 
@@ -132,12 +121,8 @@ function FieldRenderer({
     return (
       <div className="py-4">
         <div className="border-t border-border" />
-        {field.label && (
-          <h3 className="mt-4 text-base font-semibold">{field.label}</h3>
-        )}
-        {field.helpText && (
-          <p className="text-sm text-muted-foreground mt-1">{field.helpText}</p>
-        )}
+        {field.label && <h3 className="mt-4 text-base font-semibold">{field.label}</h3>}
+        {field.helpText && <p className="text-sm text-muted-foreground mt-1">{field.helpText}</p>}
       </div>
     );
   }
@@ -146,9 +131,7 @@ function FieldRenderer({
     return (
       <div className="py-2">
         <p className="text-sm leading-relaxed">{field.label}</p>
-        {field.helpText && (
-          <p className="text-xs text-muted-foreground mt-1">{field.helpText}</p>
-        )}
+        {field.helpText && <p className="text-xs text-muted-foreground mt-1">{field.helpText}</p>}
       </div>
     );
   }
@@ -160,11 +143,8 @@ function FieldRenderer({
         {field.required && <span className="text-red-500 ml-1">*</span>}
       </Label>
 
-      {field.helpText && (
-        <p className="text-xs text-muted-foreground">{field.helpText}</p>
-      )}
+      {field.helpText && <p className="text-xs text-muted-foreground">{field.helpText}</p>}
 
-      {/* Short answer / email / number / date */}
       {["short_answer", "email", "number", "date"].includes(field.type) && (
         <Input
           type={field.type === "email" ? "email" : field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
@@ -175,7 +155,6 @@ function FieldRenderer({
         />
       )}
 
-      {/* Long answer */}
       {field.type === "long_answer" && (
         <Textarea
           placeholder={field.placeholder ?? ""}
@@ -185,7 +164,6 @@ function FieldRenderer({
         />
       )}
 
-      {/* Dropdown */}
       {field.type === "dropdown" && (
         <Select value={value ?? ""} onValueChange={onChange}>
           <SelectTrigger className={error ? "border-red-400" : ""}>
@@ -193,45 +171,38 @@ function FieldRenderer({
           </SelectTrigger>
           <SelectContent>
             {field.options.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       )}
 
-      {/* Radio (multiple choice) */}
       {field.type === "radio" && (
         <div className="space-y-2">
-          {field.options.map((opt) => (
-            <label
-              key={opt.value}
-              className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted/40 transition-colors"
-              style={value === opt.value ? { borderColor: primaryColor, backgroundColor: primaryColor + "10" } : {}}
-            >
-              <div
-                className="h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0"
-                style={{ borderColor: value === opt.value ? primaryColor : "#d1d5db" }}
+          {field.options.map((opt) => {
+            const checked = value === opt.value;
+            return (
+              <label
+                key={opt.value}
+                className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted/40 transition-colors"
+                style={checked ? { borderColor: primaryColor, backgroundColor: primaryColor + "10" } : {}}
               >
-                {value === opt.value && (
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: primaryColor }} />
-                )}
-              </div>
-              <input
-                type="radio"
-                className="sr-only"
-                value={opt.value}
-                checked={value === opt.value}
-                onChange={() => onChange(opt.value)}
-              />
-              <span className="text-sm">{opt.label}</span>
-            </label>
-          ))}
+                <div
+                  className="h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0"
+                  style={{ borderColor: checked ? primaryColor : "hsl(var(--border))" }}
+                >
+                  {checked && (
+                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: primaryColor }} />
+                  )}
+                </div>
+                <span className="text-sm">{opt.label}</span>
+                <input type="radio" className="sr-only" checked={checked} onChange={() => onChange(opt.value)} />
+              </label>
+            );
+          })}
         </div>
       )}
 
-      {/* Checkbox */}
       {field.type === "checkbox" && (
         <div className="space-y-2">
           {field.options.map((opt) => {
@@ -267,6 +238,18 @@ function FieldRenderer({
   );
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getUrlParams(): Record<string, string> {
+  const params: Record<string, string> = {};
+  new URLSearchParams(window.location.search).forEach((v, k) => { params[k] = v; });
+  return params;
+}
+
+function generateSessionToken(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 // ── Main FormPlayerPage ───────────────────────────────────────────────────────
 
 export default function FormPlayerPage() {
@@ -278,14 +261,73 @@ export default function FormPlayerPage() {
   const [errors, setErrors] = useState<Record<number, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const sessionTokenRef = useRef(generateSessionToken());
+  const sessionIdRef = useRef<number | null>(null);
+  const startTimeRef = useRef(Date.now());
 
   const { data: form, isLoading, error } = trpc.forms.publicGet.useQuery(
     { slug },
     { enabled: !!slug }
   );
 
+  const { data: authUser } = trpc.auth.me.useQuery();
+
+  // Session tracking mutations
+  const startSessionMutation = trpc.forms.sessions.start.useMutation({
+    onSuccess: (data) => { sessionIdRef.current = data.sessionId; },
+  });
+  const fieldViewMutation = trpc.forms.sessions.fieldView.useMutation();
+  const completeSessionMutation = trpc.forms.sessions.complete.useMutation();
+
+  // Start session when form loads
+  useEffect(() => {
+    if (!form) return;
+    const urlParams = getUrlParams();
+    // Build member vars from auth user + URL params
+    const memberVars: Record<string, string> = { ...urlParams };
+    if (authUser) {
+      memberVars.name = authUser.name ?? "";
+      memberVars.email = authUser.email ?? "";
+      memberVars.userId = String(authUser.id);
+    }
+    startSessionMutation.mutate({
+      formId: form.id,
+      sessionToken: sessionTokenRef.current,
+      memberVars,
+    });
+  }, [form?.id]);
+
+  // Auto-populate member variable fields from auth user and URL params
+  useEffect(() => {
+    if (!form) return;
+    const urlParams = getUrlParams();
+    const initialAnswers: Record<number, any> = {};
+    for (const field of form.fields) {
+      if (!field.memberVarName) continue;
+      let val = urlParams[field.memberVarName];
+      if (!val && authUser) {
+        if (field.memberVarName === "name") val = authUser.name ?? "";
+        else if (field.memberVarName === "email") val = authUser.email ?? "";
+        else if (field.memberVarName === "userId") val = String(authUser.id);
+      }
+      if (val) initialAnswers[field.id] = val;
+    }
+    if (Object.keys(initialAnswers).length > 0) {
+      setAnswers((prev) => ({ ...initialAnswers, ...prev }));
+    }
+  }, [form?.id, authUser]);
+
   const submitMutation = trpc.forms.publicSubmit.useMutation({
     onSuccess: (res) => {
+      // End session with completion
+      if (sessionIdRef.current) {
+        const duration = Math.round((Date.now() - startTimeRef.current) / 1000);
+        completeSessionMutation.mutate({
+          formId: form!.id,
+          sessionId: sessionIdRef.current,
+          durationSeconds: duration,
+        });
+      }
       setSuccessMsg(res.message ?? "Thank you for your response!");
       setSubmitted(true);
       if (form?.redirectUrl) {
@@ -297,7 +339,18 @@ export default function FormPlayerPage() {
     },
   });
 
-  const primaryColor = form?.primaryColor || "#189aa1";
+  // Resolve branding: per-form overrides > org defaults > system defaults
+  const branding = useMemo(() => {
+    if (!form) return { primary: "#189aa1", button: "#189aa1", buttonText: "#ffffff", headerBg: "", headerText: "#ffffff", font: "Inter", headerImage: null };
+    const useOrg = form.useOrgBranding !== false;
+    const primary = (!useOrg && form.primaryColor) || form.orgPrimaryColor || "#189aa1";
+    const button = (!useOrg && form.buttonColor) || primary;
+    const buttonText = (!useOrg && form.buttonTextColor) || "#ffffff";
+    const headerBg = (!useOrg && form.headerBgColor) || primary;
+    const headerText = (!useOrg && form.headerTextColor) || "#ffffff";
+    const font = (!useOrg && form.fontFamily) || form.orgFontFamily || "Inter";
+    return { primary, button, buttonText, headerBg, headerText, font, headerImage: form.headerImageUrl ?? null };
+  }, [form]);
 
   // Compute visible fields based on current answers and branching rules
   const visibleFieldIds = useMemo(() => {
@@ -306,21 +359,27 @@ export default function FormPlayerPage() {
   }, [form, answers]);
 
   const visibleFields = useMemo(
-    () => (form?.fields ?? []).filter((f) => visibleFieldIds.has(f.id)),
+    () => (form?.fields ?? []).filter((f) => visibleFieldIds.has(f.id) && !f.isHidden),
     [form, visibleFieldIds]
   );
 
   // Auto-submit if a rule triggers it
   useEffect(() => {
     if (!form || submitted) return;
-    if (shouldAutoSubmit(form.rules, answers)) {
-      handleSubmit();
-    }
+    if (shouldAutoSubmit(form.rules, answers)) handleSubmit();
   }, [answers]);
 
   const handleAnswerChange = (fieldId: number, value: any) => {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
     setErrors((prev) => { const e = { ...prev }; delete e[fieldId]; return e; });
+    // Track field interaction
+    if (sessionIdRef.current) {
+      fieldViewMutation.mutate({
+        formId: form!.id,
+        sessionId: sessionIdRef.current,
+        fieldId,
+      });
+    }
   };
 
   const validate = (): boolean => {
@@ -340,20 +399,26 @@ export default function FormPlayerPage() {
   const handleSubmit = () => {
     if (!form || !validate()) return;
 
-    // Find respondent email from email fields
+    // Include hidden field answers (member vars)
+    const hiddenFields = (form.fields ?? []).filter((f) => f.isHidden);
+    const allAnswers = { ...answers };
+    for (const hf of hiddenFields) {
+      if (allAnswers[hf.id] === undefined && hf.memberVarName) {
+        const urlParams = getUrlParams();
+        const val = urlParams[hf.memberVarName] ?? (authUser && hf.memberVarName === "email" ? authUser.email : "");
+        if (val) allAnswers[hf.id] = val;
+      }
+    }
+
     const emailField = form.fields.find((f) => f.type === "email");
-    const respondentEmail = emailField ? answers[emailField.id] : undefined;
+    const respondentEmail = emailField ? allAnswers[emailField.id] : undefined;
 
     const stringAnswers: Record<string, any> = {};
-    for (const [k, v] of Object.entries(answers)) {
+    for (const [k, v] of Object.entries(allAnswers)) {
       stringAnswers[k] = Array.isArray(v) ? v : String(v ?? "");
     }
 
-    submitMutation.mutate({
-      formId: form.id,
-      answers: stringAnswers,
-      respondentEmail,
-    });
+    submitMutation.mutate({ formId: form.id, answers: stringAnswers, respondentEmail });
   };
 
   // ── Render states ──────────────────────────────────────────────────────────
@@ -378,9 +443,7 @@ export default function FormPlayerPage() {
         <div className="text-center space-y-3">
           <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
           <h2 className="text-lg font-semibold">Form not found</h2>
-          <p className="text-sm text-muted-foreground">
-            This form may have been closed or the link is incorrect.
-          </p>
+          <p className="text-sm text-muted-foreground">This form may have been closed or the link is incorrect.</p>
         </div>
       </div>
     );
@@ -388,13 +451,16 @@ export default function FormPlayerPage() {
 
   if (submitted) {
     return (
-      <div className={`${isEmbed ? "" : "min-h-screen bg-background"} flex items-center justify-center p-8`}>
+      <div
+        className={`${isEmbed ? "" : "min-h-screen"} flex items-center justify-center p-8`}
+        style={{ fontFamily: branding.font, background: isEmbed ? undefined : `linear-gradient(135deg, ${branding.primary}08 0%, transparent 60%)` }}
+      >
         <div className="text-center space-y-4 max-w-sm">
           <div
             className="h-16 w-16 rounded-full flex items-center justify-center mx-auto"
-            style={{ backgroundColor: primaryColor + "20" }}
+            style={{ backgroundColor: branding.primary + "20" }}
           >
-            <CheckCircle2 className="h-8 w-8" style={{ color: primaryColor }} />
+            <CheckCircle2 className="h-8 w-8" style={{ color: branding.primary }} />
           </div>
           <h2 className="text-xl font-bold">Submitted!</h2>
           <p className="text-sm text-muted-foreground">{successMsg}</p>
@@ -405,17 +471,39 @@ export default function FormPlayerPage() {
 
   return (
     <div
-      className={`${isEmbed ? "" : "min-h-screen bg-background"} py-10 px-4`}
-      style={isEmbed ? {} : { background: `linear-gradient(135deg, ${primaryColor}08 0%, transparent 60%)` }}
+      className={`${isEmbed ? "" : "min-h-screen bg-background"} pb-10`}
+      style={{ fontFamily: branding.font, background: isEmbed ? undefined : `linear-gradient(135deg, ${branding.primary}08 0%, transparent 60%)` }}
     >
-      <div className="max-w-xl mx-auto">
-        {/* Form header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold">{form.title}</h1>
-          {form.description && (
-            <p className="text-sm text-muted-foreground mt-2">{form.description}</p>
-          )}
+      {/* Header image */}
+      {branding.headerImage && (
+        <div className="w-full h-48 overflow-hidden">
+          <img src={branding.headerImage} alt="Form header" className="w-full h-full object-cover" />
         </div>
+      )}
+
+      {/* Colored header bar */}
+      {!branding.headerImage && (
+        <div
+          className="w-full py-8 px-4"
+          style={{ backgroundColor: branding.headerBg, color: branding.headerText }}
+        >
+          <div className="max-w-xl mx-auto">
+            <h1 className="text-2xl font-bold" style={{ color: branding.headerText }}>{form.title}</h1>
+            {form.description && (
+              <p className="text-sm mt-2 opacity-80" style={{ color: branding.headerText }}>{form.description}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-xl mx-auto px-4 pt-8">
+        {/* Title below header image */}
+        {branding.headerImage && (
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold">{form.title}</h1>
+            {form.description && <p className="text-sm text-muted-foreground mt-2">{form.description}</p>}
+          </div>
+        )}
 
         {/* Fields */}
         <div className="space-y-6">
@@ -425,7 +513,7 @@ export default function FormPlayerPage() {
               field={field}
               value={answers[field.id]}
               onChange={(v) => handleAnswerChange(field.id, v)}
-              primaryColor={primaryColor}
+              primaryColor={branding.primary}
               error={errors[field.id]}
             />
           ))}
@@ -445,11 +533,9 @@ export default function FormPlayerPage() {
             onClick={handleSubmit}
             disabled={submitMutation.isPending}
             className="w-full h-11 text-base font-semibold"
-            style={{ backgroundColor: primaryColor }}
+            style={{ backgroundColor: branding.button, color: branding.buttonText }}
           >
-            {submitMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
+            {submitMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {submitMutation.isPending ? "Submitting..." : "Submit"}
           </Button>
         </div>
@@ -460,7 +546,7 @@ export default function FormPlayerPage() {
             Powered by{" "}
             <span className="font-semibold">
               <span className="text-foreground/60">teach</span>
-              <span style={{ color: primaryColor }}>ific</span>
+              <span style={{ color: branding.primary }}>ific</span>
               <span className="text-foreground/60">™</span>
             </span>
           </p>

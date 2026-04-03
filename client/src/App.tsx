@@ -36,6 +36,7 @@ import SchoolPage from "./pages/lms/SchoolPage";
 import FormsPage from "./pages/lms/FormsPage";
 import FormBuilderPage from "./pages/lms/FormBuilderPage";
 import FormResponsesPage from "./pages/lms/FormResponsesPage";
+import FormAnalyticsPage from "./pages/lms/FormAnalyticsPage";
 import FormPlayerPage from "./pages/FormPlayerPage";
 import CourseSalesPage from "./pages/lms/CourseSalesPage";
 import CoursePlayerPage from "./pages/lms/CoursePlayerPage";
@@ -169,6 +170,7 @@ function AdminRouter() {
         <Route path="/products/bundles" component={BundlesPage} />
         <Route path="/lms/forms" component={FormsPage} />
         <Route path="/lms/forms/:id/responses" component={FormResponsesPage} />
+        <Route path="/lms/forms/:id/analytics" component={FormAnalyticsPage} />
         <Route path="/lms/forms/:id" component={FormBuilderPage} />
         <Route path="/products/community" component={CommunityPage} />
         <Route path="/products/categories" component={CategoriesPage} />

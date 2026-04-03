@@ -34,6 +34,7 @@ import {
   Globe,
   Lock,
   ClipboardList,
+  TrendingUp,
 } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -231,6 +232,15 @@ export default function FormsPage() {
                   >
                     <BarChart2 className="h-3 w-3 mr-1" />
                     Responses
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 text-xs h-8"
+                    onClick={() => setLocation(`/lms/forms/${form.id}/analytics`)}
+                  >
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    Analytics
                   </Button>
                 </div>
               </CardContent>

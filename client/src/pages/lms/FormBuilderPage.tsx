@@ -67,6 +67,15 @@ import {
   Globe,
   Lock,
   X,
+  Palette,
+  Link2,
+  User,
+  Upload,
+  BookOpen,
+  FileText,
+  LayoutTemplate,
+  Eye as EyeIcon,
+  EyeOff,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -100,6 +109,8 @@ interface FormField {
   minLength?: number;
   maxLength?: number;
   isBranchingSource: boolean;
+  isHidden?: boolean;
+  memberVarName?: string;
 }
 
 interface BranchingRule {
@@ -789,6 +800,406 @@ function SharePanel({ form }: { form: any }) {
   );
 }
 
+// ── Branding Panel ───────────────────────────────────────────────────────────
+
+const FONT_OPTIONS = [
+  "Inter", "Roboto", "Open Sans", "Lato", "Poppins", "Montserrat", "Nunito", "Raleway",
+];
+
+function BrandingPanel({
+  formId,
+  orgId,
+  formSettings,
+  onUpdate,
+}: {
+  formId: number;
+  orgId: number;
+  formSettings: any;
+  onUpdate: (patch: any) => void;
+}) {
+  const { data: orgDefaults } = trpc.forms.branding.orgDefaults.useQuery(
+    { orgId },
+    { enabled: !!orgId }
+  );
+  const uploadMutation = trpc.forms.branding.uploadHeaderImage.useMutation({
+    onSuccess: (data) => { onUpdate({ headerImageUrl: data.url }); toast.success("Header image uploaded"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const useOrgBranding = formSettings.useOrgBranding ?? true;
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      uploadMutation.mutate({ formId, base64, mimeType: file.type, fileName: file.name });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="space-y-1">
+        <Label className="text-sm font-semibold flex items-center gap-1.5">
+          <Palette className="h-4 w-4" /> Form Branding
+        </Label>
+        <p className="text-xs text-muted-foreground">Customize how this form looks. Defaults inherit from your org settings.</p>
+      </div>
+
+      {/* Use org branding toggle */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium">Use Org Defaults</p>
+          <p className="text-xs text-muted-foreground">Inherit colors and fonts from your org theme</p>
+        </div>
+        <Switch
+          checked={useOrgBranding}
+          onCheckedChange={(v) => onUpdate({ useOrgBranding: v })}
+        />
+      </div>
+
+      {!useOrgBranding && (
+        <>
+          <Separator />
+          <div className="space-y-3">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Colors</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                ["primaryColor", "Primary"],
+                ["buttonColor", "Button"],
+                ["buttonTextColor", "Button Text"],
+                ["headerBgColor", "Header BG"],
+                ["headerTextColor", "Header Text"],
+              ] as [string, string][]).map(([key, label]) => (
+                <div key={key} className="space-y-1">
+                  <Label className="text-xs">{label}</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={formSettings[key] ?? (orgDefaults?.primaryColor ?? "#189aa1")}
+                      onChange={(e) => onUpdate({ [key]: e.target.value })}
+                      className="h-8 w-8 rounded border border-border cursor-pointer"
+                    />
+                    <Input
+                      value={formSettings[key] ?? ""}
+                      onChange={(e) => onUpdate({ [key]: e.target.value })}
+                      placeholder={orgDefaults?.primaryColor ?? "#189aa1"}
+                      className="text-xs h-8 font-mono"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Font</Label>
+            <Select
+              value={formSettings.fontFamily ?? orgDefaults?.fontFamily ?? "Inter"}
+              onValueChange={(v) => onUpdate({ fontFamily: v })}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_OPTIONS.map((f) => (
+                  <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
+
+      <Separator />
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold flex items-center gap-1.5">
+          <Upload className="h-4 w-4" /> Header Image
+        </Label>
+        <p className="text-xs text-muted-foreground">Shown as a full-width banner above the form title.</p>
+        {formSettings.headerImageUrl && (
+          <div className="relative">
+            <img
+              src={formSettings.headerImageUrl}
+              alt="Header"
+              className="w-full h-24 object-cover rounded border border-border"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-1 right-1 h-6 w-6 p-0 bg-black/50 hover:bg-black/70 text-white"
+              onClick={() => onUpdate({ headerImageUrl: null })}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+        <label className="flex items-center gap-2 cursor-pointer">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            disabled={uploadMutation.isPending}
+            asChild
+          >
+            <span>
+              {uploadMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+              {uploadMutation.isPending ? "Uploading..." : "Upload Image"}
+            </span>
+          </Button>
+          <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+// ── Member Variables Panel ────────────────────────────────────────────────────
+
+const MEMBER_VARS = [
+  { key: "name", label: "Full Name", description: "Respondent's full name" },
+  { key: "email", label: "Email Address", description: "Respondent's email" },
+  { key: "userId", label: "User ID", description: "Internal user identifier" },
+  { key: "orgName", label: "Organization Name", description: "Org the member belongs to" },
+  { key: "custom1", label: "Custom Variable 1", description: "Passed via URL param ?custom1=" },
+  { key: "custom2", label: "Custom Variable 2", description: "Passed via URL param ?custom2=" },
+];
+
+function MemberVarsPanel({
+  fields,
+  onFieldChange,
+}: {
+  fields: FormField[];
+  onFieldChange: (id: string | number, patch: Partial<FormField>) => void;
+}) {
+  const inputFields = fields.filter(
+    (f) => !["section_break", "statement"].includes(f.type)
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="space-y-1">
+        <Label className="text-sm font-semibold flex items-center gap-1.5">
+          <User className="h-4 w-4" /> Member Variables
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          Map form fields to member data so they auto-populate when a logged-in user or URL params are present.
+          Hidden fields are submitted silently without being shown to the respondent.
+        </p>
+      </div>
+
+      {inputFields.length === 0 ? (
+        <p className="text-xs text-muted-foreground text-center py-6">Add fields to the form first.</p>
+      ) : (
+        <div className="space-y-3">
+          {inputFields.map((field) => (
+            <div key={String(field.id)} className="border border-border rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium truncate max-w-[160px]">{field.label || `(${field.type})`}</p>
+                <button
+                  type="button"
+                  onClick={() => onFieldChange(field.id, { isHidden: !field.isHidden })}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title={field.isHidden ? "Show field" : "Hide field"}
+                >
+                  {field.isHidden
+                    ? <EyeOff className="h-3.5 w-3.5 text-amber-500" />
+                    : <EyeIcon className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+              <Select
+                value={field.memberVarName ?? ""}
+                onValueChange={(v) => onFieldChange(field.id, { memberVarName: v || undefined })}
+              >
+                <SelectTrigger className="h-7 text-xs">
+                  <SelectValue placeholder="No variable mapping" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No mapping</SelectItem>
+                  {MEMBER_VARS.map((v) => (
+                    <SelectItem key={v.key} value={v.key} className="text-xs">
+                      <span className="font-mono">{`{{${v.key}}}`}</span> — {v.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {field.memberVarName && (
+                <p className="text-xs text-muted-foreground">
+                  Auto-filled from <code className="bg-muted px-1 rounded">{`{{${field.memberVarName}}}`}</code>
+                  {field.isHidden && <span className="text-amber-600 ml-1">(hidden)</span>}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Separator />
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">URL Parameter Reference</Label>
+        <div className="bg-muted rounded p-2 space-y-1">
+          {MEMBER_VARS.map((v) => (
+            <div key={v.key} className="flex items-center gap-2 text-xs">
+              <code className="text-teal-600 font-mono">{`?${v.key}=value`}</code>
+              <span className="text-muted-foreground">→ {v.description}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">Append these to your form URL to pre-populate fields from your LMS, CRM, or email platform.</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Integrations Panel ────────────────────────────────────────────────────────
+
+function IntegrationsPanel({ formId, orgId }: { formId: number; orgId: number }) {
+  const { data: integrations = [], refetch } = trpc.forms.integrations.list.useQuery(
+    { formId },
+    { enabled: !!formId }
+  );
+  const { data: courses = [] } = trpc.lms.courses.list.useQuery(
+    { orgId },
+    { enabled: !!orgId }
+  );
+  const upsertMutation = trpc.forms.integrations.upsert.useMutation({
+    onSuccess: () => { refetch(); toast.success("Integrations saved"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [localIntegrations, setLocalIntegrations] = useState<any[]>([]);
+  useEffect(() => { setLocalIntegrations(integrations); }, [integrations]);
+
+  const addIntegration = () => {
+    setLocalIntegrations((prev) => [
+      ...prev,
+      { type: "course", action: "enroll", triggerOn: "on_submit", sortOrder: prev.length },
+    ]);
+  };
+
+  const removeIntegration = (idx: number) => {
+    setLocalIntegrations((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const updateIntegration = (idx: number, patch: any) => {
+    setLocalIntegrations((prev) => prev.map((ig, i) => i === idx ? { ...ig, ...patch } : ig));
+  };
+
+  const save = () => {
+    upsertMutation.mutate({ formId, integrations: localIntegrations });
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="space-y-1">
+        <Label className="text-sm font-semibold flex items-center gap-1.5">
+          <Link2 className="h-4 w-4" /> Integrations
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          Connect this form to courses, custom pages, or landing pages. Actions trigger automatically on submission.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {localIntegrations.map((ig, idx) => (
+          <div key={idx} className="border border-border rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold">Integration {idx + 1}</p>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => removeIntegration(idx)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Type</Label>
+                <Select value={ig.type} onValueChange={(v) => updateIntegration(idx, { type: v })}>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="course"><BookOpen className="h-3.5 w-3.5 inline mr-1" />Course</SelectItem>
+                    <SelectItem value="custom_page"><FileText className="h-3.5 w-3.5 inline mr-1" />Custom Page</SelectItem>
+                    <SelectItem value="landing_page"><LayoutTemplate className="h-3.5 w-3.5 inline mr-1" />Landing Page</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Action</Label>
+                <Select value={ig.action} onValueChange={(v) => updateIntegration(idx, { action: v })}>
+                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="enroll">Enroll</SelectItem>
+                    <SelectItem value="redirect">Redirect</SelectItem>
+                    <SelectItem value="tag">Tag Member</SelectItem>
+                    <SelectItem value="embed">Embed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Trigger</Label>
+              <Select value={ig.triggerOn} onValueChange={(v) => updateIntegration(idx, { triggerOn: v })}>
+                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="on_submit">On Submit</SelectItem>
+                  <SelectItem value="on_completion">On Completion</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {ig.type === "course" && (
+              <div className="space-y-1">
+                <Label className="text-xs">Course</Label>
+                <Select
+                  value={ig.targetId ? String(ig.targetId) : ""}
+                  onValueChange={(v) => updateIntegration(idx, { targetId: parseInt(v) })}
+                >
+                  <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Select course" /></SelectTrigger>
+                  <SelectContent>
+                    {(courses as any[]).map((c: any) => (
+                      <SelectItem key={c.id} value={String(c.id)} className="text-xs">{c.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {(ig.type === "custom_page" || ig.type === "landing_page") && (
+              <div className="space-y-1">
+                <Label className="text-xs">Target URL</Label>
+                <Input
+                  value={ig.targetUrl ?? ""}
+                  onChange={(e) => updateIntegration(idx, { targetUrl: e.target.value })}
+                  placeholder="https://..."
+                  className="h-7 text-xs"
+                />
+              </div>
+            )}
+            <div className="space-y-1">
+              <Label className="text-xs">Label (optional)</Label>
+              <Input
+                value={ig.label ?? ""}
+                onChange={(e) => updateIntegration(idx, { label: e.target.value })}
+                placeholder="e.g. Enroll in Intro Course"
+                className="h-7 text-xs"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" className="gap-1.5 text-xs flex-1" onClick={addIntegration}>
+          <Plus className="h-3.5 w-3.5" /> Add Integration
+        </Button>
+        <Button size="sm" className="gap-1.5 text-xs" onClick={save} disabled={upsertMutation.isPending}>
+          {upsertMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+          Save
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main FormBuilderPage ──────────────────────────────────────────────────────
 
 export default function FormBuilderPage() {
@@ -1120,6 +1531,18 @@ export default function FormBuilderPage() {
                 <Share2 className="h-3.5 w-3.5" />
                 Share
               </TabsTrigger>
+              <TabsTrigger value="branding" className="flex-1 text-xs gap-1 rounded-none">
+                <Palette className="h-3.5 w-3.5" />
+                Brand
+              </TabsTrigger>
+              <TabsTrigger value="members" className="flex-1 text-xs gap-1 rounded-none">
+                <User className="h-3.5 w-3.5" />
+                Vars
+              </TabsTrigger>
+              <TabsTrigger value="integrations" className="flex-1 text-xs gap-1 rounded-none">
+                <Link2 className="h-3.5 w-3.5" />
+                Links
+              </TabsTrigger>
             </TabsList>
 
             <div className="flex-1 overflow-y-auto p-4">
@@ -1171,6 +1594,28 @@ export default function FormBuilderPage() {
 
               <TabsContent value="share" className="mt-0">
                 {formSettings && <SharePanel form={{ ...formData, ...formSettings }} />}
+              </TabsContent>
+
+              <TabsContent value="branding" className="mt-0">
+                {formSettings && (
+                  <BrandingPanel
+                    formId={formId}
+                    orgId={orgId!}
+                    formSettings={formSettings}
+                    onUpdate={(patch) => { setFormSettings((s: any) => ({ ...s, ...patch })); markDirty(); }}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="members" className="mt-0">
+                <MemberVarsPanel
+                  fields={fields}
+                  onFieldChange={(id, patch) => { handleFieldChange(id, patch); }}
+                />
+              </TabsContent>
+
+              <TabsContent value="integrations" className="mt-0">
+                <IntegrationsPanel formId={formId} orgId={orgId!} />
               </TabsContent>
             </div>
           </Tabs>

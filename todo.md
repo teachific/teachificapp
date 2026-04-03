@@ -1247,3 +1247,65 @@
 - [x] Forms added to Products section in sidebar
 - [x] TypeScript errors fixed (sonner toast, type casts)
 - [x] Production build verified clean
+
+## Form Generator — Phase 2 Enhancements
+
+### Schema & Migration
+- [ ] Add form_analytics_events table (formId, sessionId, fieldId, event, value, timestamp)
+- [ ] Add form_sessions table (id, formId, startedAt, completedAt, droppedAtFieldId, memberVars JSON)
+- [ ] Add branding columns to forms table: headerImageUrl, headerBgColor, headerTextColor, fontFamily, buttonColor, buttonTextColor, useOrgBranding (bool)
+- [ ] Add memberVariableFields JSON column to forms (list of field IDs that map to member vars)
+- [ ] Add form_integrations table (formId, type: course|custom_page|landing_page, targetId, triggerOn: submit|completion, action: enroll|redirect|tag)
+- [ ] Generate and apply migration
+
+### Backend Procedures
+- [ ] forms.analytics.summary: completion rate, avg time, drop-off field, total starts vs completions
+- [ ] forms.analytics.fieldDropoff: per-field view count, answer rate, drop-off count
+- [ ] forms.analytics.timeSeries: daily starts/completions over date range
+- [ ] forms.sessions.start: create session row, return sessionId
+- [ ] forms.sessions.fieldView: record field view event (for drop-off tracking)
+- [ ] forms.sessions.complete: mark session complete, store member vars used
+- [ ] forms.branding.getOrgDefaults: fetch org site settings (primaryColor, logo, fonts)
+- [ ] forms.branding.update: save per-form branding overrides
+- [ ] forms.integrations.list / upsert / delete: manage course/page/landing-page links
+- [ ] forms.memberVars.resolve: given formId + userId or URL params, return pre-filled values
+
+### Form Builder UI
+- [ ] Branding tab: toggle "Use org defaults" vs custom overrides
+- [ ] Branding tab: primary color, button color, header bg/text color pickers
+- [ ] Branding tab: header image upload (S3, CDN URL stored)
+- [ ] Branding tab: font family selector (Google Fonts presets)
+- [ ] Member Variables tab: map form fields to member data (name, email, org, custom attributes)
+- [ ] Member Variables tab: show preview of auto-populated values
+- [ ] Integrations tab: link form to course (enroll on submit), custom page (redirect), landing page (embed)
+- [ ] Integrations tab: trigger options (on submit, on completion, on score threshold)
+
+### Form Analytics Page
+- [ ] Summary cards: total starts, completions, completion rate, avg time to complete
+- [ ] Drop-off funnel chart: per-question view → answer rate waterfall
+- [ ] Time series chart: daily starts vs completions (last 30 days)
+- [ ] Per-field breakdown table: views, answers, drop-offs, avg answer time
+- [ ] Export analytics as CSV
+
+### Form Player
+- [ ] Apply org branding by default (fetch org settings for the form's org)
+- [ ] Apply per-form overrides on top of org defaults
+- [ ] Render header image if set (full-width banner above form title)
+- [ ] Auto-populate fields mapped to member variables from: URL params (?name=, ?email=, etc.) or logged-in user context
+- [ ] Hidden field support: fields with member var mapping can be hidden from view but still submitted
+- [ ] Track session start/field views/completion events for analytics
+
+## Form Generator Enhancements (Phase 2)
+- [x] DB schema: formSessions, formAnalyticsEvents, formIntegrations, branding columns, isHidden, memberVarName
+- [x] Backend: analytics summary, field drop-off, time series procedures
+- [x] Backend: branding orgDefaults, uploadHeaderImage procedures
+- [x] Backend: sessions.start, fieldView, complete, dropout procedures
+- [x] Backend: integrations.list, upsert procedures
+- [x] Form Builder: Branding tab (org defaults toggle, per-form color overrides, header image upload)
+- [x] Form Builder: Member Variables tab (field-to-variable mapping, hidden field toggle, URL param reference)
+- [x] Form Builder: Integrations tab (course enroll, redirect, tag, embed actions)
+- [x] Form Analytics page: completion rate, drop-off funnel, time series chart, per-field table
+- [x] Form Player: org/form branding applied (colors, fonts, header image)
+- [x] Form Player: member variable auto-population from auth user and URL params
+- [x] Form Player: session tracking (start, field view, complete)
+- [x] Forms list: Analytics button added to each form card

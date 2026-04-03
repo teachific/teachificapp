@@ -1299,8 +1299,18 @@ export const forms = mysqlTable("forms", {
   // Access
   requireLogin: boolean("requireLogin").default(false).notNull(),
   allowMultipleSubmissions: boolean("allowMultipleSubmissions").default(true).notNull(),
-  // Styling
+  // Styling — per-form overrides (null = use org defaults)
   primaryColor: varchar("primaryColor", { length: 20 }),
+  buttonColor: varchar("buttonColor", { length: 20 }),
+  buttonTextColor: varchar("buttonTextColor", { length: 20 }),
+  headerBgColor: varchar("headerBgColor", { length: 20 }),
+  headerTextColor: varchar("headerTextColor", { length: 20 }),
+  fontFamily: varchar("fontFamily", { length: 100 }),
+  headerImageUrl: text("headerImageUrl"),
+  // When true, inherit org site settings for branding
+  useOrgBranding: boolean("useOrgBranding").default(true).notNull(),
+  // Member variable field mappings (JSON: [{fieldId, varName}])
+  memberVarMappings: text("memberVarMappings"),
   submissionCount: int("submissionCount").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
@@ -1326,6 +1336,10 @@ export const formFields = mysqlTable("form_fields", {
   maxLength: int("maxLength"),
   // Whether this field can trigger branching rules
   isBranchingSource: boolean("isBranchingSource").default(false).notNull(),
+  // If set, this field is hidden from the form and auto-populated with the member variable
+  isHidden: boolean("isHidden").default(false).notNull(),
+  // Member variable name to auto-populate (e.g. 'name', 'email', 'org', custom attr key)
+  memberVarName: varchar("memberVarName", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type FormField = typeof formFields.$inferSelect;
@@ -1369,3 +1383,65 @@ export const formSubmissions = mysqlTable("form_submissions", {
 });
 export type FormSubmission = typeof formSubmissions.$inferSelect;
 export type InsertFormSubmission = typeof formSubmissions.$inferInsert;
+
+// ─── Form Sessions ────────────────────────────────────────────────────────────
+// Tracks each visitor's interaction with a form (for drop-off analytics)
+export const formSessions = mysqlTable("form_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  // Unique session token (generated client-side)
+  sessionToken: varchar("sessionToken", { length: 100 }).notNull(),
+  userId: int("userId"),
+  respondentEmail: varchar("respondentEmail", { length: 255 }),
+  // The field ID where the respondent dropped off (null if completed)
+  droppedAtFieldId: int("droppedAtFieldId"),
+  // Whether the session ended in a submission
+  completed: boolean("completed").default(false).notNull(),
+  // Member variable values used to pre-populate fields (JSON)
+  memberVars: text("memberVars"),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+  // Duration in seconds
+  durationSeconds: int("durationSeconds"),
+});
+export type FormSession = typeof formSessions.$inferSelect;
+export type InsertFormSession = typeof formSessions.$inferInsert;
+
+// ─── Form Analytics Events ────────────────────────────────────────────────────
+// Fine-grained events: field_view, field_answer, field_skip, form_start, form_submit
+export const formAnalyticsEvents = mysqlTable("form_analytics_events", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  sessionId: int("sessionId").notNull(),
+  fieldId: int("fieldId"),
+  // Event type
+  event: varchar("event", { length: 50 }).notNull(),
+  // Optional value (e.g. selected option for choice fields)
+  value: text("value"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type FormAnalyticsEvent = typeof formAnalyticsEvents.$inferSelect;
+export type InsertFormAnalyticsEvent = typeof formAnalyticsEvents.$inferInsert;
+
+// ─── Form Integrations ────────────────────────────────────────────────────────
+// Links a form to a course, custom page, or landing page
+export const formIntegrations = mysqlTable("form_integrations", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  // Integration type
+  type: mysqlEnum("type", ["course", "custom_page", "landing_page"]).notNull(),
+  // ID of the target (courseId, pageId, etc.)
+  targetId: int("targetId"),
+  // Target URL for redirect integrations
+  targetUrl: text("targetUrl"),
+  // When to trigger: on_submit, on_completion
+  triggerOn: mysqlEnum("triggerOn", ["on_submit", "on_completion"]).default("on_submit").notNull(),
+  // Action to perform
+  action: mysqlEnum("action", ["enroll", "redirect", "tag", "embed"]).notNull(),
+  // Optional label for display
+  label: varchar("label", { length: 255 }),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type FormIntegration = typeof formIntegrations.$inferSelect;
+export type InsertFormIntegration = typeof formIntegrations.$inferInsert;

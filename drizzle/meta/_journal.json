@@ -183,6 +183,13 @@
       "when": 1775177633310,
       "tag": "0025_amazing_mattie_franklin",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1775178847989,
+      "tag": "0026_fantastic_wendigo",
+      "breakpoints": true
     }
   ]
 }
