@@ -5,6 +5,7 @@ import {
   getCoursesByOrg,
   reorderCourses,
   getCourseById,
+  getCourseWithInstructor,
   getCourseBySlug,
   createCourse,
   updateCourse,
@@ -70,7 +71,7 @@ import {
   getCardsByDeck,
   bulkUpsertCards,
 } from "./lmsDb";
-import { getOrgById, getOrgMember } from "./db";
+import { getOrgById, getOrgMember, getDb } from "./db";
 import {
   listDigitalProducts,
   getDigitalProduct,
@@ -183,6 +184,7 @@ import { copyCourse, copyLessonToSection, copySectionToCourse } from "./lmsDbCop
 import { nanoid } from "nanoid";
 import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
+import { transcribeAudio } from "./_core/voiceTranscription";
 import { getLimits } from "../shared/tierLimits";
 import { sendEmail, resolveMergeTags, buildUnsubscribeToken } from "./sendgrid";
 import { getOrgMembers, getUserById } from "./db";
@@ -227,7 +229,7 @@ export const lmsRouter = router({
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
-        const course = await getCourseById(input.id);
+        const course = await getCourseWithInstructor(input.id);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
         return course;
       }),
@@ -2172,6 +2174,60 @@ export const lmsRouter = router({
         const { url } = await storagePut(key, Buffer.alloc(0), input.contentType);
         const fileUrl = url.split("?")[0];
         return { key, fileUrl, uploadUrl: url };
+      }),
+    saveRecording: protectedProcedure
+      .input(
+        z.object({
+          orgId: z.number(),
+          fileName: z.string(),
+          contentType: z.string(),
+          fileSize: z.number(),
+          fileKey: z.string(),
+          url: z.string(),
+          duration: z.number().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { orgMediaLibrary } = await import("../drizzle/schema");
+        const [result] = await db.insert(orgMediaLibrary).values({
+          orgId: input.orgId,
+          uploadedBy: ctx.user.id,
+          filename: input.fileName,
+          mimeType: input.contentType,
+          fileSize: input.fileSize,
+          fileKey: input.fileKey,
+          url: input.url,
+          source: "direct",
+          tags: JSON.stringify(["recording"]),
+        });
+        return { id: (result as any).insertId, url: input.url };
+      }),
+    transcribe: protectedProcedure
+      .input(
+        z.object({
+          orgId: z.number(),
+          fileUrl: z.string(),
+          language: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        try {
+          const result = await transcribeAudio({
+            audioUrl: input.fileUrl,
+            language: input.language,
+            prompt: "Transcribe this screen recording audio",
+          });
+          if ("error" in result) {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (result as any).error ?? "Transcription failed" });
+          }
+          return { text: (result as any).text ?? "", segments: (result as any).segments ?? [] };
+        } catch (err: any) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: err?.message ?? "Transcription failed" });
+        }
       }),
   }),
   // ── Categories ────────────────────────────────────────────────────────────

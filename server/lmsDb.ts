@@ -81,6 +81,17 @@ export async function getCourseById(id: number) {
   return rows[0] ?? null;
 }
 
+export async function getCourseWithInstructor(id: number) {
+  const course = await getCourseById(id);
+  if (!course) return null;
+  let instructor = null;
+  if (course.instructorId) {
+    const rows = await db.select().from(instructors).where(eq(instructors.id, course.instructorId));
+    instructor = rows[0] ?? null;
+  }
+  return { ...course, instructor };
+}
+
 export async function getCourseBySlug(orgId: number, slug: string) {
   const rows = await db
     .select()

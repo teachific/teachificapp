@@ -57,7 +57,7 @@ function slugify(str: string) {
 }
 
 export default function WebinarsPage() {
-  const { showOrgSelector, orgId, orgs, setSelectedOrgId, ready } = useOrgScope();
+  const { orgId, ready } = useOrgScope();
   const [, navigate] = useLocation();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -99,23 +99,7 @@ export default function WebinarsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {showOrgSelector && (
-              <Select
-                value={String(orgId ?? "")}
-                onValueChange={(v) => setSelectedOrgId(v ? Number(v) : null)}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Select org" />
-                </SelectTrigger>
-                <SelectContent>
-                  {orgs.map((o) => (
-                    <SelectItem key={o.id} value={String(o.id)}>
-                      {o.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+
             <Button variant="outline" onClick={() => navigate(`/lms/webinars/reports${orgId ? `?orgId=${orgId}` : ``}`)}>
               <BarChart2 className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Reports</span>

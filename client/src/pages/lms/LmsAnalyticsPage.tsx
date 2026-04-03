@@ -26,7 +26,7 @@ import { useLocation } from "wouter";
 
 export default function LmsAnalyticsPage() {
   const [, navigate] = useLocation();
-  const { showOrgSelector, orgId, orgs, setSelectedOrgId, ready } = useOrgScope();
+  const { orgId, ready } = useOrgScope();
 
   const { data: analytics, isLoading } = trpc.lms.analytics.summary.useQuery(
     { orgId: orgId! },
@@ -114,21 +114,7 @@ export default function LmsAnalyticsPage() {
             Overview of your school's performance
           </p>
         </div>
-        {showOrgSelector && (
-          <Select
-            value={String(orgId ?? "")}
-            onValueChange={(v) => setSelectedOrgId(v ? Number(v) : null)}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Select organization…" />
-            </SelectTrigger>
-            <SelectContent>
-              {orgs.map((o) => (
-                <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+
       </div>
 
       {/* Summary stats */}

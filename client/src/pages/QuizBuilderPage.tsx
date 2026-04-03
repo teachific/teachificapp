@@ -151,6 +151,32 @@ export default function QuizBuilderPage() {
   };
 
   const [importInfoOpen, setImportInfoOpen] = useState(false);
+  const importXlsMutation = trpc.quizzes.importXls.useMutation();
+  const quizId = isNew ? null : params.id ? Number(params.id) : null;
+  const exportXlsQuery = trpc.quizzes.exportXls.useQuery(
+    { quizId: quizId ?? 0 },
+    { enabled: false }
+  );
+
+  const handleExportXls = async () => {
+    if (!quizId) { toast.error("Save the quiz first before exporting"); return; }
+    const toastId = toast.loading("Generating XLSX...");
+    try {
+      const result = await exportXlsQuery.refetch();
+      if (result.data) {
+        const { base64, filename } = result.data;
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = filename; a.click();
+        URL.revokeObjectURL(url);
+        toast.success("XLSX exported", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error("Export failed: " + err.message, { id: toastId });
+    }
+  };
 
   const handleImportExcel = () => {
     const input = document.createElement("input");
@@ -162,25 +188,46 @@ export default function QuizBuilderPage() {
       const isZip = file.name.toLowerCase().endsWith(".zip");
       const toastId = toast.loading(isZip ? "Extracting ZIP and uploading media..." : "Parsing Excel...");
       try {
-        const fd = new FormData();
-        fd.append("file", file);
-        const res = await fetch("/api/quiz/import/preview", { method: "POST", body: fd });
-        const data = await res.json();
-        if (data.questions) {
-          const imported: Question[] = data.questions.map((q: any) => ({
+        if (!isZip) {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          const result = await importXlsMutation.mutateAsync({ base64 });
+          if (result.warnings.length > 0) toast.warning(result.warnings.join("\n"), { id: toastId });
+          const imported: Question[] = result.questions.map((q: any) => ({
             id: Math.random().toString(36).slice(2),
-            type: (q.questionType ?? q.type ?? "multiple_choice") as QuestionType,
-            text: q.questionText ?? q.text ?? "",
+            type: (q.questionType ?? "multiple_choice") as QuestionType,
+            text: q.questionText ?? "",
             points: q.points ?? 1,
-            choices: (q.choices ?? []).map((c: any) => ({ text: c.choiceText ?? c.text, isCorrect: c.isCorrect, feedback: c.feedback })),
-            correctFeedback: q.correctFeedback,
-            incorrectFeedback: q.incorrectFeedback,
+            choices: (q.choices ?? []).map((c: any) => ({ text: c.text, isCorrect: c.isCorrect })),
+            correctFeedback: q.explanation,
           }));
           setQuestions([...questions, ...imported]);
-          const mediaMsg = data.mediaUploaded > 0 ? ` (${data.mediaUploaded} media files uploaded)` : "";
-          toast.success(`Imported ${imported.length} questions${mediaMsg}`, { id: toastId });
+          toast.success(`Imported ${imported.length} questions`, { id: toastId });
         } else {
-          toast.error("Import failed: " + (data.error ?? "Unknown error"), { id: toastId });
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await fetch("/api/quiz/import/preview", { method: "POST", body: fd });
+          const data = await res.json();
+          if (data.questions) {
+            const imported: Question[] = data.questions.map((q: any) => ({
+              id: Math.random().toString(36).slice(2),
+              type: (q.questionType ?? q.type ?? "multiple_choice") as QuestionType,
+              text: q.questionText ?? q.text ?? "",
+              points: q.points ?? 1,
+              choices: (q.choices ?? []).map((c: any) => ({ text: c.choiceText ?? c.text, isCorrect: c.isCorrect, feedback: c.feedback })),
+              correctFeedback: q.correctFeedback,
+              incorrectFeedback: q.incorrectFeedback,
+            }));
+            setQuestions([...questions, ...imported]);
+            const mediaMsg = data.mediaUploaded > 0 ? ` (${data.mediaUploaded} media files uploaded)` : "";
+            toast.success(`Imported ${imported.length} questions${mediaMsg}`, { id: toastId });
+          } else {
+            toast.error("Import failed: " + (data.error ?? "Unknown error"), { id: toastId });
+          }
         }
       } catch (err: any) {
         toast.error("Import failed: " + err.message, { id: toastId });
@@ -239,6 +286,7 @@ export default function QuizBuilderPage() {
           AI Generate
         </Button>
         <Button variant="outline" onClick={handleImportExcel} className="gap-2"><Upload className="h-4 w-4" />Import</Button>
+        {!isNew && <Button variant="outline" onClick={handleExportXls} className="gap-2"><Download className="h-4 w-4" />Export XLS</Button>}
         <Button variant="outline" size="icon" onClick={() => setImportInfoOpen(true)} title="Import instructions"><Info className="h-4 w-4" /></Button>
         <Button variant="outline" asChild className="gap-2"><a href="/api/quiz/template"><FileArchive className="h-4 w-4" />Template (ZIP)</a></Button>
         <Button onClick={handleSave} disabled={saving} className="gap-2"><Save className="h-4 w-4" />{saving ? "Saving..." : "Save Quiz"}</Button>

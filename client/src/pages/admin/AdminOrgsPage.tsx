@@ -14,7 +14,13 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Building2, Plus, Users, MoreVertical, Pencil, Trash2, Search, Globe } from "lucide-react";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle
+} from "@/components/ui/sheet";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
+import { Building2, Plus, Users, MoreVertical, Pencil, Trash2, Search, Globe, UserPlus, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -39,6 +45,25 @@ export default function AdminOrgsPage() {
   const [slug, setSlug] = useState("");
   const [search, setSearch] = useState("");
 
+  // Members panel state
+  const [membersOrgId, setMembersOrgId] = useState<number | null>(null);
+  const [membersOrgName, setMembersOrgName] = useState("");
+  const [addUserId, setAddUserId] = useState("");
+  const [addRole, setAddRole] = useState<"org_admin" | "user">("user");
+
+  const { data: members, refetch: refetchMembers } = trpc.orgs.members.list.useQuery(
+    { orgId: membersOrgId! },
+    { enabled: !!membersOrgId }
+  );
+  const { data: allUsers } = trpc.users.list.useQuery(undefined, { enabled: !!membersOrgId });
+
+  const addMember = trpc.orgs.members.add.useMutation({
+    onSuccess: () => { toast.success("Member added"); refetchMembers(); setAddUserId(""); }
+  });
+  const removeMember = trpc.orgs.members.remove.useMutation({
+    onSuccess: () => { toast.success("Member removed"); refetchMembers(); }
+  });
+
   const filtered = useMemo(() => {
     if (!search) return orgs ?? [];
     const q = search.toLowerCase();
@@ -49,6 +74,18 @@ export default function AdminOrgsPage() {
     setEditTarget(org);
     setEditOpen(true);
   };
+
+  const openMembers = (orgId: number, orgName: string) => {
+    setMembersOrgId(orgId);
+    setMembersOrgName(orgName);
+  };
+
+  // Users not yet in this org
+  const nonMembers = useMemo(() => {
+    if (!allUsers || !members) return allUsers ?? [];
+    const memberIds = new Set(members.map(m => m.userId));
+    return allUsers.filter(u => !memberIds.has(u.id));
+  }, [allUsers, members]);
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-5">
@@ -137,25 +174,35 @@ export default function AdminOrgsPage() {
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{org.description}</p>
                         )}
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit({ id: org.id, name: org.name, slug: org.slug, description: org.description })}>
-                            <Pencil className="h-4 w-4 mr-2" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setDeleteTarget({ id: org.id, name: org.name })}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs h-8"
+                          onClick={() => openMembers(org.id, org.name)}
+                        >
+                          <Users className="h-3.5 w-3.5" /> Manage Members
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit({ id: org.id, name: org.name, slug: org.slug, description: org.description })}>
+                              <Pencil className="h-4 w-4 mr-2" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteTarget({ id: org.id, name: org.name })}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 mt-2">
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -239,6 +286,91 @@ export default function AdminOrgsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Manage Members Sheet */}
+      <Sheet open={!!membersOrgId} onOpenChange={(o) => !o && setMembersOrgId(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-[520px] overflow-y-auto">
+          <SheetHeader className="mb-4">
+            <SheetTitle>Members — {membersOrgName}</SheetTitle>
+          </SheetHeader>
+
+          {/* Add Member */}
+          <div className="border rounded-lg p-4 mb-5 space-y-3 bg-muted/30">
+            <p className="text-sm font-medium flex items-center gap-2"><UserPlus className="h-4 w-4" /> Add Member</p>
+            <div className="space-y-2">
+              <Label className="text-xs">User</Label>
+              <Select value={addUserId} onValueChange={setAddUserId}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Select user..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {(nonMembers ?? []).map(u => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      {u.name || u.email} {u.email && u.name ? `(${u.email})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Role</Label>
+              <Select value={addRole} onValueChange={(v) => setAddRole(v as "org_admin" | "user")}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Member</SelectItem>
+                  <SelectItem value="org_admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              size="sm"
+              disabled={!addUserId || addMember.isPending}
+              onClick={() => {
+                if (!membersOrgId || !addUserId) return;
+                addMember.mutate({ orgId: membersOrgId, userId: Number(addUserId), role: addRole });
+              }}
+            >
+              {addMember.isPending ? "Adding..." : "Add Member"}
+            </Button>
+          </div>
+
+          {/* Members List */}
+          <div className="space-y-2">
+            {!members ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Loading...</p>
+            ) : members.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No members yet.</p>
+            ) : (
+              members.map((m) => (
+                <div key={m.userId} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary flex-shrink-0">
+                    {(m.user?.name || m.user?.email || "?")[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{m.user?.name || m.user?.email || `User #${m.userId}`}</p>
+                    {m.user?.email && m.user?.name && (
+                      <p className="text-xs text-muted-foreground truncate">{m.user.email}</p>
+                    )}
+                  </div>
+                  <Badge variant={m.role === "org_admin" ? "default" : "secondary"} className="text-xs flex-shrink-0">
+                    {m.role === "org_admin" ? "Admin" : "Member"}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
+                    onClick={() => membersOrgId && removeMember.mutate({ orgId: membersOrgId, userId: m.userId })}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

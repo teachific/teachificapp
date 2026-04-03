@@ -74,6 +74,7 @@ import CommunityPage from "./pages/products/CommunityPage";
 import CommunityLearnerPage from "./pages/lms/CommunityLearnerPage";
 import CommunityManagePage from "./pages/products/CommunityManagePage";
 import CategoriesPage from "./pages/products/CategoriesPage";
+import RecordPage from "./pages/RecordPage";
 
 // Marketing section
 import WebsitePage from "./pages/marketing/WebsitePage";
@@ -193,6 +194,7 @@ function AdminRouter() {
         <Route path="/products/community/:hubId/manage" component={CommunityManagePage} />
         <Route path="/products/categories" component={CategoriesPage} />
         <Route path="/media-library" component={MediaLibraryPage} />
+        <Route path="/record" component={RecordPage} />
 
         {/* ── Marketing ── */}
         <Route path="/marketing/website" component={WebsitePage} />

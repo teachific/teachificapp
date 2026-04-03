@@ -1150,6 +1150,95 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     analytics: protectedProcedure
       .input(z.object({ quizId: z.number() }))
       .query(({ input }) => getQuizAnalytics(input.quizId)),
+
+    // XLS Export — returns base64-encoded XLSX buffer
+    exportXls: protectedProcedure
+      .input(z.object({ quizId: z.number() }))
+      .query(async ({ input }) => {
+        const XLSX = await import("xlsx");
+        const quiz = await getQuizById(input.quizId);
+        if (!quiz) throw new TRPCError({ code: "NOT_FOUND" });
+        const questions = await getQuestionsByQuiz(input.quizId);
+        const questionsWithChoices = await Promise.all(
+          questions.map(async (q) => ({ ...q, choices: await getChoicesByQuestion(q.id) }))
+        );
+        const typeMap: Record<string, string> = {
+          multiple_choice: "MC", multiple_select: "MR", true_false: "TF",
+          short_answer: "TI", matching: "MG",
+        };
+        const rows = questionsWithChoices.map((q) => {
+          const row: Record<string, string | number> = {
+            "Question Type": typeMap[q.questionType] ?? "MC",
+            "Question Text": q.questionText,
+            Image: "", Video: "", Audio: "",
+            "Correct Feedback": q.explanation ?? "",
+            "Incorrect Feedback": "",
+            Points: q.points ?? 1,
+          };
+          (q.choices as { choiceText: string; isCorrect: boolean }[]).forEach((c, i) => {
+            row[`Answer ${i + 1}`] = c.isCorrect ? `*${c.choiceText}` : c.choiceText;
+          });
+          return row;
+        });
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Questions");
+        const templateRows = [{
+          "Question Type": "MC|MR|TF|TI|MG",
+          "Question Text": "Question text here",
+          Image: "", Video: "", Audio: "",
+          "Answer 1": "*Correct answer (prefix with *)",
+          "Answer 2": "Wrong answer",
+          "Correct Feedback": "Explanation",
+          "Incorrect Feedback": "",
+          Points: 1,
+        }];
+        const wsTemplate = XLSX.utils.json_to_sheet(templateRows);
+        XLSX.utils.book_append_sheet(wb, wsTemplate, "Template");
+        const buf = XLSX.write(wb, { type: "base64", bookType: "xlsx" }) as string;
+        return { base64: buf, filename: `${quiz.title ?? "quiz"}.xlsx` };
+      }),
+
+    // XLS Import — accepts base64-encoded XLSX, returns parsed questions for preview
+    importXls: protectedProcedure
+      .input(z.object({ base64: z.string() }))
+      .mutation(async ({ input }) => {
+        const XLSX = await import("xlsx");
+        const buf = Buffer.from(input.base64, "base64");
+        const wb = XLSX.read(buf, { type: "buffer" });
+        const sheetName = wb.SheetNames.find((n) => n.toLowerCase() === "questions") ?? wb.SheetNames[0];
+        const ws = wb.Sheets[sheetName];
+        const rows: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, { defval: "" });
+        const typeMap: Record<string, string> = {
+          MC: "multiple_choice", MR: "multiple_select", TF: "true_false",
+          TI: "short_answer", MG: "matching",
+        };
+        const questions = rows
+          .filter((r) => r["Question Text"]?.trim())
+          .map((r, i) => {
+            const qType = typeMap[(r["Question Type"] ?? "").trim().toUpperCase()] ?? "multiple_choice";
+            const choices: { text: string; isCorrect: boolean }[] = [];
+            for (let j = 1; j <= 10; j++) {
+              const raw = (r[`Answer ${j}`] ?? "").trim();
+              if (!raw) continue;
+              const isCorrect = raw.startsWith("*");
+              choices.push({ text: isCorrect ? raw.slice(1).trim() : raw, isCorrect });
+            }
+            return {
+              sortOrder: i,
+              questionType: qType,
+              questionText: r["Question Text"].trim(),
+              explanation: (r["Correct Feedback"] ?? "").trim(),
+              points: Number(r["Points"]) || 1,
+              choices,
+            };
+          });
+        const warnings: string[] = [];
+        questions.forEach((q, i) => {
+          if (!q.choices.some((c) => c.isCorrect)) warnings.push(`Row ${i + 1}: no correct answer marked (use * prefix)`);
+        });
+        return { questions, warnings };
+      }),
   }),
 
   // ── Folders ────────────────────────────────────────────────────────────────────────────────────

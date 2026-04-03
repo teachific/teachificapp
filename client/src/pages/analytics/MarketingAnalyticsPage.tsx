@@ -10,7 +10,7 @@ import { Megaphone, Mail, Users, TrendingUp, Download } from "lucide-react";
 
 export default function MarketingAnalyticsPage() {
   const [period, setPeriod] = useState("30d");
-  const { showOrgSelector, orgId, orgs, setSelectedOrgId, ready } = useOrgScope();
+  const { orgId, ready } = useOrgScope();
 
   const { data: emailStats, isLoading } = trpc.lms.emailMarketing.stats.useQuery(
     { orgId: orgId! }, { enabled: ready && !!orgId }
@@ -24,12 +24,7 @@ export default function MarketingAnalyticsPage() {
           <p className="text-muted-foreground mt-0.5">Track email campaigns, affiliate performance, and marketing ROI</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {showOrgSelector && (
-            <Select value={String(orgId ?? "")} onValueChange={(v) => setSelectedOrgId(v ? Number(v) : null)}>
-              <SelectTrigger className="w-48"><SelectValue placeholder="Select org" /></SelectTrigger>
-              <SelectContent>{orgs.map((o) => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}</SelectContent>
-            </Select>
-          )}
+
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
             <SelectContent>

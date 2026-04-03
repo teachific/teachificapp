@@ -1391,38 +1391,38 @@
 - [x] Reorder persists across page refreshes (stored in DB)
 
 ## Community Enhancements (Apr 3, 2026)
-- [ ] Schema: add coverImageUrl to community_spaces table
-- [ ] Schema: add isInviteOnly boolean to community_spaces
-- [ ] Schema: add accessType enum (open, invite_only, course_enrollment, purchase) to community_spaces
-- [ ] Schema: add linkedCourseId (FK to courses) to community_spaces
-- [ ] Schema: add price/priceId to community_spaces for standalone purchase access
-- [ ] Schema: add salesPageContent (rich text) to community_spaces
-- [ ] Schema: add community_invites table (id, spaceId, email, token, status, createdAt)
-- [ ] Schema: add community_dms table (id, orgId, fromUserId, toUserId, content, createdAt, readAt)
-- [ ] Generate and apply migration
-- [ ] Backend: update space create/update procedures with new fields
+- [x] Schema: add coverImageUrl to community_spaces table
+- [x] Schema: add isInviteOnly boolean to community_spaces
+- [x] Schema: add accessType enum (open, invite_only, course_enrollment, purchase) to community_spaces
+- [x] Schema: add linkedCourseId (FK to courses) to community_spaces
+- [x] Schema: add price/priceId to community_spaces for standalone purchase access
+- [x] Schema: add salesPageContent (rich text) to community_spaces
+- [x] Schema: add community_invites table (id, spaceId, email, token, status, createdAt)
+- [x] Schema: add community_dms table (id, orgId, fromUserId, toUserId, content, createdAt, readAt)
+- [x] Generate and apply migration
+- [x] Backend: update space create/update procedures with new fields
 - [ ] Backend: add invite management procedures (createInvite, listInvites, acceptInvite, revokeInvite)
 - [ ] Backend: access check middleware for invite-only spaces (check membership or valid invite)
 - [ ] Backend: auto-grant community access on course enrollment if linkedCourseId is set
-- [ ] Backend: DM procedures (sendDm, listConversations, getConversation, markRead)
+- [x] Backend: DM procedures (sendDm, listConversations, getConversation, markRead)
 - [ ] Community Admin UI: management page with Posts moderation tab
 - [ ] Community Admin UI: Member Access tab (list members, invite, revoke)
 - [x] Community Admin UI: Space Settings tab (cover image upload, access type, linked course, price)
 - [x] Community Admin UI: Enter Community button linking to learner-facing hub
 - [x] Community learner UI: space cards with cover image
-- [ ] Community learner UI: invite-only lock indicator on locked spaces
+- [x] Community learner UI: invite-only lock indicator on locked spaces
 - [ ] Community learner UI: sales/landing page for community access with join CTA
-- [ ] Community learner UI: DMs panel with conversation list sidebar and thread view
+- [x] Community learner UI: DMs panel with conversation list sidebar and thread view
 
 
 ## Record Feature (Loom-style) - DEFERRED (complete after all other items)
-- [ ] Add Record to sidebar under Products section in DashboardLayout
-- [ ] Record page: browser-based screen + camera simultaneous recording using MediaRecorder API
-  - [ ] Screen capture (getDisplayMedia) + camera overlay (getUserMedia) combined into single MediaStream
-  - [ ] Camera bubble overlay (draggable, resizable, circle/square shape options)
-  - [ ] Recording controls: Start, Pause, Resume, Stop, Countdown timer
+- [x] Add Record to sidebar under Products section in DashboardLayout
+- [x] Record page: browser-based screen + camera simultaneous recording using MediaRecorder API
+  - [x] Screen capture (getDisplayMedia) + camera overlay (getUserMedia) combined into single MediaStream
+  - [x] Camera bubble overlay (draggable, resizable, circle/square shape options)
+  - [x] Recording controls: Start, Pause, Resume, Stop, Countdown timer
   - [ ] Recording quality settings (resolution, frame rate)
-  - [ ] Microphone selection + audio level indicator
+  - [x] Microphone selection + audio level indicator
 - [ ] Video editor (in-browser, post-recording):
   - [ ] Timeline with waveform visualization
   - [ ] Trim/cut: drag handles on timeline to set in/out points
@@ -1483,14 +1483,14 @@
 - [x] Navigate to course builder after creation for further customization
 
 ## Instructors Management Page (Org Settings)
-- [ ] Add "Instructors" nav item under Org Settings sidebar (between Branding and Integrations)
-- [ ] Route: /org/instructors
+- [x] Add "Instructors" nav item under Org Settings sidebar (between Branding and Integrations)
+- [x] Route: /org/instructors
 - [x] Instructors list page: table/card view of all instructors for the org
 - [x] Each instructor card: avatar, name, credentials/title, bio preview, course count, actions (Edit, Delete)
 - [x] Add Instructor dialog: name, title/credentials, bio, avatar upload, email, social links (LinkedIn, Twitter, website)
 - [x] Edit Instructor dialog: same fields as add
 - [x] Delete instructor with confirmation (warn if assigned to courses)
-- [ ] Backend: instructors table (id, orgId, name, title, bio, avatarUrl, email, linkedinUrl, twitterUrl, websiteUrl, createdAt)
+- [x] Backend: instructors table (id, orgId, name, title, bio, avatarUrl, email, linkedinUrl, twitterUrl, websiteUrl, createdAt)
 - [x] Backend tRPC procedures: instructors.list, instructors.create, instructors.update, instructors.delete
 - [x] Course Builder: instructor selector dropdown on course settings tab (link course to instructor)
 - [ ] Course pre-start page: pull instructor info from linked instructor record
@@ -1510,22 +1510,22 @@
 ## Policies System
 - [ ] Org Settings: Policies tab with list of policy pages (Privacy Policy, Terms of Service, Refund Policy, custom)
 - [ ] Policy editor: rich text editor with title, slug, content, published toggle
-- [ ] Public policy page route: /policies/:slug (learner-facing)
+- [x] Public policy page route: /policies/:slug (learner-facing)
 - [ ] Footer site links: ability to add policy page links to footer (alongside custom links)
 - [ ] Checkout page: "I agree to [Terms of Service] and [Privacy Policy]" checkbox (required before purchase)
 - [ ] Checkout agreement: links open policy pages in new tab
 - [ ] Checkout: block purchase if agreement checkbox not checked when policies are published
 
 ## Record Tool (Loom-style, under Products in sidebar)
-- [ ] Sidebar entry: Products > Record
-- [ ] Screen + camera simultaneous recording using browser MediaRecorder API
-- [ ] Camera preview bubble (moveable) overlaid on screen recording
-- [ ] Save recording to media library on completion
+- [x] Sidebar entry: Products > Record
+- [x] Screen + camera simultaneous recording using browser MediaRecorder API
+- [x] Camera preview bubble (moveable) overlaid on screen recording
+- [x] Save recording to media library on completion
 - [ ] Video editor: timeline with cut/trim tools
-- [ ] Transcript generation via Whisper API after recording
+- [x] Transcript generation via Whisper API after recording
 - [ ] Closed captions editor: editable transcript segments with font/color/size controls
 - [ ] Marketing snips: select transcript segments to create short clips
-- [ ] Videos stored in media library and linkable to courses/products
+- [x] Videos stored in media library and linkable to courses/products
 
 ## Flashcard Creator (Media Library)
 - [x] Add "Flashcards" tab/section to Media Library page
@@ -1535,7 +1535,7 @@
 - [x] Excel import: upload .xlsx with columns (Front, Back, Front Image URL, Back Image URL) → bulk import
 - [x] Excel export: download deck as .xlsx for offline use or sharing
 - [x] Deck study mode: flip animation, shuffle/randomize, progress tracking (known/unknown)
-- [ ] Incorporate flashcard decks into course lessons as a "Flashcards" lesson type
+- [x] Incorporate flashcard decks into course lessons as a "Flashcards" lesson type
 - [x] Backend: flashcard_decks table (id, orgId, title, description, category, cardCount, createdAt)
 - [x] Backend: flashcard_cards table (id, deckId, front, back, frontImageUrl, backImageUrl, sortOrder)
 - [x] Backend tRPC procedures: flashcards.listDecks, flashcards.getDeck, flashcards.createDeck, flashcards.updateDeck, flashcards.deleteDeck
@@ -1559,20 +1559,20 @@
 - [ ] Upload the new template ZIP to CDN and update the download link in quiz builder
 
 ## Group Manager System
-- [ ] Extend groups table: managerName, managerTitle, managerEmail, managerPhone, productIds (JSON), welcomeEmailSent
-- [ ] Add group_manager role to users enum in schema
-- [ ] Migration: generate and apply SQL for groups table changes
-- [ ] Backend: update createGroup procedure to accept manager contact + product assignments
+- [x] Extend groups table: managerName, managerTitle, managerEmail, managerPhone, productIds (JSON), welcomeEmailSent
+- [x] Add group_manager role to users enum in schema
+- [x] Migration: generate and apply SQL for groups table changes
+- [x] Backend: update createGroup procedure to accept manager contact + product assignments
 - [ ] Backend: send welcome email to group manager on group creation (SendGrid)
-- [ ] Backend: listGroupProducts procedure (returns courses/products assigned to a group)
-- [ ] Backend: seatEnroll procedure (group manager enrolls learner by email into a seat)
-- [ ] Backend: listGroupSeats procedure (returns all seats with learner info and progress)
-- [ ] Backend: revokeSeat procedure (remove a learner from a seat)
-- [ ] Frontend: Update New Group dialog with manager name/title/email/phone + product multi-select
-- [ ] Frontend: Group Manager portal page (only visible to group_manager role in sidebar)
-- [ ] Frontend: Seat registration tool (invite by email, assign to products, view progress)
-- [ ] Frontend: Group Manager sees only their group(s), not full org admin views
-- [ ] Frontend: DashboardLayout sidebar shows Group Management link for group_manager role
+- [x] Backend: listGroupProducts procedure (returns courses/products assigned to a group)
+- [x] Backend: seatEnroll procedure (group manager enrolls learner by email into a seat)
+- [x] Backend: listGroupSeats procedure (returns all seats with learner info and progress)
+- [x] Backend: revokeSeat procedure (remove a learner from a seat)
+- [x] Frontend: Update New Group dialog with manager name/title/email/phone + product multi-select
+- [x] Frontend: Group Manager portal page (only visible to group_manager role in sidebar)
+- [x] Frontend: Seat registration tool (invite by email, assign to products, view progress)
+- [x] Frontend: Group Manager sees only their group(s), not full org admin views
+- [x] Frontend: DashboardLayout sidebar shows Group Management link for group_manager role
 
 ## Bug: Custom Pages — No Edit After Creation (Apr 3, 2026)
 
@@ -1614,7 +1614,7 @@
 - [x] Edit Organization dialog: add "Super Admin" section showing owner name, email, and role — allow editing (change owner)
 - [x] Create New Organization dialog: add "Super Admin Name" and "Super Admin Email" fields; on create, look up or create the user and assign as org owner/admin
 - [x] Create New Organization: if email matches an existing user, assign them as owner; if not, create a pending invite
-- [ ] Organizations list: "Manage Members" button per row that opens a members panel (list current members, add/remove, change roles)
+- [x] Organizations list: "Manage Members" button per row that opens a members panel (list current members, add/remove, change roles)
 - [x] Organizations list: show member count column
 - [x] Organizations list: "Teachific (Platform)" org always pinned at top, labeled with a "Platform" badge
 - [x] Backend: admin.createOrg procedure — accepts name, slug, ownerName, ownerEmail; creates org + assigns owner
@@ -1638,3 +1638,10 @@
 - [x] The learner sidebar (My Courses, My Certificates, Account, etc.) should appear only on authenticated learner routes
 - [x] SchoolMemberLayout created: sidebar with My Courses, Certificates, Profile nav items, only shown on /school/:orgSlug/my-courses and similar authenticated routes
 - [x] SchoolMyCoursesPage created at /school/:orgSlug/my-courses with full enrollment grid, progress bars, and filter tabs
+
+## Bug Fixes - Apr 3 2026 (Org Loading)
+- [x] Fix org loading: organizations not showing in Platform Admin list or any dropdown selector
+- [x] Fix getAllOrgs SQL subquery: wrong column name org_id → orgId in org_members table
+- [x] Rewrite useOrgScope hook: platform admins now use platformAdmin.listOrgs (not orgs.list); auto-defaults to Teachific org
+- [x] Remove org selector dropdowns from all pages (WebinarsPage, CoursesPage, DigitalProductsPage, EngagementAnalyticsPage, MarketingAnalyticsPage, RevenueAnalyticsPage, LmsAnalyticsPage, GroupsPage, MemberCertificatesPage)
+- [x] Platform admins auto-default to "Teachific" org; regular users auto-default to their own org

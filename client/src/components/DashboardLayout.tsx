@@ -158,6 +158,7 @@ const navGroups: NavGroup[] = [
           { label: "Community", path: "/products/community" },
           { label: "Categories", path: "/products/categories" },
           { label: "Media Library", path: "/media-library" },
+          { label: "Record", path: "/record" },
         ],
       },
     ],

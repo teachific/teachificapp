@@ -481,6 +481,14 @@ export default function CommunityLearnerPage() {
                 <span className={cn("text-sm flex-1 truncate", selectedSpaceId === space.id ? "font-medium" : "text-muted-foreground")}>
                   {space.name}
                 </span>
+                {space.accessType && space.accessType !== "open" && (
+                  <span
+                    className="text-[10px] text-muted-foreground"
+                    title={space.accessType === "invite_only" ? "Invite only" : space.accessType === "course_enrollment" ? "Course enrollment required" : space.accessType === "purchase" ? "Purchase required" : ""}
+                  >
+                    🔒
+                  </span>
+                )}
                 {space.postCount > 0 && (
                   <span className="text-[10px] text-muted-foreground">{space.postCount}</span>
                 )}

@@ -133,7 +133,7 @@ function StepIndicator({ step, total }: { step: number; total: number }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function CoursesPage() {
   const [, setLocation] = useLocation();
-  const { showOrgSelector, orgId, orgs, setSelectedOrgId, ready } = useOrgScope();
+  const { orgId, ready } = useOrgScope();
   const utils = trpc.useUtils();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published" | "archived">("all");
@@ -380,21 +380,7 @@ export default function CoursesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {showOrgSelector && (
-            <Select
-              value={String(orgId ?? "")}
-              onValueChange={(v) => setSelectedOrgId(v ? Number(v) : null)}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select org" />
-              </SelectTrigger>
-              <SelectContent>
-                {orgs.map((o) => (
-                  <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+
           <Button variant="outline" className="gap-2" onClick={() => setLocation(`/analytics/engagement?orgId=${orgId}`)}>
             <BarChart2 className="h-4 w-4" />
             <span className="hidden sm:inline">Reports</span>

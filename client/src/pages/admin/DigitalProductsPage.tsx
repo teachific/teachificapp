@@ -57,7 +57,7 @@ function fileTypeLabel(type?: string | null): string {
 }
 
 export default function DigitalProductsPage() {
-  const { showOrgSelector, orgId, orgs, setSelectedOrgId, ready } = useOrgScope();
+  const { orgId, ready } = useOrgScope();
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [, navigate] = useLocation();
 
@@ -92,21 +92,7 @@ export default function DigitalProductsPage() {
             Sell digital files with custom sales pages, payment options, and access controls.
           </p>
         </div>
-        {showOrgSelector && (
-          <Select
-            value={String(orgId ?? "")}
-            onValueChange={(v) => setSelectedOrgId(v ? Number(v) : null)}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Select organization…" />
-            </SelectTrigger>
-            <SelectContent>
-              {orgs.map((o) => (
-                <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+
       </div>
 
       {ready && (

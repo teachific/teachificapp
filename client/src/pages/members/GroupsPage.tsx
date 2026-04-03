@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 
 export default function GroupsPage() {
-  const { orgId, ready, showOrgSelector, orgs, setSelectedOrgId } = useOrgScope();
+  const { orgId, ready } = useOrgScope();
   const utils = trpc.useUtils();
   const { data: groups, isLoading } = trpc.lms.groups.list.useQuery(
     { orgId: orgId! }, { enabled: ready && !!orgId }
@@ -225,12 +225,7 @@ export default function GroupsPage() {
           <p className="text-muted-foreground mt-0.5">Manage group seat registrations and bulk course enrollments</p>
         </div>
         <div className="flex items-center gap-3">
-          {showOrgSelector && (
-            <Select value={String(orgId ?? "")} onValueChange={(v) => setSelectedOrgId(v ? Number(v) : null)}>
-              <SelectTrigger className="w-56"><SelectValue placeholder="Select organization..." /></SelectTrigger>
-              <SelectContent>{(orgs as any[]).map((o: any) => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}</SelectContent>
-            </Select>
-          )}
+
         </div>
       </div>
 

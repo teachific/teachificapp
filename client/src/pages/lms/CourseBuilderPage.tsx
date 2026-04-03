@@ -752,6 +752,11 @@ function CourseSettingsTab({
     thumbnailUrl: course.thumbnailUrl ?? "",
     // Instructor
     instructorId: course.instructorId ?? null,
+    // Watermark override
+    watermarkImageUrl: course.watermarkImageUrl ?? "",
+    watermarkOpacity: course.watermarkOpacity ?? 30,
+    watermarkPosition: course.watermarkPosition ?? "bottom-left",
+    watermarkSize: course.watermarkSize ?? 120,
   });
 
   const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
@@ -944,6 +949,57 @@ function CourseSettingsTab({
             </div>
             <Switch checked={form.playerAllowNotes} onCheckedChange={(v) => set("playerAllowNotes", v)} />
           </div>
+        </div>
+        {/* Watermark Override */}
+        <div className="border-t border-border pt-4 flex flex-col gap-3">
+          <div>
+            <p className="text-sm font-medium">Video Watermark Override</p>
+            <p className="text-xs text-muted-foreground">Override the org-level watermark for this course. Leave blank to use org default.</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label className="text-xs">Watermark Image URL</Label>
+            <Input
+              placeholder="https://... (PNG with transparent background recommended)"
+              value={form.watermarkImageUrl}
+              onChange={(e) => set("watermarkImageUrl", e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+          {form.watermarkImageUrl && (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label className="text-xs">Position</Label>
+                <Select value={form.watermarkPosition} onValueChange={(v) => set("watermarkPosition", v)}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                    <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                    <SelectItem value="top-left">Top Left</SelectItem>
+                    <SelectItem value="top-right">Top Right</SelectItem>
+                    <SelectItem value="center">Center</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label className="text-xs">Opacity: {form.watermarkOpacity}%</Label>
+                <input
+                  type="range" min={5} max={100} step={5}
+                  value={form.watermarkOpacity}
+                  onChange={(e) => set("watermarkOpacity", Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label className="text-xs">Size: {form.watermarkSize}px</Label>
+                <input
+                  type="range" min={40} max={300} step={10}
+                  value={form.watermarkSize}
+                  onChange={(e) => set("watermarkSize", Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+            </>
+          )}
         </div>
       </section>
 

@@ -20,6 +20,9 @@ import {
   Award,
   Users,
   Lock,
+  Globe,
+  Twitter,
+  Linkedin,
 } from "lucide-react";
 
 function getLessonIcon(type: string) {
@@ -306,16 +309,100 @@ export default function CourseOverviewPage() {
               </div>
             )}
 
-            {/* Instructor bio */}
-            {course.instructorBio && (
-              <div className="rounded-xl border border-border bg-card p-6">
-                <h3 className="font-semibold text-lg mb-4">About the Instructor</h3>
-                <div
-                  className="prose prose-sm max-w-none text-foreground"
-                  dangerouslySetInnerHTML={{ __html: course.instructorBio }}
-                />
-              </div>
-            )}
+            {/* Instructor profile card */}
+            {(() => {
+              const instructor = (course as any).instructor;
+              if (instructor) {
+                // Parse social links JSON
+                let socialLinks: Record<string, string> = {};
+                try { socialLinks = JSON.parse(instructor.socialLinks ?? "{}"); } catch {}
+                return (
+                  <div className="rounded-xl border border-border bg-card p-6">
+                    <h3 className="font-semibold text-lg mb-5">About the Instructor</h3>
+                    <div className="flex items-start gap-4">
+                      {/* Avatar */}
+                      {instructor.avatarUrl ? (
+                        <img
+                          src={instructor.avatarUrl}
+                          alt={instructor.displayName ?? "Instructor"}
+                          className="w-16 h-16 rounded-full object-cover flex-shrink-0 border-2 border-border"
+                        />
+                      ) : (
+                        <div
+                          className="w-16 h-16 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xl font-bold"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          {(instructor.displayName ?? "I").charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-base">{instructor.displayName}</h4>
+                        {instructor.title && (
+                          <p className="text-sm text-muted-foreground mb-2">{instructor.title}</p>
+                        )}
+                        {/* Social links */}
+                        {(socialLinks.linkedin || socialLinks.twitter || socialLinks.website) && (
+                          <div className="flex items-center gap-3 mb-3">
+                            {socialLinks.linkedin && (
+                              <a
+                                href={socialLinks.linkedin}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                                title="LinkedIn"
+                              >
+                                <Linkedin className="w-4 h-4" />
+                              </a>
+                            )}
+                            {socialLinks.twitter && (
+                              <a
+                                href={socialLinks.twitter}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                                title="Twitter / X"
+                              >
+                                <Twitter className="w-4 h-4" />
+                              </a>
+                            )}
+                            {socialLinks.website && (
+                              <a
+                                href={socialLinks.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                                title="Website"
+                              >
+                                <Globe className="w-4 h-4" />
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {instructor.bio && (
+                      <div
+                        className="mt-4 prose prose-sm max-w-none text-foreground"
+                        dangerouslySetInnerHTML={{ __html: instructor.bio }}
+                      />
+                    )}
+                  </div>
+                );
+              }
+              // Fallback: show legacy instructorBio field if no linked instructor
+              if (course.instructorBio) {
+                return (
+                  <div className="rounded-xl border border-border bg-card p-6">
+                    <h3 className="font-semibold text-lg mb-4">About the Instructor</h3>
+                    <div
+                      className="prose prose-sm max-w-none text-foreground"
+                      dangerouslySetInnerHTML={{ __html: course.instructorBio }}
+                    />
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           {/* Right sidebar */}
