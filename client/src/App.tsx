@@ -200,7 +200,7 @@ function AdminRouter() {
         <Route path="/products/community/:hubId/manage" component={CommunityManagePage} />
         <Route path="/products/categories" component={CategoriesPage} />
         <Route path="/media-library" component={MediaLibraryPage} />
-        <Route path="/record" component={RecordPage} />
+        <Route path="/record">{() => { window.location.replace("/media-library#record-edit"); return null; }}</Route>
 
         {/* ── Marketing ── */}
         <Route path="/marketing/website" component={WebsitePage} />

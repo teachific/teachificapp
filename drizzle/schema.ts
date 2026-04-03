@@ -1528,11 +1528,41 @@ export const orgMediaLibrary = mysqlTable("org_media_library", {
   source: mysqlEnum("source", ["form", "course", "direct", "other"]).default("direct").notNull(),
   // Optional reference to the source entity (formId, courseId, etc.)
   sourceId: int("sourceId"),
+  // Video duration in seconds (for video/audio items)
+  durationSeconds: int("durationSeconds"),
+  // S3 URL to the .vtt captions/subtitle file (if generated)
+  captionsUrl: text("captionsUrl"),
+  // Whisper transcript JSON (serialized array of {id, start, end, text} segments)
+  transcriptJson: text("transcriptJson"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type OrgMediaLibraryItem = typeof orgMediaLibrary.$inferSelect;
 export type InsertOrgMediaLibraryItem = typeof orgMediaLibrary.$inferInsert;
+
+// ─── Video Clips ──────────────────────────────────────────────────────────────
+// Highlight clips extracted from a media library video item
+export const videoClips = mysqlTable("video_clips", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  mediaItemId: int("mediaItemId").notNull(), // references org_media_library.id
+  label: varchar("label", { length: 255 }).notNull().default("Clip"),
+  startSec: float("startSec").notNull().default(0),
+  endSec: float("endSec").notNull().default(0),
+  // URL of the saved clip video in S3 (null until exported)
+  videoUrl: text("videoUrl"),
+  // S3 key of the saved clip video
+  videoKey: text("videoKey"),
+  // Optional captions VTT URL for this clip
+  captionsUrl: text("captionsUrl"),
+  // Whether captions are baked into the saved clip
+  captionsBaked: boolean("captionsBaked").default(false).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type VideoClip = typeof videoClips.$inferSelect;
+export type InsertVideoClip = typeof videoClips.$inferInsert;
 
 // ─── Form Filters ─────────────────────────────────────────────────────────────
 // Named saved filters that can be applied to the Results Table or Export

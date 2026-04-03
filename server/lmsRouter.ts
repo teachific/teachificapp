@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
   getCoursesByOrg,
@@ -2228,6 +2229,195 @@ export const lmsRouter = router({
         } catch (err: any) {
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: err?.message ?? "Transcription failed" });
         }
+      }),
+    // Save an uploaded video/audio file to the org media library
+    saveMediaItem: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        fileName: z.string(),
+        mimeType: z.string(),
+        fileSize: z.number(),
+        fileKey: z.string(),
+        url: z.string(),
+        durationSeconds: z.number().optional(),
+        tags: z.array(z.string()).optional(),
+        source: z.enum(["form", "course", "direct", "other"]).default("direct"),
+        sourceId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { orgMediaLibrary } = await import("../drizzle/schema");
+        const [result] = await db.insert(orgMediaLibrary).values({
+          orgId: input.orgId,
+          uploadedBy: ctx.user.id,
+          filename: input.fileName,
+          mimeType: input.mimeType,
+          fileSize: input.fileSize,
+          fileKey: input.fileKey,
+          url: input.url,
+          durationSeconds: input.durationSeconds ?? null,
+          source: input.source,
+          sourceId: input.sourceId ?? null,
+          tags: input.tags ? JSON.stringify(input.tags) : null,
+        });
+        const id = (result as any).insertId as number;
+        const rows = await db.select().from(orgMediaLibrary).where(eq(orgMediaLibrary.id, id)).limit(1);
+        return rows[0];
+      }),
+    // Get a single media item by ID
+    getMediaItem: protectedProcedure
+      .input(z.object({ orgId: z.number(), id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) return null;
+        const { orgMediaLibrary } = await import("../drizzle/schema");
+        const rows = await db.select().from(orgMediaLibrary)
+          .where(eq(orgMediaLibrary.id, input.id))
+          .limit(1);
+        return rows[0] ?? null;
+      }),
+    // Generate closed captions for a media item via Whisper, save VTT to S3, update DB
+    generateCaptions: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        mediaItemId: z.number(),
+        fileUrl: z.string(),
+        language: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const result = await transcribeAudio({
+          audioUrl: input.fileUrl,
+          language: input.language,
+          prompt: "Transcribe this video or audio recording",
+        });
+        if ("error" in result) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (result as any).error ?? "Transcription failed" });
+        }
+        const segments = (result as any).segments ?? [];
+        const fullText = (result as any).text ?? "";
+        const toVttTime = (sec: number) => {
+          const h = Math.floor(sec / 3600).toString().padStart(2, "0");
+          const m = Math.floor((sec % 3600) / 60).toString().padStart(2, "0");
+          const s = Math.floor(sec % 60).toString().padStart(2, "0");
+          const ms = Math.round((sec % 1) * 1000).toString().padStart(3, "0");
+          return `${h}:${m}:${s}.${ms}`;
+        };
+        let vtt = "WEBVTT\n\n";
+        for (const seg of segments) {
+          vtt += `${toVttTime(seg.start)} --> ${toVttTime(seg.end)}\n${seg.text.trim()}\n\n`;
+        }
+        const vttKey = `captions/${input.orgId}/${input.mediaItemId}-${Date.now()}.vtt`;
+        const { url: captionsUrl } = await storagePut(vttKey, Buffer.from(vtt, "utf-8"), "text/vtt");
+        const { orgMediaLibrary } = await import("../drizzle/schema");
+        await db.update(orgMediaLibrary)
+          .set({ captionsUrl, transcriptJson: JSON.stringify(segments), updatedAt: new Date() })
+          .where(eq(orgMediaLibrary.id, input.mediaItemId));
+        return { captionsUrl, vtt, segments, text: fullText };
+      }),
+    // Update captions/transcript on an existing media item (after user edits)
+    updateCaptions: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        mediaItemId: z.number(),
+        segments: z.array(z.object({
+          id: z.number(),
+          start: z.number(),
+          end: z.number(),
+          text: z.string(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const toVttTime = (sec: number) => {
+          const h = Math.floor(sec / 3600).toString().padStart(2, "0");
+          const m = Math.floor((sec % 3600) / 60).toString().padStart(2, "0");
+          const s = Math.floor(sec % 60).toString().padStart(2, "0");
+          const ms = Math.round((sec % 1) * 1000).toString().padStart(3, "0");
+          return `${h}:${m}:${s}.${ms}`;
+        };
+        let vtt = "WEBVTT\n\n";
+        for (const seg of input.segments) {
+          vtt += `${toVttTime(seg.start)} --> ${toVttTime(seg.end)}\n${seg.text.trim()}\n\n`;
+        }
+        const vttKey = `captions/${input.orgId}/${input.mediaItemId}-${Date.now()}-edited.vtt`;
+        const { url: captionsUrl } = await storagePut(vttKey, Buffer.from(vtt, "utf-8"), "text/vtt");
+        const { orgMediaLibrary } = await import("../drizzle/schema");
+        await db.update(orgMediaLibrary)
+          .set({ captionsUrl, transcriptJson: JSON.stringify(input.segments), updatedAt: new Date() })
+          .where(eq(orgMediaLibrary.id, input.mediaItemId));
+        return { captionsUrl, vtt };
+      }),
+    // Save a highlight clip definition (start/end timestamps) for a media item
+    saveClip: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        mediaItemId: z.number(),
+        label: z.string().default("Clip"),
+        startSec: z.number(),
+        endSec: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { videoClips } = await import("../drizzle/schema");
+        const [result] = await db.insert(videoClips).values({
+          orgId: input.orgId,
+          mediaItemId: input.mediaItemId,
+          label: input.label,
+          startSec: input.startSec,
+          endSec: input.endSec,
+          createdBy: ctx.user.id,
+        });
+        const id = (result as any).insertId as number;
+        const rows = await db.select().from(videoClips).where(eq(videoClips.id, id)).limit(1);
+        return rows[0];
+      }),
+    // List clips for a media item
+    listClips: protectedProcedure
+      .input(z.object({ orgId: z.number(), mediaItemId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) return [];
+        const { videoClips } = await import("../drizzle/schema");
+        return db.select().from(videoClips)
+          .where(eq(videoClips.mediaItemId, input.mediaItemId))
+          .orderBy(videoClips.startSec);
+      }),
+    // Update a clip label/timestamps
+    updateClip: protectedProcedure
+      .input(z.object({ id: z.number(), orgId: z.number(), label: z.string().optional(), startSec: z.number().optional(), endSec: z.number().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { videoClips } = await import("../drizzle/schema");
+        const updates: Record<string, any> = { updatedAt: new Date() };
+        if (input.label !== undefined) updates.label = input.label;
+        if (input.startSec !== undefined) updates.startSec = input.startSec;
+        if (input.endSec !== undefined) updates.endSec = input.endSec;
+        await db.update(videoClips).set(updates).where(eq(videoClips.id, input.id));
+        return { success: true };
+      }),
+    // Delete a clip
+    deleteClip: protectedProcedure
+      .input(z.object({ id: z.number(), orgId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { videoClips } = await import("../drizzle/schema");
+        await db.delete(videoClips).where(eq(videoClips.id, input.id));
+        return { success: true };
       }),
   }),
   // ── Categories ────────────────────────────────────────────────────────────

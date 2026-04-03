@@ -1726,3 +1726,36 @@
 - [x] Add per-org subscription plan editing in Platform Admin Organizations tab (plan selector + limit overrides per org)
 - [x] Fix org edit dialog save — subscription plan changes not persisting
 - [x] Add Subscription tab in org edit dialog showing plan defaults + per-org limit overrides inline
+
+## Record/Edit Video Studio (Media Library Integration)
+- [x] Schema: add durationSeconds, captionsUrl, transcriptJson columns to org_media_library
+- [x] Schema: add video_clips table (id, orgId, mediaItemId, label, startSec, endSec, captionsUrl, videoUrl, createdAt)
+- [x] Run migration SQL for new columns and table
+- [x] Backend: add lms.media.saveMediaItem procedure (upload URL + save to org_media_library with duration/captions/transcript)
+- [x] Backend: add lms.media.generateCaptions procedure (transcribe video URL → return segments + VTT string + save captionsUrl to media item)
+- [x] Backend: add lms.media.updateCaptions procedure (update captionsUrl + transcriptJson on existing media item)
+- [x] Backend: add lms.media.saveClip procedure (save highlight clip metadata to video_clips table)
+- [x] Backend: add lms.media.listClips procedure (list clips for a media item)
+- [x] Backend: add lms.media.deleteClip procedure
+- [x] Rename RecordPage to RecordEditPage; update route /record → /media-library#record-edit
+- [x] RecordEditPage: add top-level mode tabs — Record, Upload Video, Edit Video
+- [x] Record tab: screen/camera/screen+camera recording with countdown, pause/resume, recordings list
+- [x] Upload Video tab: drag-and-drop or file picker for video files (mp4, webm, mov, avi); progress bar; saves to Media Library
+- [x] Edit Video tab: video picker from Media Library (or URL input); loads video into editor
+- [x] VideoEditor component: video player with timeline scrubber
+- [x] VideoEditor: Generate Captions button → calls generateCaptions → shows editable transcript panel
+- [x] VideoEditor: editable transcript panel — each segment shows timestamp + text; click segment seeks video; edit text inline
+- [x] VideoEditor: caption overlay on video player (renders active segment text over video)
+- [x] VideoEditor: toggle captions on/off in player
+- [x] VideoEditor: highlight/clip selection — set start/end at playhead, define clip range
+- [x] VideoEditor: clip list panel — name clips, add/remove, save to Media Library
+- [x] VideoEditor: Save Full Video to Library (with or without captions baked-in as sidecar .vtt)
+- [x] VideoEditor: Save Highlights — save each selected clip as a separate media library entry
+- [x] VideoEditor: Download Full Video (direct download)
+- [x] VideoEditor: Download VTT captions file
+- [x] MediaLibraryPage: add Record/Edit tab (replaces standalone /record route)
+- [x] Update DashboardLayout sidebar: rename "Record" → "Record/Edit", keep path /media-library#record-edit
+- [x] Update App.tsx: /record redirects to /media-library#record-edit
+- [ ] Media Library Files tab: show duration badge on video items; show CC badge if captionsUrl set (future enhancement)
+- [ ] Media Library Files tab: "Edit Video" button on video items opens Edit Video tab with that item pre-loaded (future enhancement)
+- [x] Write vitest tests for VTT generation, clip validation, transcript editing, format helpers (10 tests)
