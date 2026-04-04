@@ -1371,6 +1371,144 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         });
         return { questions, warnings };
       }),
+
+    // ── Import from QuizCreator .quiz file ──────────────────────────────────────
+    importFromQuizCreator: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        // The raw text content of the .quiz file (TEACHIFIC_QUIZ_V1 format)
+        quizFileContent: z.string(),
+        // Optional title override
+        titleOverride: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Parse the .quiz file format: TEACHIFIC_QUIZ_V1\n<base64payload>
+        const lines = input.quizFileContent.trim().split("\n");
+        if (lines[0] !== "TEACHIFIC_QUIZ_V1") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid .quiz file: missing header" });
+        }
+        const payload = lines[1];
+        if (!payload) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid .quiz file: empty payload" });
+
+        // Decode base64 payload (free tier = plain JSON; encrypted files not supported server-side)
+        let quizData: {
+          meta: {
+            title: string;
+            description?: string;
+            passingScore?: number;
+            timeLimit?: number | null;
+            shuffleQuestions?: boolean;
+            shuffleAnswers?: boolean;
+            showFeedback?: string;
+            maxAttempts?: number;
+          };
+          questions: Array<{
+            id: string;
+            type: string;
+            order: number;
+            points?: number;
+            stem: string;
+            explanation?: string;
+            data: Record<string, unknown>;
+          }>;
+        };
+        try {
+          const decoded = Buffer.from(payload, "base64").toString("utf-8");
+          quizData = JSON.parse(decoded);
+        } catch {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Could not parse .quiz file. Encrypted files are not supported for import — save without encryption first.",
+          });
+        }
+
+        if (!quizData.meta || !Array.isArray(quizData.questions)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid .quiz file structure" });
+        }
+
+        // Create the quiz record
+        const title = input.titleOverride || quizData.meta.title || "Imported Quiz";
+        const newQuiz = await createQuiz({
+          orgId: input.orgId,
+          createdBy: ctx.user.id,
+          title,
+          description: quizData.meta.description || undefined,
+          passingScore: quizData.meta.passingScore ?? 70,
+          // timeLimit in .quiz is minutes; DB stores seconds
+          timeLimit: quizData.meta.timeLimit ? quizData.meta.timeLimit * 60 : undefined,
+          maxAttempts: quizData.meta.maxAttempts ?? undefined,
+          shuffleQuestions: quizData.meta.shuffleQuestions ?? false,
+          shuffleAnswers: quizData.meta.shuffleAnswers ?? false,
+          showFeedbackImmediately: quizData.meta.showFeedback === "immediate",
+          showCorrectAnswers: true,
+          isPublished: true,
+        });
+        if (!newQuiz) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create quiz" });
+
+        // Map QuizCreator question types → DB question types
+        const typeMap: Record<string, string> = {
+          mcq: "multiple_choice",
+          tf: "true_false",
+          short_answer: "short_answer",
+          matching: "matching",
+          fill_blank: "short_answer",
+          image_choice: "multiple_choice",
+          hotspot: "multiple_choice",
+        };
+
+        // Insert questions and choices
+        for (const q of quizData.questions) {
+          const dbType = (typeMap[q.type] || "multiple_choice") as any;
+          const questionResult = await createQuestion({
+            quizId: newQuiz.id,
+            sortOrder: q.order,
+            questionType: dbType,
+            questionText: q.stem,
+            explanation: q.explanation || undefined,
+            points: q.points ?? 1,
+          });
+          const questionId = questionResult.insertId as number;
+
+          // Build choices based on question type
+          const choices: Array<{ sortOrder: number; choiceText: string; isCorrect: boolean; matchTarget?: string }> = [];
+
+          if (q.type === "mcq" || q.type === "image_choice") {
+            const data = q.data as { choices: Array<{ text?: string; label?: string; correct: boolean }> };
+            (data.choices || []).forEach((c, i) => {
+              choices.push({ sortOrder: i, choiceText: c.text || c.label || `Option ${i + 1}`, isCorrect: c.correct });
+            });
+          } else if (q.type === "tf") {
+            const data = q.data as { correct: boolean };
+            choices.push({ sortOrder: 0, choiceText: "True", isCorrect: data.correct === true });
+            choices.push({ sortOrder: 1, choiceText: "False", isCorrect: data.correct === false });
+          } else if (q.type === "matching") {
+            const data = q.data as { pairs: Array<{ premise: string; response: string }> };
+            (data.pairs || []).forEach((p, i) => {
+              choices.push({ sortOrder: i, choiceText: p.premise, isCorrect: true, matchTarget: p.response });
+            });
+          } else if (q.type === "fill_blank") {
+            const data = q.data as { blanks: Array<{ acceptedAnswers: string[] }> };
+            const answers = (data.blanks || []).flatMap((b) => b.acceptedAnswers).slice(0, 1);
+            if (answers.length > 0) choices.push({ sortOrder: 0, choiceText: answers[0], isCorrect: true });
+          } else if (q.type === "short_answer") {
+            const data = q.data as { sampleAnswer: string };
+            if (data.sampleAnswer) choices.push({ sortOrder: 0, choiceText: data.sampleAnswer, isCorrect: true });
+          } else if (q.type === "hotspot") {
+            const data = q.data as { regions: Array<{ label: string; correct: boolean }> };
+            (data.regions || []).forEach((r, i) => {
+              choices.push({ sortOrder: i, choiceText: r.label, isCorrect: r.correct });
+            });
+          }
+
+          if (choices.length > 0) await upsertChoices(questionId, choices);
+        }
+
+        return {
+          quizId: newQuiz.id,
+          title: newQuiz.title,
+          questionCount: quizData.questions.length,
+        };
+      }),
   }),
 
   // ── Folders ────────────────────────────────────────────────────────────────────────────────────

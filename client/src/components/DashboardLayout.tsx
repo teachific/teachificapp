@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import StudentLayout from "./StudentLayout";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -259,12 +260,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  // Fetch org membership role to determine if user is admin or a regular member
+  const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(undefined, {
+    enabled: !!user,
+  });
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
 
-  if (loading) return <DashboardLayoutSkeleton />;
+  if (loading || (user && orgLoading)) return <DashboardLayoutSkeleton />;
+
+  // Regular members (role: member or user) get the student layout — no admin sidebar
+  const isAdminRole = (
+    user?.role === "site_owner" ||
+    user?.role === "site_admin" ||
+    user?.role === "org_super_admin" ||
+    orgCtx?.role === "org_admin"
+  );
+  if (user && !isAdminRole) {
+    return <StudentLayout>{children}</StudentLayout>;
+  }
 
   if (!user) {
     const searchParams = new URLSearchParams(window.location.search);

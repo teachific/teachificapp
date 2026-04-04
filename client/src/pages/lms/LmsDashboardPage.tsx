@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,6 +82,18 @@ export default function LmsDashboardPage() {
   });
 
   const orgId = orgCtx?.org?.id;
+
+  // Redirect regular members (non-admins) to their courses page
+  useEffect(() => {
+    if (!orgLoading && orgCtx) {
+      const isAdmin =
+        user?.role === "site_owner" ||
+        user?.role === "site_admin" ||
+        user?.role === "org_super_admin" ||
+        orgCtx.role === "org_admin";
+      if (!isAdmin) setLocation("/lms/my-courses");
+    }
+  }, [orgCtx, orgLoading, user, setLocation]);
 
   const { data: metrics, isLoading: metricsLoading } = trpc.lms.dashboard.metrics.useQuery(
     { orgId: orgId!, days },

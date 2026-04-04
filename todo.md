@@ -1855,3 +1855,43 @@
 - [x] Logged-out users visiting /quiz-creator → redirect to login, then gate checks role
 - [ ] Add QuizCreator plan to platform admin: assign quiz_creator_role to users
 - [ ] Stripe integration for QuizCreator Lite/Premium subscriptions (pending credentials)
+
+## Import from QuizCreator into Course Builder
+- [ ] Audit lesson schema: understand how lesson content type is stored (video/text/quiz/scorm)
+- [ ] Add .quiz file upload endpoint: accept .quiz file, decrypt if encrypted, store parsed quiz JSON linked to lesson
+- [ ] Add importedQuizId column to lessons table (nullable FK to quizzes)
+- [ ] Add tRPC procedure: lessons.importFromQuizCreator (upload .quiz, parse, create quiz record, link to lesson)
+- [ ] Add "Import from QuizCreator" button in lesson editor (CourseBuilderPage)
+- [ ] File picker: accept .quiz files only, show quiz title/question count preview before confirming
+- [ ] On confirm: create lesson of type "quiz" with the imported quiz data
+- [ ] Course player: render imported QuizCreator quizzes using the existing quiz engine
+- [ ] Show quiz source badge "Imported from QuizCreator" in lesson editor
+- [ ] Write vitest tests for the import procedure
+
+## 404 Audit & Fix
+- [ ] Audit all sidebar nav links against registered routes in App.tsx
+- [ ] Audit all in-app href links (a tags, Link components) for broken paths
+- [ ] Fix all identified 404s: missing routes, broken hrefs, missing redirects
+
+## Member (Student) Gating Audit
+- [ ] Audit orgMemberRole check: ensure non-admin members are blocked from LMS admin routes
+- [ ] Ensure /lms, /lms/courses, /members, /sales, /analytics, /platform-admin redirect members to /school
+- [ ] Ensure /learn/:courseId works for enrolled members
+- [ ] Ensure /school/:slug public page works without login
+- [ ] Ensure /lms/my-courses works for members
+- [ ] Fix /lms/catalog 404 (add route or redirect)
+- [ ] Fix /policies/teachific 404 (add Terms/Privacy page)
+- [ ] Fix /api/quiz/template 404 (add backend route for quiz template download)
+- [ ] Ensure member cannot access QuizCreator without quiz_creator_role
+
+## Stripe Billing Integration
+- [ ] Set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET env vars
+- [ ] Install stripe npm package
+- [ ] Create Stripe products/prices: Teachific Pro, Teachific Enterprise, QuizCreator Lite, QuizCreator Premium
+- [ ] Backend: stripeRouter with createCheckoutSession, createPortalSession, getSubscription procedures
+- [ ] Backend: Stripe webhook handler (/api/stripe/webhook) to sync subscription status to DB
+- [ ] DB: stripe_subscriptions table (orgId, userId, stripeCustomerId, stripeSubscriptionId, plan, status, currentPeriodEnd)
+- [ ] Frontend: BillingPage showing current plan, upgrade options, payment history
+- [ ] Frontend: Upgrade CTA buttons on Pro/Enterprise features linking to Stripe checkout
+- [ ] Frontend: QuizCreator upgrade flow (Lite/Premium) via Stripe checkout
+- [ ] Frontend: Post-checkout success/cancel redirect handling
