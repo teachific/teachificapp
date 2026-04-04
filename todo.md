@@ -1968,3 +1968,15 @@
 - [ ] Studio Stripe products and checkout flow
 - [ ] Standalone Studio dashboard at /studio/dashboard
 - [ ] Studio subscriber gating (separate from LMS org subscription)
+
+## Upload Queue (Background Multi-Video Upload)
+- [ ] Build UploadQueueContext + useUploadQueue hook with sequential processing
+- [ ] Build UploadQueuePanel floating tray component (minimizable, shows per-item progress)
+- [ ] Integrate queue into RecordEditPage UploadTab (video) and UploadAudioSubTab (audio)
+- [ ] Wire UploadQueuePanel as global overlay in App.tsx
+- [ ] Test: queue 3 videos, navigate away, verify all complete in background
+
+## Bug Fix: Upload Timeouts (Chunked Upload)
+- [x] Add server-side chunked upload endpoint (/api/chunked/media/*)
+- [x] Update UploadQueueContext to split files into 5 MB chunks and upload sequentially
+- [ ] Test large video upload (>100MB) end-to-end without timeout

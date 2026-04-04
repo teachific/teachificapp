@@ -19,6 +19,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
+import { useUploadQueue } from "@/contexts/UploadQueueContext";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1021,96 +1022,77 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
   );
 }
 
-/// ─── UploadTab Sub-component ─────────────────────────────────────────────────
+// ─── UploadTab Sub-component ─────────────────────────────────────────────────
 function UploadTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaItem) => void }) {
   const [dragOver, setDragOver] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [uploadPhase, setUploadPhase] = useState<"uploading" | "saving">("uploading");
   const [uploadedItems, setUploadedItems] = useState<MediaItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const saveMediaItem = trpc.lms.media.saveMediaItem.useMutation();
+  const { enqueue } = useUploadQueue();
 
-  const handleFiles = async (files: FileList | null) => {
+  const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const file = files[0];
     const maxSize = 3 * 1024 * 1024 * 1024; // 3 GB
-    if (file.size > maxSize) { toast.error("File too large — maximum 3 GB"); return; }
-
-    setUploading(true);
-    setProgress(0);
-    try {
-      // Upload via server-side proxy with progress tracking
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("orgId", String(orgId));
-      formData.append("folder", "lms-media");
-
-       setUploadPhase("uploading");
-      const result = await new Promise<{ key: string; url: string; fileName: string; fileSize: number; fileType: string }>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) {
-            // Scale browser→server progress to 0–90%; the remaining 10% is server→storage
-            setProgress(Math.round((e.loaded / e.total) * 90));
-          }
-        });
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try { resolve(JSON.parse(xhr.responseText)); }
-            catch { reject(new Error("Invalid response")); }
-          } else {
-            try { reject(new Error(JSON.parse(xhr.responseText).error ?? `Upload failed: ${xhr.status}`)); }
-            catch { reject(new Error(`Upload failed: ${xhr.status}`)); }
-          }
-        });
-        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-        // Once the browser finishes sending, switch to the "saving" phase label
-        xhr.upload.addEventListener("loadend", () => {
-          setUploadPhase("saving");
-          setProgress(92);
-        });
-        xhr.open("POST", "/api/media-upload");
-        xhr.send(formData);
-      });
-      setProgress(98);
-      const saved = await saveMediaItem.mutateAsync({
+    let queued = 0;
+    Array.from(files).forEach((file) => {
+      if (file.size > maxSize) {
+        toast.error(`"${file.name}" is too large — maximum 3 GB`);
+        return;
+      }
+      enqueue({
+        file,
         orgId,
-        fileName: result.fileName,
-        mimeType: result.fileType || file.type || "video/mp4",
-        fileSize: result.fileSize,
-        fileKey: result.key,
-        url: result.url,
-        source: "direct",
-        tags: ["upload"],
+        folder: "lms-media",
+        onComplete: async (result) => {
+          if (!result) return;
+          try {
+            const saved = await saveMediaItem.mutateAsync({
+              orgId,
+              fileName: result.fileName,
+              mimeType: result.fileType || file.type || "video/mp4",
+              fileSize: result.fileSize,
+              fileKey: result.key,
+              url: result.url,
+              source: "direct",
+              tags: ["upload"],
+            });
+            const item: MediaItem = {
+              id: (saved as any).id,
+              url: result.url,
+              filename: result.fileName,
+              mimeType: result.fileType || file.type || "video/mp4",
+              fileSize: result.fileSize,
+            };
+            setUploadedItems((prev) => [item, ...prev]);
+            toast.success(`"${result.fileName}" uploaded to Media Library`);
+            onSaved(item);
+          } catch (err: any) {
+            toast.error(`Failed to save "${result.fileName}": ${err?.message ?? "Unknown error"}`);
+          }
+        },
+        onError: (message) => {
+          toast.error(`Upload failed: ${message}`);
+        },
       });
-
-      const item: MediaItem = {
-        id: (saved as any).id,
-        url: result.url,
-        filename: result.fileName,
-        mimeType: result.fileType || file.type || "video/mp4",
-        fileSize: result.fileSize,
-      };
-      setUploadedItems((prev) => [item, ...prev]);
-      toast.success("Video uploaded to Media Library");
-      onSaved(item);
-     } catch (err: any) {
-      toast.error(err?.message ?? "Upload failed");
-    } finally {
-      setUploading(false);
-      setProgress(0);
-      setUploadPhase("uploading");
+      queued++;
+    });
+    if (queued > 0) {
+      toast.info(
+        queued === 1
+          ? `"${Array.from(files).find(f => f.size <= 3 * 1024 * 1024 * 1024)?.name}" added to upload queue`
+          : `${queued} files added to upload queue`
+      );
     }
   };
+
   return (
     <div className="flex flex-col gap-6 p-6 max-w-2xl mx-auto w-full">
       <div>
         <h2 className="text-lg font-semibold">Upload Video</h2>
-        <p className="text-sm text-muted-foreground mt-1">Upload an existing video to edit, add captions, and create highlight clips</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Upload one or more videos — they will be processed in the background so you can keep working
+        </p>
       </div>
-
       {/* Drop zone */}
       <div
         className={cn(
@@ -1126,35 +1108,21 @@ function UploadTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
           ref={fileInputRef}
           type="file"
           accept="video/*,audio/*"
+          multiple
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
         />
         <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center">
-          {uploading ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <Upload className="h-8 w-8 text-muted-foreground" />}
+          <Upload className="h-8 w-8 text-muted-foreground" />
         </div>
-        {uploading ? (
-          <div className="flex flex-col items-center gap-2 w-full max-w-xs">
-            <p className="text-sm font-medium">
-              {uploadPhase === "saving" ? `Saving to storage\u2026 ${progress}%` : `Uploading\u2026 ${progress}%`}
-            </p>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
-            </div>
-            {uploadPhase === "saving" && (
-              <p className="text-xs text-muted-foreground text-center">File received — saving to media library, please wait…</p>
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="text-center">
-              <p className="text-sm font-medium">Drop a video here or click to browse</p>
-              <p className="text-xs text-muted-foreground mt-1">MP4, MOV, WebM, AVI, MKV, MP3, WAV · Max 3 GB</p>
-            </div>
-          </>
-        )}
+        <div className="text-center">
+          <p className="text-sm font-medium">Drop videos here or click to browse</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            MP4, MOV, WebM, AVI, MKV, MP3, WAV · Max 3 GB · Multiple files supported
+          </p>
+        </div>
       </div>
-
-      {/* Uploaded items */}
+      {/* Completed items this session */}
       {uploadedItems.length > 0 && (
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold">Uploaded this session</h3>
@@ -1165,7 +1133,7 @@ function UploadTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{item.filename}</p>
-                <p className="text-xs text-muted-foreground">{formatFileSize(item.fileSize)} · {item.mimeType}</p>
+                <p className="text-xs text-muted-foreground">{item.mimeType}</p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <CheckCircle className="h-4 w-4 text-teal-500" />
@@ -1173,7 +1141,9 @@ function UploadTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
               </div>
             </div>
           ))}
-          <p className="text-xs text-muted-foreground">Switch to the <strong>Edit</strong> tab to add captions and create highlight clips</p>
+          <p className="text-xs text-muted-foreground">
+            Switch to the <strong>Edit</strong> tab to add captions and create highlight clips
+          </p>
         </div>
       )}
     </div>
@@ -1606,64 +1576,51 @@ function RecordAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item:
 }
 
 // ── Upload Audio ──────────────────────────────────────────────────────────────
-
 function UploadAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item: MediaItem) => void }) {
   const [dragOver, setDragOver] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [uploadedItems, setUploadedItems] = useState<MediaItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveMediaItem = trpc.lms.media.saveMediaItem.useMutation();
+  const { enqueue } = useUploadQueue();
 
-  const handleFiles = async (files: FileList | null) => {
+  const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const file = files[0];
-    const maxSize = 3 * 1024 * 1024 * 1024; // 3 GB for audio
-    if (file.size > maxSize) { toast.error("File too large — maximum 3 GB for audio"); return; }
-    if (!file.type.startsWith("audio/")) { toast.error("Please select an audio file (MP3, WAV, M4A, OGG, WebM)"); return; }
-
-    setUploading(true);
-    setProgress(0);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("orgId", String(orgId));
-      formData.append("folder", "lms-media");
-
-      const result = await new Promise<{ key: string; url: string; fileName: string; fileSize: number; fileType: string }>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
-        });
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
-          else reject(new Error(`Upload failed: ${xhr.status}`));
-        });
-        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-        xhr.open("POST", "/api/media-upload");
-        xhr.send(formData);
-      });
-
-      const saved = await saveMediaItem.mutateAsync({
+    const maxSize = 3 * 1024 * 1024 * 1024; // 3 GB
+    let queued = 0;
+    Array.from(files).forEach((file) => {
+      if (file.size > maxSize) { toast.error(`"${file.name}" is too large — maximum 3 GB`); return; }
+      if (!file.type.startsWith("audio/")) { toast.error(`"${file.name}" is not an audio file`); return; }
+      enqueue({
+        file,
         orgId,
-        fileName: result.fileName,
-        mimeType: result.fileType || file.type || "audio/mpeg",
-        fileSize: result.fileSize,
-        fileKey: result.key,
-        url: result.url,
-        source: "direct",
-        tags: ["audio", "upload"],
+        folder: "lms-media",
+        onComplete: async (result) => {
+          if (!result) return;
+          try {
+            const saved = await saveMediaItem.mutateAsync({
+              orgId,
+              fileName: result.fileName,
+              mimeType: result.fileType || file.type || "audio/mpeg",
+              fileSize: result.fileSize,
+              fileKey: result.key,
+              url: result.url,
+              source: "direct",
+              tags: ["audio", "upload"],
+            });
+            const item: MediaItem = { id: (saved as any).id, url: result.url, filename: result.fileName, mimeType: result.fileType || file.type, fileSize: result.fileSize };
+            setUploadedItems((prev) => [item, ...prev]);
+            toast.success(`"${result.fileName}" uploaded to Media Library`);
+            onSaved?.(item);
+          } catch (err: any) {
+            toast.error(`Failed to save "${result.fileName}": ${err?.message ?? "Unknown error"}`);
+          }
+        },
+        onError: (message) => { toast.error(`Upload failed: ${message}`); },
       });
-
-      const item: MediaItem = { id: (saved as any).id, url: result.url, filename: result.fileName, mimeType: result.fileType || file.type, fileSize: result.fileSize };
-      setUploadedItems((prev) => [item, ...prev]);
-      toast.success("Audio uploaded to Media Library");
-      onSaved?.(item);
-    } catch (err: any) {
-      toast.error(err?.message ?? "Upload failed");
-    } finally {
-      setUploading(false);
-      setProgress(0);
+      queued++;
+    });
+    if (queued > 0) {
+      toast.info(queued === 1 ? `"${files[0].name}" added to upload queue` : `${queued} audio files added to upload queue`);
     }
   };
 
@@ -1671,9 +1628,8 @@ function UploadAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item:
     <div className="flex flex-col gap-6 p-6 max-w-2xl mx-auto w-full">
       <div>
         <h2 className="text-lg font-semibold">Upload Audio</h2>
-        <p className="text-sm text-muted-foreground mt-1">Upload an existing audio file to your Media Library</p>
+        <p className="text-sm text-muted-foreground mt-1">Upload audio files — they are queued and processed in the background</p>
       </div>
-
       <div
         className={cn(
           "border-2 border-dashed rounded-2xl p-12 flex flex-col items-center justify-center gap-4 transition-all cursor-pointer",
@@ -1684,25 +1640,15 @@ function UploadAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item:
         onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
         onClick={() => fileInputRef.current?.click()}
       >
-        <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+        <input ref={fileInputRef} type="file" accept="audio/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
         <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center">
-          {uploading ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <Music className="h-8 w-8 text-muted-foreground" />}
+          <Music className="h-8 w-8 text-muted-foreground" />
         </div>
-        {uploading ? (
-          <div className="flex flex-col items-center gap-2 w-full max-w-xs">
-            <p className="text-sm font-medium">Uploading... {progress}%</p>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        ) : (
-          <div className="text-center">
-            <p className="text-sm font-medium">Drop an audio file here or click to browse</p>
-            <p className="text-xs text-muted-foreground mt-1">MP3, WAV, M4A, OGG, WebM · Max 3 GB</p>
-          </div>
-        )}
+        <div className="text-center">
+          <p className="text-sm font-medium">Drop audio files here or click to browse</p>
+          <p className="text-xs text-muted-foreground mt-1">MP3, WAV, M4A, OGG, WebM · Max 3 GB · Multiple files supported</p>
+        </div>
       </div>
-
       {uploadedItems.length > 0 && (
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold">Uploaded this session</h3>
@@ -1729,7 +1675,6 @@ function UploadAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item:
     </div>
   );
 }
-
 // ── Text-to-Speech ────────────────────────────────────────────────────────────
 
 function TTSSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item: MediaItem) => void }) {

@@ -5,6 +5,8 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { UploadQueueProvider } from "./contexts/UploadQueueContext";
+import { UploadQueuePanel } from "./components/UploadQueuePanel";
 
 // Core pages
 import Dashboard from "./pages/Dashboard";
@@ -324,8 +326,11 @@ export default function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
-          <Toaster richColors position="top-right" />
-          <Router />
+          <UploadQueueProvider>
+            <Toaster richColors position="top-right" />
+            <Router />
+            <UploadQueuePanel />
+          </UploadQueueProvider>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
