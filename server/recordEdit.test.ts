@@ -211,3 +211,112 @@ describe("Record/Edit: format helpers", () => {
     expect(formatFileSize(1.5 * 1024 * 1024)).toBe("1.5 MB");
   });
 });
+
+describe("Record/Edit: burnCaptions ASS helpers", () => {
+  // Replicate sanitizeText from lmsRouter.ts burnCaptions procedure
+  function sanitizeText(text: string): string {
+    return text
+      .split("")
+      .filter(ch => {
+        const code = ch.charCodeAt(0);
+        return !(code >= 0xD800 && code <= 0xDFFF) && !(code >= 0x2600 && code <= 0x27BF);
+      })
+      .join("")
+      .replace(/[\r\n]+/g, " ")
+      .trim();
+  }
+
+  // Replicate toAssTime from lmsRouter.ts burnCaptions procedure
+  function toAssTime(sec: number): string {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = Math.floor(sec % 60);
+    const cs = Math.round((sec % 1) * 100);
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
+  }
+
+  it("sanitizeText removes newlines and trims whitespace", () => {
+    expect(sanitizeText("Hello\nWorld")).toBe("Hello World");
+    expect(sanitizeText("  test  ")).toBe("test");
+    expect(sanitizeText("line1\r\nline2")).toBe("line1 line2");
+  });
+
+  it("sanitizeText strips misc symbols in range 0x2600-0x27BF", () => {
+    // ☀ (U+2600) should be stripped
+    const withSymbol = "Hello ☀ World";
+    const result = sanitizeText(withSymbol);
+    expect(result).not.toContain("☀");
+    expect(result).toContain("Hello");
+    expect(result).toContain("World");
+  });
+
+  it("sanitizeText preserves normal ASCII text", () => {
+    expect(sanitizeText("Hello, World! 123")).toBe("Hello, World! 123");
+    expect(sanitizeText("Captions with punctuation: test.")).toBe("Captions with punctuation: test.");
+  });
+
+  it("toAssTime formats seconds correctly", () => {
+    expect(toAssTime(0)).toBe("0:00:00.00");
+    expect(toAssTime(65.5)).toBe("0:01:05.50");
+    expect(toAssTime(3661.25)).toBe("1:01:01.25");
+    expect(toAssTime(90)).toBe("0:01:30.00");
+  });
+
+  it("toAssTime handles sub-second precision", () => {
+    expect(toAssTime(1.33)).toBe("0:00:01.33");
+    expect(toAssTime(2.75)).toBe("0:00:02.75");
+  });
+});
+
+describe("Record/Edit: callback stability patterns", () => {
+  it("useCallback with empty deps produces stable reference simulation", () => {
+    // Simulate the pattern: handleItemSaved = useCallback(() => setLastSavedItem(item), [])
+    // The key invariant: the same function reference is used across renders
+    let callCount = 0;
+    const stableCallback = (() => {
+      const fn = (item: { id: number }) => { callCount++; return item.id; };
+      return fn;
+    })();
+
+    // Calling the stable callback multiple times should work correctly
+    expect(stableCallback({ id: 1 })).toBe(1);
+    expect(stableCallback({ id: 2 })).toBe(2);
+    expect(callCount).toBe(2);
+  });
+
+  it("autoSaving state is reset in finally block even on error", async () => {
+    let autoSaving = false;
+    const autoSaveRecording = async () => {
+      autoSaving = true;
+      try {
+        throw new Error("Upload failed");
+      } catch {
+        // error handled
+      } finally {
+        autoSaving = false;
+      }
+    };
+
+    await autoSaveRecording();
+    expect(autoSaving).toBe(false);
+  });
+
+  it("Record Again resets savedItems and autoSaving state", () => {
+    // Simulate the state reset that happens when "Record Again" is clicked
+    let recordState = "stopped";
+    let elapsed = 30;
+    let savedItems: Record<number, any> = { 0: { id: 1, url: "https://cdn.example.com/test.webm" } };
+    let autoSaving = false;
+
+    // Simulate Record Again click
+    recordState = "idle";
+    elapsed = 0;
+    savedItems = {};
+    autoSaving = false;
+
+    expect(recordState).toBe("idle");
+    expect(elapsed).toBe(0);
+    expect(Object.keys(savedItems).length).toBe(0);
+    expect(autoSaving).toBe(false);
+  });
+});

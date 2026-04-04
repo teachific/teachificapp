@@ -1105,6 +1105,13 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
   const elapsedRef = useRef<number>(0);
 
   const saveMediaItem = trpc.lms.media.saveMediaItem.useMutation();
+  // Stable ref for onSaved to avoid stale closures in useCallback
+  const onSavedRef = useRef(onSaved);
+  useEffect(() => { onSavedRef.current = onSaved; }, [onSaved]);
+  const saveMediaItemRef = useRef(saveMediaItem);
+  useEffect(() => { saveMediaItemRef.current = saveMediaItem; }, [saveMediaItem]);
+  // Stable ref for autoSaveRecording to avoid stale closure in recorder.onstop
+  const autoSaveRecordingRef = useRef<((rec: { url: string; name: string; size: number; duration: number }) => void) | null>(null);
 
   const autoSaveRecording = useCallback(async (rec: { url: string; name: string; size: number; duration: number }) => {
     setAutoSaving(true);
@@ -1118,7 +1125,7 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
       const uploadRes = await fetch("/api/media-upload", { method: "POST", body: formData });
       if (!uploadRes.ok) throw new Error("Upload failed");
       const uploadData = await uploadRes.json();
-      const saved = await saveMediaItem.mutateAsync({
+      const saved = await saveMediaItemRef.current.mutateAsync({
         orgId,
         fileName: rec.name,
         mimeType: contentType,
@@ -1139,13 +1146,16 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
       };
       setSavedItems((prev) => ({ ...prev, [0]: item }));
       toast.success("Recording auto-saved to Media Library");
-      onSaved(item);
+      onSavedRef.current(item);
     } catch (err: any) {
+      console.error("[autoSave] Error:", err);
       toast.warning("Auto-save failed — use the save button to save manually");
     } finally {
       setAutoSaving(false);
     }
-  }, [orgId, saveMediaItem, onSaved]);
+  }, [orgId]);
+  // Keep the ref in sync with the latest autoSaveRecording callback
+  useEffect(() => { autoSaveRecordingRef.current = autoSaveRecording; }, [autoSaveRecording]);
 
   useEffect(() => {
     navigator.mediaDevices.enumerateDevices().then((devices) => {
@@ -1217,8 +1227,8 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
         if (previewRef.current) previewRef.current.src = url;
         setRecordState("stopped");
         streams.forEach((s) => s.getTracks().forEach((t) => t.stop()));
-        // Auto-save to Media Library
-        autoSaveRecording(newRec);
+        // Auto-save to Media Library (use ref to avoid stale closure)
+        autoSaveRecordingRef.current?.(newRec);
       };
       if (screenStreamRef.current) {
         screenStreamRef.current.getVideoTracks()[0]?.addEventListener("ended", () => stopRecording());
@@ -1480,7 +1490,7 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
                 </div>
               )}
               <Button size="lg" className="h-14 px-6 rounded-full bg-primary text-primary-foreground"
-                onClick={() => { setRecordState("idle"); setElapsed(0); if (screenVideoRef.current) screenVideoRef.current.srcObject = null; }}>
+                onClick={() => { setRecordState("idle"); setElapsed(0); setSavedItems({}); setAutoSaving(false); if (screenVideoRef.current) screenVideoRef.current.srcObject = null; }}>
                 <Circle className="h-5 w-5 fill-current mr-2" /> Record Again
               </Button>
             </div>
@@ -2411,9 +2421,14 @@ export default function RecordEditPage() {
   const { user } = useAuth();
   const orgId = (user as any)?.orgId ?? 1;
 
-  const handleItemSaved = (item: MediaItem) => {
+  const handleItemSaved = useCallback((item: MediaItem) => {
     setLastSavedItem(item);
-  };
+  }, []);
+
+  const handleUploadSaved = useCallback((item: MediaItem) => {
+    handleItemSaved(item);
+    setActiveTab("edit");
+  }, [handleItemSaved]);
 
   const TABS: { id: StudioTab; label: string; icon: React.ElementType }[] = [
     { id: "record", label: "Record Video", icon: Circle },
@@ -2463,10 +2478,10 @@ export default function RecordEditPage() {
       {/* Tab content */}
       <div className="flex-1 min-h-0 overflow-auto">
         {activeTab === "record" && (
-          <RecordTab orgId={orgId} onSaved={(item) => { handleItemSaved(item); }} />
+          <RecordTab orgId={orgId} onSaved={handleItemSaved} />
         )}
         {activeTab === "upload" && (
-          <UploadTab orgId={orgId} onSaved={(item) => { handleItemSaved(item); setActiveTab("edit"); }} />
+          <UploadTab orgId={orgId} onSaved={handleUploadSaved} />
         )}
         {activeTab === "edit" && (
           <EditTab orgId={orgId} initialItem={lastSavedItem} />

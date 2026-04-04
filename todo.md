@@ -2060,3 +2060,19 @@
 - [x] CC style persisted in component state and applied to overlay
 - [x] Live preview section in style panel
 - [x] Reset to Default button
+
+## Feature: Burn Styled Captions into Video (FFmpeg Export)
+- [ ] burnCaptions tRPC procedure: accept mediaItemId, segments, CCStyle params
+- [ ] Server-side: download video from S3, write ASS subtitle file with style params
+- [ ] Server-side: run FFmpeg with ass subtitle filter to burn captions into frames
+- [ ] Server-side: upload burned MP4 to S3, return download URL
+- [ ] VideoEditor UI: "Export Burned Video" button in CC style panel
+- [ ] Show progress spinner with status messages during burn (can take 30-120s)
+- [ ] On complete: show download link + auto-trigger browser download
+- [ ] Handle emoji in subtitle text (strip or replace with text equivalents for FFmpeg)
+
+## Bug Fix: Record Tab Controls Unresponsive After Save
+- [x] Diagnose why buttons/controls are frozen after recording is saved
+- [x] Fix state management so recordState resets properly after auto-save
+- [x] Ensure "New Recording" / "Record Again" button works after save
+- [x] Ensure download, delete, and edit buttons on saved recordings work

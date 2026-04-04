@@ -131,7 +131,9 @@ export async function transcribeAudio(
       }
       
       audioBuffer = Buffer.from(await response.arrayBuffer());
-      mimeType = response.headers.get('content-type') || 'audio/mpeg';
+      // Normalize content-type: strip charset params, handle video/* types from S3/CDN
+      const rawContentType = response.headers.get('content-type') || 'audio/mpeg';
+      mimeType = rawContentType.split(';')[0].trim();
       
       // If the file is a video (or > 16MB), extract audio track via FFmpeg first
       const isVideo = mimeType.startsWith("video/");
@@ -141,6 +143,13 @@ export async function transcribeAudio(
         if (extracted) {
           audioBuffer = extracted.buffer;
           mimeType = extracted.mimeType;
+        } else if (isVideo) {
+          // FFmpeg unavailable and file is a video — cannot send video directly to Whisper
+          return {
+            error: "Cannot extract audio from video: FFmpeg is unavailable",
+            code: "SERVICE_ERROR",
+            details: "FFmpeg is required to extract audio from video files"
+          };
         } else if (sizeMB > 16) {
           // FFmpeg unavailable and file is too large
           return {
@@ -242,9 +251,14 @@ function getFileExtension(mimeType: string): string {
     'audio/ogg': 'ogg',
     'audio/m4a': 'm4a',
     'audio/mp4': 'm4a',
+    'audio/flac': 'flac',
+    // Video types (should be extracted by FFmpeg before reaching here, but fallback)
+    'video/webm': 'webm',
+    'video/mp4': 'mp4',
+    'video/mpeg': 'mpeg',
   };
   
-  return mimeToExt[mimeType] || 'audio';
+  return mimeToExt[mimeType] || 'mp3';
 }
 
 /**

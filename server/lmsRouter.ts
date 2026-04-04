@@ -2707,6 +2707,141 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
           fs.promises.unlink(tmpOut).catch(() => {});
         }
       }),
+    // ── Burn Captions into Video ───────────────────────────────────────────
+    burnCaptions: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        mediaItemId: z.number(),
+        sourceUrl: z.string(),
+        segments: z.array(z.object({
+          start: z.number(),
+          end: z.number(),
+          text: z.string(),
+        })),
+        style: z.object({
+          textColor: z.string().default("#FFFFFF"),
+          bgColor: z.string().default("#000000"),
+          bgOpacity: z.number().min(0).max(1).default(0.6),
+          fontSize: z.number().min(12).max(72).default(28),
+          bold: z.boolean().default(true),
+          italic: z.boolean().default(false),
+          shadow: z.boolean().default(true),
+          position: z.enum(["bottom", "top", "center"]).default("bottom"),
+        }),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { execFile } = await import("child_process");
+        const { promisify } = await import("util");
+        const fs = await import("fs");
+        const os = await import("os");
+        const path = await import("path");
+        const execFileAsync = promisify(execFile);
+        const tmpDir = os.tmpdir();
+        const suffix = Date.now();
+        const tmpIn = path.join(tmpDir, `burn-in-${suffix}.mp4`);
+        const tmpAss = path.join(tmpDir, `burn-${suffix}.ass`);
+        const tmpOut = path.join(tmpDir, `burn-out-${suffix}.mp4`);
+
+        // Helper: convert hex color (#RRGGBB) to ASS color (&H00BBGGRR)
+        function hexToAss(hex: string): string {
+          const c = hex.replace("#", "").padEnd(6, "0");
+          const r = c.slice(0, 2);
+          const g = c.slice(2, 4);
+          const b = c.slice(4, 6);
+          return `&H00${b}${g}${r}`;
+        }
+        function hexToAssWithAlpha(hex: string, opacity: number): string {
+          const c = hex.replace("#", "").padEnd(6, "0");
+          const r = c.slice(0, 2);
+          const g = c.slice(2, 4);
+          const b = c.slice(4, 6);
+          const alpha = Math.round((1 - opacity) * 255).toString(16).padStart(2, "0").toUpperCase();
+          return `&H${alpha}${b}${g}${r}`;
+        }
+        function toAssTime(sec: number): string {
+          const h = Math.floor(sec / 3600);
+          const m = Math.floor((sec % 3600) / 60);
+          const s = Math.floor(sec % 60);
+          const cs = Math.round((sec % 1) * 100);
+          return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
+        }
+        function sanitizeText(text: string): string {
+          // Strip emoji (surrogate pairs) and special chars that ASS can't render
+          // Use surrogate pair range for emoji (ES5 compatible, no unicode flag needed)
+          return text
+            .split("")
+            .filter(ch => {
+              const code = ch.charCodeAt(0);
+              // Remove surrogate pairs (emoji) and misc symbols
+              return !(code >= 0xD800 && code <= 0xDFFF) && !(code >= 0x2600 && code <= 0x27BF);
+            })
+            .join("")
+            .replace(/[\r\n]+/g, " ")
+            .trim();
+        }
+
+        const { style, segments } = input;
+        const alignment = style.position === "top" ? 8 : style.position === "center" ? 5 : 2;
+        const marginV = style.position === "top" ? 20 : 30;
+        const primaryColor = hexToAss(style.textColor);
+        const backColor = hexToAssWithAlpha(style.bgColor, style.bgOpacity);
+        const boldFlag = style.bold ? "-1" : "0";
+        const italicFlag = style.italic ? "-1" : "0";
+        const shadowVal = style.shadow ? "1" : "0";
+        const borderStyle = style.bgOpacity > 0.05 ? "3" : "1";
+        const outline = style.bgOpacity > 0.05 ? "0" : (style.shadow ? "1" : "2");
+
+        const assContent = [
+          "[Script Info]",
+          "ScriptType: v4.00+",
+          "PlayResX: 1920",
+          "PlayResY: 1080",
+          "ScaledBorderAndShadow: yes",
+          "",
+          "[V4+ Styles]",
+          "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+          `Style: Default,Arial,${style.fontSize},${primaryColor},&H000000FF,&H00000000,${backColor},${boldFlag},${italicFlag},0,0,100,100,0,0,${borderStyle},${outline},${shadowVal},${alignment},10,10,${marginV},1`,
+          "",
+          "[Events]",
+          "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+          ...segments.map(seg =>
+            `Dialogue: 0,${toAssTime(seg.start)},${toAssTime(seg.end)},Default,,0,0,0,,${sanitizeText(seg.text)}`
+          ),
+        ].join("\n");
+
+        console.log(`[burnCaptions] Starting mediaItemId=${input.mediaItemId}, segments=${segments.length}`);
+        try {
+          const res = await fetch(input.sourceUrl);
+          if (!res.ok) throw new Error(`Failed to fetch source video: ${res.status}`);
+          const arrayBuf = await res.arrayBuffer();
+          await fs.promises.writeFile(tmpIn, Buffer.from(arrayBuf));
+          await fs.promises.writeFile(tmpAss, assContent, "utf-8");
+          await execFileAsync("ffmpeg", [
+            "-y",
+            "-i", tmpIn,
+            "-vf", `ass=${tmpAss}`,
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", "23",
+            "-c:a", "aac",
+            "-movflags", "+faststart",
+            tmpOut,
+          ], { maxBuffer: 200 * 1024 * 1024 });
+          const outBuffer = await fs.promises.readFile(tmpOut);
+          const fileKey = `lms-media/${input.orgId}/burned/${input.mediaItemId}-burned-${suffix}.mp4`;
+          const { url: burnedUrl } = await storagePut(fileKey, outBuffer, "video/mp4");
+          console.log(`[burnCaptions] Done — ${(outBuffer.length / 1024 / 1024).toFixed(1)}MB uploaded`);
+          return { url: burnedUrl, fileSize: outBuffer.length };
+        } finally {
+          fs.promises.unlink(tmpIn).catch(() => {});
+          fs.promises.unlink(tmpAss).catch(() => {});
+          fs.promises.unlink(tmpOut).catch(() => {});
+        }
+      }),
+
     // ── Text-to-Speech ──────────────────────────────────────────────────────
     generateSpeech: protectedProcedure
       .input(z.object({
