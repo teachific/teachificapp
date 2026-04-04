@@ -173,6 +173,8 @@ function AdminRouter() {
         <Route path="/products">{() => { window.location.replace("/lms/courses"); return null; }}</Route>
         <Route path="/marketing">{() => { window.location.replace("/marketing/website"); return null; }}</Route>
         <Route path="/sales">{() => { window.location.replace("/sales/orders"); return null; }}</Route>
+        <Route path="/settings">{() => { window.location.replace("/lms/settings"); return null; }}</Route>
+        <Route path="/admin">{() => { window.location.replace("/platform-admin"); return null; }}</Route>
 
         {/* ── Products ── */}
         <Route path="/lms/courses" component={CoursesPage} />

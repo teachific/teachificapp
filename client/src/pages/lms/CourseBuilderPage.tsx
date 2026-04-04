@@ -123,11 +123,13 @@ function SortableLesson({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 px-3 py-2.5 bg-background border border-border/50 rounded-lg hover:border-border transition-colors group"
+      onClick={onEdit}
+      className="flex items-center gap-2 px-3 py-2.5 bg-background border border-border/50 rounded-lg hover:border-border hover:bg-muted/30 transition-colors group cursor-pointer"
     >
       <button
         {...attributes}
         {...listeners}
+        onClick={(e) => e.stopPropagation()}
         className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
       >
         <GripVertical className="h-4 w-4" />
@@ -160,6 +162,7 @@ function SortableLesson({
           <Button
             variant="ghost"
             size="icon"
+            onClick={(e) => e.stopPropagation()}
             className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <MoreVertical className="h-3.5 w-3.5" />

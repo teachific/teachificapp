@@ -117,15 +117,27 @@ export default function SchoolPage() {
     : (orgs?.[0]?.id ?? undefined);
 
   // ── Data queries (all keyed on orgId) ────────────────────────────────────
-  const { data: courses, isLoading: coursesLoading } = trpc.lms.courses.list.useQuery(
-    { orgId: orgId! },
-    { enabled: !!orgId }
+  // Use public procedures when no user is logged in (avoids OAuth redirect for public visitors)
+  const { data: publicCourses, isLoading: publicCoursesLoading } = trpc.lms.publicSchool.coursesBySlug.useQuery(
+    { slug: orgSlug! },
+    { enabled: !!orgSlug && !user }
   );
+  const { data: authedCourses, isLoading: authedCoursesLoading } = trpc.lms.courses.list.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId && !!user }
+  );
+  const courses = user ? authedCourses : (orgSlug ? publicCourses : undefined);
+  const coursesLoading = user ? authedCoursesLoading : publicCoursesLoading;
 
-  const { data: theme } = trpc.lms.themes.get.useQuery(
-    { orgId: orgId! },
-    { enabled: !!orgId }
+  const { data: publicTheme } = trpc.lms.publicSchool.themeBySlug.useQuery(
+    { slug: orgSlug! },
+    { enabled: !!orgSlug && !user }
   );
+  const { data: authedTheme } = trpc.lms.themes.get.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId && !!user }
+  );
+  const theme = user ? authedTheme : publicTheme;
 
   // ── Legal docs: use slug-based endpoint when slug is present ─────────────
   const { data: legalDocsBySlug } = trpc.orgs.publicLegalDocsBySlug.useQuery(

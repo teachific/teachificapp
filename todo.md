@@ -1792,3 +1792,13 @@
 - [x] Set Teachific as the primary/default org for the owner user
 - [x] Add isPrimary column to organizations table; set Teachific (id=30002) as isPrimary=true
 - [x] Update myContext, getOrgsByUserId, getOrgIdForUser to sort by isPrimary first
+
+## Bug Fixes from User Testing (Apr 3)
+- [ ] BUG: School page (/school/:orgSlug) redirects to OAuth login for unauthenticated users — courses.list and themes.get are protectedProcedures
+- [ ] FIX: Add publicCoursesBySlug and publicThemeBySlug procedures (publicProcedure, keyed by slug)
+- [ ] FIX: Update SchoolPage to use public procedures when user is not logged in
+
+## Bug Fixes from User Testing (Apr 3 - Session 2)
+- [x] BUG: WebsitePage (Marketing > Website) had hardcoded "All About Ultrasound" placeholder text — fixed to load real org name/description from DB
+- [x] BUG: Clicking "Settings" sidebar item navigated to /settings which returned 404 — added redirect /settings → /lms/settings
+- [x] BUG: Clicking "Platform Admin" sidebar item navigated to /admin which returned 404 — added redirect /admin → /platform-admin

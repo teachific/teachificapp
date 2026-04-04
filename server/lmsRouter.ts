@@ -72,7 +72,7 @@ import {
   getCardsByDeck,
   bulkUpsertCards,
 } from "./lmsDb";
-import { getOrgById, getOrgMember, getDb } from "./db";
+import { getOrgById, getOrgMember, getDb, getOrgBySlug } from "./db";
 import {
   listDigitalProducts,
   getDigitalProduct,
@@ -217,6 +217,27 @@ async function requireOrgAdmin(userId: number, orgId: number, userRole?: string)
 // ─── Router ──────────────────────────────────────────────────────────────────
 
 export const lmsRouter = router({
+  // ── Public School Endpoints (no auth required) ─────────────────────────
+
+  publicSchool: router({
+    coursesBySlug: publicProcedure
+      .input(z.object({ slug: z.string() }))
+      .query(async ({ input }) => {
+        const org = await getOrgBySlug(input.slug);
+        if (!org) return [];
+        const courses = await getCoursesByOrg(org.id);
+        // Only return published courses to the public
+        return courses.filter((c: any) => c.status === "published");
+      }),
+    themeBySlug: publicProcedure
+      .input(z.object({ slug: z.string() }))
+      .query(async ({ input }) => {
+        const org = await getOrgBySlug(input.slug);
+        if (!org) return null;
+        return getOrgTheme(org.id);
+      }),
+  }),
+
   // ── Courses ──────────────────────────────────────────────────────────────
 
   courses: router({
