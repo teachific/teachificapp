@@ -627,8 +627,9 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
 
   useEffect(() => {
     navigator.mediaDevices.enumerateDevices().then((devices) => {
-      setAudioDevices(devices.filter((d) => d.kind === "audioinput"));
-      setVideoDevices(devices.filter((d) => d.kind === "videoinput"));
+      // Filter out devices with empty deviceId (returned before permission is granted)
+      setAudioDevices(devices.filter((d) => d.kind === "audioinput" && d.deviceId !== ""));
+      setVideoDevices(devices.filter((d) => d.kind === "videoinput" && d.deviceId !== ""));
     }).catch(() => {});
   }, []);
 
@@ -940,20 +941,20 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
             <h3 className="font-semibold text-sm">Settings</h3>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-muted-foreground">Microphone</label>
-              <Select value={selectedMic} onValueChange={setSelectedMic}>
+              <Select value={selectedMic || "__default__"} onValueChange={(v) => setSelectedMic(v === "__default__" ? "" : v)}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default microphone" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Default</SelectItem>
+                  <SelectItem value="__default__">Default microphone</SelectItem>
                   {audioDevices.map((d) => <SelectItem key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0, 8)}`}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-muted-foreground">Camera</label>
-              <Select value={selectedCamera} onValueChange={setSelectedCamera}>
+              <Select value={selectedCamera || "__default__"} onValueChange={(v) => setSelectedCamera(v === "__default__" ? "" : v)}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default camera" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Default</SelectItem>
+                  <SelectItem value="__default__">Default camera</SelectItem>
                   {videoDevices.map((d) => <SelectItem key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${d.deviceId.slice(0, 8)}`}</SelectItem>)}
                 </SelectContent>
               </Select>

@@ -1988,3 +1988,9 @@
 - [x] Fix useUploadQueue Fast Refresh: split hook into client/src/hooks/useUploadQueue.ts
 - [x] Fix StudioDashboard: after logout redirect to / not /studio-pro
 - [x] Fix StudioDashboard: Analytics nav item replaced with correct nav items (Record & Upload, Media Library, etc.)
+
+## Bug Fix: Camera Settings in TeachificStudio
+- [x] Diagnose camera device enumeration / constraints / preview failure
+- [x] Fix camera settings UI: filter empty deviceId from enumerateDevices to prevent SelectItem crash
+- [x] Fix Settings panel crash: empty-value SelectItem in mic/camera dropdowns replaced with 'default' values
+- [x] Verified: all tabs (Record Video, Upload Video, Edit Video, Audio + sub-tabs), all mode buttons, Settings panel, Voice dropdown all work without errors
