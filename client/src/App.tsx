@@ -105,6 +105,7 @@ import WebhooksPage from "./pages/integrations/WebhooksPage";
 import ProfilePage from "./pages/profile/ProfilePage";
 import BillingPage from "./pages/profile/BillingPage";
 
+import LandingPage from "./pages/LandingPage";
 // Auth pages (no sidebar)
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
@@ -143,17 +144,18 @@ function BareRouter() {
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/verify-email" component={VerifyEmailPage} />
+      {/* Marketing landing page — shown to logged-out visitors at root */}
+      <Route path="/" component={LandingPage} />
     </Switch>
   );
 }
-
 // Admin shell routes — wrapped in DashboardLayout
 function AdminRouter() {
   return (
     <DashboardLayout>
       <Switch>
         {/* Root → Dashboard */}
-        <Route path="/">{() => { window.location.replace("/lms"); return null; }}</Route>
+        {/* Root is handled by BareRouter (LandingPage redirects logged-in users to /lms) */}
 
         {/* Dashboard */}
         <Route path="/lms" component={LmsDashboardPage} />
@@ -277,6 +279,7 @@ function AdminRouter() {
 function Router() {
   const path = window.location.pathname;
   const isBare =
+    path === "/" ||
     path.startsWith("/embed/") ||
     path.startsWith("/learn/") ||
     path.startsWith("/school") ||

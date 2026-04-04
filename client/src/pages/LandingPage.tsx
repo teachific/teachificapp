@@ -2,66 +2,939 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { Button } from "@/components/ui/button";
 import {
-  BookOpen, Video, BarChart3, Globe, Shield, Zap,
-  Users, CheckCircle, ArrowRight, Play, Award, Upload,
+  BookOpen,
+  Users,
+  BarChart3,
+  Zap,
+  Shield,
+  Globe,
+  CheckCircle2,
+  X,
+  Play,
+  Award,
+  FileText,
+  Video,
+  Layers,
+  ArrowRight,
+  Star,
+  Sparkles,
+  TrendingUp,
+  Upload,
+  Mic,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
+// ─── Brand colors ─────────────────────────────────────────────────────────────
+const TEAL = "#189aa1";
+const AQUA = "#4ad9e0";
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+function LandingNav() {
+  const loginUrl = getLoginUrl();
+  const signUpUrl = loginUrl.replace("type=signIn", "type=signUp");
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        {/* Logo */}
+        <a href="/" className="flex items-center gap-1 select-none">
+          <span
+            className="text-2xl font-extrabold tracking-tight"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            <span className="text-gray-900">teach</span>
+            <span style={{ color: TEAL }}>ific</span>
+            <span className="text-gray-900 text-lg">™</span>
+          </span>
+        </a>
+
+        {/* Nav links */}
+        <div className="hidden md:flex items-center gap-8">
+          <a href="#features" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+            Features
+          </a>
+          <a href="#how-it-works" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+            How It Works
+          </a>
+          <a href="#pricing" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+            Pricing
+          </a>
+        </div>
+
+        {/* Auth buttons */}
+        <div className="flex items-center gap-3">
+          <a
+            href={loginUrl}
+            className="hidden sm:inline-flex text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2"
+          >
+            Log In
+          </a>
+          <a
+            href={signUpUrl}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-white px-4 py-2 rounded-lg transition-all hover:opacity-90 hover:shadow-md"
+            style={{ background: `linear-gradient(135deg, ${TEAL}, ${AQUA})` }}
+          >
+            Get Started Free <ArrowRight className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+// ─── Hero ──────────────────────────────────────────────────────────────────────
+function HeroSection() {
+  const loginUrl = getLoginUrl();
+  const signUpUrl = loginUrl.replace("type=signIn", "type=signUp");
+
+  return (
+    <section className="relative pt-32 pb-24 overflow-hidden bg-white">
+      {/* Background gradient blobs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div
+          className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full opacity-10 blur-3xl"
+          style={{ background: `radial-gradient(circle, ${AQUA}, ${TEAL})` }}
+        />
+        <div
+          className="absolute -bottom-20 -left-20 w-[400px] h-[400px] rounded-full opacity-8 blur-3xl"
+          style={{ background: `radial-gradient(circle, ${TEAL}, transparent)` }}
+        />
+      </div>
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div
+          className="mb-6 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border"
+          style={{ color: TEAL, borderColor: `${TEAL}40`, background: `${TEAL}10` }}
+        >
+          <Sparkles className="w-3 h-3" /> The all-in-one platform for online educators
+        </div>
+
+        <h1
+          className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 leading-tight tracking-tight mb-6"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          Turn Your Knowledge
+          <br />
+          <span style={{ color: TEAL }}>Into a Thriving School</span>
+        </h1>
+
+        <p className="max-w-2xl mx-auto text-xl text-gray-500 leading-relaxed mb-10">
+          Teachific gives educators, trainers, and creators everything they need to build, sell, and
+          deliver world-class online courses — without the technical headaches.
+        </p>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-14">
+          <a
+            href={signUpUrl}
+            className="inline-flex items-center gap-2 text-base font-bold text-white px-8 py-4 rounded-xl shadow-lg transition-all hover:shadow-xl hover:scale-105"
+            style={{ background: `linear-gradient(135deg, ${TEAL}, ${AQUA})` }}
+          >
+            Start for Free <ArrowRight className="w-4 h-4" />
+          </a>
+          <a
+            href="#how-it-works"
+            className="inline-flex items-center gap-2 text-base font-semibold text-gray-700 px-8 py-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all"
+          >
+            <Play className="w-4 h-4" style={{ color: TEAL }} /> See How It Works
+          </a>
+        </div>
+
+        {/* Trust bar */}
+        <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-400">
+          {[
+            "No credit card required",
+            "Free plan forever",
+            "Set up in minutes",
+          ].map((t) => (
+            <span key={t} className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" style={{ color: TEAL }} />
+              {t}
+            </span>
+          ))}
+        </div>
+
+        {/* Dashboard preview mockup */}
+        <div className="mt-16 relative max-w-5xl mx-auto">
+          <div className="rounded-2xl border border-gray-200 shadow-2xl overflow-hidden bg-gray-50">
+            {/* Browser chrome */}
+            <div className="h-8 bg-gray-100 border-b border-gray-200 flex items-center px-4 gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-400" />
+              <div className="w-3 h-3 rounded-full bg-yellow-400" />
+              <div className="w-3 h-3 rounded-full bg-green-400" />
+              <div className="flex-1 mx-4 h-4 bg-gray-200 rounded-full max-w-xs" />
+            </div>
+            <div className="flex h-72 sm:h-96">
+              {/* Fake sidebar */}
+              <div className="w-48 bg-gray-900 p-4 hidden sm:flex flex-col gap-2">
+                <div className="h-6 w-24 rounded mb-2" style={{ background: `${TEAL}80` }} />
+                {["Dashboard", "Courses", "Members", "Analytics", "Marketing"].map((item) => (
+                  <div key={item} className="flex items-center gap-2 px-2 py-1.5 rounded">
+                    <div className="w-3 h-3 rounded-sm bg-gray-600" />
+                    <div
+                      className="h-3 rounded bg-gray-600"
+                      style={{ width: `${item.length * 6}px` }}
+                    />
+                  </div>
+                ))}
+              </div>
+              {/* Fake content area */}
+              <div className="flex-1 p-6 bg-white">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                  {[
+                    { label: "Revenue", value: "$12,480", color: TEAL },
+                    { label: "Enrollments", value: "847", color: AQUA },
+                    { label: "Active Members", value: "312", color: "#6366f1" },
+                    { label: "Completion Rate", value: "78%", color: "#f59e0b" },
+                  ].map((stat) => (
+                    <div key={stat.label} className="rounded-lg border border-gray-100 p-3 bg-gray-50">
+                      <div className="text-xs text-gray-400 mb-1">{stat.label}</div>
+                      <div className="text-xl font-bold" style={{ color: stat.color }}>
+                        {stat.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-gray-100 p-3 bg-gray-50 h-24">
+                    <div className="text-xs text-gray-400 mb-2">Enrollment Activity</div>
+                    <div className="flex items-end gap-1 h-12">
+                      {[40, 65, 45, 80, 60, 90, 75].map((h, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 rounded-t"
+                          style={{ height: `${h}%`, background: `${TEAL}60` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-gray-100 p-3 bg-gray-50 h-24">
+                    <div className="text-xs text-gray-400 mb-2">Top Courses</div>
+                    {["Advanced Cardiac Echo", "OBGyn Fundamentals"].map((c) => (
+                      <div key={c} className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full" style={{ background: TEAL }} />
+                        <div className="text-xs text-gray-600 truncate">{c}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Floating badges */}
+          <div className="absolute -left-4 top-1/3 bg-white rounded-xl shadow-lg border border-gray-100 px-3 py-2 hidden lg:flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" style={{ color: TEAL }} />
+            <span className="text-xs font-semibold text-gray-700">Revenue up 34% this month</span>
+          </div>
+          <div className="absolute -right-4 top-1/2 bg-white rounded-xl shadow-lg border border-gray-100 px-3 py-2 hidden lg:flex items-center gap-2">
+            <Award className="w-4 h-4 text-yellow-500" />
+            <span className="text-xs font-semibold text-gray-700">847 new enrollments</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Stats bar ────────────────────────────────────────────────────────────────
+function StatsSection() {
+  const stats = [
+    { value: "10,000+", label: "Courses Created" },
+    { value: "250,000+", label: "Learners Enrolled" },
+    { value: "98%", label: "Customer Satisfaction" },
+    { value: "4.9 / 5", label: "Average Rating" },
+  ];
+  return (
+    <section className="py-16 border-y border-gray-100 bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <p className="text-center text-sm font-medium text-gray-400 uppercase tracking-widest mb-10">
+          Trusted by educators worldwide
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
+          {stats.map((s) => (
+            <div key={s.label}>
+              <div
+                className="text-3xl sm:text-4xl font-extrabold mb-1"
+                style={{ color: TEAL, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                {s.value}
+              </div>
+              <div className="text-sm text-gray-500">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Features ─────────────────────────────────────────────────────────────────
 const FEATURES = [
   {
-    icon: Upload,
-    title: "SCORM & HTML5 Hosting",
-    description:
-      "Upload SCORM 1.2, SCORM 2004, Articulate, iSpring, and plain HTML5 packages in seconds. No technical setup required.",
-  },
-  {
     icon: BookOpen,
-    title: "Full-Featured LMS",
+    title: "Powerful Course Builder",
     description:
-      "Build courses, manage enrollments, issue certificates, and track learner progress — all in one platform.",
+      "Build rich, multi-section courses with video lessons, quizzes, downloadable resources, and drip scheduling. Your curriculum, your way — no coding required.",
+    color: TEAL,
   },
   {
     icon: Video,
-    title: "Branded Video Player",
+    title: "Teachific Studio™",
     description:
-      "Deliver video content with your organization's colors, logo watermark, and custom player controls.",
+      "Record, edit, and publish video content directly in your browser. Add captions, trim clips, generate highlights, and produce polished lessons without leaving the platform.",
+    color: "#6366f1",
+  },
+  {
+    icon: Users,
+    title: "Member Management",
+    description:
+      "Invite students, manage group enrollments, assign roles, track progress, and issue certificates — all from a single, intuitive dashboard.",
+    color: "#f59e0b",
   },
   {
     icon: BarChart3,
-    title: "Advanced Analytics",
+    title: "Deep Analytics",
     description:
-      "Track completions, quiz scores, engagement time, and revenue with real-time dashboards and exportable reports.",
+      "Understand exactly how learners engage with your content. Track plays, completions, quiz scores, and revenue with beautiful, exportable reports.",
+    color: "#10b981",
   },
   {
     icon: Globe,
-    title: "Custom Domains",
+    title: "Branded School Page",
     description:
-      "White-label your learning portal with a custom domain and branded experience for every organization.",
+      "Launch a fully branded public school page where students can browse your catalog, enroll, and access their courses — all under your name.",
+    color: AQUA,
+  },
+  {
+    icon: Zap,
+    title: "Marketing & Sales Tools",
+    description:
+      "Create discount coupons, run email campaigns, build sales funnels, and manage affiliate partners to grow your audience and revenue on autopilot.",
+    color: "#ef4444",
+  },
+  {
+    icon: Upload,
+    title: "SCORM & HTML5 Support",
+    description:
+      "Import any SCORM 1.2 or 2004 package, or raw HTML5 content. Teachific serves it securely with full LMS tracking, completion detection, and learner data persistence.",
+    color: "#8b5cf6",
   },
   {
     icon: Shield,
-    title: "Enterprise Security",
+    title: "Enterprise-Grade Security",
     description:
-      "Role-based access control, SSO support, content permissions, and audit logs keep your content safe.",
+      "Role-based access control, secure content delivery, per-file permissions, and session tracking ensure your content is always protected.",
+    color: "#0ea5e9",
+  },
+  {
+    icon: Layers,
+    title: "Bundles & Memberships",
+    description:
+      "Package courses into bundles, offer subscription memberships, and create recurring revenue streams that grow while you sleep.",
+    color: "#f97316",
   },
 ];
 
-const PLANS = [
-  { name: "Free", price: "$0", features: ["1 organization", "Basic hosting", "Community support"] },
-  { name: "Starter", price: "$29/mo", features: ["Custom branding", "5 courses", "Email support"] },
-  { name: "Builder", price: "$79/mo", features: ["Unlimited courses", "Webinars", "Priority support"] },
-  { name: "Pro", price: "$149/mo", features: ["Custom domain", "Advanced analytics", "API access"] },
-  { name: "Enterprise", price: "Custom", features: ["Dedicated support", "SLA guarantee", "Custom integrations"] },
+function FeaturesSection() {
+  return (
+    <section id="features" className="py-24 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <div
+            className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border"
+            style={{ color: TEAL, borderColor: `${TEAL}40`, background: `${TEAL}10` }}
+          >
+            Everything You Need
+          </div>
+          <h2
+            className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            One platform. Infinite possibilities.
+          </h2>
+          <p className="max-w-2xl mx-auto text-lg text-gray-500">
+            Stop juggling five different tools. Teachific brings your entire online education
+            business under one roof — from content creation to revenue collection.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {FEATURES.map((f) => {
+            const Icon = f.icon;
+            return (
+              <div
+                key={f.title}
+                className="group relative p-6 rounded-2xl border border-gray-100 bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+              >
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
+                  style={{ background: `${f.color}15` }}
+                >
+                  <Icon className="w-5 h-5" style={{ color: f.color }} />
+                </div>
+                <h3 className="text-base font-bold text-gray-900 mb-2">{f.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{f.description}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── How It Works ─────────────────────────────────────────────────────────────
+function HowItWorksSection() {
+  const steps = [
+    {
+      number: "01",
+      title: "Create Your School",
+      description:
+        "Sign up free and set up your branded school in minutes. Add your logo, choose your colors, and configure your public URL — no design skills needed.",
+      icon: Sparkles,
+    },
+    {
+      number: "02",
+      title: "Build Your Courses",
+      description:
+        "Upload videos, import SCORM packages, add quizzes, and organize your curriculum into sections. Use Teachific Studio™ to record and edit directly in the browser.",
+      icon: BookOpen,
+    },
+    {
+      number: "03",
+      title: "Enroll Your Students",
+      description:
+        "Invite learners directly, share your public school page, or sell access through our built-in checkout. Group enrollments and memberships make scaling effortless.",
+      icon: Users,
+    },
+    {
+      number: "04",
+      title: "Track & Grow",
+      description:
+        "Monitor engagement, completion rates, quiz performance, and revenue in real time. Export reports, run campaigns, and use the data to continuously improve.",
+      icon: TrendingUp,
+    },
+  ];
+
+  return (
+    <section id="how-it-works" className="py-24 bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <div
+            className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border"
+            style={{ color: TEAL, borderColor: `${TEAL}40`, background: `${TEAL}10` }}
+          >
+            Simple Process
+          </div>
+          <h2
+            className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            From idea to income in four steps
+          </h2>
+          <p className="max-w-xl mx-auto text-lg text-gray-500">
+            Teachific is designed to get you live fast — and keep growing with you as your school
+            scales.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {steps.map((step) => {
+            const Icon = step.icon;
+            return (
+              <div key={step.number} className="relative z-10 text-center">
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm"
+                  style={{
+                    background: `linear-gradient(135deg, ${TEAL}20, ${AQUA}20)`,
+                    border: `2px solid ${TEAL}30`,
+                  }}
+                >
+                  <Icon className="w-7 h-7" style={{ color: TEAL }} />
+                </div>
+                <div className="text-xs font-bold tracking-widest mb-2" style={{ color: TEAL }}>
+                  {step.number}
+                </div>
+                <h3 className="text-base font-bold text-gray-900 mb-2">{step.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{step.description}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Testimonials ─────────────────────────────────────────────────────────────
+function TestimonialsSection() {
+  const testimonials = [
+    {
+      quote:
+        "Teachific replaced three separate tools I was paying for. The SCORM support alone saved me hours every week, and my students love the clean learning experience.",
+      name: "Dr. Sarah Mitchell",
+      role: "Medical Education Director",
+      rating: 5,
+    },
+    {
+      quote:
+        "I launched my first course in under an hour. The analytics dashboard showed me exactly which lessons students were dropping off, so I could fix them fast.",
+      name: "James Okafor",
+      role: "Corporate Trainer",
+      rating: 5,
+    },
+    {
+      quote:
+        "The branded school page looks incredibly professional. My students can't believe I built it myself — they think I hired a developer.",
+      name: "Priya Sharma",
+      role: "Yoga & Wellness Instructor",
+      rating: 5,
+    },
+  ];
+
+  return (
+    <section className="py-24 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <h2
+            className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            Educators love Teachific
+          </h2>
+          <p className="text-lg text-gray-500">Real results from real creators.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {testimonials.map((t) => (
+            <div
+              key={t.name}
+              className="p-6 rounded-2xl border border-gray-100 bg-gray-50 flex flex-col"
+            >
+              <div className="flex gap-0.5 mb-4">
+                {Array.from({ length: t.rating }).map((_, i) => (
+                  <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                ))}
+              </div>
+              <p className="text-gray-700 text-sm leading-relaxed flex-1 mb-4">"{t.quote}"</p>
+              <div>
+                <div className="font-semibold text-gray-900 text-sm">{t.name}</div>
+                <div className="text-xs text-gray-400">{t.role}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Pricing ──────────────────────────────────────────────────────────────────
+type PricingTier = {
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  cta: string;
+  highlighted: boolean;
+  badge?: string;
+  features: string[];
+};
+
+const PRICING_TIERS: PricingTier[] = [
+  {
+    name: "Free",
+    price: "$0",
+    period: "forever",
+    description: "Perfect for getting started and exploring the platform.",
+    cta: "Get Started Free",
+    highlighted: false,
+    features: [
+      "1 course",
+      "Up to 25 students",
+      "Basic analytics",
+      "Public school page",
+      "Video lessons",
+      "Quiz builder",
+      "Email support",
+    ],
+  },
+  {
+    name: "Pro",
+    price: "$49",
+    period: "per month",
+    description: "For serious creators ready to build a real online school.",
+    cta: "Start Pro Free Trial",
+    highlighted: true,
+    badge: "Most Popular",
+    features: [
+      "Unlimited courses",
+      "Unlimited students",
+      "Advanced analytics & exports",
+      "SCORM 1.2 & 2004 support",
+      "Teachific Studio™ (record & edit)",
+      "Email campaigns",
+      "Coupons & discount codes",
+      "Memberships & bundles",
+      "Custom domain",
+      "Priority support",
+    ],
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    period: "contact us",
+    description: "For organizations with advanced compliance and scale needs.",
+    cta: "Contact Sales",
+    highlighted: false,
+    features: [
+      "Everything in Pro",
+      "White-label branding",
+      "SSO / SAML integration",
+      "Dedicated account manager",
+      "SLA uptime guarantee",
+      "Custom integrations",
+      "Bulk enrollment API",
+      "Advanced role permissions",
+      "Audit logs & compliance reports",
+    ],
+  },
 ];
 
+const COMPARISON_FEATURES = [
+  { feature: "Courses", free: "1", pro: "Unlimited", enterprise: "Unlimited" },
+  { feature: "Students", free: "25", pro: "Unlimited", enterprise: "Unlimited" },
+  { feature: "Video lessons", free: true, pro: true, enterprise: true },
+  { feature: "Quiz builder", free: true, pro: true, enterprise: true },
+  { feature: "Public school page", free: true, pro: true, enterprise: true },
+  { feature: "SCORM support", free: false, pro: true, enterprise: true },
+  { feature: "Teachific Studio™", free: false, pro: true, enterprise: true },
+  { feature: "Email campaigns", free: false, pro: true, enterprise: true },
+  { feature: "Coupons & discounts", free: false, pro: true, enterprise: true },
+  { feature: "Memberships & bundles", free: false, pro: true, enterprise: true },
+  { feature: "Advanced analytics", free: false, pro: true, enterprise: true },
+  { feature: "Custom domain", free: false, pro: true, enterprise: true },
+  { feature: "White-label branding", free: false, pro: false, enterprise: true },
+  { feature: "SSO / SAML", free: false, pro: false, enterprise: true },
+  { feature: "Dedicated support", false: false, pro: false, enterprise: true } as unknown as { feature: string; free: boolean | string; pro: boolean | string; enterprise: boolean | string },
+];
+
+function PricingSection() {
+  const loginUrl = getLoginUrl();
+  const signUpUrl = loginUrl.replace("type=signIn", "type=signUp");
+
+  return (
+    <section id="pricing" className="py-24 bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <div
+            className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border"
+            style={{ color: TEAL, borderColor: `${TEAL}40`, background: `${TEAL}10` }}
+          >
+            Simple Pricing
+          </div>
+          <h2
+            className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            Start free. Scale when you're ready.
+          </h2>
+          <p className="max-w-xl mx-auto text-lg text-gray-500">
+            No hidden fees. No long-term contracts. Cancel anytime.
+          </p>
+        </div>
+
+        {/* Pricing cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20 items-start">
+          {PRICING_TIERS.map((tier) => (
+            <div
+              key={tier.name}
+              className={`relative rounded-2xl p-8 flex flex-col ${
+                tier.highlighted
+                  ? "shadow-2xl border-2"
+                  : "border border-gray-200 bg-white"
+              }`}
+              style={
+                tier.highlighted
+                  ? {
+                      background: `linear-gradient(160deg, #fff 0%, ${TEAL}08 100%)`,
+                      borderColor: TEAL,
+                    }
+                  : {}
+              }
+            >
+              {tier.badge && (
+                <div
+                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-bold text-white shadow"
+                  style={{ background: `linear-gradient(135deg, ${TEAL}, ${AQUA})` }}
+                >
+                  {tier.badge}
+                </div>
+              )}
+
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-1">{tier.name}</h3>
+                <div className="flex items-baseline gap-1 mb-2">
+                  <span
+                    className="text-4xl font-extrabold"
+                    style={{
+                      color: tier.highlighted ? TEAL : "inherit",
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    }}
+                  >
+                    {tier.price}
+                  </span>
+                  <span className="text-sm text-gray-400">/ {tier.period}</span>
+                </div>
+                <p className="text-sm text-gray-500">{tier.description}</p>
+              </div>
+
+              <ul className="space-y-2.5 flex-1 mb-8">
+                {tier.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm text-gray-700">
+                    <CheckCircle2
+                      className="w-4 h-4 mt-0.5 shrink-0"
+                      style={{ color: TEAL }}
+                    />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <a
+                href={
+                  tier.name === "Enterprise"
+                    ? "mailto:hello@teachific.app"
+                    : signUpUrl
+                }
+                className={`w-full text-center py-3 px-6 rounded-xl text-sm font-bold transition-all block ${
+                  tier.highlighted
+                    ? "text-white shadow-md hover:shadow-lg hover:opacity-90"
+                    : "text-gray-700 border border-gray-200 bg-white hover:bg-gray-50"
+                }`}
+                style={
+                  tier.highlighted
+                    ? { background: `linear-gradient(135deg, ${TEAL}, ${AQUA})` }
+                    : {}
+                }
+              >
+                {tier.cta}
+              </a>
+            </div>
+          ))}
+        </div>
+
+        {/* Comparison table */}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+          <div className="px-6 py-5 border-b border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900">Full Feature Comparison</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left px-6 py-3 font-semibold text-gray-600 w-1/2">
+                    Feature
+                  </th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-600">Free</th>
+                  <th className="text-center px-4 py-3 font-bold" style={{ color: TEAL }}>
+                    Pro
+                  </th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-600">
+                    Enterprise
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARISON_FEATURES.map((row, i) => (
+                  <tr
+                    key={row.feature}
+                    className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}
+                  >
+                    <td className="px-6 py-3 text-gray-700">{row.feature}</td>
+                    {(["free", "pro", "enterprise"] as const).map((tier) => (
+                      <td key={tier} className="px-4 py-3 text-center">
+                        {typeof row[tier] === "boolean" ? (
+                          row[tier] ? (
+                            <CheckCircle2
+                              className="w-4 h-4 mx-auto"
+                              style={{ color: TEAL }}
+                            />
+                          ) : (
+                            <X className="w-4 h-4 mx-auto text-gray-300" />
+                          )
+                        ) : (
+                          <span
+                            className={`font-medium ${tier === "pro" ? "font-semibold" : ""}`}
+                            style={tier === "pro" ? { color: TEAL } : { color: "#4b5563" }}
+                          >
+                            {row[tier] as string}
+                          </span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Final CTA ────────────────────────────────────────────────────────────────
+function CtaSection() {
+  const loginUrl = getLoginUrl();
+  const signUpUrl = loginUrl.replace("type=signIn", "type=signUp");
+
+  return (
+    <section
+      className="py-24 relative overflow-hidden"
+      style={{ background: `linear-gradient(135deg, ${TEAL}, ${AQUA})` }}
+    >
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-white/10 blur-3xl" />
+      </div>
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <h2
+          className="text-4xl sm:text-5xl font-extrabold text-white mb-6 tracking-tight"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          Your school is waiting.
+          <br />
+          Start building today.
+        </h2>
+        <p className="text-xl text-white/80 mb-10 max-w-xl mx-auto">
+          Join thousands of educators who chose Teachific to share their expertise, grow their
+          audience, and build sustainable income from their knowledge.
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a
+            href={signUpUrl}
+            className="inline-flex items-center gap-2 text-base font-bold px-8 py-4 rounded-xl bg-white hover:bg-gray-50 shadow-lg transition-all hover:shadow-xl hover:scale-105"
+            style={{ color: TEAL }}
+          >
+            Create Your Free Account <ArrowRight className="w-4 h-4" />
+          </a>
+          <a
+            href={loginUrl}
+            className="inline-flex items-center gap-2 text-base font-semibold px-8 py-4 rounded-xl border-2 border-white/40 text-white hover:bg-white/10 transition-all"
+          >
+            Already have an account? Log In
+          </a>
+        </div>
+        <p className="mt-6 text-sm text-white/60">
+          Free forever. No credit card required. Upgrade anytime.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+// ─── Footer ───────────────────────────────────────────────────────────────────
+function LandingFooter() {
+  return (
+    <footer className="bg-gray-900 text-gray-400 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-8 mb-10">
+          <div className="sm:col-span-1">
+            <div
+              className="text-2xl font-extrabold mb-3"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              <span className="text-white">teach</span>
+              <span style={{ color: AQUA }}>ific</span>
+              <span className="text-white text-lg">™</span>
+            </div>
+            <p className="text-sm leading-relaxed">
+              The all-in-one platform for online educators, trainers, and course creators.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4">
+              Product
+            </h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <a href="#features" className="hover:text-white transition-colors">
+                  Features
+                </a>
+              </li>
+              <li>
+                <a href="#pricing" className="hover:text-white transition-colors">
+                  Pricing
+                </a>
+              </li>
+              <li>
+                <a href="#how-it-works" className="hover:text-white transition-colors">
+                  How It Works
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4">
+              Resources
+            </h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <a href="#" className="hover:text-white transition-colors">
+                  Documentation
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-white transition-colors">
+                  Blog
+                </a>
+              </li>
+              <li>
+                <a href="mailto:hello@teachific.app" className="hover:text-white transition-colors">
+                  Contact Us
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4">
+              Legal
+            </h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <a href="#" className="hover:text-white transition-colors">
+                  Privacy Policy
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:text-white transition-colors">
+                  Terms of Service
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-xs">© {new Date().getFullYear()} Teachific™. All rights reserved.</p>
+          <p className="text-xs">Built for educators, by educators.</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// ─── Main Export ──────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const { user, loading } = useAuth();
   const [, navigate] = useLocation();
 
-  // Set SEO title (30–60 characters)
   useEffect(() => {
-    document.title = "Teachific™ — Online Learning & LMS Platform";
+    document.title = "Teachific™ — Build & Sell Online Courses";
   }, []);
 
   // Redirect authenticated users to the dashboard
@@ -71,205 +944,21 @@ export default function LandingPage() {
     }
   }, [user, loading, navigate]);
 
-  if (loading) return null;
+  // While loading, show the page content (avoid blank flash)
+  // The useEffect above will redirect once auth state resolves
   if (user) return null;
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      {/* ── SEO meta keywords injected via useEffect on document.title ── */}
-
-      {/* ── Nav ── */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-xl font-bold text-slate-900">Teachific™</span>
-          </div>
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
-            <a href="#features" className="hover:text-teal-600 transition-colors">Features</a>
-            <a href="#pricing" className="hover:text-teal-600 transition-colors">Pricing</a>
-            <a href="#about" className="hover:text-teal-600 transition-colors">About</a>
-          </nav>
-          <div className="flex items-center gap-3">
-            <a href={getLoginUrl()} className="text-sm font-medium text-slate-600 hover:text-teal-600 transition-colors">
-              Sign in
-            </a>
-            <a href={getLoginUrl()}>
-              <Button className="bg-teal-600 hover:bg-teal-700 text-white text-sm px-4 py-2">
-                Get Started Free
-              </Button>
-            </a>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Hero ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-teal-50 via-white to-cyan-50 pt-20 pb-28 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold mb-6 border border-teal-200">
-            <Zap className="w-3 h-3" /> The all-in-one LMS for modern educators
-          </div>
-
-          {/* H1 — primary SEO heading */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 leading-tight tracking-tight mb-6">
-            Host, Manage &amp; Deliver{" "}
-            <span className="text-teal-600">Online Courses</span>{" "}
-            at Scale
-          </h1>
-
-          {/* H2 — secondary SEO heading */}
-          <h2 className="text-xl sm:text-2xl text-slate-600 font-normal max-w-2xl mx-auto mb-10 leading-relaxed">
-            Teachific™ is a powerful learning management system for hosting SCORM packages,
-            HTML5 content, video courses, webinars, and quizzes — with full analytics and
-            white-label branding.
-          </h2>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href={getLoginUrl()}>
-              <Button size="lg" className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-3 text-base font-semibold shadow-lg shadow-teal-200">
-                Start for Free <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-            </a>
-            <a href="#features">
-              <Button size="lg" variant="outline" className="border-slate-300 text-slate-700 px-8 py-3 text-base font-semibold">
-                <Play className="mr-2 w-4 h-4 text-teal-600" /> See Features
-              </Button>
-            </a>
-          </div>
-
-          {/* Social proof */}
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500">
-            {[
-              { icon: Users, label: "Multi-org support" },
-              { icon: Award, label: "Certificate issuance" },
-              { icon: Shield, label: "Enterprise security" },
-              { icon: Globe, label: "Custom domains" },
-            ].map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-1.5">
-                <Icon className="w-4 h-4 text-teal-500" />
-                <span>{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Features ── */}
-      <section id="features" className="py-24 px-4 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
-              Everything you need to run a world-class online school
-            </h2>
-            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-              From SCORM hosting and course building to webinars, quizzes, and revenue tracking —
-              Teachific™ covers every aspect of online education delivery.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="group p-6 rounded-2xl border border-slate-100 bg-white hover:border-teal-200 hover:shadow-lg hover:shadow-teal-50 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center mb-4 group-hover:bg-teal-100 transition-colors">
-                  <f.icon className="w-5 h-5 text-teal-600" />
-                </div>
-                <h3 className="text-base font-semibold text-slate-900 mb-2">{f.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{f.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Pricing ── */}
-      <section id="pricing" className="py-24 px-4 bg-slate-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
-              Simple, transparent pricing for every team size
-            </h2>
-            <p className="text-lg text-slate-500 max-w-xl mx-auto">
-              Start free and scale as your organization grows. No hidden fees, no long-term contracts.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {PLANS.map((plan, i) => (
-              <div
-                key={plan.name}
-                className={`rounded-2xl border p-6 flex flex-col gap-4 ${
-                  i === 2
-                    ? "border-teal-400 bg-teal-600 text-white shadow-xl shadow-teal-200 scale-105"
-                    : "border-slate-200 bg-white text-slate-900"
-                }`}
-              >
-                <div>
-                  <p className={`text-xs font-semibold uppercase tracking-widest mb-1 ${i === 2 ? "text-teal-200" : "text-teal-600"}`}>
-                    {plan.name}
-                  </p>
-                  <p className={`text-2xl font-bold ${i === 2 ? "text-white" : "text-slate-900"}`}>{plan.price}</p>
-                </div>
-                <ul className="space-y-2 flex-1">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm">
-                      <CheckCircle className={`w-4 h-4 mt-0.5 shrink-0 ${i === 2 ? "text-teal-200" : "text-teal-500"}`} />
-                      <span className={i === 2 ? "text-teal-50" : "text-slate-600"}>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <a href={getLoginUrl()}>
-                  <Button
-                    className={`w-full text-sm font-semibold ${
-                      i === 2
-                        ? "bg-white text-teal-700 hover:bg-teal-50"
-                        : "bg-teal-600 hover:bg-teal-700 text-white"
-                    }`}
-                  >
-                    Get Started
-                  </Button>
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── About / CTA ── */}
-      <section id="about" className="py-24 px-4 bg-gradient-to-br from-teal-600 to-cyan-600 text-white">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-6">
-            Ready to launch your online learning platform?
-          </h2>
-          <p className="text-lg text-teal-100 mb-10 leading-relaxed">
-            Join thousands of educators, training teams, and businesses using Teachific™ to deliver
-            engaging online courses, SCORM content, and live webinars — all from one place.
-          </p>
-          <a href={getLoginUrl()}>
-            <Button size="lg" className="bg-white text-teal-700 hover:bg-teal-50 px-10 py-3 text-base font-bold shadow-lg">
-              Create Your Free Account <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-          </a>
-        </div>
-      </section>
-
-      {/* ── Footer ── */}
-      <footer className="bg-slate-900 text-slate-400 py-12 px-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-teal-600 flex items-center justify-center">
-              <BookOpen className="w-3 h-3 text-white" />
-            </div>
-            <span className="text-sm font-semibold text-white">Teachific™</span>
-          </div>
-          <p className="text-xs text-slate-500">
-            © {new Date().getFullYear()} Teachific™. All rights reserved. Online LMS &amp; SCORM hosting platform.
-          </p>
-          <div className="flex gap-4 text-xs">
-            <a href="/login" className="hover:text-teal-400 transition-colors">Sign In</a>
-            <a href="/register" className="hover:text-teal-400 transition-colors">Register</a>
-          </div>
-        </div>
-      </footer>
+    <div className="min-h-screen bg-white">
+      <LandingNav />
+      <HeroSection />
+      <StatsSection />
+      <FeaturesSection />
+      <HowItWorksSection />
+      <TestimonialsSection />
+      <PricingSection />
+      <CtaSection />
+      <LandingFooter />
     </div>
   );
 }

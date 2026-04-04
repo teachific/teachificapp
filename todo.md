@@ -1802,3 +1802,13 @@
 - [x] BUG: WebsitePage (Marketing > Website) had hardcoded "All About Ultrasound" placeholder text — fixed to load real org name/description from DB
 - [x] BUG: Clicking "Settings" sidebar item navigated to /settings which returned 404 — added redirect /settings → /lms/settings
 - [x] BUG: Clicking "Platform Admin" sidebar item navigated to /admin which returned 404 — added redirect /admin → /platform-admin
+
+## Marketing Landing Page (Sales Page)
+- [x] Write all ad copy: hero headline, subheadline, value propositions, feature descriptions, social proof, CTA copy
+- [x] Build LandingPage component: hero, features grid, how-it-works, pricing/comparison table, testimonials, footer CTA
+- [x] Route /: logged-out users see LandingPage; logged-in users redirect to /lms dashboard
+- [x] Add public nav bar with logo, nav links, Login and Sign Up buttons
+- [x] Add pricing section with Free / Pro / Enterprise tiers and feature comparison table
+- [x] Add Sign Up CTA buttons throughout the page
+- [ ] Stripe checkout integration (pending user providing Stripe app credentials)
+- [ ] Save checkpoint and deliver
