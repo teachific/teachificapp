@@ -210,7 +210,7 @@ function HeroSection() {
                   </div>
                   <div className="rounded-lg border border-gray-100 p-3 bg-gray-50 h-24">
                     <div className="text-xs text-gray-400 mb-2">Top Courses</div>
-                    {["Advanced Cardiac Echo", "OBGyn Fundamentals"].map((c) => (
+                    {["Introduction to Python", "Digital Marketing 101"].map((c) => (
                       <div key={c} className="flex items-center gap-2 mb-1">
                         <div className="w-2 h-2 rounded-full" style={{ background: TEAL }} />
                         <div className="text-xs text-gray-600 truncate">{c}</div>
@@ -546,13 +546,12 @@ const PRICING_TIERS: PricingTier[] = [
     name: "Free",
     price: "$0",
     period: "forever",
-    description: "Perfect for getting started and exploring the platform.",
+    description: "Explore the platform and publish your first course at no cost.",
     cta: "Get Started Free",
     highlighted: false,
     features: [
       "1 course",
-      "Up to 25 students",
-      "Basic analytics",
+      "Up to 100 MB storage",
       "Public school page",
       "Video lessons",
       "Quiz builder",
@@ -560,63 +559,100 @@ const PRICING_TIERS: PricingTier[] = [
     ],
   },
   {
-    name: "Pro",
-    price: "$49",
+    name: "Starter",
+    price: "$39",
     period: "per month",
-    description: "For serious creators ready to build a real online school.",
-    cta: "Start Pro Free Trial",
+    description: "For new creators ready to sell their first courses and memberships.",
+    cta: "Start Free Trial",
+    highlighted: false,
+    features: [
+      "Up to 5 courses",
+      "Up to 3 admins",
+      "500 MB storage",
+      "1 membership tier",
+      "SCORM 1.2 & 2004 support",
+      "Teachific Studio™",
+      "3% transaction fee",
+    ],
+  },
+  {
+    name: "Builder",
+    price: "$99",
+    period: "per month",
+    description: "For growing schools with a community and multiple instructors.",
+    cta: "Start Free Trial",
     highlighted: true,
     badge: "Most Popular",
     features: [
-      "Unlimited courses",
-      "Unlimited students",
-      "Advanced analytics & exports",
-      "SCORM 1.2 & 2004 support",
-      "Teachific Studio™ (record & edit)",
-      "Email campaigns",
-      "Coupons & discount codes",
-      "Memberships & bundles",
+      "Up to 20 courses",
+      "Up to 500 students",
+      "500 GB storage",
+      "3 membership tiers",
+      "Community access",
       "Custom domain",
-      "Priority support",
+      "White-label branding",
+      "1% transaction fee",
+    ],
+  },
+  {
+    name: "Pro",
+    price: "$199",
+    period: "per month",
+    description: "For established schools that need advanced analytics, email marketing, and scale.",
+    cta: "Start Free Trial",
+    highlighted: false,
+    features: [
+      "Up to 50 courses",
+      "Up to 10,000 students",
+      "1 TB storage",
+      "10 membership tiers",
+      "Email campaigns",
+      "Deep analytics & exports",
+      "Affiliate platform",
+      "SSO / SAML",
+      "No transaction fees",
     ],
   },
   {
     name: "Enterprise",
     price: "Custom",
     period: "contact us",
-    description: "For organizations with advanced compliance and scale needs.",
+    description: "For organizations with advanced compliance, custom integrations, and unlimited scale.",
     cta: "Contact Sales",
     highlighted: false,
     features: [
-      "Everything in Pro",
-      "White-label branding",
-      "SSO / SAML integration",
+      "Unlimited everything",
+      "5 TB storage",
       "Dedicated account manager",
+      "Custom onboarding & training",
       "SLA uptime guarantee",
-      "Custom integrations",
-      "Bulk enrollment API",
-      "Advanced role permissions",
+      "Custom integrations & API",
       "Audit logs & compliance reports",
+      "No transaction fees",
     ],
   },
 ];
 
-const COMPARISON_FEATURES = [
-  { feature: "Courses", free: "1", pro: "Unlimited", enterprise: "Unlimited" },
-  { feature: "Students", free: "25", pro: "Unlimited", enterprise: "Unlimited" },
-  { feature: "Video lessons", free: true, pro: true, enterprise: true },
-  { feature: "Quiz builder", free: true, pro: true, enterprise: true },
-  { feature: "Public school page", free: true, pro: true, enterprise: true },
-  { feature: "SCORM support", free: false, pro: true, enterprise: true },
-  { feature: "Teachific Studio™", free: false, pro: true, enterprise: true },
-  { feature: "Email campaigns", free: false, pro: true, enterprise: true },
-  { feature: "Coupons & discounts", free: false, pro: true, enterprise: true },
-  { feature: "Memberships & bundles", free: false, pro: true, enterprise: true },
-  { feature: "Advanced analytics", free: false, pro: true, enterprise: true },
-  { feature: "Custom domain", free: false, pro: true, enterprise: true },
-  { feature: "White-label branding", free: false, pro: false, enterprise: true },
-  { feature: "SSO / SAML", free: false, pro: false, enterprise: true },
-  { feature: "Dedicated support", false: false, pro: false, enterprise: true } as unknown as { feature: string; free: boolean | string; pro: boolean | string; enterprise: boolean | string },
+type ComparisonRow = { feature: string; free: boolean | string; starter: boolean | string; builder: boolean | string; pro: boolean | string; enterprise: boolean | string };
+const COMPARISON_FEATURES: ComparisonRow[] = [
+  { feature: "Courses", free: "1", starter: "5", builder: "20", pro: "50", enterprise: "Unlimited" },
+  { feature: "Students", free: "Unlimited", starter: "Unlimited", builder: "500", pro: "10,000", enterprise: "Unlimited" },
+  { feature: "Storage", free: "100 MB", starter: "500 MB", builder: "500 GB", pro: "1 TB", enterprise: "5 TB" },
+  { feature: "Video lessons", free: true, starter: true, builder: true, pro: true, enterprise: true },
+  { feature: "Quiz builder", free: true, starter: true, builder: true, pro: true, enterprise: true },
+  { feature: "Public school page", free: true, starter: true, builder: true, pro: true, enterprise: true },
+  { feature: "SCORM support", free: false, starter: true, builder: true, pro: true, enterprise: true },
+  { feature: "Teachific Studio™", free: false, starter: true, builder: true, pro: true, enterprise: true },
+  { feature: "Membership tiers", free: "0", starter: "1", builder: "3", pro: "10", enterprise: "Unlimited" },
+  { feature: "Community", free: false, starter: false, builder: true, pro: true, enterprise: true },
+  { feature: "Custom domain", free: false, starter: false, builder: true, pro: true, enterprise: true },
+  { feature: "White-label branding", free: false, starter: false, builder: true, pro: true, enterprise: true },
+  { feature: "Email campaigns", free: false, starter: false, builder: false, pro: true, enterprise: true },
+  { feature: "Deep analytics", free: false, starter: false, builder: false, pro: true, enterprise: true },
+  { feature: "Affiliate platform", free: false, starter: false, builder: false, pro: true, enterprise: true },
+  { feature: "SSO / SAML", free: false, starter: false, builder: false, pro: true, enterprise: true },
+  { feature: "Transaction fee", free: "0%", starter: "3%", builder: "1%", pro: "0%", enterprise: "0%" },
+  { feature: "Dedicated support", free: false, starter: false, builder: false, pro: false, enterprise: true },
 ];
 
 function PricingSection() {
@@ -645,7 +681,7 @@ function PricingSection() {
         </div>
 
         {/* Pricing cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-20 items-start">
           {PRICING_TIERS.map((tier) => (
             <div
               key={tier.name}
@@ -705,6 +741,8 @@ function PricingSection() {
                 href={
                   tier.name === "Enterprise"
                     ? "mailto:hello@teachific.app"
+                    : tier.name === "Free"
+                    ? signUpUrl
                     : signUpUrl
                 }
                 className={`w-full text-center py-3 px-6 rounded-xl text-sm font-bold transition-all block ${
@@ -733,16 +771,14 @@ function PricingSection() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-6 py-3 font-semibold text-gray-600 w-1/2">
+                  <th className="text-left px-6 py-3 font-semibold text-gray-600 w-1/3">
                     Feature
                   </th>
-                  <th className="text-center px-4 py-3 font-semibold text-gray-600">Free</th>
-                  <th className="text-center px-4 py-3 font-bold" style={{ color: TEAL }}>
-                    Pro
-                  </th>
-                  <th className="text-center px-4 py-3 font-semibold text-gray-600">
-                    Enterprise
-                  </th>
+                  <th className="text-center px-3 py-3 font-semibold text-gray-600">Free</th>
+                  <th className="text-center px-3 py-3 font-semibold text-gray-600">Starter</th>
+                  <th className="text-center px-3 py-3 font-bold" style={{ color: TEAL }}>Builder</th>
+                  <th className="text-center px-3 py-3 font-semibold text-gray-600">Pro</th>
+                  <th className="text-center px-3 py-3 font-semibold text-gray-600">Enterprise</th>
                 </tr>
               </thead>
               <tbody>
@@ -752,7 +788,7 @@ function PricingSection() {
                     className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}
                   >
                     <td className="px-6 py-3 text-gray-700">{row.feature}</td>
-                    {(["free", "pro", "enterprise"] as const).map((tier) => (
+                    {(["free", "starter", "builder", "pro", "enterprise"] as const).map((tier) => (
                       <td key={tier} className="px-4 py-3 text-center">
                         {typeof row[tier] === "boolean" ? (
                           row[tier] ? (

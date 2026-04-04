@@ -86,7 +86,7 @@ export default function BundlesPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent><DialogHeader><DialogTitle>New Bundle</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Bundle Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Echo Mastery Bundle" /></div>
+            <div className="space-y-2"><Label>Bundle Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Course Mastery Bundle" /></div>
             <div className="space-y-2"><Label>Description</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} /></div>
             <div className="space-y-2"><Label>Price ($) *</Label><Input type="number" min="0" step="0.01" value={price} onChange={e => setPrice(e.target.value)} placeholder="299.00" /></div>
             <div className="flex items-center justify-between"><Label>Active</Label><Switch checked={isActive} onCheckedChange={setIsActive} /></div>

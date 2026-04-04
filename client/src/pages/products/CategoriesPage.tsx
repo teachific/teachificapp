@@ -133,7 +133,7 @@ export default function CategoriesPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>New Category</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Cardiology, POCUS Basics" /></div>
+            <div className="space-y-2"><Label>Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Science, Digital Marketing" /></div>
             {name && <p className="text-xs text-muted-foreground">Slug: /{toSlug(name)}</p>}
             <div className="space-y-2"><Label>Description</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" rows={2} /></div>
             <ColorPicker value={color} onChange={setColor} />

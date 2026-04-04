@@ -11,8 +11,8 @@ import { GitBranch, Plus, Eye, ArrowRight } from "lucide-react";
 interface Funnel { id: number; name: string; steps: number; visitors: number; conversions: number; active: boolean; }
 
 const MOCK: Funnel[] = [
-  { id: 1, name: "Echo Fundamentals Launch", steps: 4, visitors: 342, conversions: 28, active: true },
-  { id: 2, name: "Free POCUS Webinar Signup", steps: 3, visitors: 189, conversions: 67, active: true },
+  { id: 1, name: "Course Launch Funnel", steps: 4, visitors: 342, conversions: 28, active: true },
+  { id: 2, name: "Free Webinar Signup", steps: 3, visitors: 189, conversions: 67, active: true },
   { id: 3, name: "Pro Membership Upsell", steps: 2, visitors: 98, conversions: 12, active: false },
 ];
 
@@ -50,7 +50,7 @@ export default function FunnelsPage() {
       <Dialog open={show} onOpenChange={setShow}>
         <DialogContent><DialogHeader><DialogTitle>New Funnel</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Funnel Name</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Echo Fundamentals Launch" /></div>
+            <div className="space-y-2"><Label>Funnel Name</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Course Launch Funnel" /></div>
             <p className="text-xs text-muted-foreground">After creating the funnel, use the funnel builder to add landing pages, opt-in forms, and follow-up sequences.</p>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setShow(false)}>Cancel</Button><Button onClick={() => { if (!name.trim()) { toast.error("Name required"); return; } setFunnels(p => [{ id: Date.now(), name, steps: 0, visitors: 0, conversions: 0, active: true }, ...p]); setShow(false); setName(""); toast.success("Funnel created"); }}>Create Funnel</Button></DialogFooter>

@@ -340,7 +340,7 @@ export default function UploadPage() {
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
-                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. OBGYN Registry Review" />
+                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Introduction to Data Science" />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="desc">Description</Label>

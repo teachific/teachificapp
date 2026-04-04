@@ -356,7 +356,7 @@ function DeckEditor({ deck, orgId, onBack }: { deck: FlashDeck; orgId: number; o
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label>Topic <span className="text-destructive">*</span></Label>
-              <Input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="e.g. Cardiac anatomy, ECG interpretation..." />
+              <Input value={aiTopic} onChange={e => setAiTopic(e.target.value)} placeholder="e.g. World History, Python programming..." />
             </div>
             <div className="space-y-1.5">
               <Label>Number of cards</Label>
@@ -481,7 +481,7 @@ export default function FlashcardsPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label>Deck Title <span className="text-destructive">*</span></Label>
-              <Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. Cardiac Anatomy Terms" />
+              <Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. Biology Vocabulary Terms" />
             </div>
             <div className="space-y-1.5">
               <Label>Description <span className="text-muted-foreground text-xs">(optional)</span></Label>

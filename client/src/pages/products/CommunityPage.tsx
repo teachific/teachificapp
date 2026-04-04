@@ -312,7 +312,7 @@ export default function CommunityPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label className="text-slate-800">Community Name <span className="text-red-500">*</span></Label>
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Echo Learning Community" className="bg-white border-gray-300 text-slate-900" />
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Online Learning Community" className="bg-white border-gray-300 text-slate-900" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-slate-800">Tagline</Label>

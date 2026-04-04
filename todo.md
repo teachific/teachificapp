@@ -2114,3 +2114,11 @@
 - [x] Added beforeunload handler — shows native browser "Leave site?" dialog when recording is active
 - [x] Added visibilitychange handler — auto-stops and saves recording when tab becomes hidden
 - [x] Uses existing autoSaveRecording path (recorder.onstop fires and uploads to Media Library)
+
+## Bug Fix: Landing Page Subscription Options + Content Cleanup
+- [x] Audited pricing section — was showing only 3 wrong tiers (Free, $49 Pro, Enterprise)
+- [x] Fixed to show all 5 correct tiers: Free, Starter ($39), Builder ($99), Pro ($199), Enterprise
+- [x] Updated comparison table to include all 5 tiers with correct feature matrix
+- [x] Removed all ultrasound/echo/cardiac/POCUS/OBGyn references across all pages
+- [x] Replaced with generic education examples (Python, Digital Marketing, World History, etc.)
+- [x] Verified pricing matches stripePlans.ts definitions

@@ -168,9 +168,9 @@ const COMPARISON_ROWS = [
 const TESTIMONIALS = [
   {
     quote:
-      "The hotspot question editor is unlike anything else on the market. I can annotate an echocardiogram image and turn it into an interactive question in under two minutes.",
+      "The hotspot question editor is unlike anything else on the market. I can annotate any diagram or image and turn it into an interactive question in under two minutes.",
     name: "Dr. M. Chen",
-    title: "Clinical Educator, Cardiology",
+    title: "Clinical Educator, Medical Sciences",
   },
   {
     quote:
