@@ -1189,6 +1189,13 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
     };
   }, [mode, cameraEnabled, selectedCamera]);
 
+  // Re-attach camera stream whenever the video element is swapped (full-size ↔ bubble)
+  useEffect(() => {
+    if (cameraVideoRef.current && cameraStreamRef.current) {
+      cameraVideoRef.current.srcObject = cameraStreamRef.current;
+    }
+  });
+
   const startRecording = useCallback(async (preAcquiredScreenStream?: MediaStream) => {
     try {
       const streams: MediaStream[] = [];
@@ -1404,13 +1411,19 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
 
         {/* Preview area */}
         <div ref={containerRef} className="relative bg-black rounded-2xl overflow-hidden aspect-video w-full max-w-4xl mx-auto">
+          {/* Screen feed — only shown when actually recording/sharing screen */}
           {(mode === "screen" || mode === "screen+camera") && (
             <video ref={screenVideoRef} autoPlay muted playsInline className="w-full h-full object-contain" />
           )}
+          {/* Camera-only mode: always full-size */}
           {mode === "camera" && (
             <video ref={cameraVideoRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
           )}
-          {mode === "screen+camera" && cameraEnabled && (
+          {/* Screen+Camera: show camera full-size in idle/stopped (no screen yet), bubble when recording */}
+          {mode === "screen+camera" && cameraEnabled && !isRecording && recordState !== "countdown" && (
+            <video ref={cameraVideoRef} autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
+          )}
+          {mode === "screen+camera" && cameraEnabled && (isRecording || recordState === "countdown") && (
             <div
               className="absolute rounded-full overflow-hidden border-2 border-white shadow-lg cursor-move select-none"
               style={{ left: cameraPos.x, top: cameraPos.y, width: cameraSize, height: cameraSize }}

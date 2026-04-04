@@ -2090,4 +2090,6 @@
 - [x] Request camera with explicit video constraints (720p ideal, 30fps)
 - [x] Ensure camera video element is not behind a dark overlay
 - [x] Added subtle "Camera ready" badge at bottom of preview (non-blocking)
+- [x] Fixed screen+camera mode: camera now shows full-size in idle/stopped state (not just small bubble)
+- [x] Added useEffect to re-attach camera stream when video element swaps between full-size and bubble
 - [ ] Test camera preview appears bright and clear (manual test required)
