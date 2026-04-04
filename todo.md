@@ -2076,3 +2076,10 @@
 - [x] Fix state management so recordState resets properly after auto-save
 - [x] Ensure "New Recording" / "Record Again" button works after save
 - [x] Ensure download, delete, and edit buttons on saved recordings work
+
+## Bug Fix: Transcription Fails — FFmpeg Unavailable in Production
+- [x] Fix voiceTranscription.ts to send webm directly to Whisper API (webm IS supported)
+- [x] Remove hard dependency on FFmpeg for audio extraction
+- [x] Try FFmpeg extraction first (if available), fall back to sending video file directly
+- [x] Fix "Invalid file format" error — normalize video/webm → audio/webm MIME type for Whisper
+- [ ] Test transcription end-to-end on a real recording (manual test required)

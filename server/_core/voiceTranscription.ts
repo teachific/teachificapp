@@ -35,10 +35,10 @@ import * as path from "path";
 const execFileAsync = promisify(execFile);
 
 /**
- * Extract audio from a video file using FFmpeg.
- * Returns a Buffer of the extracted MP3 audio, or null if FFmpeg is unavailable.
+ * Try to extract audio from a video file using FFmpeg (optional — graceful fallback if unavailable).
+ * Returns a Buffer of the extracted MP3 audio, or null if FFmpeg is unavailable or fails.
  */
-async function extractAudioFromVideo(videoBuffer: Buffer, inputMime: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
+async function tryExtractAudioFromVideo(videoBuffer: Buffer, inputMime: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
   try {
     const ext = inputMime.includes("mp4") ? ".mp4" : inputMime.includes("webm") ? ".webm" : ".video";
     const tmpIn = path.join(os.tmpdir(), `transcribe-in-${Date.now()}${ext}`);
@@ -50,6 +50,7 @@ async function extractAudioFromVideo(videoBuffer: Buffer, inputMime: string): Pr
     await fs.promises.unlink(tmpOut).catch(() => {});
     return { buffer: audioBuffer, mimeType: "audio/mpeg" };
   } catch {
+    // FFmpeg unavailable or failed — caller will fall back to direct submission
     return null;
   }
 }
@@ -92,6 +93,47 @@ export type TranscriptionError = {
 };
 
 /**
+ * Normalize MIME type for Whisper API submission.
+ * Whisper accepts: flac, m4a, mp3, mp4, mpeg, mpga, oga, ogg, wav, webm
+ * Key fix: video/webm → audio/webm (same container, Whisper handles it fine)
+ * Key fix: video/mp4 → audio/mp4 (same container, Whisper handles it fine)
+ */
+function normalizeAudioMime(mimeType: string): { mime: string; ext: string } {
+  // Whisper-supported MIME types and their extensions
+  const supported: Record<string, string> = {
+    "audio/webm": "webm",
+    "audio/mp4": "mp4",
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/wav": "wav",
+    "audio/wave": "wav",
+    "audio/ogg": "ogg",
+    "audio/oga": "oga",
+    "audio/flac": "flac",
+    "audio/m4a": "m4a",
+    "audio/mpga": "mpga",
+  };
+
+  // Direct match
+  if (supported[mimeType]) {
+    return { mime: mimeType, ext: supported[mimeType] };
+  }
+
+  // video/webm → audio/webm (webm container with audio track — Whisper supports this)
+  if (mimeType === "video/webm") {
+    return { mime: "audio/webm", ext: "webm" };
+  }
+
+  // video/mp4 → audio/mp4
+  if (mimeType === "video/mp4" || mimeType === "video/mpeg") {
+    return { mime: "audio/mp4", ext: "mp4" };
+  }
+
+  // Default fallback: treat as webm (most browser recordings are webm)
+  return { mime: "audio/webm", ext: "webm" };
+}
+
+/**
  * Transcribe audio to text using the internal Speech-to-Text service
  * 
  * @param options - Audio data and metadata
@@ -117,7 +159,7 @@ export async function transcribeAudio(
       };
     }
 
-    // Step 2: Download audio from URL
+    // Step 2: Download audio/video from URL
     let audioBuffer: Buffer;
     let mimeType: string;
     try {
@@ -131,34 +173,9 @@ export async function transcribeAudio(
       }
       
       audioBuffer = Buffer.from(await response.arrayBuffer());
-      // Normalize content-type: strip charset params, handle video/* types from S3/CDN
-      const rawContentType = response.headers.get('content-type') || 'audio/mpeg';
+      // Normalize content-type: strip charset params
+      const rawContentType = response.headers.get('content-type') || 'audio/webm';
       mimeType = rawContentType.split(';')[0].trim();
-      
-      // If the file is a video (or > 16MB), extract audio track via FFmpeg first
-      const isVideo = mimeType.startsWith("video/");
-      const sizeMB = audioBuffer.length / (1024 * 1024);
-      if (isVideo || sizeMB > 16) {
-        const extracted = await extractAudioFromVideo(audioBuffer, mimeType);
-        if (extracted) {
-          audioBuffer = extracted.buffer;
-          mimeType = extracted.mimeType;
-        } else if (isVideo) {
-          // FFmpeg unavailable and file is a video — cannot send video directly to Whisper
-          return {
-            error: "Cannot extract audio from video: FFmpeg is unavailable",
-            code: "SERVICE_ERROR",
-            details: "FFmpeg is required to extract audio from video files"
-          };
-        } else if (sizeMB > 16) {
-          // FFmpeg unavailable and file is too large
-          return {
-            error: "Audio file exceeds maximum size limit",
-            code: "FILE_TOO_LARGE",
-            details: `File size is ${sizeMB.toFixed(2)}MB, maximum allowed is 16MB`
-          };
-        }
-      }
     } catch (error) {
       return {
         error: "Failed to fetch audio file",
@@ -167,18 +184,53 @@ export async function transcribeAudio(
       };
     }
 
-    // Step 3: Create FormData for multipart upload to Whisper API
+    // Step 3: Prepare audio for Whisper API
+    // Strategy:
+    //   A) If FFmpeg is available AND file is large (>16MB): extract MP3 to reduce size
+    //   B) If FFmpeg is available AND file is video: optionally extract for cleaner audio
+    //   C) If FFmpeg is unavailable OR file is small: send directly with normalized MIME type
+    //      (video/webm → audio/webm, video/mp4 → audio/mp4 — Whisper handles these fine)
+    const sizeMB = audioBuffer.length / (1024 * 1024);
+    const isVideo = mimeType.startsWith("video/");
+
+    if (sizeMB > 16) {
+      // File exceeds 16MB — try FFmpeg extraction to compress
+      const extracted = await tryExtractAudioFromVideo(audioBuffer, mimeType);
+      if (extracted) {
+        audioBuffer = extracted.buffer;
+        mimeType = extracted.mimeType;
+        console.log(`[transcribeAudio] FFmpeg extracted audio: ${(audioBuffer.length / 1024 / 1024).toFixed(1)}MB MP3`);
+      } else {
+        // FFmpeg unavailable — try sending directly anyway (Whisper may handle it)
+        console.warn(`[transcribeAudio] File is ${sizeMB.toFixed(1)}MB and FFmpeg unavailable — sending directly`);
+      }
+    } else if (isVideo) {
+      // Video file under 16MB — try FFmpeg first for cleaner audio, but fall back gracefully
+      const extracted = await tryExtractAudioFromVideo(audioBuffer, mimeType);
+      if (extracted) {
+        audioBuffer = extracted.buffer;
+        mimeType = extracted.mimeType;
+        console.log(`[transcribeAudio] FFmpeg extracted audio from video`);
+      } else {
+        // FFmpeg unavailable — normalize MIME type and send video container directly
+        // Whisper supports webm and mp4 containers natively
+        console.log(`[transcribeAudio] FFmpeg unavailable — sending ${mimeType} directly to Whisper`);
+      }
+    }
+
+    // Step 4: Normalize MIME type for Whisper API compatibility
+    const { mime: finalMime, ext: finalExt } = normalizeAudioMime(mimeType);
+    const filename = `audio.${finalExt}`;
+
+    console.log(`[transcribeAudio] Sending to Whisper: ${filename} (${finalMime}), size=${(audioBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+
+    // Step 5: Create FormData for multipart upload to Whisper API
     const formData = new FormData();
-    
-    // Create a Blob from the buffer and append to form
-    const filename = `audio.${getFileExtension(mimeType)}`;
-    const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
+    const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: finalMime });
     formData.append("file", audioBlob, filename);
-    
     formData.append("model", "whisper-1");
     formData.append("response_format", "verbose_json");
     
-    // Add prompt - use custom prompt if provided, otherwise generate based on language
     const prompt = options.prompt || (
       options.language 
         ? `Transcribe the user's voice to text, the user's working language is ${getLanguageName(options.language)}`
@@ -186,15 +238,16 @@ export async function transcribeAudio(
     );
     formData.append("prompt", prompt);
 
-    // Step 4: Call the transcription service
+    if (options.language) {
+      formData.append("language", options.language);
+    }
+
+    // Step 6: Call the transcription service
     const baseUrl = ENV.forgeApiUrl.endsWith("/")
       ? ENV.forgeApiUrl
       : `${ENV.forgeApiUrl}/`;
     
-    const fullUrl = new URL(
-      "v1/audio/transcriptions",
-      baseUrl
-    ).toString();
+    const fullUrl = new URL("v1/audio/transcriptions", baseUrl).toString();
 
     const response = await fetch(fullUrl, {
       method: "POST",
@@ -214,10 +267,9 @@ export async function transcribeAudio(
       };
     }
 
-    // Step 5: Parse and return the transcription result
+    // Step 7: Parse and return the transcription result
     const whisperResponse = await response.json() as WhisperResponse;
     
-    // Validate response structure
     if (!whisperResponse.text || typeof whisperResponse.text !== 'string') {
       return {
         error: "Invalid transcription response",
@@ -226,39 +278,15 @@ export async function transcribeAudio(
       };
     }
 
-    return whisperResponse; // Return native Whisper API response directly
+    return whisperResponse;
 
   } catch (error) {
-    // Handle unexpected errors
     return {
       error: "Voice transcription failed",
       code: "SERVICE_ERROR",
       details: error instanceof Error ? error.message : "An unexpected error occurred"
     };
   }
-}
-
-/**
- * Helper function to get file extension from MIME type
- */
-function getFileExtension(mimeType: string): string {
-  const mimeToExt: Record<string, string> = {
-    'audio/webm': 'webm',
-    'audio/mp3': 'mp3',
-    'audio/mpeg': 'mp3',
-    'audio/wav': 'wav',
-    'audio/wave': 'wav',
-    'audio/ogg': 'ogg',
-    'audio/m4a': 'm4a',
-    'audio/mp4': 'm4a',
-    'audio/flac': 'flac',
-    // Video types (should be extracted by FFmpeg before reaching here, but fallback)
-    'video/webm': 'webm',
-    'video/mp4': 'mp4',
-    'video/mpeg': 'mpeg',
-  };
-  
-  return mimeToExt[mimeType] || 'mp3';
 }
 
 /**
@@ -289,45 +317,3 @@ function getLanguageName(langCode: string): string {
   
   return langMap[langCode] || langCode;
 }
-
-/**
- * Example tRPC procedure implementation:
- * 
- * ```ts
- * // In server/routers.ts
- * import { transcribeAudio } from "./_core/voiceTranscription";
- * 
- * export const voiceRouter = router({
- *   transcribe: protectedProcedure
- *     .input(z.object({
- *       audioUrl: z.string(),
- *       language: z.string().optional(),
- *       prompt: z.string().optional(),
- *     }))
- *     .mutation(async ({ input, ctx }) => {
- *       const result = await transcribeAudio(input);
- *       
- *       // Check if it's an error
- *       if ('error' in result) {
- *         throw new TRPCError({
- *           code: 'BAD_REQUEST',
- *           message: result.error,
- *           cause: result,
- *         });
- *       }
- *       
- *       // Optionally save transcription to database
- *       await db.insert(transcriptions).values({
- *         userId: ctx.user.id,
- *         text: result.text,
- *         duration: result.duration,
- *         language: result.language,
- *         audioUrl: input.audioUrl,
- *         createdAt: new Date(),
- *       });
- *       
- *       return result;
- *     }),
- * });
- * ```
- */

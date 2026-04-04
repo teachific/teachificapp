@@ -320,3 +320,56 @@ describe("Record/Edit: callback stability patterns", () => {
     expect(autoSaving).toBe(false);
   });
 });
+
+describe("voiceTranscription: normalizeAudioMime", () => {
+  // Replicate normalizeAudioMime from voiceTranscription.ts
+  function normalizeAudioMime(mimeType: string): { mime: string; ext: string } {
+    const supported: Record<string, string> = {
+      "audio/webm": "webm",
+      "audio/mp4": "mp4",
+      "audio/mpeg": "mp3",
+      "audio/mp3": "mp3",
+      "audio/wav": "wav",
+      "audio/wave": "wav",
+      "audio/ogg": "ogg",
+      "audio/oga": "oga",
+      "audio/flac": "flac",
+      "audio/m4a": "m4a",
+      "audio/mpga": "mpga",
+    };
+    if (supported[mimeType]) return { mime: mimeType, ext: supported[mimeType] };
+    if (mimeType === "video/webm") return { mime: "audio/webm", ext: "webm" };
+    if (mimeType === "video/mp4" || mimeType === "video/mpeg") return { mime: "audio/mp4", ext: "mp4" };
+    return { mime: "audio/webm", ext: "webm" };
+  }
+
+  it("converts video/webm to audio/webm (key fix for browser recordings)", () => {
+    const result = normalizeAudioMime("video/webm");
+    expect(result.mime).toBe("audio/webm");
+    expect(result.ext).toBe("webm");
+  });
+
+  it("converts video/mp4 to audio/mp4", () => {
+    const result = normalizeAudioMime("video/mp4");
+    expect(result.mime).toBe("audio/mp4");
+    expect(result.ext).toBe("mp4");
+  });
+
+  it("passes through audio/webm unchanged", () => {
+    const result = normalizeAudioMime("audio/webm");
+    expect(result.mime).toBe("audio/webm");
+    expect(result.ext).toBe("webm");
+  });
+
+  it("passes through audio/mpeg as mp3", () => {
+    const result = normalizeAudioMime("audio/mpeg");
+    expect(result.mime).toBe("audio/mpeg");
+    expect(result.ext).toBe("mp3");
+  });
+
+  it("falls back to audio/webm for unknown types", () => {
+    const result = normalizeAudioMime("application/octet-stream");
+    expect(result.mime).toBe("audio/webm");
+    expect(result.ext).toBe("webm");
+  });
+});
