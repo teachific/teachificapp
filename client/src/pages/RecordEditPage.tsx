@@ -1168,7 +1168,9 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
   useEffect(() => {
     if (mode !== "screen" && cameraEnabled) {
       const constraints: MediaStreamConstraints = {
-        video: selectedCamera ? { deviceId: selectedCamera } : true,
+        video: selectedCamera
+          ? { deviceId: { exact: selectedCamera }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }
+          : { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
         audio: false,
       };
       navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
@@ -1417,10 +1419,18 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
               <video ref={cameraVideoRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
             </div>
           )}
-          {recordState === "idle" && (
+          {/* Subtle ready badge when camera is live but not yet recording */}
+          {recordState === "idle" && mode !== "screen" && cameraEnabled && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm">
+              <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-white/80 text-xs font-medium">Camera ready — click Start Recording</span>
+            </div>
+          )}
+          {/* Show idle placeholder only when no live camera feed is visible */}
+          {recordState === "idle" && (mode === "screen" || !cameraEnabled) && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60">
               <div className="h-16 w-16 rounded-full bg-white/10 flex items-center justify-center">
-                <Video className="h-8 w-8 text-white/60" />
+                {mode === "screen" ? <Monitor className="h-8 w-8 text-white/60" /> : <Video className="h-8 w-8 text-white/60" />}
               </div>
               <p className="text-white/60 text-sm">Click Start Recording to begin</p>
             </div>

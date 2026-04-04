@@ -2083,3 +2083,11 @@
 - [x] Try FFmpeg extraction first (if available), fall back to sending video file directly
 - [x] Fix "Invalid file format" error — normalize video/webm → audio/webm MIME type for Whisper
 - [ ] Test transcription end-to-end on a real recording (manual test required)
+
+## Bug Fix: Camera Preview Dim and Dark in Recording Studio
+- [x] Find camera preview video element in RecordEditPage
+- [x] Fix dim camera: removed bg-black/60 overlay that covered the camera feed in idle state
+- [x] Request camera with explicit video constraints (720p ideal, 30fps)
+- [x] Ensure camera video element is not behind a dark overlay
+- [x] Added subtle "Camera ready" badge at bottom of preview (non-blocking)
+- [ ] Test camera preview appears bright and clear (manual test required)
