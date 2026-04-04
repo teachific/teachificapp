@@ -2093,3 +2093,8 @@
 - [x] Fixed screen+camera mode: camera now shows full-size in idle/stopped state (not just small bubble)
 - [x] Added useEffect to re-attach camera stream when video element swaps between full-size and bubble
 - [ ] Test camera preview appears bright and clear (manual test required)
+
+## Bug Fix: Camera Preview Has Black Bars on Sides
+- [x] Fix camera video element: wrap in absolute-positioned div, apply scaleX(-1) to wrapper not video
+- [x] Add aspectRatio: 16/9 to getUserMedia constraints to prevent 4:3 camera streams causing black bars
+- [x] Ensure mirror transform doesn't clip video via overflow-hidden on parent container

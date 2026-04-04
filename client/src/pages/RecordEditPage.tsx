@@ -1167,12 +1167,11 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
 
   useEffect(() => {
     if (mode !== "screen" && cameraEnabled) {
-      const constraints: MediaStreamConstraints = {
-        video: selectedCamera
-          ? { deviceId: { exact: selectedCamera }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }
-          : { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
-        audio: false,
-      };
+      // Request 16:9 aspect ratio explicitly to prevent black bars from 4:3 camera streams
+      const videoConstraints: MediaTrackConstraints = selectedCamera
+        ? { deviceId: { exact: selectedCamera }, width: { ideal: 1280 }, height: { ideal: 720 }, aspectRatio: { ideal: 16 / 9 }, frameRate: { ideal: 30 } }
+        : { width: { ideal: 1280 }, height: { ideal: 720 }, aspectRatio: { ideal: 16 / 9 }, frameRate: { ideal: 30 } };
+      const constraints: MediaStreamConstraints = { video: videoConstraints, audio: false };
       navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
         cameraStreamRef.current = stream;
         if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream;
@@ -1417,11 +1416,17 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
           )}
           {/* Camera-only mode: always full-size */}
           {mode === "camera" && (
-            <video ref={cameraVideoRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
+            <div style={{ position: "absolute", inset: 0, transform: "scaleX(-1)", transformOrigin: "center" }}>
+              <video ref={cameraVideoRef} autoPlay muted playsInline
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            </div>
           )}
           {/* Screen+Camera: show camera full-size in idle/stopped (no screen yet), bubble when recording */}
           {mode === "screen+camera" && cameraEnabled && !isRecording && recordState !== "countdown" && (
-            <video ref={cameraVideoRef} autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
+            <div style={{ position: "absolute", inset: 0, transform: "scaleX(-1)", transformOrigin: "center" }}>
+              <video ref={cameraVideoRef} autoPlay muted playsInline
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            </div>
           )}
           {mode === "screen+camera" && cameraEnabled && (isRecording || recordState === "countdown") && (
             <div
@@ -1429,7 +1434,8 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
               style={{ left: cameraPos.x, top: cameraPos.y, width: cameraSize, height: cameraSize }}
               onMouseDown={handleCameraMouseDown}
             >
-              <video ref={cameraVideoRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
+              <video ref={cameraVideoRef} autoPlay muted playsInline
+                style={{ transform: "scaleX(-1)", width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             </div>
           )}
           {/* Subtle ready badge when camera is live but not yet recording */}
