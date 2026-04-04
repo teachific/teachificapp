@@ -110,6 +110,7 @@ import { formsRouter } from "./formsRouter";
 import { customAuthRouter } from "./customAuthRouter";
 import { communityRouter } from "./communityRouter";
 import { stripeRouter } from "./stripeRouter";
+import { authoringRouter } from "./authoringRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { ENV } from "./_core/env";
 
@@ -145,6 +146,7 @@ export const appRouter = router({
   forms: formsRouter,
   community: communityRouter,
   billing: stripeRouter,
+  authoring: authoringRouter,
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   auth: router({

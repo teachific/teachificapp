@@ -112,6 +112,9 @@ import QuizCreatorDashboard from "./pages/QuizCreatorDashboard";
 import QuizCreatorLandingPage from "./pages/QuizCreatorLandingPage";
 import StudioDashboard from "./pages/StudioDashboard";
 import StudioLandingPage from "./pages/StudioLandingPage";
+import CreatorDashboardPage from "./pages/CreatorDashboardPage";
+import CreatorEditorPage from "./pages/CreatorEditorPage";
+import CreatorLandingPage from "./pages/CreatorLandingPage";
 // Auth pages (no sidebar)
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
@@ -162,6 +165,10 @@ function BareRouter() {
       <Route path="/studio" component={StudioDashboard} />
       {/* Teachific Studio sales/marketing page */}
       <Route path="/studio-pro" component={StudioLandingPage} />
+      {/* TeachificCreator™ — eLearning authoring tool */}
+      <Route path="/creator-pro" component={CreatorLandingPage} />
+      <Route path="/creator" component={CreatorDashboardPage} />
+      <Route path="/creator/:projectId" component={CreatorEditorPage} />
     </Switch>
   );
 }

@@ -25,7 +25,7 @@ const upload = multer({
     destination: (_req, _file, cb) => cb(null, tmpdir()),
     filename: (_req, file, cb) => cb(null, `teachific-upload-${nanoid(12)}-${file.originalname}`),
   }),
-  limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // 2 GB hard cap
+  limits: { fileSize: 3 * 1024 * 1024 * 1024 }, // 3 GB hard cap
 });
 
 // ── In-memory SSE progress map ────────────────────────────────────────────────

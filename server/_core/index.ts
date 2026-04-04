@@ -38,17 +38,17 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
-  // Increase timeout to 10 minutes for large file uploads (458 MB+)
-  server.timeout = 10 * 60 * 1000;
-  server.keepAliveTimeout = 10 * 60 * 1000;
-  server.headersTimeout = 10 * 60 * 1000 + 5000;
+  // Increase timeout to 30 minutes for large file uploads (up to 3 GB)
+  server.timeout = 30 * 60 * 1000;
+  server.keepAliveTimeout = 30 * 60 * 1000;
+  server.headersTimeout = 30 * 60 * 1000 + 5000;
 
   // Stripe webhook MUST be before express.json() for raw body signature verification
   app.use("/api/stripe", stripeWebhookRouter);
 
   // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(express.json({ limit: "3gb" }));
+  app.use(express.urlencoded({ limit: "3gb", extended: true }));
 
   // Allow embed pages and content to be framed by any external site
   app.use((req, res, next) => {

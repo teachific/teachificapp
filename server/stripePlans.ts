@@ -8,6 +8,7 @@ import { ENV } from "./_core/env";
 // ─── Plan Limits ─────────────────────────────────────────────────────────────
 export type PlanTier = "free" | "starter" | "builder" | "pro" | "enterprise";
 export type StudioTier = "free" | "creator" | "pro" | "team";
+export type CreatorTier = "none" | "starter" | "pro" | "team";
 
 export interface PlanLimits {
   name: string;
@@ -289,6 +290,55 @@ export async function ensureStripePlans(): Promise<void> {
       });
     }
     STRIPE_PRICE_IDS[`studio_${tier}_annual`] = annualPrice.id;
+  }
+
+  // TeachificCreator™ plans
+  const creatorPaidTiers: Array<"starter" | "pro" | "team"> = ["starter", "pro", "team"];
+  const creatorPlans: Record<"starter" | "pro" | "team", { name: string; monthlyPrice: number; annualPrice: number }> = {
+    starter: { name: "TeachificCreator Starter", monthlyPrice: 2900, annualPrice: 27900 },
+    pro: { name: "TeachificCreator Pro", monthlyPrice: 5900, annualPrice: 56900 },
+    team: { name: "TeachificCreator Team", monthlyPrice: 14900, annualPrice: 143900 },
+  };
+
+  for (const tier of creatorPaidTiers) {
+    const plan = creatorPlans[tier];
+    const products = await stripe.products.list({ limit: 100 });
+    let product = products.data.find((p) => p.metadata?.creator_tier === tier);
+    if (!product) {
+      product = await stripe.products.create({
+        name: plan.name,
+        description: `TeachificCreator™ ${tier} plan`,
+        metadata: { creator_tier: tier, product_type: "creator" },
+      });
+    }
+    const existingPrices = await stripe.prices.list({ product: product.id, limit: 100 });
+    let monthlyPrice = existingPrices.data.find(
+      (p) => p.recurring?.interval === "month" && p.metadata?.creator_tier === tier && p.active
+    );
+    if (!monthlyPrice) {
+      monthlyPrice = await stripe.prices.create({
+        product: product.id,
+        unit_amount: plan.monthlyPrice,
+        currency: "usd",
+        recurring: { interval: "month" },
+        metadata: { creator_tier: tier, interval: "monthly", product_type: "creator" },
+      });
+    }
+    STRIPE_PRICE_IDS[`creator_${tier}_monthly`] = monthlyPrice.id;
+
+    let annualPrice = existingPrices.data.find(
+      (p) => p.recurring?.interval === "year" && p.metadata?.creator_tier === tier && p.active
+    );
+    if (!annualPrice) {
+      annualPrice = await stripe.prices.create({
+        product: product.id,
+        unit_amount: plan.annualPrice,
+        currency: "usd",
+        recurring: { interval: "year" },
+        metadata: { creator_tier: tier, interval: "annual", product_type: "creator" },
+      });
+    }
+    STRIPE_PRICE_IDS[`creator_${tier}_annual`] = annualPrice.id;
   }
 
   console.log("[Stripe] Plans initialized:", Object.keys(STRIPE_PRICE_IDS));

@@ -34,6 +34,8 @@ export const users = mysqlTable("users", {
   quizCreatorRole: mysqlEnum("quizCreatorRole", ["none", "lite", "premium"]).default("none").notNull(),
   // Teachific Studio standalone product access role
   studioRole: mysqlEnum("studioRole", ["none", "creator", "pro", "team"]).default("none").notNull(),
+  // TeachificCreator™ standalone product access role
+  creatorRole: mysqlEnum("creatorRole", ["none", "starter", "pro", "team"]).default("none").notNull(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -1877,3 +1879,50 @@ export const orgPaymentSettings = mysqlTable("org_payment_settings", {
 });
 export type OrgPaymentSettings = typeof orgPaymentSettings.$inferSelect;
 export type InsertOrgPaymentSettings = typeof orgPaymentSettings.$inferInsert;
+
+// ── Teachific Author: eLearning Authoring Tool ─────────────────────────────
+
+export const authoringProjects = mysqlTable("authoringProjects", {
+  id: bigint("id", { mode: "number" }).primaryKey().autoincrement(),
+  orgId: bigint("orgId", { mode: "number" }).notNull(),
+  userId: bigint("userId", { mode: "number" }).notNull(),
+  title: varchar("title", { length: 255 }).notNull().default("Untitled Project"),
+  description: text("description"),
+  // Project settings JSON: { theme, player, width, height, language, passingScore }
+  settingsJson: text("settingsJson"),
+  // Thumbnail URL
+  thumbnailUrl: varchar("thumbnailUrl", { length: 1024 }),
+  // Status: draft | published
+  status: mysqlEnum("status", ["draft", "published"]).default("draft").notNull(),
+  // Last published SCORM package URL
+  lastPublishedUrl: varchar("lastPublishedUrl", { length: 1024 }),
+  // Last published format: scorm12 | scorm2004 | html5
+  lastPublishedFormat: mysqlEnum("lastPublishedFormat", ["scorm12", "scorm2004", "html5"]),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type AuthoringProject = typeof authoringProjects.$inferSelect;
+export type InsertAuthoringProject = typeof authoringProjects.$inferInsert;
+
+export const authoringSlides = mysqlTable("authoringSlides", {
+  id: bigint("id", { mode: "number" }).primaryKey().autoincrement(),
+  projectId: bigint("projectId", { mode: "number" }).notNull(),
+  slideIndex: int("slideIndex").notNull().default(0),
+  title: varchar("title", { length: 255 }).notNull().default("Slide"),
+  // Slide type: content | quiz | interaction | scenario | video
+  slideType: mysqlEnum("slideType", ["content", "quiz", "interaction", "scenario", "video"]).default("content").notNull(),
+  // Full slide content as JSON (blocks array)
+  contentJson: text("contentJson"),
+  // Slide layout: blank | title | title-content | two-column | image-text | full-image
+  layout: varchar("layout", { length: 64 }).default("title-content").notNull(),
+  // Background color or image URL
+  background: varchar("background", { length: 512 }),
+  // Slide notes / speaker notes
+  notes: text("notes"),
+  // Branching: next slide override (null = sequential)
+  nextSlideId: bigint("nextSlideId", { mode: "number" }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type AuthoringSlide = typeof authoringSlides.$inferSelect;
+export type InsertAuthoringSlide = typeof authoringSlides.$inferInsert;

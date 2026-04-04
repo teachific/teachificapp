@@ -22,7 +22,7 @@ import { getPackageById, updatePackage } from "./db";
 import { sdk } from "./_core/sdk";
 import { ENV } from "./_core/env";
 
-const LARGE_FILE_LIMIT = 100 * 1024 * 1024; // 100 MB
+const LARGE_FILE_LIMIT = 3 * 1024 * 1024 * 1024; // 3 GB
 
 const router = express.Router();
 
@@ -66,7 +66,7 @@ router.post("/version/:packageId/initiate", express.json(), async (req: Request,
     }
     if (!isOwner) {
       return res.status(403).json({
-        error: "File size is restricted to 100 MB.",
+        error: "File size is restricted to 3 GB.",
       });
     }
   }

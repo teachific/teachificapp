@@ -1035,8 +1035,8 @@ function UploadTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0];
-    const maxSize = 500 * 1024 * 1024; // 500 MB
-    if (file.size > maxSize) { toast.error("File too large — maximum 500 MB"); return; }
+    const maxSize = 3 * 1024 * 1024 * 1024; // 3 GB
+    if (file.size > maxSize) { toast.error("File too large — maximum 3 GB"); return; }
 
     setUploading(true);
     setProgress(0);
@@ -1134,7 +1134,7 @@ function UploadTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
           <>
             <div className="text-center">
               <p className="text-sm font-medium">Drop a video here or click to browse</p>
-              <p className="text-xs text-muted-foreground mt-1">MP4, MOV, WebM, AVI, MKV, MP3, WAV · Max 500 MB</p>
+              <p className="text-xs text-muted-foreground mt-1">MP4, MOV, WebM, AVI, MKV, MP3, WAV · Max 3 GB</p>
             </div>
           </>
         )}
@@ -1604,8 +1604,8 @@ function UploadAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item:
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0];
-    const maxSize = 100 * 1024 * 1024; // 100 MB for audio
-    if (file.size > maxSize) { toast.error("File too large — maximum 100 MB for audio"); return; }
+    const maxSize = 3 * 1024 * 1024 * 1024; // 3 GB for audio
+    if (file.size > maxSize) { toast.error("File too large — maximum 3 GB for audio"); return; }
     if (!file.type.startsWith("audio/")) { toast.error("Please select an audio file (MP3, WAV, M4A, OGG, WebM)"); return; }
 
     setUploading(true);
@@ -1684,7 +1684,7 @@ function UploadAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item:
         ) : (
           <div className="text-center">
             <p className="text-sm font-medium">Drop an audio file here or click to browse</p>
-            <p className="text-xs text-muted-foreground mt-1">MP3, WAV, M4A, OGG, WebM · Max 100 MB</p>
+            <p className="text-xs text-muted-foreground mt-1">MP3, WAV, M4A, OGG, WebM · Max 3 GB</p>
           </div>
         )}
       </div>

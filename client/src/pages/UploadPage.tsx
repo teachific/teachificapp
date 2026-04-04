@@ -90,8 +90,8 @@ export default function UploadPage() {
       toast.error("Only ZIP files are supported");
       return;
     }
-    if (selectedFile.size > 2 * 1024 * 1024 * 1024) {
-      toast.error("File size must be under 2 GB");
+    if (selectedFile.size > 3 * 1024 * 1024 * 1024) {
+      toast.error("File size must be under 3 GB");
       return;
     }
     setFile(selectedFile);
@@ -300,7 +300,7 @@ export default function UploadPage() {
                     <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">Maximum file size: 500 MB</p>
+                <p className="text-xs text-muted-foreground">Maximum file size: 3 GB</p>
               </div>
             </div>
           </CardContent>

@@ -252,9 +252,9 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
   const [progress, setProgress] = useState<{ done: number; total: number; phase: string } | null>(null);
   const utils = trpc.useUtils();
   const { user } = useAuth();
-  // Only site_owner and site_admin can upload files over 100 MB
+  // Only site_owner and site_admin can upload files over 3 GB
   const canUploadLarge = user?.role === "site_owner" || user?.role === "site_admin";
-  const FILE_SIZE_LIMIT = 100 * 1024 * 1024; // 100 MB
+  const FILE_SIZE_LIMIT = 3 * 1024 * 1024 * 1024; // 3 GB
 
   const handleUpload = async () => {
     if (!file) return;
@@ -421,7 +421,7 @@ function UploadNewVersion({ packageId, onSuccess }: { packageId: number; onSucce
             <div className="mt-1 space-y-1">
               <p className="text-xs text-muted-foreground">{file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)</p>
               {!canUploadLarge && file.size > FILE_SIZE_LIMIT && (
-                <p className="text-xs text-destructive font-medium">File size is restricted to 100 MB.</p>
+                <p className="text-xs text-destructive font-medium">File size is restricted to 3 GB.</p>
               )}
             </div>
           )}

@@ -1,0 +1,647 @@
+import { useState } from "react";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  CheckCircle2,
+  Layers,
+  Zap,
+  FileDown,
+  BrainCircuit,
+  GitBranch,
+  MousePointerClick,
+  BarChart3,
+  Users,
+  Globe,
+  Lock,
+  Play,
+  ChevronRight,
+  Star,
+  Sparkles,
+  BookOpen,
+  PenTool,
+  Video,
+  Image,
+  ListChecks,
+  ArrowRight,
+} from "lucide-react";
+
+// ─── Pricing tiers ────────────────────────────────────────────────────────────
+const TIERS = [
+  {
+    id: "starter",
+    name: "Starter",
+    badge: null,
+    monthlyPrice: 29,
+    annualPrice: 279,
+    description: "Perfect for solo course creators and freelancers.",
+    features: [
+      "Up to 10 active projects",
+      "Slide editor with 20+ layouts",
+      "Quiz & assessment builder",
+      "SCORM 1.2 export",
+      "HTML5 standalone export",
+      "Basic interactions (tabs, accordion)",
+      "1 GB media storage",
+      "Email support",
+    ],
+    cta: "Start Free Trial",
+    highlight: false,
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    badge: "Most Popular",
+    monthlyPrice: 59,
+    annualPrice: 569,
+    description: "For professional instructional designers and small teams.",
+    features: [
+      "Unlimited projects",
+      "All Starter features",
+      "SCORM 2004 export",
+      "Branching scenarios & dialogue trees",
+      "Advanced interactions (hotspot, timeline, drag-drop)",
+      "Video & audio narration recording",
+      "Publish directly to Teachific LMS",
+      "AI slide content generator",
+      "10 GB media storage",
+      "Priority support",
+    ],
+    cta: "Start Free Trial",
+    highlight: true,
+  },
+  {
+    id: "team",
+    name: "Team",
+    badge: null,
+    monthlyPrice: 149,
+    annualPrice: 1439,
+    description: "For L&D teams that need collaboration and brand control.",
+    features: [
+      "Everything in Pro",
+      "Up to 10 team seats",
+      "Shared asset library",
+      "Brand kit (colors, fonts, logos)",
+      "Co-editing & comments",
+      "Custom player themes",
+      "50 GB media storage",
+      "Dedicated success manager",
+    ],
+    cta: "Start Free Trial",
+    highlight: false,
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    badge: null,
+    monthlyPrice: null,
+    annualPrice: null,
+    description: "For large organizations with custom requirements.",
+    features: [
+      "Everything in Team",
+      "Unlimited seats",
+      "SSO / SAML integration",
+      "On-premise deployment option",
+      "Custom SLA & uptime guarantee",
+      "Unlimited storage",
+      "White-label player",
+      "Dedicated onboarding & training",
+    ],
+    cta: "Contact Sales",
+    highlight: false,
+  },
+];
+
+const FEATURES = [
+  {
+    icon: Layers,
+    title: "Drag-and-Drop Slide Editor",
+    desc: "Build pixel-perfect slides with a rich canvas. Add text, images, video, shapes, and hotspots with intuitive drag-and-drop controls.",
+  },
+  {
+    icon: ListChecks,
+    title: "Quiz & Assessment Builder",
+    desc: "Create 7 question types: MCQ, True/False, Matching, Hotspot, Fill-in-Blank, Short Answer, and Image Choice — all with scoring and feedback.",
+  },
+  {
+    icon: GitBranch,
+    title: "Branching Scenarios",
+    desc: "Design non-linear learning paths with dialogue trees and conditional branching. Let learners experience consequences of their choices.",
+  },
+  {
+    icon: MousePointerClick,
+    title: "Interactive Elements",
+    desc: "Engage learners with tabs, accordions, timelines, flip cards, drag-and-drop activities, and hotspot images — no coding required.",
+  },
+  {
+    icon: FileDown,
+    title: "SCORM 1.2 & 2004 Export",
+    desc: "Publish standards-compliant SCORM packages that work with any LMS. Full xAPI/Tin Can support coming soon.",
+  },
+  {
+    icon: Globe,
+    title: "HTML5 Standalone Export",
+    desc: "Export a self-contained HTML5 package that runs in any browser — no LMS required. Perfect for embedding on websites.",
+  },
+  {
+    icon: Zap,
+    title: "Publish to Teachific LMS",
+    desc: "One-click publishing directly to your Teachific school. Your course is live and trackable in seconds.",
+  },
+  {
+    icon: BrainCircuit,
+    title: "AI Content Generator",
+    desc: "Generate slide outlines, quiz questions, and narration scripts from a topic description using built-in AI assistance.",
+  },
+  {
+    icon: Video,
+    title: "Video & Audio Narration",
+    desc: "Record screen, camera, or audio directly in the browser. Add captions automatically with AI transcription.",
+  },
+  {
+    icon: Image,
+    title: "Media Library",
+    desc: "Organize images, videos, and audio clips in a centralized library. Search, tag, and reuse assets across all projects.",
+  },
+  {
+    icon: PenTool,
+    title: "Custom Themes & Branding",
+    desc: "Apply your brand colors, fonts, and logo to every course. Save themes and apply them across your entire project library.",
+  },
+  {
+    icon: BarChart3,
+    title: "Preview & Review Mode",
+    desc: "Preview your course exactly as learners will see it. Share a review link with stakeholders for feedback before publishing.",
+  },
+];
+
+const TESTIMONIALS = [
+  {
+    name: "Sarah K.",
+    role: "Instructional Designer",
+    company: "HealthLearn Inc.",
+    quote:
+      "TeachificCreator™ replaced iSpring Suite for our entire team. The SCORM export is flawless and the branching scenario builder is incredibly intuitive.",
+    stars: 5,
+  },
+  {
+    name: "Marcus T.",
+    role: "L&D Manager",
+    company: "TechCorp Global",
+    quote:
+      "We migrated 200+ courses to TeachificCreator™ in a month. The direct publish to Teachific LMS saves us hours every week.",
+    stars: 5,
+  },
+  {
+    name: "Priya M.",
+    role: "Freelance eLearning Developer",
+    company: "Self-employed",
+    quote:
+      "As a solo creator, the Starter plan gives me everything I need. The quiz builder alone is worth the subscription price.",
+    stars: 5,
+  },
+];
+
+export default function CreatorLandingPage() {
+  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+
+  return (
+    <div className="min-h-screen bg-[#0a0f1e] text-white font-sans">
+      {/* ── Nav ─────────────────────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0f1e]/90 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <Link href="/">
+              <span className="text-xl font-bold tracking-tight">
+                <span className="text-white">Teachific</span>
+                <span className="text-[#4ad9e0]">Creator</span>
+                <sup className="text-[10px] text-[#4ad9e0] ml-0.5">™</sup>
+              </span>
+            </Link>
+            <div className="hidden md:flex items-center gap-6 text-sm text-white/70">
+              <a href="#features" className="hover:text-white transition-colors">Features</a>
+              <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+              <a href="#testimonials" className="hover:text-white transition-colors">Reviews</a>
+              <Link href="/creator" className="hover:text-white transition-colors">Dashboard</Link>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/creator">
+              <Button variant="ghost" size="sm" className="text-white/70 hover:text-white">
+                Sign In
+              </Button>
+            </Link>
+            <Link href="/creator">
+              <Button size="sm" className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold">
+                Start Free Trial
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* ── Hero ────────────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden pt-24 pb-32 px-6">
+        {/* Background glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-[#189aa1]/20 rounded-full blur-[120px]" />
+        </div>
+
+        <div className="relative max-w-4xl mx-auto text-center">
+          <Badge className="mb-6 bg-[#189aa1]/20 text-[#4ad9e0] border-[#189aa1]/40 text-sm px-4 py-1">
+            <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+            The web-based iSpring alternative
+          </Badge>
+
+          <h1 className="text-5xl md:text-7xl font-extrabold leading-tight tracking-tight mb-6">
+            Author{" "}
+            <span className="bg-gradient-to-r from-[#189aa1] to-[#4ad9e0] bg-clip-text text-transparent">
+              SCORM Courses
+            </span>
+            <br />
+            Right in Your Browser
+          </h1>
+
+          <p className="text-xl text-white/70 max-w-2xl mx-auto mb-10 leading-relaxed">
+            TeachificCreator™ is a powerful, web-based eLearning authoring tool. Build interactive
+            slides, quizzes, branching scenarios, and publish to SCORM 1.2, SCORM 2004, or HTML5 —
+            no desktop software required.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/creator">
+              <Button size="lg" className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-bold px-8 h-14 text-base">
+                Start Building for Free
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </Link>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/10 h-14 text-base px-8"
+            >
+              <Play className="mr-2 w-5 h-5 fill-current" />
+              Watch Demo
+            </Button>
+          </div>
+
+          <p className="mt-5 text-sm text-white/40">
+            14-day free trial · No credit card required · Cancel anytime
+          </p>
+        </div>
+
+        {/* Mock editor preview */}
+        <div className="relative max-w-5xl mx-auto mt-16">
+          <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-[#189aa1]/10 bg-[#111827]">
+            {/* Toolbar bar */}
+            <div className="h-10 bg-[#0d1424] border-b border-white/10 flex items-center px-4 gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500/60" />
+              <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
+              <div className="w-3 h-3 rounded-full bg-green-500/60" />
+              <div className="ml-4 flex-1 h-5 bg-white/5 rounded text-xs text-white/30 flex items-center px-3">
+                TeachificCreator™ — Module 1: Introduction to eLearning
+              </div>
+            </div>
+            {/* Editor layout */}
+            <div className="flex h-[380px]">
+              {/* Slide panel */}
+              <div className="w-48 bg-[#0d1424] border-r border-white/10 p-3 flex flex-col gap-2 overflow-hidden">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <div
+                    key={n}
+                    className={`rounded-lg h-20 border flex items-center justify-center text-xs font-medium ${
+                      n === 1
+                        ? "border-[#189aa1] bg-[#189aa1]/10 text-[#4ad9e0]"
+                        : "border-white/10 bg-white/5 text-white/30"
+                    }`}
+                  >
+                    Slide {n}
+                  </div>
+                ))}
+              </div>
+              {/* Canvas */}
+              <div className="flex-1 bg-[#1a2236] flex items-center justify-center relative">
+                <div className="w-[480px] h-[270px] bg-gradient-to-br from-[#0d2a3a] to-[#0a1628] rounded-xl border border-white/10 shadow-xl flex flex-col items-center justify-center gap-4 p-8">
+                  <div className="w-full h-6 bg-white/10 rounded-full" />
+                  <div className="w-3/4 h-4 bg-white/6 rounded-full" />
+                  <div className="w-1/2 h-4 bg-white/6 rounded-full" />
+                  <div className="mt-4 flex gap-3">
+                    <div className="w-24 h-8 bg-[#189aa1]/40 rounded-lg" />
+                    <div className="w-24 h-8 bg-white/10 rounded-lg" />
+                  </div>
+                </div>
+              </div>
+              {/* Properties panel */}
+              <div className="w-56 bg-[#0d1424] border-l border-white/10 p-4 flex flex-col gap-3">
+                <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Properties</p>
+                {["Background", "Font", "Animation", "Timing", "Branching"].map((prop) => (
+                  <div key={prop} className="flex items-center justify-between">
+                    <span className="text-xs text-white/50">{prop}</span>
+                    <div className="w-16 h-4 bg-white/10 rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Stats ───────────────────────────────────────────────────────────── */}
+      <section className="border-y border-white/10 bg-white/5 py-10 px-6">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          {[
+            { value: "50,000+", label: "Courses Created" },
+            { value: "7", label: "Question Types" },
+            { value: "SCORM 1.2 & 2004", label: "Export Standards" },
+            { value: "14-day", label: "Free Trial" },
+          ].map((s) => (
+            <div key={s.label}>
+              <p className="text-2xl md:text-3xl font-extrabold text-[#4ad9e0]">{s.value}</p>
+              <p className="text-sm text-white/50 mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Features ────────────────────────────────────────────────────────── */}
+      <section id="features" className="py-24 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <Badge className="mb-4 bg-[#189aa1]/20 text-[#4ad9e0] border-[#189aa1]/40">
+              Everything You Need
+            </Badge>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
+              Built for Instructional Designers
+            </h2>
+            <p className="text-lg text-white/60 max-w-2xl mx-auto">
+              Every feature you need to create world-class eLearning — without leaving your browser.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {FEATURES.map((f) => (
+              <Card key={f.title} className="bg-white/5 border-white/10 hover:border-[#189aa1]/40 transition-colors">
+                <CardContent className="p-6">
+                  <div className="w-10 h-10 rounded-lg bg-[#189aa1]/20 flex items-center justify-center mb-4">
+                    <f.icon className="w-5 h-5 text-[#4ad9e0]" />
+                  </div>
+                  <h3 className="font-bold text-white mb-2">{f.title}</h3>
+                  <p className="text-sm text-white/60 leading-relaxed">{f.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Comparison ──────────────────────────────────────────────────────── */}
+      <section className="py-16 px-6 bg-white/5 border-y border-white/10">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-extrabold text-center mb-10">
+            TeachificCreator™ vs. Desktop Authoring Tools
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="text-left py-3 px-4 text-white/60 font-medium">Feature</th>
+                  <th className="py-3 px-4 text-[#4ad9e0] font-bold">TeachificCreator™</th>
+                  <th className="py-3 px-4 text-white/40 font-medium">iSpring Suite</th>
+                  <th className="py-3 px-4 text-white/40 font-medium">Articulate 360</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["Web-based (no install)", true, false, false],
+                  ["SCORM 1.2 & 2004 export", true, true, true],
+                  ["HTML5 export", true, true, true],
+                  ["Branching scenarios", true, true, true],
+                  ["Direct LMS publish", true, false, false],
+                  ["AI content generation", true, false, false],
+                  ["Team collaboration", true, false, true],
+                  ["Starting price/mo", "$29", "$770/yr", "$1,299/yr"],
+                ].map(([feature, tc, ispring, art], i) => (
+                  <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                    <td className="py-3 px-4 text-white/70">{feature}</td>
+                    {[tc, ispring, art].map((val, j) => (
+                      <td key={j} className="py-3 px-4 text-center">
+                        {typeof val === "boolean" ? (
+                          val ? (
+                            <CheckCircle2 className="w-5 h-5 text-[#4ad9e0] mx-auto" />
+                          ) : (
+                            <span className="text-white/20">—</span>
+                          )
+                        ) : (
+                          <span className={j === 0 ? "text-[#4ad9e0] font-bold" : "text-white/40"}>
+                            {val}
+                          </span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Pricing ─────────────────────────────────────────────────────────── */}
+      <section id="pricing" className="py-24 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <Badge className="mb-4 bg-[#189aa1]/20 text-[#4ad9e0] border-[#189aa1]/40">
+              Simple Pricing
+            </Badge>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
+              Choose Your Plan
+            </h2>
+            <p className="text-lg text-white/60 mb-8">
+              All plans include a 14-day free trial. No credit card required.
+            </p>
+            {/* Billing toggle */}
+            <div className="inline-flex items-center gap-3 bg-white/10 rounded-full p-1">
+              <button
+                onClick={() => setBilling("monthly")}
+                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                  billing === "monthly" ? "bg-[#189aa1] text-white" : "text-white/60 hover:text-white"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBilling("annual")}
+                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                  billing === "annual" ? "bg-[#189aa1] text-white" : "text-white/60 hover:text-white"
+                }`}
+              >
+                Annual
+                <span className="ml-1.5 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full">
+                  Save 20%
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {TIERS.map((tier) => (
+              <div
+                key={tier.id}
+                className={`relative rounded-2xl border p-6 flex flex-col ${
+                  tier.highlight
+                    ? "border-[#189aa1] bg-gradient-to-b from-[#189aa1]/20 to-[#189aa1]/5 shadow-xl shadow-[#189aa1]/20"
+                    : "border-white/10 bg-white/5"
+                }`}
+              >
+                {tier.badge && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <Badge className="bg-[#189aa1] text-white border-0 text-xs px-3 py-1">
+                      {tier.badge}
+                    </Badge>
+                  </div>
+                )}
+                <div className="mb-4">
+                  <h3 className="text-lg font-bold text-white">{tier.name}</h3>
+                  <p className="text-sm text-white/50 mt-1">{tier.description}</p>
+                </div>
+                <div className="mb-6">
+                  {tier.monthlyPrice !== null ? (
+                    <>
+                      <span className="text-4xl font-extrabold text-white">
+                        ${billing === "monthly" ? tier.monthlyPrice : Math.round((tier.annualPrice ?? 0) / 12)}
+                      </span>
+                      <span className="text-white/50 text-sm ml-1">/mo</span>
+                      {billing === "annual" && (
+                        <p className="text-xs text-green-400 mt-1">
+                          ${tier.annualPrice}/yr billed annually
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-2xl font-extrabold text-white">Custom</span>
+                  )}
+                </div>
+                <ul className="space-y-2.5 mb-8 flex-1">
+                  {tier.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-white/70">
+                      <CheckCircle2 className="w-4 h-4 text-[#4ad9e0] mt-0.5 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/creator">
+                  <Button
+                    className={`w-full font-semibold ${
+                      tier.highlight
+                        ? "bg-[#189aa1] hover:bg-[#4ad9e0] text-white"
+                        : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                    }`}
+                  >
+                    {tier.cta}
+                    <ChevronRight className="ml-1 w-4 h-4" />
+                  </Button>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Testimonials ────────────────────────────────────────────────────── */}
+      <section id="testimonials" className="py-20 px-6 bg-white/5 border-y border-white/10">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl font-extrabold text-center mb-12">
+            Loved by Instructional Designers
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {TESTIMONIALS.map((t) => (
+              <Card key={t.name} className="bg-white/5 border-white/10">
+                <CardContent className="p-6">
+                  <div className="flex gap-0.5 mb-4">
+                    {Array.from({ length: t.stars }).map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                  <p className="text-sm text-white/70 leading-relaxed mb-4">"{t.quote}"</p>
+                  <div>
+                    <p className="font-semibold text-white text-sm">{t.name}</p>
+                    <p className="text-xs text-white/40">
+                      {t.role} · {t.company}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ─────────────────────────────────────────────────────────────── */}
+      <section className="py-24 px-6">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="relative rounded-3xl border border-[#189aa1]/30 bg-gradient-to-b from-[#189aa1]/15 to-transparent p-12">
+            <div className="absolute inset-0 rounded-3xl bg-[#189aa1]/5 blur-xl" />
+            <div className="relative">
+              <BookOpen className="w-12 h-12 text-[#4ad9e0] mx-auto mb-6" />
+              <h2 className="text-4xl font-extrabold mb-4">
+                Start Authoring Today
+              </h2>
+              <p className="text-lg text-white/60 mb-8">
+                Join thousands of instructional designers who have switched to TeachificCreator™.
+                No desktop software. No PowerPoint plugins. Just pure eLearning authoring power.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/creator">
+                  <Button size="lg" className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-bold px-10 h-14 text-base">
+                    Start Your Free Trial
+                    <ArrowRight className="ml-2 w-5 h-5" />
+                  </Button>
+                </Link>
+                <Link href="/lms">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-white/20 text-white hover:bg-white/10 h-14 text-base px-8"
+                  >
+                    <Users className="mr-2 w-5 h-5" />
+                    View Teachific LMS
+                  </Button>
+                </Link>
+              </div>
+              <p className="mt-4 text-sm text-white/40">
+                Already have an account?{" "}
+                <Link href="/creator" className="text-[#4ad9e0] hover:underline">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ──────────────────────────────────────────────────────────── */}
+      <footer className="border-t border-white/10 py-10 px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-white">
+              Teachific<span className="text-[#4ad9e0]">Creator</span>
+              <sup className="text-[10px] text-[#4ad9e0]">™</sup>
+            </span>
+            <span className="text-white/30 text-sm">by Teachific™</span>
+          </div>
+          <div className="flex items-center gap-6 text-sm text-white/40">
+            <Link href="/" className="hover:text-white transition-colors">Teachific Home</Link>
+            <Link href="/studio-pro" className="hover:text-white transition-colors">Teachific Studio™</Link>
+            <Link href="/quiz-creator-pro" className="hover:text-white transition-colors">Quiz Creator™</Link>
+            <a href="#" className="hover:text-white transition-colors">Privacy</a>
+            <a href="#" className="hover:text-white transition-colors">Terms</a>
+          </div>
+          <p className="text-sm text-white/30">
+            © {new Date().getFullYear()} Teachific™. All rights reserved.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}

@@ -26,7 +26,7 @@ const upload = multer({
       cb(null, `media-${nanoid(12)}.${ext}`);
     },
   }),
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB max
+  limits: { fileSize: 3 * 1024 * 1024 * 1024 }, // 3 GB max
 });
 
 router.post("/", upload.single("file"), async (req: Request, res: Response) => {

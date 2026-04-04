@@ -23,8 +23,8 @@ const TEMPLATE_XLSX_URL =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/QuizImportTemplate_ad09d65c.xlsx";
 
 const router = express.Router();
-// Accept up to 200MB for ZIP files with media
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
+// Accept up to 3 GB for ZIP files with media
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 3 * 1024 * 1024 * 1024 } });
 
 /**
  * Extract a ZIP buffer into:
