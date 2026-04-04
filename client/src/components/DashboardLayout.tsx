@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
+import { usePlanLimits, PLAN_DISPLAY } from "@/hooks/usePlanLimits";
 import {
   Activity,
   BarChart3,
@@ -551,6 +552,12 @@ function DashboardLayoutContent({
               );
             })}
           </SidebarContent>
+          {/* Plan badge in sidebar footer */}
+          {!isCollapsed && (
+            <div className="px-3 py-2 border-t border-sidebar-border/40">
+              <PlanBadgeSidebar />
+            </div>
+          )}
         </Sidebar>
 
         {/* Resize handle */}
@@ -651,5 +658,28 @@ function DashboardLayoutContent({
         <main className="flex-1 min-h-[calc(100vh-3.5rem)]">{children}</main>
       </SidebarInset>
     </>
+  );
+}
+
+// ─── Plan Badge Sidebar ───────────────────────────────────────────────────────
+function PlanBadgeSidebar() {
+  const { plan, isLoading } = usePlanLimits();
+  const [, setLocation] = useLocation();
+  if (isLoading) return null;
+  const display = PLAN_DISPLAY[plan] ?? PLAN_DISPLAY.free;
+  const isPaid = plan !== "free";
+  return (
+    <button
+      onClick={() => setLocation("/billing")}
+      className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-sidebar-accent/50 transition-colors group"
+    >
+      <div className="flex items-center gap-2">
+        <div className={`h-2 w-2 rounded-full ${isPaid ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
+        <span className={`text-xs font-medium ${display.color}`}>{display.label} Plan</span>
+      </div>
+      {!isPaid && (
+        <span className="text-[10px] text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">Upgrade →</span>
+      )}
+    </button>
   );
 }

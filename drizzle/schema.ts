@@ -1845,3 +1845,31 @@ export const orgLimitOverrides = mysqlTable("org_limit_overrides", {
 });
 export type OrgLimitOverride = typeof orgLimitOverrides.$inferSelect;
 export type InsertOrgLimitOverride = typeof orgLimitOverrides.$inferInsert;
+
+// ─── Org Payment Settings ─────────────────────────────────────────────────────────────────────────────────
+// Per-org payment gateway configuration for collecting payments from members.
+export const orgPaymentSettings = mysqlTable("org_payment_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull().unique(),
+  // Stripe (for collecting payments from members)
+  stripePublishableKey: varchar("stripePublishableKey", { length: 255 }),
+  stripeSecretKey: varchar("stripeSecretKey", { length: 255 }),
+  stripeConnectAccountId: varchar("stripeConnectAccountId", { length: 255 }),
+  stripeConnectEnabled: boolean("stripeConnectEnabled").default(false).notNull(),
+  stripeConnectOnboardingComplete: boolean("stripeConnectOnboardingComplete").default(false).notNull(),
+  // PayPal (for collecting payments + affiliate/revenue share payouts)
+  paypalEmail: varchar("paypalEmail", { length: 320 }),
+  paypalEnabled: boolean("paypalEnabled").default(false).notNull(),
+  paypalClientId: varchar("paypalClientId", { length: 255 }),
+  paypalClientSecret: varchar("paypalClientSecret", { length: 255 }),
+  // Default currency
+  currency: varchar("currency", { length: 10 }).default("USD").notNull(),
+  // Auto-enrollment: new members auto-enrolled in all published courses
+  autoEnrollNewMembers: boolean("autoEnrollNewMembers").default(false).notNull(),
+  // Revenue share config (JSON): [{ userId, percentage, paypalEmail }]
+  revenueShareJson: text("revenueShareJson"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type OrgPaymentSettings = typeof orgPaymentSettings.$inferSelect;
+export type InsertOrgPaymentSettings = typeof orgPaymentSettings.$inferInsert;

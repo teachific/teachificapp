@@ -1895,3 +1895,48 @@
 - [ ] Frontend: Upgrade CTA buttons on Pro/Enterprise features linking to Stripe checkout
 - [ ] Frontend: QuizCreator upgrade flow (Lite/Premium) via Stripe checkout
 - [ ] Frontend: Post-checkout success/cancel redirect handling
+
+## Platform Billing Tiers (Teachific Plans)
+- [ ] Define PLAN_LIMITS constant with all 5 tiers (Free/Starter/Builder/Pro/Enterprise)
+- [ ] Create server/stripePlans.ts with Stripe product/price IDs for monthly + annual billing
+- [ ] Create Stripe products and prices via API on server startup (idempotent)
+- [ ] stripeRouter: createCheckoutSession (monthly/annual, plan selection)
+- [ ] stripeRouter: createPortalSession (manage/cancel subscription)
+- [ ] stripeRouter: getSubscription (current plan + status for org)
+- [x] Stripe webhook handler at /api/stripe/webhook (checkout.session.completed, customer.subscription.updated/deleted)
+- [ ] BillingPage: plan comparison table with feature matrix
+- [ ] BillingPage: current plan card with status, next billing date, cancel option
+- [ ] BillingPage: upgrade/downgrade flow with monthly/annual toggle
+- [ ] BillingPage: Enterprise "Contact Sales" CTA
+- [ ] Wire plan limits to feature gates across the app
+
+## Org Settings Page
+- [ ] OrgSettingsPage: General tab (org name, logo, subdomain setup)
+- [ ] OrgSettingsPage: Theme tab (primary color, accent, sidebar colors, fonts)
+- [ ] OrgSettingsPage: Payment tab (connect own Stripe account, PayPal integration)
+- [ ] OrgSettingsPage: Billing tab (Teachific subscription management - links to BillingPage)
+- [ ] OrgSettingsPage: Members tab (auto/manual enrollment toggle, member list)
+- [ ] Subdomain setup: validate and save customSubdomain field on org record
+- [ ] Display subdomain preview link after setup
+
+## AI-Generated Org Homepage + WYSIWYG Editor
+- [ ] On org creation: collect org name, tagline, description, logo, primary color
+- [ ] AI generates homepage HTML/JSON content (hero, features, CTA sections)
+- [ ] Store page content in lms_pages table as JSON blocks
+- [ ] Display generated homepage at /[orgSlug] or subdomain root
+- [ ] WYSIWYG drag-and-drop page editor (block-based: text, image, CTA, video, pricing)
+- [ ] Show live preview link and copy button for subdomain URL
+
+## Member Management
+- [ ] Bulk member import: CSV/Excel upload with columns (name, email, role, group)
+- [ ] Import preview: show parsed rows, flag errors, confirm before saving
+- [ ] Auto-enrollment toggle per org (new members auto-enrolled in all published courses)
+- [ ] Manual enrollment: admin selects courses for each member
+- [ ] Member list: search, filter by role/group, export CSV
+- [ ] Group management: create groups, assign members, bulk-enroll groups to courses
+
+## Per-Org Payment Collection
+- [ ] OrgPaymentSettings: store stripeAccountId (Connect), paypalEmail per org
+- [ ] Course pricing: per-course price with Stripe checkout for member purchase
+- [ ] Transaction fee deduction based on plan tier (3% Starter, 1% Builder, 0% Pro/Enterprise)
+- [ ] Revenue share: Pro/Enterprise - split revenue % with multiple users, payout via PayPal

@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useLocation, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useOrgScope } from "@/hooks/useOrgScope";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -192,6 +193,8 @@ export default function CoursesPage() {
     { orgId: orgId! },
     { enabled: ready }
   );
+  const { canCreateCourse, plan, limits } = usePlanLimits();
+  const atCourseLimit = !canCreateCourse(courses?.length ?? 0);
 
   const createMutation = trpc.lms.courses.create.useMutation({
     onSuccess: (course) => {
@@ -397,9 +400,20 @@ export default function CoursesPage() {
             <Sparkles className="h-4 w-4 text-purple-500" />
             AI Generate
           </Button>
-          <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <Button
+            onClick={() => {
+              if (atCourseLimit) {
+                toast.error(`You've reached the ${limits?.maxCourses}-course limit on the ${plan} plan. Upgrade to add more courses.`);
+                return;
+              }
+              setCreateOpen(true);
+            }}
+            className="gap-2"
+            variant={atCourseLimit ? "outline" : "default"}
+          >
             <Plus className="h-4 w-4" />
             New Course
+            {atCourseLimit && <span className="ml-1 text-xs opacity-70">(Limit reached)</span>}
           </Button>
         </div>
       </div>

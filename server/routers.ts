@@ -109,6 +109,7 @@ import { lmsRouter } from "./lmsRouter";
 import { formsRouter } from "./formsRouter";
 import { customAuthRouter } from "./customAuthRouter";
 import { communityRouter } from "./communityRouter";
+import { stripeRouter } from "./stripeRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { ENV } from "./_core/env";
 
@@ -143,6 +144,7 @@ export const appRouter = router({
   customAuth: customAuthRouter,
   forms: formsRouter,
   community: communityRouter,
+  billing: stripeRouter,
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   auth: router({

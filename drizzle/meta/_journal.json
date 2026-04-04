@@ -337,6 +337,20 @@
       "when": 1775306812047,
       "tag": "0047_hard_madrox",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "5",
+      "when": 1775319520317,
+      "tag": "0048_happy_korvac",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "5",
+      "when": 1775320413709,
+      "tag": "0049_vengeful_jack_murdock",
+      "breakpoints": true
     }
   ]
 }

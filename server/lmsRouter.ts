@@ -856,6 +856,69 @@ export const lmsRouter = router({
         const copy = await duplicatePage(input.id);
         return copy;
       }),
+
+    // AI-generate a school homepage from org details
+    aiGenerate: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        orgName: z.string(),
+        tagline: z.string().optional(),
+        description: z.string().optional(),
+        primaryColor: z.string().optional().default("#189aa1"),
+        courseCount: z.number().optional().default(0),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const prompt = `You are a web page designer. Generate a JSON array of page blocks for a school homepage for "${input.orgName}".
+${input.tagline ? `Tagline: ${input.tagline}` : ""}
+${input.description ? `Description: ${input.description}` : ""}
+Primary color: ${input.primaryColor}
+
+Return ONLY a valid JSON array of blocks. Each block has: { id: string, type: string, props: object }.
+Available block types and their required props:
+- "hero": { title, subtitle, ctaText, ctaUrl, backgroundImage?, backgroundColor }
+- "features": { title, items: [{icon, title, description}] }
+- "courses": { title, subtitle }
+- "testimonials": { title, items: [{name, role, text, avatar?}] }
+- "cta": { title, subtitle, buttonText, buttonUrl, backgroundColor }
+- "text": { content (HTML string) }
+- "stats": { items: [{value, label}] }
+
+Generate 5-7 blocks that make a compelling school homepage. Use the org's colors and branding. Make it professional and engaging.`;
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: "You are a professional web designer. Return only valid JSON arrays, no markdown, no explanation." },
+            { role: "user", content: prompt },
+          ],
+          response_format: { type: "json_object" } as any,
+        });
+        let blocksJson = "[]";
+        try {
+          const rawContent = response.choices?.[0]?.message?.content;
+          const raw = typeof rawContent === "string" ? rawContent : Array.isArray(rawContent) ? (rawContent.find((c: any) => c.type === "text") as any)?.text ?? "[]" : "[]";
+          // The LLM might return { blocks: [...] } or just [...]
+          const parsed = JSON.parse(raw);
+          const arr = Array.isArray(parsed) ? parsed : (parsed.blocks ?? []);
+          // Ensure each block has a unique id
+          const { nanoid: nid } = await import("nanoid");
+          const blocks = arr.map((b: any) => ({ ...b, id: b.id || nid(8) }));
+          blocksJson = JSON.stringify(blocks);
+        } catch {
+          blocksJson = "[]";
+        }
+        // Find or create the school_home page for this org
+        const existingPages = await getPagesByOrg(input.orgId);
+        const homePage = existingPages.find((p: any) => p.pageType === "school_home");
+        if (homePage) {
+          await updatePage(homePage.id, { blocksJson, title: `${input.orgName} Homepage`, isPublished: true });
+          return { pageId: homePage.id, blocksJson };
+        } else {
+          const slug = input.orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-home";
+          const newPage = await createPage({ orgId: input.orgId, pageType: "school_home", title: `${input.orgName} Homepage`, slug, blocksJson });
+          await updatePage(newPage.id, { isPublished: true });
+          return { pageId: newPage.id, blocksJson };
+        }
+      }),
   }),
 
   // ── Instructors ──────────────────────────────────────────────────────────
@@ -1404,6 +1467,62 @@ export const lmsRouter = router({
           orgId: input.orgId,
           amountPaid: 0,
         });
+      }),
+    // Bulk import members from CSV/Excel
+    bulkImport: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        members: z.array(z.object({
+          name: z.string().min(1),
+          email: z.string().email(),
+          password: z.string().min(6).optional().default("Teachific@123"),
+          role: z.enum(["org_admin", "user"]).optional().default("user"),
+        })),
+        courseIds: z.array(z.number()).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
+        const { getUserByEmail, createManualUser, addOrgMember, getOrgMember: getOrgMemberDb, updateOrgMemberRole } = await import("./db");
+        const bcrypt = await import("bcryptjs");
+        const { nanoid: nid } = await import("nanoid");
+        let created = 0, updated = 0, failed = 0;
+        const errors: string[] = [];
+        for (const m of input.members) {
+          try {
+            const existing = await getUserByEmail(m.email);
+            let userId: number;
+            if (existing) {
+              userId = existing.id;
+              updated++;
+            } else {
+              const passwordHash = await bcrypt.default.hash(m.password!, 10);
+              const openId = `manual_${nid(20)}`;
+              await createManualUser({ openId, name: m.name, email: m.email, loginMethod: "email", role: m.role === "org_admin" ? "org_admin" : "user", passwordHash });
+              const newUser = await getUserByEmail(m.email);
+              if (!newUser) throw new Error("Failed to create user");
+              userId = newUser.id;
+              created++;
+            }
+            const existingMember = await getOrgMemberDb(input.orgId, userId);
+            if (existingMember) {
+              await updateOrgMemberRole(input.orgId, userId, m.role ?? "user");
+            } else {
+              await addOrgMember(input.orgId, userId, m.role ?? "user");
+            }
+            if (input.courseIds?.length) {
+              for (const courseId of input.courseIds) {
+                const existingEnroll = await getEnrollment(courseId, userId);
+                if (!existingEnroll) {
+                  await createEnrollment({ courseId, userId, orgId: input.orgId, amountPaid: 0 });
+                }
+              }
+            }
+          } catch (e: any) {
+            failed++;
+            errors.push(`${m.email}: ${e.message}`);
+          }
+        }
+        return { created, updated, failed, errors, total: input.members.length };
       }),
   }),
 

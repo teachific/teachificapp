@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Search, Users, BookOpen, TrendingUp, Download, UserPlus,
-  ChevronDown, ChevronUp, MoreVertical, Eye, EyeOff, Plus
+  ChevronDown, ChevronUp, MoreVertical, Eye, EyeOff, Plus, Upload, FileSpreadsheet, AlertCircle, CheckCircle2
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -40,6 +40,14 @@ export default function MembersPage() {
   });
   const [showAddPassword, setShowAddPassword] = useState(false);
 
+  // Bulk import state
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [bulkPreview, setBulkPreview] = useState<Array<{name: string; email: string; password?: string; role: "org_admin" | "user"}>>([]);
+  const [bulkFileName, setBulkFileName] = useState("");
+  const [bulkParseError, setBulkParseError] = useState("");
+  const [bulkResult, setBulkResult] = useState<{created: number; updated: number; failed: number; errors: string[]; total: number} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const { data: orgs } = trpc.orgs.myOrgs.useQuery();
   const orgId = orgs?.[0]?.id;
 
@@ -52,6 +60,48 @@ export default function MembersPage() {
     { orgId: orgId! },
     { enabled: !!orgId }
   );
+
+  const bulkImport = trpc.lms.members.bulkImport.useMutation({
+    onSuccess: (result) => {
+      setBulkResult(result);
+      refetch();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleBulkFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkFileName(file.name);
+    setBulkParseError("");
+    setBulkPreview([]);
+    setBulkResult(null);
+    try {
+      const text = await file.text();
+      // Parse CSV
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) { setBulkParseError("File must have a header row and at least one data row."); return; }
+      const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/[^a-z]/g, ""));
+      const nameIdx = headers.findIndex(h => h.includes("name"));
+      const emailIdx = headers.findIndex(h => h.includes("email"));
+      const passIdx = headers.findIndex(h => h.includes("pass"));
+      const roleIdx = headers.findIndex(h => h.includes("role"));
+      if (nameIdx < 0 || emailIdx < 0) { setBulkParseError("CSV must have 'name' and 'email' columns."); return; }
+      const rows = lines.slice(1).map(line => {
+        const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+        return {
+          name: cols[nameIdx] ?? "",
+          email: cols[emailIdx] ?? "",
+          password: passIdx >= 0 && cols[passIdx] ? cols[passIdx] : "Teachific@123",
+          role: (roleIdx >= 0 && cols[roleIdx]?.toLowerCase().includes("admin") ? "org_admin" : "user") as "org_admin" | "user",
+        };
+      }).filter(r => r.name && r.email);
+      if (!rows.length) { setBulkParseError("No valid rows found."); return; }
+      setBulkPreview(rows);
+    } catch {
+      setBulkParseError("Failed to parse file. Please use a valid CSV.");
+    }
+  };
 
   const createAndAdd = trpc.lms.members.createAndAdd.useMutation({
     onSuccess: () => {
@@ -142,6 +192,9 @@ export default function MembersPage() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5">
             <Download className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { setBulkImportOpen(true); setBulkPreview([]); setBulkFileName(""); setBulkParseError(""); setBulkResult(null); }} className="gap-1.5">
+            <Upload className="h-4 w-4" /> Bulk Import
           </Button>
           <Button variant="outline" size="sm" onClick={() => setEnrollDialogOpen(true)} className="gap-1.5">
             <UserPlus className="h-4 w-4" /> Enroll Existing
@@ -504,6 +557,108 @@ export default function MembersPage() {
               <Plus className="h-4 w-4" />
               {createAndAdd.isPending ? "Adding..." : "Add Member"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Import Dialog */}
+      <Dialog open={bulkImportOpen} onOpenChange={setBulkImportOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+              Bulk Import Members
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {!bulkResult ? (
+              <>
+                <div className="rounded-lg border-2 border-dashed border-border p-6 text-center space-y-3">
+                  <FileSpreadsheet className="h-10 w-10 text-muted-foreground mx-auto" />
+                  <div>
+                    <p className="text-sm font-medium">Upload a CSV file</p>
+                    <p className="text-xs text-muted-foreground mt-1">Required columns: <code className="bg-muted px-1 rounded">name</code>, <code className="bg-muted px-1 rounded">email</code>. Optional: <code className="bg-muted px-1 rounded">password</code>, <code className="bg-muted px-1 rounded">role</code></p>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.txt"
+                    onChange={handleBulkFileChange}
+                    className="hidden"
+                  />
+                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="gap-2">
+                    <Upload className="h-4 w-4" /> Choose CSV File
+                  </Button>
+                  {bulkFileName && <p className="text-xs text-muted-foreground">{bulkFileName}</p>}
+                </div>
+                {bulkParseError && (
+                  <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 rounded-lg p-3">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    {bulkParseError}
+                  </div>
+                )}
+                {bulkPreview.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">{bulkPreview.length} members ready to import</p>
+                    <div className="max-h-48 overflow-y-auto rounded-lg border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Name</TableHead>
+                            <TableHead className="text-xs">Email</TableHead>
+                            <TableHead className="text-xs">Role</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {bulkPreview.slice(0, 50).map((m, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="text-xs py-1.5">{m.name}</TableCell>
+                              <TableCell className="text-xs py-1.5">{m.email}</TableCell>
+                              <TableCell className="text-xs py-1.5">
+                                <Badge variant={m.role === "org_admin" ? "default" : "secondary"} className="text-xs">{m.role === "org_admin" ? "Admin" : "Member"}</Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {bulkPreview.length > 50 && (
+                            <TableRow><TableCell colSpan={3} className="text-xs text-center text-muted-foreground py-2">...and {bulkPreview.length - 50} more</TableCell></TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Default password: <code className="bg-muted px-1 rounded">Teachific@123</code> (if not specified in CSV)</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-950/30 rounded-lg p-3">
+                  <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-sm">Import Complete</p>
+                    <p className="text-xs">{bulkResult.created} created · {bulkResult.updated} updated · {bulkResult.failed} failed out of {bulkResult.total} total</p>
+                  </div>
+                </div>
+                {bulkResult.errors.length > 0 && (
+                  <div className="max-h-32 overflow-y-auto rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1">
+                    {bulkResult.errors.map((e, i) => (
+                      <p key={i} className="text-xs text-destructive">{e}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkImportOpen(false)}>Close</Button>
+            {!bulkResult && bulkPreview.length > 0 && (
+              <Button
+                onClick={() => orgId && bulkImport.mutate({ orgId, members: bulkPreview })}
+                disabled={bulkImport.isPending}
+                className="gap-2"
+              >
+                {bulkImport.isPending ? "Importing..." : <><Upload className="h-4 w-4" /> Import {bulkPreview.length} Members</>}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

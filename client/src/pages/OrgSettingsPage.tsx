@@ -17,7 +17,9 @@ import {
   Settings, Building2, Palette, Globe, CreditCard,
   Check, AlertCircle, Crown, Zap, Rocket, Bell, Upload, ImageIcon, X, FileText, Video,
   UserCircle, Plus, Trash2, Edit2, Link as LinkIcon, Link2,
+  Wand2, Sparkles, Loader2, ExternalLink, Copy,
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -246,7 +248,7 @@ export default function OrgSettingsPage() {
 
       <Tabs defaultValue="general" className="w-full">
         <div className="overflow-x-auto pb-1">
-          <TabsList className="flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-7 gap-0">
+          <TabsList className="flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-9 gap-0">
             <TabsTrigger value="general" className="gap-1.5 whitespace-nowrap">
               <Building2 className="h-4 w-4" /> General
             </TabsTrigger>
@@ -267,6 +269,12 @@ export default function OrgSettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="policies" className="gap-1.5 whitespace-nowrap">
               <FileText className="h-4 w-4" /> Site Policies
+            </TabsTrigger>
+            <TabsTrigger value="payment" className="gap-1.5 whitespace-nowrap">
+              <CreditCard className="h-4 w-4" /> Payments
+            </TabsTrigger>
+            <TabsTrigger value="homepage" className="gap-1.5 whitespace-nowrap">
+              <Globe className="h-4 w-4" /> Homepage
             </TabsTrigger>
           </TabsList>
         </div>
@@ -741,10 +749,10 @@ export default function OrgSettingsPage() {
         <TabsContent value="subscription" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Current Plan</CardTitle>
-              <CardDescription>Manage your subscription tier and billing</CardDescription>
+              <CardTitle>Subscription & Billing</CardTitle>
+              <CardDescription>Manage your Teachific plan and payment methods</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30">
                 <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5">
                   <TierIcon className={`h-6 w-6 ${currentTier.color}`} />
@@ -757,35 +765,29 @@ export default function OrgSettingsPage() {
                   <p className="text-sm text-muted-foreground">Your current subscription tier</p>
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Included features:</p>
-                <ul className="space-y-1.5">
-                  {currentTier.features.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Check className="h-4 w-4 text-green-500 shrink-0" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="pt-4 border-t">
-                <Button variant="outline" className="gap-2">
-                  <Crown className="h-4 w-4" /> Upgrade Plan
+              <div className="pt-2">
+                <Button
+                  className="gap-2"
+                  onClick={() => window.location.href = "/billing"}
+                >
+                  <CreditCard className="h-4 w-4" /> Manage Billing & Upgrade
                 </Button>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Contact support to upgrade your subscription tier
+                  View all plans, upgrade, or manage your payment methods on the Billing page.
                 </p>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Payment Settings Tab */}
+        <OrgPaymentSettingsTab orgId={orgCtx?.org?.id} />
         {/* Instructors Tab */}
         <InstructorsTab orgId={orgCtx?.org?.id} />
         {/* Site Policies Tab */}
         <SitePoliciesTab orgId={orgCtx?.org?.id} />
+        {/* Homepage Tab */}
+        <OrgHomepageTab orgId={orgCtx?.org?.id} orgName={orgCtx?.org?.name ?? ""} orgSlug={orgCtx?.org?.slug ?? ""} primaryColor={primaryColor} description={orgCtx?.org?.description ?? ""} />
       </Tabs>
     </div>
   );
@@ -1109,6 +1111,367 @@ function SitePoliciesTab({ orgId }: { orgId?: number }) {
           {updateLegalDocs.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Policies</>}
         </Button>
       </div>
+    </TabsContent>
+  );
+}
+
+function OrgPaymentSettingsTab({ orgId }: { orgId?: number }) {
+  const utils = trpc.useUtils();
+  const [stripePublishableKey, setStripePublishableKey] = useState("");
+  const [stripeSecretKey, setStripeSecretKey] = useState("");
+  const [paypalClientId, setPaypalClientId] = useState("");
+  const [paypalClientSecret, setPaypalClientSecret] = useState("");
+  const [autoEnrollment, setAutoEnrollment] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+
+  const { data: paymentSettings, isLoading } = trpc.billing.getOrgPaymentSettings.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId }
+  );
+
+  useEffect(() => {
+    if (paymentSettings && !initialized) {
+      setStripePublishableKey(paymentSettings.stripePublishableKey || "");
+      setStripeSecretKey(paymentSettings.stripeSecretKey ? "••••••••••••••••" : "");
+      setPaypalClientId(paymentSettings.paypalClientId || "");
+      setPaypalClientSecret(paymentSettings.paypalClientSecret ? "••••••••••••••••" : "");
+      setAutoEnrollment(paymentSettings.autoEnrollment ?? false);
+      setInitialized(true);
+    }
+  }, [paymentSettings, initialized]);
+
+  const saveSettings = trpc.billing.updateOrgPaymentSettings.useMutation({
+    onSuccess: () => {
+      toast.success("Payment settings saved");
+      utils.billing.getOrgPaymentSettings.invalidate({ orgId: orgId! });
+      setInitialized(false); // re-init on next load
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleSave = () => {
+    if (!orgId) return;
+    saveSettings.mutate({
+      orgId,
+      stripePublishableKey: stripePublishableKey.startsWith("•") ? undefined : stripePublishableKey || null,
+      stripeSecretKey: stripeSecretKey.startsWith("•") ? undefined : stripeSecretKey || null,
+      paypalClientId: paypalClientId || null,
+      paypalClientSecret: paypalClientSecret.startsWith("•") ? undefined : paypalClientSecret || null,
+      autoEnrollment,
+    });
+  };
+
+  return (
+    <TabsContent value="payment" className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Gateway Settings</CardTitle>
+          <CardDescription>
+            Configure Stripe and PayPal to collect payments from your members. These are your own payment accounts — separate from your Teachific subscription billing.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+            </div>
+          ) : (
+            <>
+              {/* Stripe Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-violet-100 flex items-center justify-center">
+                    <CreditCard className="h-4 w-4 text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Stripe Integration</p>
+                    <p className="text-xs text-muted-foreground">Accept credit/debit card payments via Stripe</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-10">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="stripe-pk">Publishable Key</Label>
+                    <Input
+                      id="stripe-pk"
+                      value={stripePublishableKey}
+                      onChange={(e) => setStripePublishableKey(e.target.value)}
+                      placeholder="pk_live_..."
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="stripe-sk">Secret Key</Label>
+                    <Input
+                      id="stripe-sk"
+                      type="password"
+                      value={stripeSecretKey}
+                      onChange={(e) => setStripeSecretKey(e.target.value)}
+                      placeholder="sk_live_..."
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground pl-10">
+                  Get your keys from{" "}
+                  <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    Stripe Dashboard → Developers → API Keys
+                  </a>
+                </p>
+              </div>
+
+              <div className="border-t" />
+
+              {/* PayPal Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <Link2 className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">PayPal Integration</p>
+                    <p className="text-xs text-muted-foreground">Accept PayPal payments and send affiliate payouts</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-10">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="paypal-id">Client ID</Label>
+                    <Input
+                      id="paypal-id"
+                      value={paypalClientId}
+                      onChange={(e) => setPaypalClientId(e.target.value)}
+                      placeholder="AYour-PayPal-Client-ID"
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="paypal-secret">Client Secret</Label>
+                    <Input
+                      id="paypal-secret"
+                      type="password"
+                      value={paypalClientSecret}
+                      onChange={(e) => setPaypalClientSecret(e.target.value)}
+                      placeholder="Your-PayPal-Client-Secret"
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground pl-10">
+                  Get your credentials from{" "}
+                  <a href="https://developer.paypal.com/dashboard/applications" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    PayPal Developer Dashboard
+                  </a>
+                </p>
+              </div>
+
+              <div className="border-t" />
+
+              {/* Enrollment Settings */}
+              <div className="space-y-3">
+                <p className="font-medium text-sm">Member Enrollment</p>
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="text-sm">Auto-enrollment</p>
+                    <p className="text-xs text-muted-foreground">
+                      Automatically enroll new members in courses. When disabled, you must manually approve enrollments.
+                    </p>
+                  </div>
+                  <Switch checked={autoEnrollment} onCheckedChange={setAutoEnrollment} />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button onClick={handleSave} disabled={saveSettings.isPending} className="gap-2">
+                  {saveSettings.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Payment Settings</>}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </TabsContent>
+  );
+}
+
+// ─── OrgHomepageTab ───────────────────────────────────────────────────────────
+function OrgHomepageTab({ orgId, orgName, orgSlug, primaryColor, description }: {
+  orgId?: number;
+  orgName: string;
+  orgSlug: string;
+  primaryColor: string;
+  description: string;
+}) {
+  const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
+  const [tagline, setTagline] = useState("");
+  const [desc, setDesc] = useState(description);
+  const [generatedPageId, setGeneratedPageId] = useState<number | null>(null);
+
+  // Check if a homepage already exists
+  const { data: pages, isLoading: pagesLoading } = trpc.lms.pages.list.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId }
+  );
+  const existingHomepage = pages?.find((p: any) => p.pageType === "school_home");
+
+  const aiGenerate = trpc.lms.pages.aiGenerate.useMutation({
+    onSuccess: (result) => {
+      setGeneratedPageId(result.pageId);
+      utils.lms.pages.list.invalidate({ orgId: orgId! });
+      toast.success("Homepage generated! Click 'Edit in Page Builder' to customize it.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const previewUrl = orgSlug
+    ? `${window.location.origin}/school/${orgSlug}`
+    : null;
+
+  const pageBuilderUrl = generatedPageId
+    ? `/lms/page-builder/${generatedPageId}`
+    : existingHomepage
+    ? `/lms/page-builder/${existingHomepage.id}`
+    : null;
+
+  return (
+    <TabsContent value="homepage" className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            AI-Generated Homepage
+          </CardTitle>
+          <CardDescription>
+            Automatically generate a professional homepage for your school using AI, then customize it with the drag-and-drop editor.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Subdomain preview link */}
+          {previewUrl && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+              <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground mb-0.5">Your school URL</p>
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-primary hover:underline truncate block"
+                >
+                  {previewUrl}
+                </a>
+              </div>
+              <div className="flex gap-1.5 flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => { navigator.clipboard.writeText(previewUrl); toast.success("URL copied!"); }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => window.open(previewUrl, "_blank")}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Existing homepage status */}
+          {existingHomepage && (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-600" />
+                <div>
+                  <p className="text-sm font-medium text-green-700 dark:text-green-400">Homepage exists</p>
+                  <p className="text-xs text-green-600 dark:text-green-500">"{existingHomepage.title}" · {existingHomepage.isPublished ? "Published" : "Draft"}</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => setLocation(`/lms/page-builder/${existingHomepage.id}`)}
+              >
+                <Edit2 className="h-3.5 w-3.5" /> Edit
+              </Button>
+            </div>
+          )}
+
+          {/* AI Generation form */}
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="hp-tagline">Tagline <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Input
+                id="hp-tagline"
+                placeholder="e.g. Learn anything, anywhere"
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="hp-desc">School Description <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Textarea
+                id="hp-desc"
+                placeholder="Describe your school, its mission, and what students will learn..."
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                rows={3}
+                className="mt-1.5"
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                className="gap-2 flex-1 sm:flex-none"
+                onClick={() => orgId && aiGenerate.mutate({
+                  orgId,
+                  orgName: orgName || "My School",
+                  tagline: tagline || undefined,
+                  description: desc || undefined,
+                  primaryColor,
+                })}
+                disabled={aiGenerate.isPending || !orgId}
+              >
+                {aiGenerate.isPending ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
+                ) : (
+                  <><Wand2 className="h-4 w-4" /> {existingHomepage ? "Regenerate Homepage" : "Generate Homepage with AI"}</>
+                )}
+              </Button>
+              {pageBuilderUrl && (
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setLocation(pageBuilderUrl)}
+                >
+                  <Edit2 className="h-4 w-4" /> Edit in Page Builder
+                </Button>
+              )}
+            </div>
+            {aiGenerate.isPending && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
+                <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                AI is designing your homepage... this may take 10–20 seconds.
+              </div>
+            )}
+          </div>
+
+          {/* Tips */}
+          <div className="rounded-lg bg-muted/30 border p-4 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tips</p>
+            <ul className="text-xs text-muted-foreground space-y-1.5">
+              <li className="flex items-start gap-1.5"><Sparkles className="h-3 w-3 mt-0.5 flex-shrink-0 text-primary" /> The AI uses your school name, tagline, and branding colors to generate a unique homepage.</li>
+              <li className="flex items-start gap-1.5"><Edit2 className="h-3 w-3 mt-0.5 flex-shrink-0 text-primary" /> After generation, use the Page Builder to drag, drop, and edit every section.</li>
+              <li className="flex items-start gap-1.5"><Globe className="h-3 w-3 mt-0.5 flex-shrink-0 text-primary" /> Your homepage is automatically published at your school URL above.</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
     </TabsContent>
   );
 }

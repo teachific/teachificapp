@@ -13,6 +13,7 @@ import chunkedUploadRouter from "../chunkedUploadRoutes";
 import contentRouter from "../contentRoutes";
 import digitalDownloadRouter from "../digitalDownloadRoutes";
 import mediaUploadRouter from "../mediaUploadRoutes";
+import stripeWebhookRouter from "../stripeWebhookRoutes";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -41,6 +42,9 @@ async function startServer() {
   server.timeout = 10 * 60 * 1000;
   server.keepAliveTimeout = 10 * 60 * 1000;
   server.headersTimeout = 10 * 60 * 1000 + 5000;
+
+  // Stripe webhook MUST be before express.json() for raw body signature verification
+  app.use("/api/stripe", stripeWebhookRouter);
 
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
@@ -106,6 +110,16 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
+
+  // Initialize Stripe products/prices (idempotent, non-blocking)
+  setTimeout(async () => {
+    try {
+      const { ensureStripePlans } = await import("../stripePlans");
+      await ensureStripePlans();
+    } catch (e: any) {
+      console.warn("[Stripe] Plan initialization skipped:", e.message);
+    }
+  }, 2000);
 }
 
 startServer().catch(console.error);
