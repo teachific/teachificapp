@@ -1812,3 +1812,10 @@
 - [x] Add Sign Up CTA buttons throughout the page
 - [ ] Stripe checkout integration (pending user providing Stripe app credentials)
 - [ ] Save checkpoint and deliver
+
+## Auth Page Rebrand & Navy Theme
+- [x] Remove all Manus/Meta references from auth pages (login, register, forgot-password, reset-password, verify-email)
+- [x] Redesign auth pages with unique Teachific branding (logo, headline, visual panel, teal/navy palette)
+- [x] Update sidebar background to deep navy blue (not black)
+- [x] Update CSS variables: sidebar bg, card bg, dark surfaces → deep navy; primary accent stays teal
+- [x] Ensure all text is legible against navy backgrounds

@@ -1,14 +1,18 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, CheckCircle2, LockKeyhole } from "lucide-react";
+
+const NAVY = "#0b1d35";
+const NAVY_MID = "#0f2847";
+const TEAL = "#189aa1";
+const TEAL_LIGHT = "#4ad9e0";
 
 export default function ResetPasswordPage() {
-  const [, navigate] = useLocation();
   const [token, setToken] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -35,27 +39,31 @@ export default function ResetPasswordPage() {
     reset.mutate({ token, newPassword: password });
   };
 
-  const Logo = () => (
-    <div className="text-center mb-8">
-      <div className="inline-flex items-baseline gap-0.5 mb-2">
-        <span className="text-4xl font-bold text-white tracking-tight">teach</span>
-        <span className="text-4xl font-bold text-[#4ad9e0] tracking-tight">ific</span>
-        <span className="text-xl text-[#4ad9e0]/70 ml-0.5">™</span>
-      </div>
-    </div>
-  );
-
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0d1f2d] via-[#0f2a35] to-[#0a1a22] flex items-center justify-center p-4">
+      <div
+        className="min-h-screen flex items-center justify-center p-8"
+        style={{ background: `linear-gradient(145deg, ${NAVY} 0%, ${NAVY_MID} 60%, #0d3352 100%)` }}
+      >
         <div className="w-full max-w-md text-center">
-          <Logo />
+          <div className="flex items-baseline gap-0.5 justify-center mb-8">
+            <span className="text-3xl font-bold text-white tracking-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>teach</span>
+            <span className="text-3xl font-bold tracking-tight" style={{ color: TEAL_LIGHT, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>ific</span>
+            <span className="text-sm font-bold ml-0.5" style={{ color: TEAL_LIGHT, verticalAlign: "super", fontSize: "0.55em" }}>™</span>
+          </div>
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-10 shadow-2xl">
-            <CheckCircle2 className="w-16 h-16 text-[#4ad9e0] mx-auto mb-4" />
+            <CheckCircle2 className="w-16 h-16 mx-auto mb-4" style={{ color: TEAL_LIGHT }} />
             <h2 className="text-2xl font-semibold text-white mb-3">Password updated</h2>
-            <p className="text-white/60 leading-relaxed mb-6">Your password has been successfully reset. You can now sign in with your new password.</p>
+            <p className="text-white/60 leading-relaxed mb-6">
+              Your password has been successfully reset. You can now sign in with your new password.
+            </p>
             <Link href="/login">
-              <Button className="bg-[#189aa1] hover:bg-[#189aa1]/90 text-white font-semibold w-full">Sign In</Button>
+              <Button
+                className="font-semibold w-full text-white"
+                style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #15b8c0 100%)` }}
+              >
+                Sign In
+              </Button>
             </Link>
           </div>
         </div>
@@ -64,58 +72,129 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0d1f2d] via-[#0f2a35] to-[#0a1a22] flex items-center justify-center p-4">
-      <div className="relative w-full max-w-md">
-        <Logo />
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 shadow-2xl">
-          <h2 className="text-xl font-semibold text-white mb-1">Set a new password</h2>
-          <p className="text-white/50 text-sm mb-6">Choose a strong password for your account.</p>
+    <div className="min-h-screen flex">
+      {/* ── Left panel: brand ───────────────────────────────────────── */}
+      <div
+        className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 relative overflow-hidden"
+        style={{ background: `linear-gradient(145deg, ${NAVY} 0%, ${NAVY_MID} 60%, #0d3352 100%)` }}
+      >
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full opacity-10"
+          style={{ background: `radial-gradient(circle, ${TEAL_LIGHT}, transparent 70%)` }} />
+        <div className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full opacity-8"
+          style={{ background: `radial-gradient(circle, ${TEAL}, transparent 70%)` }} />
+
+        <div className="relative z-10">
+          <div className="flex items-baseline gap-0.5">
+            <span className="text-3xl font-bold text-white tracking-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>teach</span>
+            <span className="text-3xl font-bold tracking-tight" style={{ color: TEAL_LIGHT, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>ific</span>
+            <span className="text-sm font-bold ml-0.5" style={{ color: TEAL_LIGHT, verticalAlign: "super", fontSize: "0.55em" }}>™</span>
+          </div>
+          <p className="text-xs font-semibold tracking-widest uppercase mt-1" style={{ color: `${TEAL_LIGHT}80` }}>
+            Learning Management Platform
+          </p>
+        </div>
+
+        <div className="relative z-10 space-y-6">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center"
+            style={{ background: `${TEAL}25`, border: `1px solid ${TEAL}40` }}
+          >
+            <LockKeyhole className="w-8 h-8" style={{ color: TEAL_LIGHT }} />
+          </div>
+          <div>
+            <h1
+              className="text-3xl font-bold text-white leading-tight mb-3"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              New password.<br />
+              <span style={{ color: TEAL_LIGHT }}>Fresh start.</span>
+            </h1>
+            <p className="text-white/60 text-base leading-relaxed max-w-sm">
+              Choose a strong password to protect your Teachific account. We recommend at least 12 characters with a mix of letters, numbers, and symbols.
+            </p>
+          </div>
+        </div>
+
+        <p className="relative z-10 text-white/25 text-xs">
+          © {new Date().getFullYear()} Teachific™. All rights reserved.
+        </p>
+      </div>
+
+      {/* ── Right panel: form ───────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col justify-center items-center bg-white px-8 py-12">
+        {/* Mobile logo */}
+        <div className="lg:hidden mb-8 text-center">
+          <div className="flex items-baseline gap-0.5 justify-center">
+            <span className="text-3xl font-bold tracking-tight" style={{ color: NAVY, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>teach</span>
+            <span className="text-3xl font-bold tracking-tight" style={{ color: TEAL, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>ific</span>
+            <span className="text-sm font-bold ml-0.5" style={{ color: TEAL, verticalAlign: "super", fontSize: "0.55em" }}>™</span>
+          </div>
+        </div>
+
+        <div className="w-full max-w-sm">
+          <div className="mb-8">
+            <h2
+              className="text-2xl font-bold mb-1"
+              style={{ color: NAVY, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              Set a new password
+            </h2>
+            <p className="text-sm text-slate-500">Choose a strong password for your account.</p>
+          </div>
 
           {error && (
-            <Alert className="mb-4 border-red-500/30 bg-red-500/10">
-              <AlertDescription className="text-red-300 text-sm">{error}</AlertDescription>
+            <Alert className="mb-5 border-red-200 bg-red-50">
+              <AlertDescription className="text-red-700 text-sm">{error}</AlertDescription>
             </Alert>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-white/70 text-sm">New password</Label>
+              <Label className="text-sm font-medium" style={{ color: NAVY }}>New password</Label>
               <div className="relative">
                 <Input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 8 characters"
-                  required minLength={8}
-                  className="bg-white/5 border-white/15 text-white placeholder:text-white/30 focus:border-[#4ad9e0]/50 pr-10"
+                  required
+                  minLength={8}
+                  className="h-11 border-slate-200 focus:border-[#189aa1] focus:ring-[#189aa1]/20 text-slate-800 placeholder:text-slate-400 pr-10"
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-white/70 text-sm">Confirm new password</Label>
+              <Label className="text-sm font-medium" style={{ color: NAVY }}>Confirm new password</Label>
               <Input
                 type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="Repeat your password"
                 required
-                className="bg-white/5 border-white/15 text-white placeholder:text-white/30 focus:border-[#4ad9e0]/50"
+                className="h-11 border-slate-200 focus:border-[#189aa1] focus:ring-[#189aa1]/20 text-slate-800 placeholder:text-slate-400"
               />
               {confirm.length > 0 && password !== confirm && (
-                <p className="text-red-400/80 text-xs">Passwords do not match</p>
+                <p className="text-red-600 text-xs">Passwords do not match</p>
               )}
             </div>
 
             <Button
               type="submit"
               disabled={reset.isPending || !token}
-              className="w-full bg-[#189aa1] hover:bg-[#189aa1]/90 text-white font-semibold py-2.5 rounded-lg"
+              className="w-full h-11 font-semibold text-white rounded-lg transition-all shadow-sm"
+              style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #15b8c0 100%)` }}
             >
-              {reset.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Updating...</> : "Update password"}
+              {reset.isPending
+                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Updating...</>
+                : "Update password"}
             </Button>
           </form>
         </div>

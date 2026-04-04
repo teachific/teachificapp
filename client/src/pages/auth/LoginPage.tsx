@@ -5,7 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, BookOpen, Users, TrendingUp, Award } from "lucide-react";
+
+const NAVY = "#0b1d35";
+const NAVY_MID = "#0f2847";
+const TEAL = "#189aa1";
+const TEAL_LIGHT = "#4ad9e0";
+
+const features = [
+  { icon: BookOpen, text: "Build & sell courses in minutes" },
+  { icon: Users, text: "Manage unlimited students" },
+  { icon: TrendingUp, text: "Built-in analytics & revenue tracking" },
+  { icon: Award, text: "Automated certificates & completions" },
+];
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
@@ -16,7 +28,7 @@ export default function LoginPage() {
 
   const login = trpc.customAuth.login.useMutation({
     onSuccess: () => {
-      navigate("/dashboard");
+      navigate("/lms");
     },
     onError: (err) => {
       setError(err.message);
@@ -30,38 +42,112 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0d1f2d] via-[#0f2a35] to-[#0a1a22] flex items-center justify-center p-4">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#189aa1]/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-[#4ad9e0]/5 rounded-full blur-3xl" />
-      </div>
+    <div className="min-h-screen flex">
+      {/* ── Left panel: brand ───────────────────────────────────────── */}
+      <div
+        className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 relative overflow-hidden"
+        style={{ background: `linear-gradient(145deg, ${NAVY} 0%, ${NAVY_MID} 60%, #0d3352 100%)` }}
+      >
+        {/* Decorative glows */}
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full opacity-10"
+          style={{ background: `radial-gradient(circle, ${TEAL_LIGHT}, transparent 70%)` }} />
+        <div className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full opacity-8"
+          style={{ background: `radial-gradient(circle, ${TEAL}, transparent 70%)` }} />
+        <div className="absolute top-1/2 right-0 w-px h-64 -translate-y-1/2 opacity-20"
+          style={{ background: `linear-gradient(to bottom, transparent, ${TEAL_LIGHT}, transparent)` }} />
 
-      <div className="relative w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-baseline gap-0.5 mb-2">
-            <span className="text-4xl font-bold text-white tracking-tight">teach</span>
-            <span className="text-4xl font-bold text-[#4ad9e0] tracking-tight">ific</span>
-            <span className="text-xl text-[#4ad9e0]/70 ml-0.5">™</span>
+        <div className="relative z-10">
+          <div className="flex items-baseline gap-0.5">
+            <span className="text-3xl font-bold text-white tracking-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>teach</span>
+            <span className="text-3xl font-bold tracking-tight" style={{ color: TEAL_LIGHT, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>ific</span>
+            <span className="text-sm font-bold ml-0.5" style={{ color: TEAL_LIGHT, verticalAlign: "super", fontSize: "0.55em" }}>™</span>
           </div>
-          <p className="text-[#4ad9e0]/60 text-sm font-medium tracking-wide uppercase">Learning Management Platform</p>
+          <p className="text-xs font-semibold tracking-widest uppercase mt-1" style={{ color: `${TEAL_LIGHT}80` }}>
+            Learning Management Platform
+          </p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 shadow-2xl">
-          <h2 className="text-xl font-semibold text-white mb-1">Welcome back</h2>
-          <p className="text-white/50 text-sm mb-6">Sign in to your account to continue</p>
+        {/* Hero copy */}
+        <div className="relative z-10 space-y-8">
+          <div>
+            <h1 className="text-4xl font-bold text-white leading-tight mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              Your knowledge.<br />
+              <span style={{ color: TEAL_LIGHT }}>Your school.</span><br />
+              Your revenue.
+            </h1>
+            <p className="text-white/60 text-base leading-relaxed max-w-sm">
+              Join thousands of educators who turned their expertise into a thriving online school with Teachific.
+            </p>
+          </div>
+
+          {/* Feature list */}
+          <div className="space-y-3">
+            {features.map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: `${TEAL}25`, border: `1px solid ${TEAL}40` }}>
+                  <Icon className="w-4 h-4" style={{ color: TEAL_LIGHT }} />
+                </div>
+                <span className="text-white/75 text-sm">{text}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Stats */}
+          <div className="flex items-center gap-6 pt-2">
+            <div>
+              <p className="text-2xl font-bold text-white">10K+</p>
+              <p className="text-white/45 text-xs">Courses created</p>
+            </div>
+            <div className="w-px h-10 bg-white/15" />
+            <div>
+              <p className="text-2xl font-bold text-white">250K+</p>
+              <p className="text-white/45 text-xs">Active learners</p>
+            </div>
+            <div className="w-px h-10 bg-white/15" />
+            <div>
+              <p className="text-2xl font-bold text-white">98%</p>
+              <p className="text-white/45 text-xs">Satisfaction</p>
+            </div>
+          </div>
+        </div>
+
+        <p className="relative z-10 text-white/25 text-xs">
+          © {new Date().getFullYear()} Teachific™. All rights reserved.
+        </p>
+      </div>
+
+      {/* ── Right panel: form ───────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col justify-center items-center bg-white px-8 py-12">
+        {/* Mobile logo */}
+        <div className="lg:hidden mb-8 text-center">
+          <div className="flex items-baseline gap-0.5 justify-center">
+            <span className="text-3xl font-bold tracking-tight" style={{ color: NAVY, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>teach</span>
+            <span className="text-3xl font-bold tracking-tight" style={{ color: TEAL, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>ific</span>
+            <span className="text-sm font-bold ml-0.5" style={{ color: TEAL, verticalAlign: "super", fontSize: "0.55em" }}>™</span>
+          </div>
+        </div>
+
+        <div className="w-full max-w-sm">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-1" style={{ color: NAVY, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              Welcome back
+            </h2>
+            <p className="text-sm text-slate-500">Sign in to your Teachific account</p>
+          </div>
 
           {error && (
-            <Alert className="mb-4 border-red-500/30 bg-red-500/10">
-              <AlertDescription className="text-red-300 text-sm">{error}</AlertDescription>
+            <Alert className="mb-5 border-red-200 bg-red-50">
+              <AlertDescription className="text-red-700 text-sm">{error}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-white/70 text-sm">Email address</Label>
+              <Label htmlFor="email" className="text-sm font-medium" style={{ color: NAVY }}>
+                Email address
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -70,14 +156,18 @@ export default function LoginPage() {
                 placeholder="you@example.com"
                 required
                 autoComplete="email"
-                className="bg-white/5 border-white/15 text-white placeholder:text-white/30 focus:border-[#4ad9e0]/50 focus:ring-[#4ad9e0]/20"
+                className="h-11 border-slate-200 focus:border-[#189aa1] focus:ring-[#189aa1]/20 text-slate-800 placeholder:text-slate-400"
               />
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-white/70 text-sm">Password</Label>
-                <Link href="/forgot-password" className="text-[#4ad9e0] text-xs hover:text-[#4ad9e0]/80 transition-colors">
+                <Label htmlFor="password" className="text-sm font-medium" style={{ color: NAVY }}>
+                  Password
+                </Label>
+                <Link href="/forgot-password"
+                  className="text-xs font-medium transition-colors hover:opacity-80"
+                  style={{ color: TEAL }}>
                   Forgot password?
                 </Link>
               </div>
@@ -90,12 +180,12 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
-                  className="bg-white/5 border-white/15 text-white placeholder:text-white/30 focus:border-[#4ad9e0]/50 focus:ring-[#4ad9e0]/20 pr-10"
+                  className="h-11 border-slate-200 focus:border-[#189aa1] focus:ring-[#189aa1]/20 text-slate-800 placeholder:text-slate-400 pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -105,27 +195,35 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={login.isPending}
-              className="w-full bg-[#189aa1] hover:bg-[#189aa1]/90 text-white font-semibold py-2.5 rounded-lg transition-all"
+              className="w-full h-11 font-semibold text-white rounded-lg transition-all shadow-sm"
+              style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #15b8c0 100%)` }}
             >
-              {login.isPending ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in...</>
-              ) : "Sign in"}
+              {login.isPending
+                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in...</>
+                : "Sign in"}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-white/40 text-sm">
+            <p className="text-sm text-slate-500">
               Don't have an account?{" "}
-              <Link href="/register" className="text-[#4ad9e0] hover:text-[#4ad9e0]/80 font-medium transition-colors">
-                Create one
+              <Link href="/register"
+                className="font-semibold transition-colors hover:opacity-80"
+                style={{ color: TEAL }}>
+                Start for free
               </Link>
             </p>
           </div>
-        </div>
 
-        <p className="text-center text-white/20 text-xs mt-6">
-          © {new Date().getFullYear()} Teachific™. All rights reserved.
-        </p>
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+            <p className="text-xs text-slate-400">
+              By signing in you agree to our{" "}
+              <a href="/policies/teachific" className="underline hover:text-slate-600 transition-colors">Terms of Service</a>
+              {" "}and{" "}
+              <a href="/policies/teachific" className="underline hover:text-slate-600 transition-colors">Privacy Policy</a>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

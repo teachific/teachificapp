@@ -71,13 +71,13 @@
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.623 0.214 259.815);
-  /* Dark sidebar */
-  --sidebar: oklch(0.16 0.015 260);
-  --sidebar-foreground: oklch(0.92 0.005 260);
-  --sidebar-accent: oklch(0.22 0.015 260);
-  --sidebar-accent-foreground: oklch(0.92 0.005 260);
-  --sidebar-border: oklch(0.25 0.015 260);
-  --sidebar-ring: oklch(0.55 0.22 264);
+  /* Deep navy sidebar — Teachific brand */
+  --sidebar: oklch(0.18 0.055 230);
+  --sidebar-foreground: oklch(0.93 0.008 220);
+  --sidebar-accent: oklch(0.24 0.055 228);
+  --sidebar-accent-foreground: oklch(0.95 0.008 220);
+  --sidebar-border: oklch(0.28 0.045 228);
+  --sidebar-ring: oklch(0.669 0.107 215);
 }
 
 .dark {
