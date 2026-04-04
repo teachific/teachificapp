@@ -107,6 +107,9 @@ import BillingPage from "./pages/profile/BillingPage";
 
 import LandingPage from "./pages/LandingPage";
 import QuizCreatorPage from "./pages/QuizCreatorPage";
+import QuizCreatorGate from "./pages/QuizCreatorGate";
+import QuizCreatorDashboard from "./pages/QuizCreatorDashboard";
+import QuizCreatorLandingPage from "./pages/QuizCreatorLandingPage";
 // Auth pages (no sidebar)
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
@@ -147,9 +150,12 @@ function BareRouter() {
       <Route path="/verify-email" component={VerifyEmailPage} />
       {/* Marketing landing page — shown to logged-out visitors at root */}
       <Route path="/" component={LandingPage} />
-      {/* Standalone Quiz Creator — full-screen, no sidebar */}
-      <Route path="/quiz-creator" component={QuizCreatorPage} />
-      <Route path="/quiz-creator/:id" component={QuizCreatorPage} />
+      {/* Standalone Quiz Creator — gated by role */}
+      <Route path="/quiz-creator" component={QuizCreatorGate} />
+      {/* QuizCreator standalone app for users without LMS access */}
+      <Route path="/quiz-creator-app" component={QuizCreatorDashboard} />
+      {/* QuizCreator sales/marketing page */}
+      <Route path="/quiz-creator-pro" component={QuizCreatorLandingPage} />
     </Switch>
   );
 }
@@ -292,7 +298,9 @@ function Router() {
     path.startsWith("/shop/") ||
     path.startsWith("/forms/") ||
     AUTH_PATHS.some((p) => path === p || path.startsWith(p + "?")) ||
-    path.startsWith("/quiz-creator");
+    path.startsWith("/quiz-creator") ||
+    path.startsWith("/quiz-creator-app") ||
+    path.startsWith("/quiz-creator-pro");
   return isBare ? <BareRouter /> : <AdminRouter />;
 }
 

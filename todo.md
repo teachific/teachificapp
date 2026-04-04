@@ -1840,3 +1840,18 @@
 - [ ] Add sidebar link to Quiz Creator from LMS dashboard
 - [ ] Add Teachific platform integration: publish quiz to course, import .quiz into course builder
 - [ ] Add license key generation and validation backend (server-side license issuance)
+
+## QuizCreator as Standalone Product
+- [x] Add quiz_creator_role enum (none/lite/premium) to users table in schema + migration
+- [x] Add backend procedures: getQuizCreatorRole, setQuizCreatorRole (admin only)
+- [x] Gate /quiz-creator route: require quiz_creator_role (lite or premium) OR LMS Enterprise plan
+- [ ] Add QuizCreator sidebar link in LMS dashboard (visible only to Enterprise users — pending user request)
+- [x] Build standalone QuizCreator app shell (no LMS sidebar) for quiz_creator-only users at /quiz-creator-app
+- [x] Standalone shell: QuizCreator branding, Lite/Premium badge, logout, upgrade CTA
+- [x] Build QuizCreator sales/marketing landing page at /quiz-creator-pro with full ad copy
+- [x] Sales page: hero, feature highlights, Lite vs Premium comparison table, pricing cards, CTAs
+- [x] Route /quiz-creator-app for standalone users → QuizCreator dashboard shell
+- [x] Route /quiz-creator for LMS Enterprise users → full editor (QuizCreatorGate)
+- [x] Logged-out users visiting /quiz-creator → redirect to login, then gate checks role
+- [ ] Add QuizCreator plan to platform admin: assign quiz_creator_role to users
+- [ ] Stripe integration for QuizCreator Lite/Premium subscriptions (pending credentials)

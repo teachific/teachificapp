@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import mysql from 'mysql2/promise';
 
-const sql = readFileSync('./drizzle/0007_many_ronan.sql', 'utf8');
+const sql = readFileSync('./drizzle/0047_hard_madrox.sql', 'utf8');
 const statements = sql
   .split('--> statement-breakpoint')
   .map(s => s.trim())

@@ -1843,5 +1843,37 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         return { success: true };
       }),
   }),
+
+  // ─── QuizCreator Product ──────────────────────────────────────────────────────
+  quizCreator: router({
+    /** Get the current user's QuizCreator role */
+    getMyRole: protectedProcedure.query(async ({ ctx }) => {
+      const user = await getUserById(ctx.user.id);
+      return { role: (user?.quizCreatorRole ?? "none") as "none" | "lite" | "premium" };
+    }),
+
+    /** Admin: set a user's QuizCreator role */
+    setUserRole: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        role: z.enum(["none", "lite", "premium"]),
+      }))
+      .mutation(async ({ input }) => {
+        await updateUser(input.userId, { quizCreatorRole: input.role });
+        return { success: true };
+      }),
+
+    /** Admin: list all users with their QuizCreator role */
+    listUsersWithRole: adminProcedure.query(async () => {
+      const allUsers = await getAllUsers();
+      return allUsers.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        quizCreatorRole: u.quizCreatorRole ?? "none",
+      }));
+    }),
+  }),
 });
 export type AppRouter = typeof appRouter;

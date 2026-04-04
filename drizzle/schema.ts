@@ -30,6 +30,8 @@ export const users = mysqlTable("users", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+  // QuizCreator standalone product access role
+  quizCreatorRole: mysqlEnum("quizCreatorRole", ["none", "lite", "premium"]).default("none").notNull(),
 });
 
 export type User = typeof users.$inferSelect;

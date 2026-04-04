@@ -330,6 +330,13 @@
       "when": 1775245670147,
       "tag": "0046_mixed_zaran",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "5",
+      "when": 1775306812047,
+      "tag": "0047_hard_madrox",
+      "breakpoints": true
     }
   ]
 }
