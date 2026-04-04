@@ -70,6 +70,7 @@ import {
   deleteOrgLimitOverride,
   deleteOrgCascade,
   getOrgLimitsEnriched,
+  getOrgStorageUsage,
 } from "./db";
 import { courseEnrollments, organizations, orgMembers } from "../drizzle/schema";
 import { eq, sql } from "drizzle-orm";
@@ -551,6 +552,17 @@ export const appRouter = router({
         const org = await getOrgBySlug(input.slug);
         if (!org) return null;
         return { id: org.id, name: org.name, slug: org.slug, description: (org as any).description ?? '' };
+      }),
+    // Storage usage for the user's primary org
+    storageUsage: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        // Allow org members, org admins, and site admins
+        const member = await getOrgMember(input.orgId, ctx.user.id);
+        if (!member && ctx.user.role !== 'site_owner' && ctx.user.role !== 'site_admin') {
+          throw new TRPCError({ code: 'FORBIDDEN' });
+        }
+        return getOrgStorageUsage(input.orgId);
       }),
     members: router({
       list: protectedProcedure.input(z.object({ orgId: z.number() })).query(async ({ input, ctx }) => {

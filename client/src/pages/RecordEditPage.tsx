@@ -1021,12 +1021,12 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
   );
 }
 
-// ─── UploadTab Sub-component ─────────────────────────────────────────────────
-
+/// ─── UploadTab Sub-component ─────────────────────────────────────────────────
 function UploadTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaItem) => void }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [uploadPhase, setUploadPhase] = useState<"uploading" | "saving">("uploading");
   const [uploadedItems, setUploadedItems] = useState<MediaItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1047,10 +1047,14 @@ function UploadTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
       formData.append("orgId", String(orgId));
       formData.append("folder", "lms-media");
 
+       setUploadPhase("uploading");
       const result = await new Promise<{ key: string; url: string; fileName: string; fileSize: number; fileType: string }>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+          if (e.lengthComputable) {
+            // Scale browser→server progress to 0–90%; the remaining 10% is server→storage
+            setProgress(Math.round((e.loaded / e.total) * 90));
+          }
         });
         xhr.addEventListener("load", () => {
           if (xhr.status >= 200 && xhr.status < 300) {
@@ -1062,10 +1066,15 @@ function UploadTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
           }
         });
         xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+        // Once the browser finishes sending, switch to the "saving" phase label
+        xhr.upload.addEventListener("loadend", () => {
+          setUploadPhase("saving");
+          setProgress(92);
+        });
         xhr.open("POST", "/api/media-upload");
         xhr.send(formData);
       });
-
+      setProgress(98);
       const saved = await saveMediaItem.mutateAsync({
         orgId,
         fileName: result.fileName,
@@ -1087,14 +1096,14 @@ function UploadTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
       setUploadedItems((prev) => [item, ...prev]);
       toast.success("Video uploaded to Media Library");
       onSaved(item);
-    } catch (err: any) {
+     } catch (err: any) {
       toast.error(err?.message ?? "Upload failed");
     } finally {
       setUploading(false);
       setProgress(0);
+      setUploadPhase("uploading");
     }
   };
-
   return (
     <div className="flex flex-col gap-6 p-6 max-w-2xl mx-auto w-full">
       <div>
@@ -1125,10 +1134,15 @@ function UploadTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
         </div>
         {uploading ? (
           <div className="flex flex-col items-center gap-2 w-full max-w-xs">
-            <p className="text-sm font-medium">Uploading... {progress}%</p>
+            <p className="text-sm font-medium">
+              {uploadPhase === "saving" ? `Saving to storage\u2026 ${progress}%` : `Uploading\u2026 ${progress}%`}
+            </p>
             <div className="w-full bg-muted rounded-full h-2">
               <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
+            {uploadPhase === "saving" && (
+              <p className="text-xs text-muted-foreground text-center">File received — saving to media library, please wait…</p>
+            )}
           </div>
         ) : (
           <>

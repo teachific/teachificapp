@@ -10,6 +10,7 @@ import {
   InsertContentFolder,
   InsertUser,
   orgLimitOverrides,
+  orgMediaLibrary,
   orgMembers,
   orgSubscriptions,
   organizations,
@@ -712,6 +713,36 @@ export async function deleteOrgLimitOverride(orgId: number, featureKey: string) 
   if (!db) return;
   await db.delete(orgLimitOverrides)
     .where(and(eq(orgLimitOverrides.orgId, orgId), eq(orgLimitOverrides.featureKey, featureKey)));
+}
+
+// ─── Storage Usage ────────────────────────────────────────────────────────────
+/**
+ * Returns total bytes used by an org across SCORM file assets and media library items,
+ * plus the org's maxStorageBytes quota.
+ */
+export async function getOrgStorageUsage(orgId: number): Promise<{ usedBytes: number; maxBytes: number }> {
+  const db = await getDb();
+  if (!db) return { usedBytes: 0, maxBytes: 10 * 1024 * 1024 * 1024 };
+
+  // Sum file sizes from SCORM file assets (via contentPackages)
+  const [scormResult] = await db
+    .select({ total: sql<number>`COALESCE(SUM(${fileAssets.fileSize}), 0)` })
+    .from(fileAssets)
+    .innerJoin(contentPackages, eq(fileAssets.packageId, contentPackages.id))
+    .where(eq(contentPackages.orgId, orgId));
+
+  // Sum file sizes from org media library
+  const [mediaResult] = await db
+    .select({ total: sql<number>`COALESCE(SUM(${orgMediaLibrary.fileSize}), 0)` })
+    .from(orgMediaLibrary)
+    .where(eq(orgMediaLibrary.orgId, orgId));
+
+  // Get the org's quota
+  const org = await getOrgById(orgId);
+  const maxBytes = org?.maxStorageBytes ?? 10 * 1024 * 1024 * 1024; // default 10 GB
+
+  const usedBytes = Number(scormResult?.total ?? 0) + Number(mediaResult?.total ?? 0);
+  return { usedBytes, maxBytes };
 }
 
 // ─── Delete Org (cascade) ──────────────────────────────────────────────────────

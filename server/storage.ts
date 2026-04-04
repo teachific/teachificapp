@@ -120,6 +120,9 @@ export async function storagePutStream(
   });
 
   // Use Node's http/https directly so we can stream form-data without buffering
+  // Timeout: 30 minutes to accommodate very large files (3 GB @ ~1.5 MB/s)
+  const UPLOAD_TIMEOUT_MS = 30 * 60 * 1000;
+
   return new Promise((resolve, reject) => {
     const uploadUrlParsed = uploadUrl;
     const isHttps = uploadUrlParsed.protocol === "https:";
@@ -136,24 +139,39 @@ export async function storagePutStream(
       },
     };
 
+    let settled = false;
+    const done = (fn: () => void) => { if (!settled) { settled = true; fn(); } };
+
     const req = (transport as typeof https).request(options, (res) => {
       let body = "";
       res.on("data", (chunk) => { body += chunk; });
       res.on("end", () => {
         if ((res.statusCode ?? 500) >= 400) {
-          reject(new Error(`Storage stream upload failed (${res.statusCode}): ${body.slice(0, 200)}`));
+          done(() => reject(new Error(`Storage stream upload failed (${res.statusCode}): ${body.slice(0, 300)}`)));
           return;
         }
         try {
           const parsed = JSON.parse(body);
-          resolve({ key, url: parsed.url });
+          done(() => resolve({ key, url: parsed.url }));
         } catch {
-          reject(new Error(`Invalid JSON from storage: ${body.slice(0, 200)}`));
+          done(() => reject(new Error(`Invalid JSON from storage: ${body.slice(0, 300)}`)));
         }
       });
+      res.on("error", (err) => done(() => reject(err)));
     });
 
-    req.on("error", reject);
+    // Abort if the storage endpoint is unresponsive
+    const timer = setTimeout(() => {
+      req.destroy(new Error(`Storage upload timed out after ${UPLOAD_TIMEOUT_MS / 60000} minutes`));
+    }, UPLOAD_TIMEOUT_MS);
+
+    req.on("error", (err) => {
+      clearTimeout(timer);
+      done(() => reject(err));
+    });
+
+    req.on("close", () => clearTimeout(timer));
+
     form.pipe(req);
   });
 }

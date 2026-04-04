@@ -606,6 +606,11 @@
 - [x] Show completion banner when lesson is marked complete (with auto-dismiss)
 - [x] Render LessonBanner overlay in CoursePlayerPage JSX
 
+## Bug Fix: TeachificStudio Video Upload Stalls
+- [x] Add timeout + retry logic to storagePutStream in storage.ts
+- [x] Fix client XHR to distinguish browser→server progress from server→storage progress (two-phase label)
+- [ ] Test large video upload end-to-end in TeachificStudio
+
 ## Vimeo Support (Already Implemented)
 - [x] Vimeo URLs already handled in CoursePlayerPage video case (lines 245-248)
 - [x] Converts vimeo.com/{id} to https://player.vimeo.com/video/{id} embed URL
