@@ -2042,3 +2042,9 @@
 - [x] Draggable camera bubble with snap-to-corner
 - [ ] Logo upload toggle for camera bubble
 - [x] Auto-populate transcript on Edit tab load (already implemented)
+
+## Bug Fix: Transcription (generateCaptions) Still Failing
+- [ ] Check server logs for the exact error when generateCaptions is called
+- [ ] Inspect the generateCaptions procedure and voiceTranscription helper
+- [ ] Verify the audio extraction / file URL passed to the transcription API
+- [ ] Fix root cause and verify transcription works end-to-end

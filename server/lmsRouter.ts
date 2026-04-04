@@ -2521,13 +2521,15 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
         await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        console.log("[generateCaptions] Starting for mediaItemId:", input.mediaItemId, "url:", input.fileUrl?.substring(0, 80));
         const result = await transcribeAudio({
           audioUrl: input.fileUrl,
           language: input.language,
           prompt: "Transcribe this video or audio recording",
         });
+        console.log("[generateCaptions] Result keys:", Object.keys(result), "error" in result ? `ERROR: ${(result as any).error} | ${(result as any).details}` : `OK segments=${(result as any).segments?.length}`);
         if ("error" in result) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (result as any).error ?? "Transcription failed" });
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `${(result as any).error}: ${(result as any).details ?? ""}` });
         }
         const segments = (result as any).segments ?? [];
         const fullText = (result as any).text ?? "";

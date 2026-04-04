@@ -121,9 +121,17 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
   );
   const deleteClipMutation = trpc.lms.media.deleteClip.useMutation();
 
+  // Prevent double-firing in React StrictMode
+  const hasAutoTriggeredRef = useRef(false);
+
   // Auto-generate transcript when Edit tab opens and no transcript exists
   useEffect(() => {
-    if (!item.transcriptJson && !generatingCaptions && item.url && item.id) {
+    hasAutoTriggeredRef.current = false;
+  }, [item.id]);
+
+  useEffect(() => {
+    if (!item.transcriptJson && item.url && item.id && !hasAutoTriggeredRef.current) {
+      hasAutoTriggeredRef.current = true;
       setGeneratingCaptions(true);
       generateCaptionsMutation.mutateAsync({
         orgId,
@@ -132,8 +140,10 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
       }).then((result) => {
         setSegments(result.segments as TranscriptSegment[]);
         setCaptionsUrl(result.captionsUrl);
-      }).catch(() => {
-        // Silently fail — user can manually trigger via button
+        onSaved?.(); // Refresh parent media list so item.transcriptJson is updated
+      }).catch((err: any) => {
+        console.error("[generateCaptions auto] Failed:", err?.message, err?.data);
+        toast.error("Auto-transcription failed: " + (err?.message ?? "Unknown error"));
       }).finally(() => setGeneratingCaptions(false));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -200,6 +210,7 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
       setSegments(result.segments as TranscriptSegment[]);
       setCaptionsUrl(result.captionsUrl);
       toast.success("Captions generated successfully");
+      onSaved?.(); // Refresh parent media list
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to generate captions");
     } finally {
@@ -1488,11 +1499,16 @@ function EditTab({ orgId, initialItem }: { orgId: number; initialItem?: MediaIte
       const allItems = listMediaQuery.data.items ?? [];
       const videoItems = allItems.filter(
         (item) => item.mimeType?.startsWith("video/") || item.mimeType?.startsWith("audio/")
-      );
-      setMediaItems(videoItems as MediaItem[]);
+      ) as MediaItem[];
+      setMediaItems(videoItems);
+      // Keep selectedItem in sync with latest data (e.g. after transcription completes)
+      setSelectedItem(prev => {
+        if (!prev) return prev;
+        const updated = videoItems.find(i => i.id === prev.id);
+        return updated ?? prev;
+      });
     }
   }, [listMediaQuery.data]);
-
   useEffect(() => {
     if (initialItem) setSelectedItem(initialItem);
   }, [initialItem]);
