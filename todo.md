@@ -2048,3 +2048,15 @@
 - [ ] Inspect the generateCaptions procedure and voiceTranscription helper
 - [ ] Verify the audio extraction / file URL passed to the transcription API
 - [ ] Fix root cause and verify transcription works end-to-end
+
+## CC Style Editor (VideoEditor)
+- [x] CC style panel: text color picker (white/black/yellow/cyan/custom)
+- [x] CC style panel: background color + opacity slider
+- [x] CC style panel: bold / italic / shadow toggles
+- [x] CC style panel: font size slider
+- [x] CC style panel: 8 preset color schemes (Classic, Neon, Karaoke, TikTok, Minimal, Fire, Purple, White)
+- [x] CC emoji auto-insert toggle (maps 20 keywords to emojis in transcript display)
+- [x] Live CC overlay on video using div overlay (not native track) for full style control
+- [x] CC style persisted in component state and applied to overlay
+- [x] Live preview section in style panel
+- [x] Reset to Default button

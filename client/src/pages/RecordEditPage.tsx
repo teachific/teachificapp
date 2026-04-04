@@ -69,16 +69,79 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-// Caption style presets
-type CaptionStyle = "default" | "bold" | "outline" | "highlight" | "minimal" | "large";
-const CAPTION_STYLES: { id: CaptionStyle; label: string; preview: string; css: string }[] = [
-  { id: "default", label: "Default", preview: "Aa", css: "" },
-  { id: "bold", label: "Bold", preview: "Aa", css: "font-weight: bold;" },
-  { id: "outline", label: "Outline", preview: "Aa", css: "-webkit-text-stroke: 1px black; color: white;" },
-  { id: "highlight", label: "Highlight", preview: "Aa", css: "background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px;" },
-  { id: "minimal", label: "Minimal", preview: "Aa", css: "opacity: 0.85; font-size: 0.9em;" },
-  { id: "large", label: "Large", preview: "Aa", css: "font-size: 1.3em; font-weight: 600;" },
+// ─── CC Style System ─────────────────────────────────────────────────────────
+
+interface CCStyle {
+  textColor: string;       // hex
+  bgColor: string;         // hex
+  bgOpacity: number;       // 0-1
+  bold: boolean;
+  italic: boolean;
+  shadow: boolean;
+  fontSize: number;        // px, 14-40
+  emojiEnabled: boolean;
+}
+
+const CC_DEFAULT_STYLE: CCStyle = {
+  textColor: "#ffffff",
+  bgColor: "#000000",
+  bgOpacity: 0.75,
+  bold: true,
+  italic: false,
+  shadow: true,
+  fontSize: 22,
+  emojiEnabled: false,
+};
+
+const CC_PRESETS: { id: string; label: string; emoji: string; style: Partial<CCStyle> }[] = [
+  { id: "classic",  label: "Classic",  emoji: "📺", style: { textColor: "#ffffff", bgColor: "#000000", bgOpacity: 0.75, bold: true,  italic: false, shadow: false, fontSize: 22 } },
+  { id: "neon",     label: "Neon",     emoji: "⚡", style: { textColor: "#00ffcc", bgColor: "#000000", bgOpacity: 0.8,  bold: true,  italic: false, shadow: true,  fontSize: 22 } },
+  { id: "karaoke",  label: "Karaoke",  emoji: "🎤", style: { textColor: "#ffee00", bgColor: "#1a0050", bgOpacity: 0.85, bold: true,  italic: false, shadow: true,  fontSize: 24 } },
+  { id: "tiktok",   label: "TikTok",   emoji: "🎵", style: { textColor: "#ffffff", bgColor: "#fe2c55", bgOpacity: 0.9,  bold: true,  italic: false, shadow: false, fontSize: 24 } },
+  { id: "fire",     label: "Fire",     emoji: "🔥", style: { textColor: "#ff6b00", bgColor: "#1a0000", bgOpacity: 0.85, bold: true,  italic: true,  shadow: true,  fontSize: 24 } },
+  { id: "minimal",  label: "Minimal",  emoji: "🤍", style: { textColor: "#ffffff", bgColor: "#000000", bgOpacity: 0.0,  bold: false, italic: false, shadow: true,  fontSize: 18 } },
+  { id: "purple",   label: "Purple",   emoji: "💜", style: { textColor: "#ffffff", bgColor: "#6d28d9", bgOpacity: 0.85, bold: true,  italic: false, shadow: false, fontSize: 22 } },
+  { id: "white",    label: "White",    emoji: "🌟", style: { textColor: "#000000", bgColor: "#ffffff", bgOpacity: 0.9,  bold: true,  italic: false, shadow: false, fontSize: 22 } },
 ];
+
+// Emoji keyword map for auto-insert
+const EMOJI_MAP: [RegExp, string][] = [
+  [/\b(happy|happiness|joy|joyful|excited|excite)\b/i, "😊"],
+  [/\b(love|loving|heart|adore)\b/i, "❤️"],
+  [/\b(fire|hot|amazing|incredible|insane|crazy)\b/i, "🔥"],
+  [/\b(laugh|funny|haha|lol|hilarious)\b/i, "😂"],
+  [/\b(think|thinking|idea|brain|smart|clever)\b/i, "💡"],
+  [/\b(money|cash|dollar|profit|revenue|earn)\b/i, "💰"],
+  [/\b(star|stars|great|excellent|perfect|awesome)\b/i, "⭐"],
+  [/\b(music|song|sing|singing|beat|rhythm)\b/i, "🎵"],
+  [/\b(learn|learning|study|education|school|teach)\b/i, "📚"],
+  [/\b(win|winning|winner|success|succeed|champion)\b/i, "🏆"],
+  [/\b(time|clock|schedule|deadline|today|now)\b/i, "⏰"],
+  [/\b(world|global|international|everywhere)\b/i, "🌍"],
+  [/\b(phone|call|mobile|text|message)\b/i, "📱"],
+  [/\b(computer|laptop|tech|technology|digital|software)\b/i, "💻"],
+  [/\b(team|together|community|group|people|everyone)\b/i, "👥"],
+  [/\b(grow|growth|increase|improve|better|progress)\b/i, "📈"],
+  [/\b(problem|issue|challenge|difficult|hard|tough)\b/i, "⚠️"],
+  [/\b(check|done|complete|finished|ready)\b/i, "✅"],
+  [/\b(new|launch|release|announce|introducing)\b/i, "🚀"],
+  [/\b(question|ask|wonder|curious|why|how)\b/i, "❓"],
+];
+
+function applyEmojiMap(text: string): string {
+  let result = text;
+  for (const [re, emoji] of EMOJI_MAP) {
+    result = result.replace(re, (m) => `${m} ${emoji}`);
+  }
+  return result;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 // ─── VideoEditor Sub-component ───────────────────────────────────────────────
 
@@ -89,8 +152,8 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
   const [duration, setDuration] = useState(item.durationSeconds ?? 0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showCaptions, setShowCaptions] = useState(true);
-  const [captionStyle, setCaptionStyle] = useState<CaptionStyle>("default");
-  const [showStylePicker, setShowStylePicker] = useState(false);
+  const [ccStyle, setCCStyle] = useState<CCStyle>(CC_DEFAULT_STYLE);
+  const [showStylePanel, setShowStylePanel] = useState(false);
   const [segments, setSegments] = useState<TranscriptSegment[]>(() => {
     if (item.transcriptJson) {
       try { return JSON.parse(item.transcriptJson); } catch { return []; }
@@ -453,7 +516,25 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
   const setClipEndToCurrent = () => setClipEnd(parseFloat(currentTime.toFixed(2)));
 
   const activeSegment = segments.find((s) => currentTime >= s.start && currentTime <= s.end);
-  const selectedStyle = CAPTION_STYLES.find((s) => s.id === captionStyle) ?? CAPTION_STYLES[0];
+
+  // Compute CC overlay inline styles from ccStyle
+  const ccOverlayStyle: React.CSSProperties = {
+    fontSize: ccStyle.fontSize,
+    fontWeight: ccStyle.bold ? "bold" : "normal",
+    fontStyle: ccStyle.italic ? "italic" : "normal",
+    color: ccStyle.textColor,
+    backgroundColor: hexToRgba(ccStyle.bgColor, ccStyle.bgOpacity),
+    textShadow: ccStyle.shadow ? "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)" : "none",
+    padding: "4px 14px",
+    borderRadius: "6px",
+    maxWidth: "90%",
+    textAlign: "center" as const,
+    lineHeight: 1.3,
+    letterSpacing: "0.01em",
+    transition: "all 0.15s ease",
+  };
+
+  const patchCCStyle = (patch: Partial<CCStyle>) => setCCStyle((prev) => ({ ...prev, ...patch }));
 
   return (
     <div className="flex flex-col gap-4 h-full overflow-y-auto">
@@ -468,22 +549,19 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onEnded={() => setIsPlaying(false)}
-          crossOrigin="anonymous"
-        >
-          {captionsUrl && (
-            <track
-              ref={trackRef}
-              kind="subtitles"
-              src={captionsUrl}
-              srcLang="en"
-              label="English"
-              default={showCaptions}
-            />
-          )}
-        </video>
+        />
 
-        {/* Caption overlay badge */}
-        {captionsUrl && (
+        {/* Custom CC overlay — replaces native <track> for full style control */}
+        {showCaptions && activeSegment && (
+          <div className="absolute bottom-12 left-0 right-0 flex justify-center pointer-events-none px-4">
+            <span style={ccOverlayStyle}>
+              {ccStyle.emojiEnabled ? applyEmojiMap(activeSegment.text) : activeSegment.text}
+            </span>
+          </div>
+        )}
+
+        {/* CC On/Off toggle */}
+        {segments.length > 0 && (
           <button
             onClick={() => setShowCaptions((v) => !v)}
             className={cn(
@@ -498,35 +576,188 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
           </button>
         )}
 
-        {/* Caption style picker toggle */}
-        {captionsUrl && (
-          <div className="absolute bottom-3 left-3">
-            <button
-              onClick={() => setShowStylePicker((v) => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-black/60 text-white/70 hover:bg-black/80 transition-all"
-            >
-              <Type className="h-3 w-3" /> Style
+        {/* CC Style button */}
+        {segments.length > 0 && (
+          <button
+            onClick={() => setShowStylePanel((v) => !v)}
+            className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-black/60 text-white/70 hover:bg-black/80 transition-all"
+          >
+            <Type className="h-3 w-3" /> CC Style
+          </button>
+        )}
+      </div>
+
+      {/* CC Style Panel */}
+      {showStylePanel && (
+        <div className="border border-border rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Type className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">Caption Style</span>
+            </div>
+            <button onClick={() => setShowStylePanel(false)} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
             </button>
-            {showStylePicker && (
-              <div className="absolute bottom-8 left-0 bg-popover border border-border rounded-xl shadow-xl p-3 flex gap-2 z-10">
-                {CAPTION_STYLES.map((s) => (
+          </div>
+
+          <div className="p-4 flex flex-col gap-5">
+            {/* Preset schemes */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Presets</p>
+              <div className="flex flex-wrap gap-2">
+                {CC_PRESETS.map((preset) => (
                   <button
-                    key={s.id}
-                    onClick={() => { setCaptionStyle(s.id); setShowStylePicker(false); }}
-                    className={cn(
-                      "flex flex-col items-center gap-1 px-3 py-2 rounded-lg border-2 text-xs transition-all min-w-[52px]",
-                      captionStyle === s.id ? "border-primary bg-primary/10" : "border-transparent hover:border-border"
-                    )}
+                    key={preset.id}
+                    onClick={() => patchCCStyle(preset.style)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:border-primary hover:bg-primary/5 transition-all"
+                    style={{
+                      color: preset.style.textColor,
+                      backgroundColor: hexToRgba(preset.style.bgColor ?? "#000000", preset.style.bgOpacity ?? 0.8),
+                    }}
                   >
-                    <span className="text-sm font-bold" style={{ ...Object.fromEntries((s.css.split(";").filter(Boolean).map((r) => { const [k, v] = r.split(":"); return [k?.trim().replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase()), v?.trim()]; }))) } as React.CSSProperties}>{s.preview}</span>
-                    <span className="text-muted-foreground">{s.label}</span>
+                    <span>{preset.emoji}</span>
+                    <span>{preset.label}</span>
                   </button>
                 ))}
               </div>
-            )}
+            </div>
+
+            {/* Colors row */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Text color */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Text Color</p>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {["#ffffff","#000000","#ffee00","#00ffcc","#ff6b00","#fe2c55","#a78bfa","#34d399"].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => patchCCStyle({ textColor: c })}
+                      className={cn("h-6 w-6 rounded-full border-2 transition-all", ccStyle.textColor === c ? "border-primary scale-110" : "border-transparent hover:scale-105")}
+                      style={{ backgroundColor: c }}
+                      title={c}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={ccStyle.textColor}
+                    onChange={(e) => patchCCStyle({ textColor: e.target.value })}
+                    className="h-7 w-10 rounded cursor-pointer border border-border"
+                    title="Custom text color"
+                  />
+                  <span className="text-xs text-muted-foreground font-mono">{ccStyle.textColor}</span>
+                </div>
+              </div>
+
+              {/* Background color */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Background</p>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {["#000000","#1a0050","#fe2c55","#1a0000","#6d28d9","#ffffff","#0f172a","#065f46"].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => patchCCStyle({ bgColor: c })}
+                      className={cn("h-6 w-6 rounded-full border-2 transition-all", ccStyle.bgColor === c ? "border-primary scale-110" : "border-border hover:scale-105")}
+                      style={{ backgroundColor: c }}
+                      title={c}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={ccStyle.bgColor}
+                    onChange={(e) => patchCCStyle({ bgColor: e.target.value })}
+                    className="h-7 w-10 rounded cursor-pointer border border-border"
+                    title="Custom background color"
+                  />
+                  <span className="text-xs text-muted-foreground font-mono">{ccStyle.bgColor}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sliders row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">BG Opacity</p>
+                  <span className="text-xs font-mono text-muted-foreground">{Math.round(ccStyle.bgOpacity * 100)}%</span>
+                </div>
+                <Slider
+                  min={0} max={1} step={0.05}
+                  value={[ccStyle.bgOpacity]}
+                  onValueChange={([v]) => patchCCStyle({ bgOpacity: v })}
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Font Size</p>
+                  <span className="text-xs font-mono text-muted-foreground">{ccStyle.fontSize}px</span>
+                </div>
+                <Slider
+                  min={14} max={40} step={1}
+                  value={[ccStyle.fontSize]}
+                  onValueChange={([v]) => patchCCStyle({ fontSize: v })}
+                />
+              </div>
+            </div>
+
+            {/* Toggles row */}
+            <div className="flex flex-wrap gap-2">
+              {([
+                { key: "bold" as const,    label: "Bold",    icon: "B" },
+                { key: "italic" as const,  label: "Italic",  icon: "I" },
+                { key: "shadow" as const,  label: "Shadow",  icon: "S" },
+              ] as const).map(({ key, label, icon }) => (
+                <button
+                  key={key}
+                  onClick={() => patchCCStyle({ [key]: !ccStyle[key] })}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all",
+                    ccStyle[key]
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  )}
+                >
+                  <span className={cn(key === "italic" && "italic", key === "bold" && "font-black")}>{icon}</span>
+                  {label}
+                </button>
+              ))}
+
+              {/* Emoji toggle */}
+              <button
+                onClick={() => patchCCStyle({ emojiEnabled: !ccStyle.emojiEnabled })}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all",
+                  ccStyle.emojiEnabled
+                    ? "border-amber-400 bg-amber-400/10 text-amber-600"
+                    : "border-border text-muted-foreground hover:border-amber-400/50"
+                )}
+              >
+                <span>😊</span> Auto Emoji {ccStyle.emojiEnabled ? "On" : "Off"}
+              </button>
+            </div>
+
+            {/* Live preview */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Preview</p>
+              <div className="rounded-lg bg-neutral-800 flex items-end justify-center py-6 px-4">
+                <span style={ccOverlayStyle}>
+                  {ccStyle.emojiEnabled ? applyEmojiMap("I feel like a little bit like my...") : "I feel like a little bit like my..."}
+                </span>
+              </div>
+            </div>
+
+            {/* Reset */}
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => setCCStyle(CC_DEFAULT_STYLE)}>
+                Reset to Default
+              </Button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Playback controls */}
       <div className="flex flex-col gap-2">
