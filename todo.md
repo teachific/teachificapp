@@ -2098,3 +2098,19 @@
 - [x] Fix camera video element: wrap in absolute-positioned div, apply scaleX(-1) to wrapper not video
 - [x] Add aspectRatio: 16/9 to getUserMedia constraints to prevent 4:3 camera streams causing black bars
 - [x] Ensure mirror transform doesn't clip video via overflow-hidden on parent container
+
+## Feature: Auto-Stop and Save Recording on Tab Close
+- [ ] Add beforeunload handler to stop MediaRecorder and trigger save when tab is closed
+- [ ] Add visibilitychange handler to detect tab hide/navigation away
+- [ ] Use sendBeacon API to upload recording data before page unloads
+- [ ] Show "Recording saved automatically" toast when user returns or on next visit
+- [ ] Warn user with confirmation dialog if recording is in progress and they try to close
+
+## Bug Fix: Camera Still Has Black Bar on One Side
+- [x] Changed objectFit from cover to fill — eliminates black bars from any aspect ratio mismatch
+- [x] Applied transform scaleX(-1) directly to absolutely-positioned video element (no wrapper div)
+
+## Feature: Auto-Stop and Save Recording on Tab Close
+- [x] Added beforeunload handler — shows native browser "Leave site?" dialog when recording is active
+- [x] Added visibilitychange handler — auto-stops and saves recording when tab becomes hidden
+- [x] Uses existing autoSaveRecording path (recorder.onstop fires and uploads to Media Library)

@@ -1384,6 +1384,45 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
 
   const isRecording = recordState === "recording" || recordState === "paused";
 
+  // Keep a ref to recordState so event handlers always see the latest value
+  const recordStateRef = useRef(recordState);
+  useEffect(() => { recordStateRef.current = recordState; }, [recordState]);
+
+  // Warn user before closing tab if recording is active
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (recordStateRef.current === "recording" || recordStateRef.current === "paused" || recordStateRef.current === "countdown") {
+        e.preventDefault();
+        // Modern browsers show a generic message; setting returnValue triggers the dialog
+        e.returnValue = "You have an active recording. If you leave, your recording will be lost.";
+        return e.returnValue;
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
+  // Auto-stop and save when the tab becomes hidden (user switches tabs / navigates away)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden" &&
+        (recordStateRef.current === "recording" || recordStateRef.current === "paused")) {
+        // Stop the recorder — onstop will fire and autoSaveRecordingRef will handle the upload
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+          mediaRecorderRef.current.stop();
+        }
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (screenStreamRef.current) {
+          screenStreamRef.current.getTracks().forEach((t) => t.stop());
+          screenStreamRef.current = null;
+        }
+        setRecordState("stopped");
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* Main recording area */}
@@ -1414,19 +1453,17 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
           {(mode === "screen" || mode === "screen+camera") && (
             <video ref={screenVideoRef} autoPlay muted playsInline className="w-full h-full object-contain" />
           )}
-          {/* Camera-only mode: always full-size */}
+          {/* Camera-only mode: always full-size — use objectFit:fill to eliminate black bars from any aspect ratio */}
           {mode === "camera" && (
-            <div style={{ position: "absolute", inset: 0, transform: "scaleX(-1)", transformOrigin: "center" }}>
-              <video ref={cameraVideoRef} autoPlay muted playsInline
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-            </div>
+            <video ref={cameraVideoRef} autoPlay muted playsInline
+              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
+                objectFit: "fill", display: "block", transform: "scaleX(-1)" }} />
           )}
           {/* Screen+Camera: show camera full-size in idle/stopped (no screen yet), bubble when recording */}
           {mode === "screen+camera" && cameraEnabled && !isRecording && recordState !== "countdown" && (
-            <div style={{ position: "absolute", inset: 0, transform: "scaleX(-1)", transformOrigin: "center" }}>
-              <video ref={cameraVideoRef} autoPlay muted playsInline
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-            </div>
+            <video ref={cameraVideoRef} autoPlay muted playsInline
+              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
+                objectFit: "fill", display: "block", transform: "scaleX(-1)" }} />
           )}
           {mode === "screen+camera" && cameraEnabled && (isRecording || recordState === "countdown") && (
             <div
