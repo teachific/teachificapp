@@ -1,0 +1,1 @@
+ALTER TABLE `org_payment_settings` ADD `autoEnrollCourseIds` text;

@@ -5,7 +5,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { protectedProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { getStripe, STRIPE_PRICE_IDS, PLAN_LIMITS, type PlanTier } from "./stripePlans";
 import { getOrgSubscription, upsertOrgSubscription } from "./lmsDb";
 import { ENV } from "./_core/env";
@@ -241,6 +241,7 @@ export const stripeRouter = router({
         paypalClientId: z.string().optional().nullable(),
         paypalClientSecret: z.string().optional().nullable(),
         autoEnrollment: z.boolean().optional(),
+        autoEnrollCourseIds: z.string().optional(), // JSON array of course IDs
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -260,6 +261,7 @@ export const stripeRouter = router({
         updateData.paypalClientSecret = input.paypalClientSecret;
       }
       if (input.autoEnrollment !== undefined) updateData.autoEnrollNewMembers = input.autoEnrollment;
+      if (input.autoEnrollCourseIds !== undefined) updateData.autoEnrollCourseIds = input.autoEnrollCourseIds;
       if (Object.keys(updateData).length > 0) {
         await db
           .update(orgPaymentSettings)
@@ -267,6 +269,113 @@ export const stripeRouter = router({
           .where(eq(orgPaymentSettings.orgId, input.orgId));
       }
       return { success: true };
+    }),
+
+  // ── Create course/product checkout session (with transaction fee) ──────────
+  createCourseCheckout: publicProcedure
+    .input(
+      z.object({
+        orgId: z.number(),
+        productId: z.number(),
+        priceId: z.number(),
+        buyerEmail: z.string().email(),
+        buyerName: z.string().optional(),
+        origin: z.string().url(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      // Get org payment settings (org's own Stripe key)
+      const db = await getDb();
+      const { orgPaymentSettings, orgSubscriptions } = await import("../drizzle/schema");
+      const [paySettings] = await db
+        .select()
+        .from(orgPaymentSettings)
+        .where(eq(orgPaymentSettings.orgId, input.orgId))
+        .limit(1);
+
+      if (!paySettings?.stripeSecretKey) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "This organization has not configured Stripe payments.",
+        });
+      }
+
+      // Get org's Teachific plan to determine transaction fee
+      const [orgSub] = await db
+        .select()
+        .from(orgSubscriptions)
+        .where(eq(orgSubscriptions.orgId, input.orgId))
+        .limit(1);
+      const planTier = (orgSub?.plan ?? "free") as PlanTier;
+      const planLimits = PLAN_LIMITS[planTier];
+      const feePercent = planLimits.transactionFeePercent; // 0, 1, or 3
+
+      // Get product and price details
+      const { getDigitalProduct, listProductPrices, createDigitalOrder } = await import("./lmsDb");
+      const product = await getDigitalProduct(input.productId);
+      if (!product || product.orgId !== input.orgId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Product not found" });
+      }
+      const prices = await listProductPrices(input.productId);
+      const price = prices.find((p) => p.id === input.priceId);
+      if (!price) throw new TRPCError({ code: "NOT_FOUND", message: "Price not found" });
+
+      // Use the org's own Stripe secret key
+      const orgStripe = new (await import("stripe")).default(paySettings.stripeSecretKey, {
+        apiVersion: "2025-02-24.acacia" as any,
+      });
+
+      const amountCents = Math.round(Number(price.amount) * 100);
+      const applicationFeeCents = feePercent > 0 ? Math.round(amountCents * feePercent / 100) : undefined;
+
+      // Create a pre-order record so we can link back on webhook
+      const order = await createDigitalOrder({
+        productId: input.productId,
+        priceId: input.priceId,
+        orgId: input.orgId,
+        buyerEmail: input.buyerEmail,
+        buyerName: input.buyerName,
+        amount: price.amount,
+        currency: price.currency ?? "USD",
+        paymentRef: undefined,
+        accessExpiresAt: product.defaultAccessDays
+          ? new Date(Date.now() + product.defaultAccessDays * 86400000)
+          : null,
+        maxDownloads: product.defaultMaxDownloads ?? null,
+      });
+
+      const session = await orgStripe.checkout.sessions.create({
+        mode: "payment",
+        customer_email: input.buyerEmail,
+        line_items: [
+          {
+            price_data: {
+              currency: (price.currency ?? "USD").toLowerCase(),
+              unit_amount: amountCents,
+              product_data: {
+                name: product.title,
+                description: product.description ?? undefined,
+                images: product.thumbnailUrl ? [product.thumbnailUrl] : [],
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        ...(applicationFeeCents ? { payment_intent_data: { application_fee_amount: applicationFeeCents } } : {}),
+        metadata: {
+          teachific_order_id: String(order.id),
+          teachific_org_id: String(input.orgId),
+          teachific_product_id: String(input.productId),
+          teachific_fee_percent: String(feePercent),
+          buyer_email: input.buyerEmail,
+          buyer_name: input.buyerName ?? "",
+        },
+        success_url: `${input.origin}/school/${product.orgId}/thank-you?order_id=${order.id}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${input.origin}/school/${product.orgId}/courses/${input.productId}`,
+        allow_promotion_codes: true,
+      });
+
+      return { checkoutUrl: session.url, orderId: order.id };
     }),
 
   // ── Get all plan limits (public) ──────────────────────────────────────────

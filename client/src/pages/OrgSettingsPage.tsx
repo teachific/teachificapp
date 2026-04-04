@@ -1122,11 +1122,18 @@ function OrgPaymentSettingsTab({ orgId }: { orgId?: number }) {
   const [paypalClientId, setPaypalClientId] = useState("");
   const [paypalClientSecret, setPaypalClientSecret] = useState("");
   const [autoEnrollment, setAutoEnrollment] = useState(false);
+  const [autoEnrollCourseIds, setAutoEnrollCourseIds] = useState<number[]>([]);
   const [initialized, setInitialized] = useState(false);
 
   const { data: paymentSettings, isLoading } = trpc.billing.getOrgPaymentSettings.useQuery(
     { orgId: orgId! },
     { enabled: !!orgId }
+  );
+
+  // Fetch published courses for auto-enrollment selector
+  const { data: coursesData } = trpc.lms.courses.list.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId && autoEnrollment }
   );
 
   useEffect(() => {
@@ -1136,6 +1143,12 @@ function OrgPaymentSettingsTab({ orgId }: { orgId?: number }) {
       setPaypalClientId(paymentSettings.paypalClientId || "");
       setPaypalClientSecret(paymentSettings.paypalClientSecret ? "••••••••••••••••" : "");
       setAutoEnrollment(paymentSettings.autoEnrollment ?? false);
+      try {
+        const ids = paymentSettings.autoEnrollCourseIds
+          ? JSON.parse(paymentSettings.autoEnrollCourseIds as string)
+          : [];
+        setAutoEnrollCourseIds(Array.isArray(ids) ? ids : []);
+      } catch { setAutoEnrollCourseIds([]); }
       setInitialized(true);
     }
   }, [paymentSettings, initialized]);
@@ -1158,7 +1171,14 @@ function OrgPaymentSettingsTab({ orgId }: { orgId?: number }) {
       paypalClientId: paypalClientId || null,
       paypalClientSecret: paypalClientSecret.startsWith("•") ? undefined : paypalClientSecret || null,
       autoEnrollment,
+      autoEnrollCourseIds: JSON.stringify(autoEnrollCourseIds),
     });
+  };
+
+  const toggleCourse = (courseId: number) => {
+    setAutoEnrollCourseIds((prev) =>
+      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
+    );
   };
 
   return (
@@ -1272,11 +1292,42 @@ function OrgPaymentSettingsTab({ orgId }: { orgId?: number }) {
                   <div>
                     <p className="text-sm">Auto-enrollment</p>
                     <p className="text-xs text-muted-foreground">
-                      Automatically enroll new members in courses. When disabled, you must manually approve enrollments.
+                      Automatically enroll new members in all published courses when they join.
                     </p>
                   </div>
                   <Switch checked={autoEnrollment} onCheckedChange={setAutoEnrollment} />
                 </div>
+                {autoEnrollment && (
+                  <div className="pl-2 space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium">
+                      Select courses to auto-enroll into (leave all unchecked = enroll in all published courses):
+                    </p>
+                    {!coursesData ? (
+                      <p className="text-xs text-muted-foreground">Loading courses...</p>
+                    ) : (coursesData as any[]).length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No published courses found.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-md p-2">
+                        {(coursesData as any[]).map((course: any) => (
+                          <label key={course.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/40 rounded px-2 py-1">
+                            <input
+                              type="checkbox"
+                              checked={autoEnrollCourseIds.includes(course.id)}
+                              onChange={() => toggleCourse(course.id)}
+                              className="rounded"
+                            />
+                            <span className="text-xs truncate">{course.title}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {autoEnrollCourseIds.length > 0 && (
+                      <p className="text-xs text-primary">
+                        {autoEnrollCourseIds.length} course{autoEnrollCourseIds.length !== 1 ? "s" : ""} selected
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end pt-2">

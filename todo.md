@@ -1940,3 +1940,9 @@
 - [ ] Course pricing: per-course price with Stripe checkout for member purchase
 - [ ] Transaction fee deduction based on plan tier (3% Starter, 1% Builder, 0% Pro/Enterprise)
 - [ ] Revenue share: Pro/Enterprise - split revenue % with multiple users, payout via PayPal
+
+## Transaction Fees & Auto-Enrollment
+- [ ] Transaction fee applied to course checkout (3% Starter, 1% Builder, 0% Pro/Enterprise)
+- [ ] Auto-enrollment toggle in Org Settings (General tab)
+- [ ] Auto-enrollment courses selector (which courses to auto-enroll into)
+- [ ] Auto-enrollment trigger on member join

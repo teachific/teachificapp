@@ -150,6 +150,19 @@ function CheckoutDialog({
   const [email, setEmail] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
 
+  // Stripe checkout (when org has Stripe configured)
+  const stripeCheckout = trpc.billing.createCourseCheckout.useMutation({
+    onSuccess: (data) => {
+      if (data.checkoutUrl) {
+        toast.info("Redirecting to secure checkout...");
+        window.open(data.checkoutUrl, "_blank");
+        onClose();
+      }
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // Fallback: manual order (no Stripe)
   const createOrder = trpc.lms.downloads.createOrder.useMutation({
     onSuccess: () => {
       onSuccess(email);
@@ -157,11 +170,26 @@ function CheckoutDialog({
     onError: (e) => toast.error(e.message),
   });
 
+  const isPending = stripeCheckout.isPending || createOrder.isPending;
+
   const handleSubmit = () => {
     if (!name.trim()) { toast.error("Please enter your name"); return; }
     if (!email.trim() || !email.includes("@")) { toast.error("Please enter a valid email"); return; }
     if (email !== confirmEmail) { toast.error("Emails do not match"); return; }
-    createOrder.mutate({ productId: product.id, priceId: selectedPriceId, buyerName: name, buyerEmail: email });
+    if (product.hasStripe) {
+      // Use Stripe checkout with transaction fee applied server-side
+      stripeCheckout.mutate({
+        orgId: product.orgId,
+        productId: product.id,
+        priceId: selectedPriceId,
+        buyerEmail: email,
+        buyerName: name,
+        origin: window.location.origin,
+      });
+    } else {
+      // Fallback to manual order
+      createOrder.mutate({ productId: product.id, priceId: selectedPriceId, buyerName: name, buyerEmail: email });
+    }
   };
 
   return (
@@ -203,11 +231,11 @@ function CheckoutDialog({
         </div>
         <div className="flex gap-2 justify-end">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={createOrder.isPending}>
-            {createOrder.isPending ? (
+          <Button onClick={handleSubmit} disabled={isPending}>
+            {isPending ? (
               <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing…</>
             ) : (
-              "Complete Purchase"
+              product?.hasStripe ? "Proceed to Secure Checkout" : "Complete Purchase"
             )}
           </Button>
         </div>

@@ -1864,8 +1864,10 @@ export const orgPaymentSettings = mysqlTable("org_payment_settings", {
   paypalClientSecret: varchar("paypalClientSecret", { length: 255 }),
   // Default currency
   currency: varchar("currency", { length: 10 }).default("USD").notNull(),
-  // Auto-enrollment: new members auto-enrolled in all published courses
+  // Auto-enrollment: new members auto-enrolled in selected courses
   autoEnrollNewMembers: boolean("autoEnrollNewMembers").default(false).notNull(),
+  // JSON array of course IDs to auto-enroll into (null = all published courses)
+  autoEnrollCourseIds: text("autoEnrollCourseIds"),
   // Revenue share config (JSON): [{ userId, percentage, paypalEmail }]
   revenueShareJson: text("revenueShareJson"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

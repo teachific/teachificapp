@@ -216,6 +216,48 @@ async function requireOrgAdmin(userId: number, orgId: number, userRole?: string)
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 
+// ── Auto-enrollment helper ──────────────────────────────────────────────────
+async function autoEnrollMemberIfEnabled(orgId: number, userId: number): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    const { orgPaymentSettings, courses: coursesTable } = await import("../drizzle/schema");
+    const { and, inArray } = await import("drizzle-orm");
+    const [paySettings] = await db
+      .select({ autoEnroll: orgPaymentSettings.autoEnrollNewMembers, courseIds: orgPaymentSettings.autoEnrollCourseIds })
+      .from(orgPaymentSettings)
+      .where(eq(orgPaymentSettings.orgId, orgId))
+      .limit(1);
+    if (!paySettings?.autoEnroll) return;
+    let courseIds: number[] = [];
+    if (paySettings.courseIds) {
+      try { courseIds = JSON.parse(paySettings.courseIds as string); } catch { courseIds = []; }
+    }
+    // If specific course IDs are set, use them; otherwise enroll in all published courses
+    let targetCourses: { id: number }[];
+    if (courseIds.length > 0) {
+      targetCourses = await db
+        .select({ id: coursesTable.id })
+        .from(coursesTable)
+        .where(and(eq(coursesTable.orgId, orgId), inArray(coursesTable.id, courseIds)));
+    } else {
+      targetCourses = await db
+        .select({ id: coursesTable.id })
+        .from(coursesTable)
+        .where(and(eq(coursesTable.orgId, orgId), inArray(coursesTable.status, ["published", "hidden"])));
+    }
+    for (const course of targetCourses) {
+      const existing = await getEnrollment(course.id, userId);
+      if (!existing) {
+        await createEnrollment({ courseId: course.id, userId, orgId, amountPaid: 0 });
+      }
+    }
+  } catch (e) {
+    // Non-fatal: log but don't block member creation
+    console.error("[autoEnroll] Error:", e);
+  }
+}
+
 export const lmsRouter = router({
   // ── Public School Endpoints (no auth required) ─────────────────────────
 
@@ -1445,6 +1487,9 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
               await createEnrollment({ courseId, userId, orgId: input.orgId, amountPaid: 0 });
             }
           }
+        } else {
+          // Auto-enroll in org-configured courses if enabled
+          await autoEnrollMemberIfEnabled(input.orgId, userId);
         }
         return { success: true, userId };
       }),
@@ -1516,6 +1561,9 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
                   await createEnrollment({ courseId, userId, orgId: input.orgId, amountPaid: 0 });
                 }
               }
+            } else {
+              // Auto-enroll in org-configured courses if enabled
+              await autoEnrollMemberIfEnabled(input.orgId, userId);
             }
           } catch (e: any) {
             failed++;
@@ -1742,7 +1790,19 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
         const product = await getDigitalProductBySlug(input.slug);
         if (!product || !product.isPublished) throw new TRPCError({ code: "NOT_FOUND" });
         const prices = await listProductPrices(product.id);
-        return { ...product, prices: prices.filter((p) => p.isActive) };
+        // Check if org has Stripe configured for checkout
+        const db = await getDb();
+        let hasStripe = false;
+        if (db) {
+          const { orgPaymentSettings } = await import("../drizzle/schema");
+          const [paySettings] = await db
+            .select({ hasStripe: orgPaymentSettings.stripeSecretKey })
+            .from(orgPaymentSettings)
+            .where(eq(orgPaymentSettings.orgId, product.orgId))
+            .limit(1);
+          hasStripe = !!(paySettings?.hasStripe);
+        }
+        return { ...product, prices: prices.filter((p) => p.isActive), hasStripe };
       }),
 
     createProduct: protectedProcedure
