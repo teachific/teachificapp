@@ -26,6 +26,33 @@
  * ```
  */
 import { ENV } from "./env";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * Extract audio from a video file using FFmpeg.
+ * Returns a Buffer of the extracted MP3 audio, or null if FFmpeg is unavailable.
+ */
+async function extractAudioFromVideo(videoBuffer: Buffer, inputMime: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
+  try {
+    const ext = inputMime.includes("mp4") ? ".mp4" : inputMime.includes("webm") ? ".webm" : ".video";
+    const tmpIn = path.join(os.tmpdir(), `transcribe-in-${Date.now()}${ext}`);
+    const tmpOut = path.join(os.tmpdir(), `transcribe-out-${Date.now()}.mp3`);
+    await fs.promises.writeFile(tmpIn, videoBuffer);
+    await execFileAsync("ffmpeg", ["-y", "-i", tmpIn, "-vn", "-acodec", "libmp3lame", "-q:a", "4", tmpOut]);
+    const audioBuffer = await fs.promises.readFile(tmpOut);
+    await fs.promises.unlink(tmpIn).catch(() => {});
+    await fs.promises.unlink(tmpOut).catch(() => {});
+    return { buffer: audioBuffer, mimeType: "audio/mpeg" };
+  } catch {
+    return null;
+  }
+}
 
 export type TranscribeOptions = {
   audioUrl: string; // URL to the audio file (e.g., S3 URL)
@@ -106,14 +133,22 @@ export async function transcribeAudio(
       audioBuffer = Buffer.from(await response.arrayBuffer());
       mimeType = response.headers.get('content-type') || 'audio/mpeg';
       
-      // Check file size (16MB limit)
+      // If the file is a video (or > 16MB), extract audio track via FFmpeg first
+      const isVideo = mimeType.startsWith("video/");
       const sizeMB = audioBuffer.length / (1024 * 1024);
-      if (sizeMB > 16) {
-        return {
-          error: "Audio file exceeds maximum size limit",
-          code: "FILE_TOO_LARGE",
-          details: `File size is ${sizeMB.toFixed(2)}MB, maximum allowed is 16MB`
-        };
+      if (isVideo || sizeMB > 16) {
+        const extracted = await extractAudioFromVideo(audioBuffer, mimeType);
+        if (extracted) {
+          audioBuffer = extracted.buffer;
+          mimeType = extracted.mimeType;
+        } else if (sizeMB > 16) {
+          // FFmpeg unavailable and file is too large
+          return {
+            error: "Audio file exceeds maximum size limit",
+            code: "FILE_TOO_LARGE",
+            details: `File size is ${sizeMB.toFixed(2)}MB, maximum allowed is 16MB`
+          };
+        }
       }
     } catch (error) {
       return {

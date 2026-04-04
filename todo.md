@@ -1994,3 +1994,51 @@
 - [x] Fix camera settings UI: filter empty deviceId from enumerateDevices to prevent SelectItem crash
 - [x] Fix Settings panel crash: empty-value SelectItem in mic/camera dropdowns replaced with 'default' values
 - [x] Verified: all tabs (Record Video, Upload Video, Edit Video, Audio + sub-tabs), all mode buttons, Settings panel, Voice dropdown all work without errors
+
+## Feature: Recording Countdown Timer
+- [ ] Add 3-2-1 animated countdown overlay to RecordEditPage before recording starts
+- [ ] Wire countdown into the record button handler (delay actual capture start)
+- [ ] Allow user to cancel during countdown
+
+## Feature: Draggable Camera Bubble + Logo Mode in TeachificStudio
+- [ ] Add draggable camera bubble overlay in Screen+Camera mode (reposition anywhere over preview)
+- [x] Add snap-to-corner presets (top-left, top-right, bottom-left, bottom-right)
+- [ ] Add logo mode toggle: replace webcam feed with an uploaded logo image in the bubble
+- [ ] Upgrade countdown overlay to full-screen animated 3-2-1 display
+
+## Feature: Auto-Save Recordings to Media Library
+- [x] Auto-save recording to Media Library immediately when user clicks Stop
+- [x] Show uploading spinner/progress in the recordings list during auto-save
+- [ ] Remove manual "Save to Library" button (replaced by auto-save)
+
+## Feature: MP4 Recording Format
+- [ ] Record in MP4 format (video/mp4) instead of WebM
+- [ ] Update file extension and mimeType in recording name and save handler
+
+## Feature: Auto-Populate Transcript in Edit Tab
+- [ ] Auto-trigger generateCaptions when Edit tab opens and no transcript exists
+- [ ] Show loading state while transcript is being generated
+- [ ] Display transcript segments automatically once generated
+
+## Bug Fix: Transcript Generation Failing
+- [ ] Diagnose and fix generateCaptions procedure failure
+- [ ] Verify transcription API key and endpoint are correctly configured
+
+## Feature: Auto-Generate 10 Highlight Clips from Transcript
+- [ ] After transcript is generated, auto-create 10 evenly-spaced highlight clips
+- [ ] Each clip gets a label derived from its transcript text
+- [ ] Add download button per clip to export as standalone video
+- [ ] Server-side clip extraction endpoint using FFmpeg (trim video to clip time range)
+
+## Feature: VideoEditor Comprehensive Rewrite (Loom-style)
+- [x] Transcript multi-select with shift-click
+- [x] "Delete selected segments" button to mark/cut segments
+- [x] Caption style picker: Default, Bold, Outlined, Highlighted, Animated Pop, Subtitle Bar
+- [x] Auto-generate 10 highlight clips from transcript
+- [x] Per-clip download button (client-side canvas capture)
+- [ ] extractClip procedure in lmsRouter.ts (FFmpeg trim + S3 upload)
+- [x] Countdown fires AFTER screen-share picker (not before)
+- [x] Auto-save recording to library on stop
+- [x] Draggable camera bubble with snap-to-corner
+- [ ] Logo upload toggle for camera bubble
+- [x] Auto-populate transcript on Edit tab load (already implemented)

@@ -2650,6 +2650,61 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
         return { success: true };
       }),
 
+    // Extract a clip from a media item using FFmpeg (trim to start/end), upload to S3
+    extractClip: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        mediaItemId: z.number(),
+        clipId: z.number().optional(),
+        label: z.string().default("Clip"),
+        startSec: z.number(),
+        endSec: z.number(),
+        sourceUrl: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { execFile } = await import("child_process");
+        const { promisify } = await import("util");
+        const fs = await import("fs");
+        const os = await import("os");
+        const path = await import("path");
+        const execFileAsync = promisify(execFile);
+        const tmpDir = os.tmpdir();
+        const suffix = Date.now();
+        const tmpIn = path.join(tmpDir, `clip-in-${suffix}.mp4`);
+        const tmpOut = path.join(tmpDir, `clip-out-${suffix}.mp4`);
+        try {
+          const res = await fetch(input.sourceUrl);
+          if (!res.ok) throw new Error(`Failed to fetch source video: ${res.status}`);
+          const arrayBuf = await res.arrayBuffer();
+          await fs.promises.writeFile(tmpIn, Buffer.from(arrayBuf));
+          const duration = input.endSec - input.startSec;
+          await execFileAsync("ffmpeg", [
+            "-y",
+            "-ss", String(input.startSec),
+            "-i", tmpIn,
+            "-t", String(duration),
+            "-c", "copy",
+            tmpOut,
+          ]);
+          const clipBuffer = await fs.promises.readFile(tmpOut);
+          const safeName = input.label.replace(/[^a-z0-9_-]/gi, "-").slice(0, 40);
+          const clipKey = `lms-media/${input.orgId}/clips/${input.mediaItemId}-${safeName}-${suffix}.mp4`;
+          const { url: clipUrl } = await storagePut(clipKey, clipBuffer, "video/mp4");
+          if (input.clipId) {
+            const { videoClips } = await import("../drizzle/schema");
+            await db.update(videoClips)
+              .set({ videoUrl: clipUrl, videoKey: clipKey, updatedAt: new Date() })
+              .where(eq(videoClips.id, input.clipId));
+          }
+          return { url: clipUrl, key: clipKey, fileSize: clipBuffer.length };
+        } finally {
+          fs.promises.unlink(tmpIn).catch(() => {});
+          fs.promises.unlink(tmpOut).catch(() => {});
+        }
+      }),
     // ── Text-to-Speech ──────────────────────────────────────────────────────
     generateSpeech: protectedProcedure
       .input(z.object({

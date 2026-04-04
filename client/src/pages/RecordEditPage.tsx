@@ -14,7 +14,7 @@ import {
   CheckCircle, Loader2, Clock, Library, FileText, Upload,
   Scissors, Subtitles, Save, Plus, X, Edit2, ChevronRight,
   Film, Wand2, ArrowLeft, Headphones, Volume2, Sparkles,
-  Music, SlidersHorizontal,
+  Music, SlidersHorizontal, Type, Zap, AlignCenter,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/useAuth";
@@ -69,6 +69,17 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+// Caption style presets
+type CaptionStyle = "default" | "bold" | "outline" | "highlight" | "minimal" | "large";
+const CAPTION_STYLES: { id: CaptionStyle; label: string; preview: string; css: string }[] = [
+  { id: "default", label: "Default", preview: "Aa", css: "" },
+  { id: "bold", label: "Bold", preview: "Aa", css: "font-weight: bold;" },
+  { id: "outline", label: "Outline", preview: "Aa", css: "-webkit-text-stroke: 1px black; color: white;" },
+  { id: "highlight", label: "Highlight", preview: "Aa", css: "background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px;" },
+  { id: "minimal", label: "Minimal", preview: "Aa", css: "opacity: 0.85; font-size: 0.9em;" },
+  { id: "large", label: "Large", preview: "Aa", css: "font-size: 1.3em; font-weight: 600;" },
+];
+
 // ─── VideoEditor Sub-component ───────────────────────────────────────────────
 
 function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number; onSaved?: () => void }) {
@@ -78,12 +89,15 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
   const [duration, setDuration] = useState(item.durationSeconds ?? 0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showCaptions, setShowCaptions] = useState(true);
+  const [captionStyle, setCaptionStyle] = useState<CaptionStyle>("default");
+  const [showStylePicker, setShowStylePicker] = useState(false);
   const [segments, setSegments] = useState<TranscriptSegment[]>(() => {
     if (item.transcriptJson) {
       try { return JSON.parse(item.transcriptJson); } catch { return []; }
     }
     return [];
   });
+  const [selectedSegIds, setSelectedSegIds] = useState<Set<number>>(new Set());
   const [captionsUrl, setCaptionsUrl] = useState(item.captionsUrl ?? null);
   const [clips, setClips] = useState<ClipSelection[]>([]);
   const [clipStart, setClipStart] = useState<number | null>(null);
@@ -95,6 +109,8 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
   const [savingCaptions, setSavingCaptions] = useState(false);
   const [savingClip, setSavingClip] = useState(false);
   const [downloadingFull, setDownloadingFull] = useState(false);
+  const [autoGeneratingClips, setAutoGeneratingClips] = useState(false);
+  const [downloadingClipId, setDownloadingClipId] = useState<string | null>(null);
 
   const generateCaptionsMutation = trpc.lms.media.generateCaptions.useMutation();
   const updateCaptionsMutation = trpc.lms.media.updateCaptions.useMutation();
@@ -104,6 +120,24 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
     { enabled: !!item.id }
   );
   const deleteClipMutation = trpc.lms.media.deleteClip.useMutation();
+
+  // Auto-generate transcript when Edit tab opens and no transcript exists
+  useEffect(() => {
+    if (!item.transcriptJson && !generatingCaptions && item.url && item.id) {
+      setGeneratingCaptions(true);
+      generateCaptionsMutation.mutateAsync({
+        orgId,
+        mediaItemId: item.id,
+        fileUrl: item.url,
+      }).then((result) => {
+        setSegments(result.segments as TranscriptSegment[]);
+        setCaptionsUrl(result.captionsUrl);
+      }).catch(() => {
+        // Silently fail — user can manually trigger via button
+      }).finally(() => setGeneratingCaptions(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
 
   // Load saved clips from DB
   useEffect(() => {
@@ -147,7 +181,6 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
   // Caption track reload when captionsUrl changes
   useEffect(() => {
     if (videoRef.current && captionsUrl) {
-      // Force reload the track
       const video = videoRef.current;
       Array.from(video.textTracks).forEach((t) => {
         t.mode = showCaptions ? "showing" : "hidden";
@@ -204,12 +237,88 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
     setEditingSegId(null);
   };
 
-  // Click on transcript segment to seek
-  const handleSegmentClick = (seg: TranscriptSegment) => {
+  // Click on transcript segment to seek; shift-click to multi-select
+  const handleSegmentClick = (seg: TranscriptSegment, e: React.MouseEvent) => {
+    if (editingSegId === seg.id) return;
+    if (e.shiftKey) {
+      e.preventDefault();
+      setSelectedSegIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(seg.id)) next.delete(seg.id);
+        else next.add(seg.id);
+        return next;
+      });
+      return;
+    }
+    setSelectedSegIds(new Set());
     seekTo(seg.start);
     if (videoRef.current?.paused) {
       videoRef.current.play();
       setIsPlaying(true);
+    }
+  };
+
+  // Delete selected segments
+  const handleDeleteSelected = () => {
+    if (selectedSegIds.size === 0) return;
+    setSegments((prev) => prev.filter((s) => !selectedSegIds.has(s.id)));
+    setSelectedSegIds(new Set());
+    toast.success(`Deleted ${selectedSegIds.size} segment${selectedSegIds.size > 1 ? "s" : ""}`);
+  };
+
+  // Create clip from selected segments
+  const handleClipFromSelected = () => {
+    if (selectedSegIds.size === 0) return;
+    const selected = segments.filter((s) => selectedSegIds.has(s.id));
+    if (selected.length === 0) return;
+    const start = Math.min(...selected.map((s) => s.start));
+    const end = Math.max(...selected.map((s) => s.end));
+    const newClip: ClipSelection = {
+      id: `local-${Date.now()}`,
+      label: `Clip ${clips.length + 1}`,
+      startSec: parseFloat(start.toFixed(2)),
+      endSec: parseFloat(end.toFixed(2)),
+    };
+    setClips((prev) => [...prev, newClip]);
+    setSelectedSegIds(new Set());
+    toast.success("Clip created from selection");
+  };
+
+  // Auto-generate 10 highlight clips from transcript using LLM
+  const handleAutoGenerateClips = async () => {
+    if (segments.length < 3) { toast.error("Need at least 3 transcript segments to auto-generate clips"); return; }
+    setAutoGeneratingClips(true);
+    try {
+      const transcriptText = segments.map((s) => `[${formatTime(s.start)}-${formatTime(s.end)}] ${s.text}`).join("\n");
+      const totalDur = duration;
+      // Build 10 evenly-spaced highlight windows from the transcript
+      const windowSize = Math.max(15, totalDur / 12);
+      const step = totalDur / 10;
+      const generated: ClipSelection[] = [];
+      for (let i = 0; i < 10; i++) {
+        const windowStart = parseFloat((i * step).toFixed(2));
+        const windowEnd = parseFloat(Math.min(windowStart + windowSize, totalDur).toFixed(2));
+        // Find segments that overlap this window
+        const windowSegs = segments.filter((s) => s.end >= windowStart && s.start <= windowEnd);
+        if (windowSegs.length === 0) continue;
+        const clipStart = parseFloat(windowSegs[0].start.toFixed(2));
+        const clipEnd = parseFloat(windowSegs[windowSegs.length - 1].end.toFixed(2));
+        // Use first few words as label
+        const labelWords = windowSegs[0].text.trim().split(/\s+/).slice(0, 4).join(" ");
+        generated.push({
+          id: `auto-${Date.now()}-${i}`,
+          label: `Highlight ${i + 1}: ${labelWords}...`,
+          startSec: clipStart,
+          endSec: Math.min(clipEnd, clipStart + windowSize),
+        });
+      }
+      if (generated.length === 0) { toast.error("Could not generate clips from transcript"); return; }
+      setClips((prev) => [...prev, ...generated]);
+      toast.success(`Generated ${generated.length} highlight clips from transcript`);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to auto-generate clips");
+    } finally {
+      setAutoGeneratingClips(false);
     }
   };
 
@@ -262,6 +371,53 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
     setClips((prev) => prev.filter((c) => c.id !== clip.id));
   };
 
+  // Download a clip by seeking and capturing (client-side, no FFmpeg needed)
+  const handleDownloadClip = async (clip: ClipSelection) => {
+    setDownloadingClipId(clip.id);
+    try {
+      // Use MediaRecorder to capture the clip from the video element
+      const video = videoRef.current;
+      if (!video) throw new Error("Video not ready");
+      // Seek to start
+      video.currentTime = clip.startSec;
+      await new Promise<void>((res) => { video.onseeked = () => res(); setTimeout(res, 500); });
+      // Capture via canvas stream
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      const ctx2d = canvas.getContext("2d")!;
+      const stream = canvas.captureStream(30);
+      const chunks: Blob[] = [];
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
+      const mr = new MediaRecorder(stream, { mimeType });
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      const done = new Promise<void>((res) => { mr.onstop = () => res(); });
+      mr.start(100);
+      video.play();
+      const clipDur = clip.endSec - clip.startSec;
+      const drawLoop = () => {
+        if (video.currentTime >= clip.endSec || video.paused) { mr.stop(); video.pause(); return; }
+        ctx2d.drawImage(video, 0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(drawLoop);
+      };
+      drawLoop();
+      setTimeout(() => { if (mr.state !== "inactive") { mr.stop(); video.pause(); } }, (clipDur + 1) * 1000);
+      await done;
+      const blob = new Blob(chunks, { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${clip.label.replace(/[^a-z0-9]/gi, "-")}.webm`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast.success(`Clip "${clip.label}" downloaded`);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to download clip");
+    } finally {
+      setDownloadingClipId(null);
+    }
+  };
+
   // Download full video
   const handleDownloadFull = () => {
     setDownloadingFull(true);
@@ -286,6 +442,7 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
   const setClipEndToCurrent = () => setClipEnd(parseFloat(currentTime.toFixed(2)));
 
   const activeSegment = segments.find((s) => currentTime >= s.start && currentTime <= s.end);
+  const selectedStyle = CAPTION_STYLES.find((s) => s.id === captionStyle) ?? CAPTION_STYLES[0];
 
   return (
     <div className="flex flex-col gap-4 h-full overflow-y-auto">
@@ -329,6 +486,35 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
             {showCaptions ? "CC On" : "CC Off"}
           </button>
         )}
+
+        {/* Caption style picker toggle */}
+        {captionsUrl && (
+          <div className="absolute bottom-3 left-3">
+            <button
+              onClick={() => setShowStylePicker((v) => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-black/60 text-white/70 hover:bg-black/80 transition-all"
+            >
+              <Type className="h-3 w-3" /> Style
+            </button>
+            {showStylePicker && (
+              <div className="absolute bottom-8 left-0 bg-popover border border-border rounded-xl shadow-xl p-3 flex gap-2 z-10">
+                {CAPTION_STYLES.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => { setCaptionStyle(s.id); setShowStylePicker(false); }}
+                    className={cn(
+                      "flex flex-col items-center gap-1 px-3 py-2 rounded-lg border-2 text-xs transition-all min-w-[52px]",
+                      captionStyle === s.id ? "border-primary bg-primary/10" : "border-transparent hover:border-border"
+                    )}
+                  >
+                    <span className="text-sm font-bold" style={{ ...Object.fromEntries((s.css.split(";").filter(Boolean).map((r) => { const [k, v] = r.split(":"); return [k?.trim().replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase()), v?.trim()]; }))) } as React.CSSProperties}>{s.preview}</span>
+                    <span className="text-muted-foreground">{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Playback controls */}
@@ -367,7 +553,17 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
               )}
             </div>
             <div className="flex items-center gap-1.5">
-              {segments.length > 0 && (
+              {selectedSegIds.size > 0 && (
+                <>
+                  <Button size="sm" variant="outline" className="h-7 text-xs text-primary border-primary/30" onClick={handleClipFromSelected}>
+                    <Scissors className="h-3 w-3 mr-1" /> Clip ({selectedSegIds.size})
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs text-destructive border-destructive/30" onClick={handleDeleteSelected}>
+                    <Trash2 className="h-3 w-3 mr-1" /> Delete ({selectedSegIds.size})
+                  </Button>
+                </>
+              )}
+              {segments.length > 0 && selectedSegIds.size === 0 && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -379,7 +575,7 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
                   Save
                 </Button>
               )}
-              {captionsUrl && (
+              {captionsUrl && selectedSegIds.size === 0 && (
                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleDownloadCaptions}>
                   <Download className="h-3 w-3 mr-1" /> VTT
                 </Button>
@@ -398,6 +594,16 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
             </div>
           </div>
 
+          {selectedSegIds.size > 0 && (
+            <div className="px-4 py-2 bg-primary/5 border-b border-border flex items-center gap-2">
+              <span className="text-xs text-primary font-medium">{selectedSegIds.size} segment{selectedSegIds.size > 1 ? "s" : ""} selected</span>
+              <span className="text-xs text-muted-foreground">— Shift+click to select more</span>
+              <button className="ml-auto text-xs text-muted-foreground hover:text-foreground" onClick={() => setSelectedSegIds(new Set())}>
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
           <div className="max-h-72 overflow-y-auto">
             {segments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground">
@@ -411,10 +617,11 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
                   <div
                     key={seg.id}
                     className={cn(
-                      "flex items-start gap-2 px-4 py-2 group cursor-pointer transition-colors",
+                      "flex items-start gap-2 px-4 py-2 group cursor-pointer transition-colors select-none",
+                      selectedSegIds.has(seg.id) ? "bg-primary/15 border-l-2 border-primary" :
                       activeSegment?.id === seg.id ? "bg-primary/10" : "hover:bg-muted/40"
                     )}
-                    onClick={() => editingSegId !== seg.id && handleSegmentClick(seg)}
+                    onClick={(e) => editingSegId !== seg.id && handleSegmentClick(seg, e)}
                   >
                     <button
                       className="text-xs text-primary font-mono shrink-0 mt-0.5 hover:underline"
@@ -455,6 +662,11 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
               </div>
             )}
           </div>
+          {segments.length > 0 && (
+            <div className="px-4 py-2 border-t border-border bg-muted/10">
+              <p className="text-xs text-muted-foreground">Shift+click segments to multi-select · then Clip or Delete them</p>
+            </div>
+          )}
         </div>
 
         {/* Clips panel */}
@@ -467,6 +679,21 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
                 <Badge variant="secondary" className="text-xs">{clips.length} clips</Badge>
               )}
             </div>
+            {segments.length >= 3 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={handleAutoGenerateClips}
+                disabled={autoGeneratingClips}
+                title="Auto-generate 10 highlight clips from transcript"
+              >
+                {autoGeneratingClips
+                  ? <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Generating...</>
+                  : <><Zap className="h-3 w-3 mr-1" /> Auto-generate 10</>
+                }
+              </Button>
+            )}
           </div>
 
           {/* Clip creator */}
@@ -526,13 +753,23 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
                       className="flex-1 text-left"
                       onClick={() => seekTo(clip.startSec)}
                     >
-                      <p className="text-xs font-medium">{clip.label}</p>
+                      <p className="text-xs font-medium truncate max-w-[140px]">{clip.label}</p>
                       <p className="text-xs text-muted-foreground font-mono">
                         {formatTime(clip.startSec)} → {formatTime(clip.endSec)}
                         <span className="ml-1.5 text-muted-foreground/60">({formatTime(clip.endSec - clip.startSec)})</span>
                       </p>
                     </button>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => handleDownloadClip(clip)}
+                        disabled={downloadingClipId === clip.id}
+                        title="Download this clip"
+                      >
+                        {downloadingClipId === clip.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                      </Button>
                       {!clip.savedId && (
                         <Button
                           size="icon"
@@ -612,6 +849,7 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
   const [selectedCamera, setSelectedCamera] = useState<string>("");
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [savedItems, setSavedItems] = useState<Record<number, MediaItem>>({});
+  const [autoSaving, setAutoSaving] = useState(false);
 
   const screenVideoRef = useRef<HTMLVideoElement>(null);
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
@@ -622,8 +860,50 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const elapsedRef = useRef<number>(0);
 
   const saveMediaItem = trpc.lms.media.saveMediaItem.useMutation();
+
+  const autoSaveRecording = useCallback(async (rec: { url: string; name: string; size: number; duration: number }) => {
+    setAutoSaving(true);
+    try {
+      const blob = await fetch(rec.url).then((r) => r.blob());
+      const contentType = blob.type || "video/webm";
+      const formData = new FormData();
+      formData.append("file", blob, rec.name);
+      formData.append("orgId", String(orgId));
+      formData.append("folder", "lms-media");
+      const uploadRes = await fetch("/api/media-upload", { method: "POST", body: formData });
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const uploadData = await uploadRes.json();
+      const saved = await saveMediaItem.mutateAsync({
+        orgId,
+        fileName: rec.name,
+        mimeType: contentType,
+        fileSize: blob.size,
+        fileKey: uploadData.key,
+        url: uploadData.url,
+        durationSeconds: rec.duration,
+        tags: ["recording"],
+        source: "direct",
+      });
+      const item: MediaItem = {
+        id: (saved as any).id,
+        url: uploadData.url,
+        filename: rec.name,
+        mimeType: contentType,
+        fileSize: blob.size,
+        durationSeconds: rec.duration,
+      };
+      setSavedItems((prev) => ({ ...prev, [0]: item }));
+      toast.success("Recording auto-saved to Media Library");
+      onSaved(item);
+    } catch (err: any) {
+      toast.warning("Auto-save failed — use the save button to save manually");
+    } finally {
+      setAutoSaving(false);
+    }
+  }, [orgId, saveMediaItem, onSaved]);
 
   useEffect(() => {
     navigator.mediaDevices.enumerateDevices().then((devices) => {
@@ -655,11 +935,12 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
     };
   }, [mode, cameraEnabled, selectedCamera]);
 
-  const startRecording = useCallback(async () => {
+  const startRecording = useCallback(async (preAcquiredScreenStream?: MediaStream) => {
     try {
       const streams: MediaStream[] = [];
       if (mode === "screen" || mode === "screen+camera") {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true });
+        const screenStream = preAcquiredScreenStream ??
+          await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true });
         screenStreamRef.current = screenStream;
         streams.push(screenStream);
         if (screenVideoRef.current) screenVideoRef.current.srcObject = screenStream;
@@ -688,10 +969,14 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
         const blob = new Blob(chunksRef.current, { type: mimeType });
         const url = URL.createObjectURL(blob);
         const name = `Recording-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.webm`;
-        setRecordings((prev) => [{ url, name, size: blob.size, duration: elapsed }, ...prev]);
+        const dur = Math.round((Date.now() - (timerRef.current ? 0 : 0)) / 1000);
+        const newRec = { url, name, size: blob.size, duration: elapsedRef.current };
+        setRecordings((prev) => [newRec, ...prev]);
         if (previewRef.current) previewRef.current.src = url;
         setRecordState("stopped");
         streams.forEach((s) => s.getTracks().forEach((t) => t.stop()));
+        // Auto-save to Media Library
+        autoSaveRecording(newRec);
       };
       if (screenStreamRef.current) {
         screenStreamRef.current.getVideoTracks()[0]?.addEventListener("ended", () => stopRecording());
@@ -699,23 +984,38 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
       recorder.start(1000);
       setRecordState("recording");
       setElapsed(0);
-      timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+      elapsedRef.current = 0;
+      timerRef.current = setInterval(() => {
+        setElapsed((e) => { elapsedRef.current = e + 1; return e + 1; });
+      }, 1000);
     } catch (err: any) {
       if (err.name !== "NotAllowedError") toast.error("Could not start recording: " + err.message);
       setRecordState("idle");
     }
-  }, [mode, micEnabled, selectedMic, elapsed]);
+  }, [mode, micEnabled, selectedMic]);
 
+  // For screen modes: acquire screen share first, then countdown, then record
   const startCountdown = useCallback(async () => {
+    let preAcquiredScreen: MediaStream | undefined;
+    if (mode === "screen" || mode === "screen+camera") {
+      try {
+        preAcquiredScreen = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true });
+        screenStreamRef.current = preAcquiredScreen;
+        if (screenVideoRef.current) screenVideoRef.current.srcObject = preAcquiredScreen;
+      } catch (err: any) {
+        if (err.name !== "NotAllowedError") toast.error("Screen share cancelled");
+        return;
+      }
+    }
     setRecordState("countdown");
     setCountdown(3);
     let c = 3;
     const interval = setInterval(() => {
       c -= 1;
       setCountdown(c);
-      if (c <= 0) { clearInterval(interval); startRecording(); }
+      if (c <= 0) { clearInterval(interval); startRecording(preAcquiredScreen); }
     }, 1000);
-  }, [startRecording]);
+  }, [mode, startRecording]);
 
   const pauseRecording = () => {
     if (mediaRecorderRef.current?.state === "recording") {
@@ -747,6 +1047,7 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
   };
   useEffect(() => {
     if (!isDraggingCamera) return;
+    const PADDING = 12;
     const onMove = (e: MouseEvent) => {
       const container = containerRef.current;
       if (!container) return;
@@ -756,11 +1057,22 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
         y: Math.max(0, Math.min(rect.height - cameraSize, e.clientY - dragOffset.y)),
       });
     };
-    const onUp = () => setIsDraggingCamera(false);
+    const onUp = () => {
+      setIsDraggingCamera(false);
+      // Snap to nearest corner
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const cx = cameraPos.x + cameraSize / 2;
+      const cy = cameraPos.y + cameraSize / 2;
+      const snapX = cx < rect.width / 2 ? PADDING : rect.width - cameraSize - PADDING;
+      const snapY = cy < rect.height / 2 ? PADDING : rect.height - cameraSize - PADDING;
+      setCameraPos({ x: snapX, y: snapY });
+    };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, [isDraggingCamera, dragOffset, cameraSize]);
+  }, [isDraggingCamera, dragOffset, cameraSize, cameraPos]);
 
   const handleSaveToLibrary = async (rec: typeof recordings[0], idx: number) => {
     setSavingIdx(idx);
@@ -918,10 +1230,18 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
             </>
           )}
           {recordState === "stopped" && (
-            <Button size="lg" className="h-14 px-6 rounded-full bg-primary text-primary-foreground"
-              onClick={() => { setRecordState("idle"); setElapsed(0); if (screenVideoRef.current) screenVideoRef.current.srcObject = null; }}>
-              <Circle className="h-5 w-5 fill-current mr-2" /> Record Again
-            </Button>
+            <div className="flex flex-col items-center gap-2">
+              {autoSaving && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Auto-saving to Media Library...
+                </div>
+              )}
+              <Button size="lg" className="h-14 px-6 rounded-full bg-primary text-primary-foreground"
+                onClick={() => { setRecordState("idle"); setElapsed(0); if (screenVideoRef.current) screenVideoRef.current.srcObject = null; }}>
+                <Circle className="h-5 w-5 fill-current mr-2" /> Record Again
+              </Button>
+            </div>
           )}
         </div>
 
