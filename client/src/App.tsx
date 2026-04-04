@@ -106,6 +106,7 @@ import ProfilePage from "./pages/profile/ProfilePage";
 import BillingPage from "./pages/profile/BillingPage";
 
 import LandingPage from "./pages/LandingPage";
+import QuizCreatorPage from "./pages/QuizCreatorPage";
 // Auth pages (no sidebar)
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
@@ -146,6 +147,9 @@ function BareRouter() {
       <Route path="/verify-email" component={VerifyEmailPage} />
       {/* Marketing landing page — shown to logged-out visitors at root */}
       <Route path="/" component={LandingPage} />
+      {/* Standalone Quiz Creator — full-screen, no sidebar */}
+      <Route path="/quiz-creator" component={QuizCreatorPage} />
+      <Route path="/quiz-creator/:id" component={QuizCreatorPage} />
     </Switch>
   );
 }
@@ -287,7 +291,8 @@ function Router() {
     path.startsWith("/webinar/") ||
     path.startsWith("/shop/") ||
     path.startsWith("/forms/") ||
-    AUTH_PATHS.some((p) => path === p || path.startsWith(p + "?"));
+    AUTH_PATHS.some((p) => path === p || path.startsWith(p + "?")) ||
+    path.startsWith("/quiz-creator");
   return isBare ? <BareRouter /> : <AdminRouter />;
 }
 

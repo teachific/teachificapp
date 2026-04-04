@@ -1819,3 +1819,24 @@
 - [x] Update sidebar background to deep navy blue (not black)
 - [x] Update CSS variables: sidebar bg, card bg, dark surfaces → deep navy; primary accent stays teal
 - [x] Ensure all text is legible against navy backgrounds
+
+## Quiz Creator Tool (Standalone .quiz Editor)
+- [x] Design .quiz file format spec (TEACHIFIC_QUIZ_V1 header, base64 payload, AES-256-GCM encryption for Pro)
+- [x] Build quiz store (Zustand) with full CRUD for questions and quiz metadata
+- [x] Build MCQ editor (multiple choice with radio/checkbox, add/remove options, image support)
+- [x] Build True/False editor
+- [x] Build Fill-in-Blank editor
+- [x] Build Short Answer editor
+- [x] Build Image Choice editor
+- [x] Build Hotspot editor (canvas-based clickable region selector with image upload)
+- [x] Build Matching editor (drag-and-drop pair builder with dnd-kit)
+- [x] Build QuestionList sidebar with drag-to-reorder and question type badges
+- [x] Build EditorToolbar with File menu (New/Open/Save/Download), Preview, Settings, License
+- [x] Build QuizSettings modal (title, description, time limit, pass score, shuffle, attempts)
+- [x] Build LicenseManager modal (license key entry, free vs paid tier display)
+- [x] Build QuizPreview player (simulates student taking the quiz, shows score at end)
+- [x] Implement .quiz file save/load (browser download, open from disk, encryption for Pro tier)
+- [x] Integrate Quiz Creator into main Teachific app at /quiz-creator (no auth gate, full-screen)
+- [ ] Add sidebar link to Quiz Creator from LMS dashboard
+- [ ] Add Teachific platform integration: publish quiz to course, import .quiz into course builder
+- [ ] Add license key generation and validation backend (server-side license issuance)
