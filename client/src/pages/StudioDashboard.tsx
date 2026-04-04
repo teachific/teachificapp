@@ -4,13 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import {
   BookOpen, Plus, Video, Brain, FileCode2, BarChart3,
-  Settings, LogOut, Layers, Zap, ArrowRight, Clock, Users
+  Settings, LogOut, Layers, Zap, ArrowRight, Clock,
 } from "lucide-react";
 
 // ── Tier badge colours ─────────────────────────────────────────────────────
@@ -31,25 +31,25 @@ const TIER_LABELS: Record<string, string> = {
 // ── Quick action cards ─────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
   {
-    icon: BookOpen,
-    label: "New Course",
-    desc: "Start building a new course",
-    href: "/lms/courses",
+    icon: Video,
+    label: "New Recording",
+    desc: "Record screen, camera, or audio",
+    href: "/media-library#record-edit",
     color: "text-violet-400",
     bg: "bg-violet-500/10",
   },
   {
-    icon: Brain,
-    label: "AI Assist",
-    desc: "Generate content with AI",
+    icon: BookOpen,
+    label: "New Course",
+    desc: "Start building a new course",
     href: "/lms/courses",
     color: "text-indigo-400",
     bg: "bg-indigo-500/10",
   },
   {
-    icon: Video,
+    icon: Brain,
     label: "Media Library",
-    desc: "Manage your assets",
+    desc: "Manage your uploaded assets",
     href: "/media-library",
     color: "text-blue-400",
     bg: "bg-blue-500/10",
@@ -57,7 +57,7 @@ const QUICK_ACTIONS = [
   {
     icon: FileCode2,
     label: "SCORM Export",
-    desc: "Export for any LMS",
+    desc: "Export courses for any LMS",
     href: "/lms/courses",
     color: "text-teal-400",
     bg: "bg-teal-500/10",
@@ -66,10 +66,10 @@ const QUICK_ACTIONS = [
 
 // ── Sidebar nav items ──────────────────────────────────────────────────────
 const NAV_ITEMS = [
+  { icon: Video, label: "Record & Upload", href: "/media-library#record-edit" },
   { icon: BookOpen, label: "My Courses", href: "/lms/courses" },
-  { icon: Video, label: "Media Library", href: "/media-library" },
-  { icon: Brain, label: "Quiz Builder", href: "/quizzes/new" },
-  { icon: BarChart3, label: "Analytics", href: "/analytics" },
+  { icon: Brain, label: "Media Library", href: "/media-library" },
+  { icon: FileCode2, label: "Quiz Builder", href: "/quizzes/new" },
   { icon: Settings, label: "Settings", href: "/profile" },
 ];
 
@@ -86,7 +86,7 @@ export default function StudioDashboard() {
   const courses: any[] = [];
 
   const logoutMutation = trpc.auth.logout.useMutation({
-    onSuccess: () => { window.location.href = "/studio-pro"; },
+    onSuccess: () => { window.location.href = "/"; },
   });
 
   // ── Auth guard ──────────────────────────────────────────────────────────
@@ -106,10 +106,12 @@ export default function StudioDashboard() {
     );
   }
 
-  const tier = studioSub?.tier ?? "none";
+  // Site owners and admins always have full access — no subscription required
+  const isPrivileged = (user as any)?.role === "site_owner" || (user as any)?.role === "site_admin";
+  const tier = isPrivileged ? "pro" : (studioSub?.tier ?? "none");
 
   // ── No active subscription ──────────────────────────────────────────────
-  if (!studioSub?.isActive) {
+  if (!isPrivileged && !studioSub?.isActive) {
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center p-6">
         <div className="max-w-lg w-full text-center">
@@ -163,7 +165,7 @@ export default function StudioDashboard() {
         {/* Plan badge */}
         <div className="px-4 py-3 border-b border-white/10">
           <Badge className={`text-xs px-2 py-0.5 ${TIER_STYLES[tier]}`}>
-            {TIER_LABELS[tier]} Plan
+            {isPrivileged ? "Owner" : TIER_LABELS[tier]} Plan
           </Badge>
         </div>
 
@@ -213,6 +215,15 @@ export default function StudioDashboard() {
           <div className="flex items-center gap-3">
             <Button
               size="sm"
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/10"
+              onClick={() => navigate("/media-library#record-edit")}
+            >
+              <Video className="w-3.5 h-3.5 mr-1.5" />
+              Record
+            </Button>
+            <Button
+              size="sm"
               className="bg-violet-600 hover:bg-violet-700 text-white"
               onClick={() => navigate("/lms/courses")}
             >
@@ -232,7 +243,7 @@ export default function StudioDashboard() {
                   <Card className="bg-white/5 border-white/10 hover:border-violet-500/40 hover:bg-white/[0.07] transition-all cursor-pointer h-full">
                     <CardContent className="p-4">
                       <div className={`w-9 h-9 rounded-xl ${action.bg} flex items-center justify-center mb-3`}>
-                        <action.icon className={`w-4.5 h-4.5 ${action.color}`} />
+                        <action.icon className={`w-4 h-4 ${action.color}`} />
                       </div>
                       <p className="font-semibold text-sm text-white">{action.label}</p>
                       <p className="text-xs text-white/40 mt-0.5">{action.desc}</p>
@@ -322,16 +333,17 @@ export default function StudioDashboard() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <p className="font-semibold text-white">
-                      {TIER_LABELS[tier]} Plan
+                      {isPrivileged ? "Owner" : TIER_LABELS[tier]} Plan
                     </p>
                     <p className="text-sm text-white/40">
-                      {tier === "none" && "Free tier — upgrade to unlock more"}
-                      {tier === "creator" && "10 courses · 5 GB storage"}
-                      {tier === "pro" && "Unlimited courses · 50 GB storage"}
-                      {tier === "team" && "Unlimited courses · 50 GB storage · 5 seats"}
+                      {isPrivileged && "Full access — no limits"}
+                      {!isPrivileged && tier === "none" && "Free tier — upgrade to unlock more"}
+                      {!isPrivileged && tier === "creator" && "10 courses · 5 GB storage"}
+                      {!isPrivileged && tier === "pro" && "Unlimited courses · 50 GB storage"}
+                      {!isPrivileged && tier === "team" && "Unlimited courses · 50 GB storage · 5 seats"}
                     </p>
                   </div>
-                  {tier !== "pro" && tier !== "team" && (
+                  {!isPrivileged && tier !== "pro" && tier !== "team" && (
                     <Button
                       size="sm"
                       className="bg-violet-600 hover:bg-violet-700 text-white"
@@ -343,8 +355,8 @@ export default function StudioDashboard() {
                 </div>
                 <div className="grid grid-cols-3 gap-4 text-center">
                   {[
-                    { label: "Courses", value: courses?.length ?? 0, max: tier === "none" ? 1 : tier === "creator" ? 10 : "∞" },
-                    { label: "Storage Used", value: "—", max: tier === "none" ? "100 MB" : tier === "creator" ? "5 GB" : tier === "pro" ? "50 GB" : "50 GB" },
+                    { label: "Courses", value: courses?.length ?? 0, max: isPrivileged || tier === "pro" || tier === "team" ? "∞" : tier === "creator" ? 10 : 1 },
+                    { label: "Storage Used", value: "—", max: isPrivileged ? "∞" : tier === "none" ? "100 MB" : tier === "creator" ? "5 GB" : "50 GB" },
                     { label: "Team Seats", value: tier === "team" ? "5" : "1", max: tier === "team" ? "5" : "1" },
                   ].map((stat) => (
                     <div key={stat.label} className="bg-white/5 rounded-xl p-3">

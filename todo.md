@@ -1980,3 +1980,11 @@
 - [x] Add server-side chunked upload endpoint (/api/chunked/media/*)
 - [x] Update UploadQueueContext to split files into 5 MB chunks and upload sequentially
 - [ ] Test large video upload (>100MB) end-to-end without timeout
+
+## TeachificStudio Bug Fixes (from user test)
+- [x] Fix subscription gate: bypass for site_owner and site_admin roles
+- [x] Fix webhook: handle product_type=studio in checkout.session.completed to update studioRole
+- [x] Fix StudioDashboard: add "New Recording" quick action linking to /media-library#record-edit
+- [x] Fix useUploadQueue Fast Refresh: split hook into client/src/hooks/useUploadQueue.ts
+- [x] Fix StudioDashboard: after logout redirect to / not /studio-pro
+- [x] Fix StudioDashboard: Analytics nav item replaced with correct nav items (Record & Upload, Media Library, etc.)

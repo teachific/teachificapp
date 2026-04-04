@@ -8,7 +8,7 @@ import type Stripe from "stripe";
 import { ENV } from "./_core/env";
 import { getStripe, PLAN_LIMITS, type PlanTier } from "./stripePlans";
 import { upsertOrgSubscription, createEnrollment, getEnrollment } from "./lmsDb";
-import { getUserByEmail } from "./db";
+import { getUserByEmail, getDb } from "./db";
 import { sendEmail } from "./sendgrid";
 
 const router = express.Router();
@@ -78,7 +78,29 @@ router.post(
             break;
           }
 
-          // ── Subscription checkout ────────────────────────────────────────────
+          // ── Studio subscription checkout ────────────────────────────────────────────
+          if (session.mode === "subscription" && session.metadata?.product_type === "studio") {
+            const studioTier = session.metadata?.studio_tier as string;
+            const userId = parseInt(session.metadata?.user_id ?? "0");
+            if (studioTier && userId) {
+              try {
+                const db = await getDb();
+                if (db) {
+                  const { users } = await import("../drizzle/schema");
+                  const { eq } = await import("drizzle-orm");
+                  await db.update(users)
+                    .set({ studioRole: studioTier as any })
+                    .where(eq(users.id, userId));
+                  console.log(`[Stripe Webhook] User ${userId} studio role updated to ${studioTier}`);
+                }
+              } catch (err: any) {
+                console.error("[Stripe Webhook] Studio role update failed:", err.message);
+              }
+            }
+            break;
+          }
+
+          // ── Org subscription checkout ───────────────────────────────────────────────
           if (session.mode !== "subscription") break;
 
           const orgId = parseInt(session.metadata?.org_id ?? "0");
