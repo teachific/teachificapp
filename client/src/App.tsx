@@ -110,6 +110,8 @@ import QuizCreatorPage from "./pages/QuizCreatorPage";
 import QuizCreatorGate from "./pages/QuizCreatorGate";
 import QuizCreatorDashboard from "./pages/QuizCreatorDashboard";
 import QuizCreatorLandingPage from "./pages/QuizCreatorLandingPage";
+import StudioDashboard from "./pages/StudioDashboard";
+import StudioLandingPage from "./pages/StudioLandingPage";
 // Auth pages (no sidebar)
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
@@ -156,6 +158,10 @@ function BareRouter() {
       <Route path="/quiz-creator-app" component={QuizCreatorDashboard} />
       {/* QuizCreator sales/marketing page */}
       <Route path="/quiz-creator-pro" component={QuizCreatorLandingPage} />
+      {/* Teachific Studio standalone dashboard */}
+      <Route path="/studio" component={StudioDashboard} />
+      {/* Teachific Studio sales/marketing page */}
+      <Route path="/studio-pro" component={StudioLandingPage} />
     </Switch>
   );
 }
@@ -300,7 +306,9 @@ function Router() {
     AUTH_PATHS.some((p) => path === p || path.startsWith(p + "?")) ||
     path.startsWith("/quiz-creator") ||
     path.startsWith("/quiz-creator-app") ||
-    path.startsWith("/quiz-creator-pro");
+    path.startsWith("/quiz-creator-pro") ||
+    path.startsWith("/studio") ||
+    path.startsWith("/studio-pro");
   return isBare ? <BareRouter /> : <AdminRouter />;
 }
 

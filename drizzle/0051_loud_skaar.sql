@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `studioRole` enum('none','creator','pro','team') DEFAULT 'none' NOT NULL;

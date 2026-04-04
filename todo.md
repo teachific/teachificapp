@@ -1946,3 +1946,20 @@
 - [ ] Auto-enrollment toggle in Org Settings (General tab)
 - [ ] Auto-enrollment courses selector (which courses to auto-enroll into)
 - [ ] Auto-enrollment trigger on member join
+
+## Enterprise Sales & Email & Webhook
+- [ ] Enterprise contact-sales button on Billing page
+- [ ] Enterprise inquiry notification to platform owner
+- [x] Enrollment confirmation email on auto-enroll and bulk import
+- [ ] Stripe checkout.session.completed webhook grants course access
+
+## Bug Fixes
+- [x] Fix video upload in Teachific Studio (lesson video upload not working)
+
+## Teachific Studio Standalone Product
+- [x] Fix video upload in Teachific Studio
+- [ ] Studio standalone sales/landing page at /studio
+- [ ] Studio subscription tiers (Free, Creator $19/mo, Pro $49/mo, Team $99/mo)
+- [ ] Studio Stripe products and checkout flow
+- [ ] Standalone Studio dashboard at /studio/dashboard
+- [ ] Studio subscriber gating (separate from LMS org subscription)

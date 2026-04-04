@@ -382,4 +382,77 @@ export const stripeRouter = router({
   getPlanLimits: protectedProcedure.query(() => {
     return PLAN_LIMITS;
   }),
+
+  // ── Studio subscription checkout ───────────────────────────────────────
+  createStudioCheckout: protectedProcedure
+    .input(z.object({
+      tier: z.enum(["creator", "pro", "team"]),
+      interval: z.enum(["monthly", "annual"]),
+      origin: z.string().url(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const stripe = getStripe();
+      const priceKey = `studio_${input.tier}_${input.interval}`;
+      const priceId = STRIPE_PRICE_IDS[priceKey];
+      if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Studio price not found. Please try again shortly." });
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        customer_email: ctx.user.email ?? undefined,
+        client_reference_id: String(ctx.user.id),
+        metadata: {
+          user_id: String(ctx.user.id),
+          customer_email: ctx.user.email ?? "",
+          customer_name: ctx.user.name ?? "",
+          studio_tier: input.tier,
+          product_type: "studio",
+        },
+        success_url: `${input.origin}/studio?upgraded=1`,
+        cancel_url: `${input.origin}/studio-pro`,
+        allow_promotion_codes: true,
+      });
+      return { checkoutUrl: session.url };
+    }),
+
+  // ── Studio subscription status ────────────────────────────────────────────
+  getStudioSubscription: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    const { users } = await import("../drizzle/schema");
+    const rows = await db.select({ studioRole: users.studioRole }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+    const studioRole = (rows[0]?.studioRole ?? "none") as string;
+    return {
+      tier: studioRole as "none" | "creator" | "pro" | "team",
+      isActive: studioRole !== "none",
+    };
+  }),
+
+  // ── Enterprise contact-sales inquiry ─────────────────────────────────────
+  contactEnterprise: protectedProcedure
+    .input(z.object({
+      orgId: z.number(),
+      orgName: z.string(),
+      contactName: z.string(),
+      contactEmail: z.string().email(),
+      teamSize: z.string().optional(),
+      message: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { notifyOwner } = await import("./_core/notification");
+      const content = [
+        "**Enterprise Plan Inquiry**",
+        "",
+        `**Organization:** ${input.orgName} (ID: ${input.orgId})`,
+        `**Contact:** ${input.contactName} <${input.contactEmail}>`,
+        `**Team Size:** ${input.teamSize ?? "Not specified"}`,
+        `**Message:** ${input.message ?? "No message provided"}`,
+        "",
+        `Submitted by user ID: ${ctx.user.id}`,
+      ].join("\n");
+      await notifyOwner({
+        title: `Enterprise Inquiry: ${input.orgName}`,
+        content,
+      });
+      return { success: true };
+    }),
 });

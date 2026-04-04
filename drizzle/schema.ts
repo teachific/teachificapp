@@ -32,6 +32,8 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
   // QuizCreator standalone product access role
   quizCreatorRole: mysqlEnum("quizCreatorRole", ["none", "lite", "premium"]).default("none").notNull(),
+  // Teachific Studio standalone product access role
+  studioRole: mysqlEnum("studioRole", ["none", "creator", "pro", "team"]).default("none").notNull(),
 });
 
 export type User = typeof users.$inferSelect;

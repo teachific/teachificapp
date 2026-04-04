@@ -1,15 +1,23 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   CreditCard, Check, Crown, Zap, Rocket, Building2,
-  ArrowUpRight, AlertCircle, CheckCircle2, Clock, ExternalLink,
+  ArrowUpRight, AlertCircle, CheckCircle2, Clock, ExternalLink, Send,
 } from "lucide-react";
 
 type PlanTier = "free" | "starter" | "builder" | "pro" | "enterprise";
@@ -131,7 +139,13 @@ const STATUS_CONFIG = {
 export default function BillingPage() {
   const [annual, setAnnual] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [enterpriseOpen, setEnterpriseOpen] = useState(false);
+  const [enterpriseForm, setEnterpriseForm] = useState({
+    teamSize: "",
+    message: "",
+  });
 
+  const { user } = useAuth();
   const { data: subscription, isLoading } = trpc.billing.getSubscription.useQuery();
 
   const createCheckout = trpc.billing.createCheckoutSession.useMutation({
@@ -154,6 +168,15 @@ export default function BillingPage() {
         window.open(data.url, "_blank");
         toast.info("Opening billing portal...");
       }
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const contactEnterprise = trpc.billing.contactEnterprise.useMutation({
+    onSuccess: () => {
+      toast.success("Inquiry sent! We'll be in touch shortly.");
+      setEnterpriseOpen(false);
+      setEnterpriseForm({ teamSize: "", message: "" });
     },
     onError: (err) => toast.error(err.message),
   });
@@ -327,7 +350,7 @@ export default function BillingPage() {
                       variant="outline"
                       size="sm"
                       className="w-full gap-1"
-                      onClick={() => window.open("mailto:sales@teachific.app?subject=Enterprise Plan Inquiry", "_blank")}
+                      onClick={() => setEnterpriseOpen(true)}
                     >
                       Contact Sales
                       <ArrowUpRight className="h-3.5 w-3.5" />
@@ -380,6 +403,66 @@ export default function BillingPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Enterprise inquiry dialog */}
+      <Dialog open={enterpriseOpen} onOpenChange={setEnterpriseOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              Enterprise Plan Inquiry
+            </DialogTitle>
+            <DialogDescription>
+              Tell us about your organisation and we'll prepare a custom quote.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="teamSize">Team size</Label>
+              <Select
+                value={enterpriseForm.teamSize}
+                onValueChange={(v) => setEnterpriseForm((f) => ({ ...f, teamSize: v }))}
+              >
+                <SelectTrigger id="teamSize">
+                  <SelectValue placeholder="Select team size" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10-50">10 – 50 members</SelectItem>
+                  <SelectItem value="51-200">51 – 200 members</SelectItem>
+                  <SelectItem value="201-1000">201 – 1,000 members</SelectItem>
+                  <SelectItem value="1001+">1,000+ members</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="enterpriseMsg">Tell us about your needs</Label>
+              <Textarea
+                id="enterpriseMsg"
+                placeholder="Custom integrations, onboarding requirements, SLA needs…"
+                rows={4}
+                value={enterpriseForm.message}
+                onChange={(e) => setEnterpriseForm((f) => ({ ...f, message: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEnterpriseOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => contactEnterprise.mutate({
+                orgId: subscription?.orgId ?? 0,
+                orgName: subscription?.orgName ?? "",
+                contactName: user?.name ?? "",
+                contactEmail: user?.email ?? "",
+                ...enterpriseForm,
+              })}
+              disabled={contactEnterprise.isPending || !enterpriseForm.teamSize}
+            >
+              {contactEnterprise.isPending ? "Sending…" : "Send Inquiry"}
+              <Send className="ml-2 h-3.5 w-3.5" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Separator />
 

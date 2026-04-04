@@ -215,30 +215,56 @@ function FileUploadField({
   contentType: string;
 }) {
   const [uploading, setUploading] = useState(false);
-  const getUploadUrl = trpc.lms.media.getUploadUrl.useMutation();
+  const [progress, setProgress] = useState(0);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setProgress(0);
     try {
-      const { fileUrl } = await getUploadUrl.mutateAsync({
-        orgId,
-        fileName: file.name,
-        contentType: file.type || contentType,
+      // Use /api/media-upload which proxies through the server to Forge storage
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("orgId", String(orgId));
+      fd.append("folder", contentType.startsWith("video") ? "lms-video" : "lms-media");
+
+      // Use XMLHttpRequest for upload progress tracking
+      const url = await new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/media-upload");
+        xhr.withCredentials = true;
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100));
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              resolve(data.url);
+            } catch {
+              reject(new Error("Invalid response from server"));
+            }
+          } else {
+            try {
+              const err = JSON.parse(xhr.responseText);
+              reject(new Error(err.error ?? `Upload failed (${xhr.status})`));
+            } catch {
+              reject(new Error(`Upload failed (${xhr.status})`));
+            }
+          }
+        };
+        xhr.onerror = () => reject(new Error("Network error during upload"));
+        xhr.send(fd);
       });
-      // Upload the actual file bytes to S3
-      await fetch(fileUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type || contentType },
-      });
-      onChange(fileUrl);
-      toast.success("File uploaded");
+
+      onChange(url);
+      toast.success("File uploaded successfully");
     } catch (err: any) {
       toast.error("Upload failed: " + (err.message ?? "Unknown error"));
     } finally {
       setUploading(false);
+      setProgress(0);
     }
   };
 
@@ -263,11 +289,19 @@ function FileUploadField({
           <Button type="button" variant="outline" size="sm" disabled={uploading} asChild>
             <span>
               <Upload className="h-3.5 w-3.5 mr-1.5" />
-              {uploading ? "Uploading..." : "Upload"}
+              {uploading ? (progress > 0 ? `${progress}%` : "Uploading...") : "Upload"}
             </span>
           </Button>
         </label>
       </div>
+      {uploading && progress > 0 && (
+        <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+          <div
+            className="bg-primary h-1.5 rounded-full transition-all duration-200"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }

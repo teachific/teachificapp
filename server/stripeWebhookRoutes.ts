@@ -7,7 +7,9 @@ import express from "express";
 import type Stripe from "stripe";
 import { ENV } from "./_core/env";
 import { getStripe, PLAN_LIMITS, type PlanTier } from "./stripePlans";
-import { upsertOrgSubscription } from "./lmsDb";
+import { upsertOrgSubscription, createEnrollment, getEnrollment } from "./lmsDb";
+import { getUserByEmail } from "./db";
+import { sendEmail } from "./sendgrid";
 
 const router = express.Router();
 
@@ -45,6 +47,38 @@ router.post(
       switch (event.type) {
         case "checkout.session.completed": {
           const session = event.data.object as Stripe.Checkout.Session;
+
+          // ── Course purchase (one-time payment) ──────────────────────────────
+          if (session.mode === "payment" && session.metadata?.type === "course_purchase") {
+            const courseId = parseInt(session.metadata?.course_id ?? "0");
+            const orgId = parseInt(session.metadata?.org_id ?? "0");
+            const buyerEmail = session.customer_details?.email ?? session.metadata?.customer_email ?? "";
+            const amountPaid = session.amount_total ? session.amount_total / 100 : 0;
+            if (courseId && orgId && buyerEmail) {
+              try {
+                const user = await getUserByEmail(buyerEmail);
+                if (user) {
+                  const existing = await getEnrollment(courseId, user.id);
+                  if (!existing) {
+                    await createEnrollment({ courseId, userId: user.id, orgId, amountPaid });
+                    console.log(`[Stripe Webhook] User ${user.id} enrolled in course ${courseId}`);
+                    await sendEmail({
+                      to: user.email ?? "",
+                      subject: `Your enrollment is confirmed!`,
+                      html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px"><h2>You're enrolled!</h2><p>Hi ${user.name ?? "there"},</p><p>Your payment of <strong>$${amountPaid.toFixed(2)}</strong> was successful and you now have access to your course.</p><p>Log in to your account to start learning.</p></div>`,
+                    });
+                  }
+                } else {
+                  console.warn(`[Stripe Webhook] No user for email ${buyerEmail} — enrollment deferred`);
+                }
+              } catch (enrollErr: any) {
+                console.error("[Stripe Webhook] Course enrollment failed:", enrollErr.message);
+              }
+            }
+            break;
+          }
+
+          // ── Subscription checkout ────────────────────────────────────────────
           if (session.mode !== "subscription") break;
 
           const orgId = parseInt(session.metadata?.org_id ?? "0");

@@ -7,6 +7,7 @@ import { ENV } from "./_core/env";
 
 // ─── Plan Limits ─────────────────────────────────────────────────────────────
 export type PlanTier = "free" | "starter" | "builder" | "pro" | "enterprise";
+export type StudioTier = "free" | "creator" | "pro" | "team";
 
 export interface PlanLimits {
   name: string;
@@ -238,6 +239,56 @@ export async function ensureStripePlans(): Promise<void> {
       });
     }
     STRIPE_PRICE_IDS[annualKey] = annualPrice.id;
+  }
+
+  // Studio plans
+  const studioPaidTiers: StudioTier[] = ["creator", "pro", "team"];
+  const studioPlans: Record<StudioTier, { name: string; monthlyPrice: number; annualPrice: number }> = {
+    free: { name: "Studio Free", monthlyPrice: 0, annualPrice: 0 },
+    creator: { name: "Studio Creator", monthlyPrice: 1900, annualPrice: 17900 },
+    pro: { name: "Studio Pro", monthlyPrice: 4900, annualPrice: 44900 },
+    team: { name: "Studio Team", monthlyPrice: 9900, annualPrice: 89900 },
+  };
+
+  for (const tier of studioPaidTiers) {
+    const plan = studioPlans[tier];
+    const products = await stripe.products.list({ limit: 100 });
+    let product = products.data.find((p) => p.metadata?.studio_tier === tier);
+    if (!product) {
+      product = await stripe.products.create({
+        name: plan.name,
+        description: `Teachific Studio ${tier} plan`,
+        metadata: { studio_tier: tier, product_type: "studio" },
+      });
+    }
+    const existingPrices = await stripe.prices.list({ product: product.id, limit: 100 });
+    let monthlyPrice = existingPrices.data.find(
+      (p) => p.recurring?.interval === "month" && p.metadata?.studio_tier === tier && p.active
+    );
+    if (!monthlyPrice) {
+      monthlyPrice = await stripe.prices.create({
+        product: product.id,
+        unit_amount: plan.monthlyPrice,
+        currency: "usd",
+        recurring: { interval: "month" },
+        metadata: { studio_tier: tier, interval: "monthly", product_type: "studio" },
+      });
+    }
+    STRIPE_PRICE_IDS[`studio_${tier}_monthly`] = monthlyPrice.id;
+
+    let annualPrice = existingPrices.data.find(
+      (p) => p.recurring?.interval === "year" && p.metadata?.studio_tier === tier && p.active
+    );
+    if (!annualPrice) {
+      annualPrice = await stripe.prices.create({
+        product: product.id,
+        unit_amount: plan.annualPrice,
+        currency: "usd",
+        recurring: { interval: "year" },
+        metadata: { studio_tier: tier, interval: "annual", product_type: "studio" },
+      });
+    }
+    STRIPE_PRICE_IDS[`studio_${tier}_annual`] = annualPrice.id;
   }
 
   console.log("[Stripe] Plans initialized:", Object.keys(STRIPE_PRICE_IDS));

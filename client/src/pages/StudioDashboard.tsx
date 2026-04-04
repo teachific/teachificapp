@@ -1,0 +1,364 @@
+import { useState } from "react";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/hooks/useAuth";
+import { getLoginUrl } from "@/const";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Link, useLocation } from "wouter";
+import { toast } from "sonner";
+import {
+  BookOpen, Plus, Video, Brain, FileCode2, BarChart3,
+  Settings, LogOut, Layers, Zap, ArrowRight, Clock, Users
+} from "lucide-react";
+
+// ── Tier badge colours ─────────────────────────────────────────────────────
+const TIER_STYLES: Record<string, string> = {
+  none: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+  creator: "bg-violet-500/20 text-violet-300 border-violet-500/30",
+  pro: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+  team: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+};
+
+const TIER_LABELS: Record<string, string> = {
+  none: "Free",
+  creator: "Creator",
+  pro: "Pro",
+  team: "Team",
+};
+
+// ── Quick action cards ─────────────────────────────────────────────────────
+const QUICK_ACTIONS = [
+  {
+    icon: BookOpen,
+    label: "New Course",
+    desc: "Start building a new course",
+    href: "/lms/courses",
+    color: "text-violet-400",
+    bg: "bg-violet-500/10",
+  },
+  {
+    icon: Brain,
+    label: "AI Assist",
+    desc: "Generate content with AI",
+    href: "/lms/courses",
+    color: "text-indigo-400",
+    bg: "bg-indigo-500/10",
+  },
+  {
+    icon: Video,
+    label: "Media Library",
+    desc: "Manage your assets",
+    href: "/media-library",
+    color: "text-blue-400",
+    bg: "bg-blue-500/10",
+  },
+  {
+    icon: FileCode2,
+    label: "SCORM Export",
+    desc: "Export for any LMS",
+    href: "/lms/courses",
+    color: "text-teal-400",
+    bg: "bg-teal-500/10",
+  },
+];
+
+// ── Sidebar nav items ──────────────────────────────────────────────────────
+const NAV_ITEMS = [
+  { icon: BookOpen, label: "My Courses", href: "/lms/courses" },
+  { icon: Video, label: "Media Library", href: "/media-library" },
+  { icon: Brain, label: "Quiz Builder", href: "/quizzes/new" },
+  { icon: BarChart3, label: "Analytics", href: "/analytics" },
+  { icon: Settings, label: "Settings", href: "/profile" },
+];
+
+export default function StudioDashboard() {
+  const { user, loading: authLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  const { data: studioSub, isLoading: subLoading } = trpc.billing.getStudioSubscription.useQuery(undefined, {
+    enabled: !!user,
+  });
+
+  // Courses are accessed via the LMS builder which has org context
+  const coursesLoading = false;
+  const courses: any[] = [];
+
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSuccess: () => { window.location.href = "/studio-pro"; },
+  });
+
+  // ── Auth guard ──────────────────────────────────────────────────────────
+  if (!authLoading && !user) {
+    window.location.href = getLoginUrl();
+    return null;
+  }
+
+  if (authLoading || (user && subLoading)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-violet-400 border-t-transparent rounded-full animate-spin" />
+          <p className="text-white/60 text-sm">Loading Studio…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const tier = studioSub?.tier ?? "none";
+
+  // ── No active subscription ──────────────────────────────────────────────
+  if (!studioSub?.isActive) {
+    return (
+      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center p-6">
+        <div className="max-w-lg w-full text-center">
+          <div className="mb-8">
+            <span className="text-3xl font-black tracking-tight">
+              <span className="text-white">Teachific</span>
+              <span className="text-violet-400"> Studio</span>
+            </span>
+          </div>
+          <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
+            <Zap className="w-9 h-9 text-violet-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-3">Activate Your Studio</h1>
+          <p className="text-white/50 mb-8 leading-relaxed">
+            You need an active Teachific Studio subscription to access the course authoring tools.
+            Start free — no credit card required.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              className="bg-violet-600 hover:bg-violet-700 text-white font-semibold"
+              onClick={() => navigate("/studio-pro")}
+            >
+              View Plans <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/10"
+              onClick={() => logoutMutation.mutate()}
+            >
+              Sign Out
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Full dashboard ──────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-[#0a0f1e] text-white flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white/[0.03] border-r border-white/10 flex flex-col shrink-0 hidden md:flex">
+        {/* Logo */}
+        <div className="h-16 flex items-center px-6 border-b border-white/10">
+          <span className="text-lg font-black tracking-tight">
+            <span className="text-white">Teachific</span>
+            <span className="text-violet-400"> Studio</span>
+          </span>
+        </div>
+
+        {/* Plan badge */}
+        <div className="px-4 py-3 border-b border-white/10">
+          <Badge className={`text-xs px-2 py-0.5 ${TIER_STYLES[tier]}`}>
+            {TIER_LABELS[tier]} Plan
+          </Badge>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {NAV_ITEMS.map((item) => (
+            <Link key={item.href} href={item.href}>
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer text-sm font-medium">
+                <item.icon className="w-4 h-4 shrink-0" />
+                {item.label}
+              </div>
+            </Link>
+          ))}
+        </nav>
+
+        {/* User + logout */}
+        <div className="p-4 border-t border-white/10">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-xs font-bold shrink-0">
+              {user?.name?.charAt(0)?.toUpperCase() ?? "U"}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{user?.name ?? "User"}</p>
+              <p className="text-xs text-white/40 truncate">{user?.email ?? ""}</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-white/50 hover:text-white hover:bg-white/10 text-xs"
+            onClick={() => logoutMutation.mutate()}
+          >
+            <LogOut className="w-3.5 h-3.5 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-auto">
+        {/* Top bar */}
+        <div className="h-16 border-b border-white/10 flex items-center justify-between px-6 sticky top-0 bg-[#0a0f1e]/90 backdrop-blur z-10">
+          <div>
+            <h1 className="text-lg font-bold">Studio Dashboard</h1>
+            <p className="text-xs text-white/40">Welcome back, {user?.name?.split(" ")[0] ?? "Creator"}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              size="sm"
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+              onClick={() => navigate("/lms/courses")}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              New Course
+            </Button>
+          </div>
+        </div>
+
+        <div className="p-6 max-w-6xl mx-auto space-y-8">
+          {/* Quick actions */}
+          <section>
+            <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {QUICK_ACTIONS.map((action) => (
+                <Link key={action.label} href={action.href}>
+                  <Card className="bg-white/5 border-white/10 hover:border-violet-500/40 hover:bg-white/[0.07] transition-all cursor-pointer h-full">
+                    <CardContent className="p-4">
+                      <div className={`w-9 h-9 rounded-xl ${action.bg} flex items-center justify-center mb-3`}>
+                        <action.icon className={`w-4.5 h-4.5 ${action.color}`} />
+                      </div>
+                      <p className="font-semibold text-sm text-white">{action.label}</p>
+                      <p className="text-xs text-white/40 mt-0.5">{action.desc}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* Recent courses */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider">Recent Courses</h2>
+              <Link href="/lms/courses">
+                <span className="text-xs text-violet-400 hover:text-violet-300 cursor-pointer transition-colors">
+                  View all →
+                </span>
+              </Link>
+            </div>
+
+            {coursesLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-32 bg-white/5 rounded-xl" />
+                ))}
+              </div>
+            ) : !courses?.length ? (
+              <Card className="bg-white/5 border-white/10 border-dashed">
+                <CardContent className="p-10 text-center">
+                  <BookOpen className="w-10 h-10 text-white/20 mx-auto mb-3" />
+                  <p className="text-white/50 text-sm mb-4">No courses yet. Create your first course to get started.</p>
+                  <Button
+                    size="sm"
+                    className="bg-violet-600 hover:bg-violet-700 text-white"
+                    onClick={() => navigate("/lms/courses")}
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    Create Course
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {(courses as any[]).slice(0, 6).map((course: any) => (
+                  <Link key={course.id} href={`/lms/courses/${course.id}`}>
+                    <Card className="bg-white/5 border-white/10 hover:border-violet-500/40 transition-all cursor-pointer h-full">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="w-9 h-9 rounded-lg bg-violet-500/20 flex items-center justify-center shrink-0">
+                            <BookOpen className="w-4 h-4 text-violet-400" />
+                          </div>
+                          <Badge className={`text-xs ${
+                            course.status === "published"
+                              ? "bg-green-500/20 text-green-400 border-green-500/30"
+                              : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                          }`}>
+                            {course.status ?? "draft"}
+                          </Badge>
+                        </div>
+                        <p className="font-semibold text-sm text-white line-clamp-2 mb-1">{course.title}</p>
+                        <div className="flex items-center gap-3 text-xs text-white/40 mt-2">
+                          <span className="flex items-center gap-1">
+                            <Layers className="w-3 h-3" />
+                            {course.lessonCount ?? 0} lessons
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {course.updatedAt
+                              ? new Date(course.updatedAt).toLocaleDateString()
+                              : "—"}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Plan usage */}
+          <section>
+            <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-4">Plan Usage</h2>
+            <Card className="bg-white/5 border-white/10">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="font-semibold text-white">
+                      {TIER_LABELS[tier]} Plan
+                    </p>
+                    <p className="text-sm text-white/40">
+                      {tier === "none" && "Free tier — upgrade to unlock more"}
+                      {tier === "creator" && "10 courses · 5 GB storage"}
+                      {tier === "pro" && "Unlimited courses · 50 GB storage"}
+                      {tier === "team" && "Unlimited courses · 50 GB storage · 5 seats"}
+                    </p>
+                  </div>
+                  {tier !== "pro" && tier !== "team" && (
+                    <Button
+                      size="sm"
+                      className="bg-violet-600 hover:bg-violet-700 text-white"
+                      onClick={() => navigate("/studio-pro#pricing")}
+                    >
+                      Upgrade
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  {[
+                    { label: "Courses", value: courses?.length ?? 0, max: tier === "none" ? 1 : tier === "creator" ? 10 : "∞" },
+                    { label: "Storage Used", value: "—", max: tier === "none" ? "100 MB" : tier === "creator" ? "5 GB" : tier === "pro" ? "50 GB" : "50 GB" },
+                    { label: "Team Seats", value: tier === "team" ? "5" : "1", max: tier === "team" ? "5" : "1" },
+                  ].map((stat) => (
+                    <div key={stat.label} className="bg-white/5 rounded-xl p-3">
+                      <p className="text-xl font-bold text-white">{stat.value}</p>
+                      <p className="text-xs text-white/40 mt-0.5">{stat.label}</p>
+                      <p className="text-xs text-white/20 mt-0.5">of {stat.max}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}

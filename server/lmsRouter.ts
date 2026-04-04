@@ -246,10 +246,40 @@ async function autoEnrollMemberIfEnabled(orgId: number, userId: number): Promise
         .from(coursesTable)
         .where(and(eq(coursesTable.orgId, orgId), inArray(coursesTable.status, ["published", "hidden"])));
     }
+    const enrolledCourseTitles: string[] = [];
     for (const course of targetCourses) {
       const existing = await getEnrollment(course.id, userId);
       if (!existing) {
         await createEnrollment({ courseId: course.id, userId, orgId, amountPaid: 0 });
+        const fullCourse = await getCourseById(course.id);
+        if (fullCourse) enrolledCourseTitles.push(fullCourse.title);
+      }
+    }
+    // Send enrollment confirmation email
+    if (enrolledCourseTitles.length > 0) {
+      try {
+        const [user, org] = await Promise.all([getUserById(userId), getOrgById(orgId)]);
+        if (user?.email && org) {
+          const courseListHtml = enrolledCourseTitles
+            .map((t) => `<li style="margin:4px 0">${t}</li>`)
+            .join("");
+          await sendEmail({
+            to: user.email,
+            subject: `You've been enrolled in ${enrolledCourseTitles.length === 1 ? enrolledCourseTitles[0] : `${enrolledCourseTitles.length} courses`} at ${org.name}`,
+            html: `
+              <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
+                <h2 style="color:#1a1a1a">Welcome to ${org.name}!</h2>
+                <p>Hi ${user.name ?? "there"},</p>
+                <p>You have been automatically enrolled in the following course${enrolledCourseTitles.length > 1 ? "s" : ""}:</p>
+                <ul style="padding-left:20px">${courseListHtml}</ul>
+                <p>Log in to your account to start learning.</p>
+                <p style="color:#666;font-size:13px">This email was sent by ${org.name} via Teachific.</p>
+              </div>
+            `,
+          });
+        }
+      } catch (emailErr) {
+        console.error("[autoEnroll] Email send failed:", emailErr);
       }
     }
   } catch (e) {
