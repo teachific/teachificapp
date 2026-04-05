@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
+import LoadingScreen from "@/components/LoadingScreen";
 import { getLoginUrl } from "@/const";
 import {
   BookOpen,
@@ -973,16 +974,18 @@ export default function LandingPage() {
     document.title = "Teachific™ — Build & Sell Online Courses";
   }, []);
 
-  // Redirect authenticated users to the dashboard
+  // Redirect authenticated users to the dashboard immediately
+  // This fires on first render if user is already known from localStorage cache
   useEffect(() => {
-    if (!loading && user) {
+    if (user) {
       navigate("/lms");
     }
-  }, [user, loading, navigate]);
+  }, [user, navigate]);
 
-  // While loading, show the page content (avoid blank flash)
-  // The useEffect above will redirect once auth state resolves
+  // If user is already known (from cache or server), redirect silently
   if (user) return null;
+  // Show branded loading screen only while we're waiting for the server
+  if (loading) return <LoadingScreen />;
 
   return (
     <div className="min-h-screen bg-white">

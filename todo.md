@@ -2122,3 +2122,11 @@
 - [x] Removed all ultrasound/echo/cardiac/POCUS/OBGyn references across all pages
 - [x] Replaced with generic education examples (Python, Digital Marketing, World History, etc.)
 - [x] Verified pricing matches stripePlans.ts definitions
+
+## UX Improvement: Eliminate Flash of Logged-Out Landing Page
+- [x] Audit App.tsx and LandingPage.tsx for current auth-check and redirect logic
+- [x] Built branded "Lights, camera, learning..." loading screen with spinning Clapperboard icon
+- [x] Show loading screen while auth check is in-flight (instead of blank or marketing page)
+- [x] Teal text and pulsing ring animation with Teachific wordmark
+- [x] Cache auth state in localStorage — returning users recognized instantly, no loading screen
+- [x] LandingPage redirects immediately when user is known from cache
