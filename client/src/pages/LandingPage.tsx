@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Upload,
   Mic,
+  Wand2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -121,7 +122,7 @@ function HeroSection() {
         </h1>
 
         <p className="max-w-2xl mx-auto text-xl text-gray-500 leading-relaxed mb-10">
-          Teachific gives educators, trainers, and creators everything they need to build, sell, and
+          Teachific™ gives educators, trainers, and creators everything they need to build, sell, and
           deliver world-class online courses — without the technical headaches.
         </p>
 
@@ -272,11 +273,18 @@ function StatsSection() {
 // ─── Features ─────────────────────────────────────────────────────────────────
 const FEATURES = [
   {
+    icon: Wand2,
+    title: "AI Course & Page Builder",
+    description:
+      "Go from idea to income in minutes. Describe your topic and let Teachific™ AI generate a complete course outline, lesson content, and a polished sales landing page — ready to publish instantly.",
+    color: TEAL,
+  },
+  {
     icon: BookOpen,
     title: "Powerful Course Builder",
     description:
       "Build rich, multi-section courses with video lessons, quizzes, downloadable resources, and drip scheduling. Your curriculum, your way — no coding required.",
-    color: TEAL,
+    color: "#10b981",
   },
   {
     icon: Video,
@@ -354,7 +362,7 @@ function FeaturesSection() {
             One platform. Infinite possibilities.
           </h2>
           <p className="max-w-2xl mx-auto text-lg text-gray-500">
-            Stop juggling five different tools. Teachific brings your entire online education
+            Stop juggling five different tools. Teachific™ brings your entire online education
             business under one roof — from content creation to revenue collection.
           </p>
         </div>
@@ -391,14 +399,14 @@ function HowItWorksSection() {
       number: "01",
       title: "Create Your School",
       description:
-        "Sign up free and set up your branded school in minutes. Add your logo, choose your colors, and configure your public URL — no design skills needed.",
+        "Sign up free and let Teachific™ AI generate your branded school page in seconds — logo, colors, tagline, and public URL. Go from blank canvas to live school without touching a design tool.",
       icon: Sparkles,
     },
     {
       number: "02",
       title: "Build Your Courses",
       description:
-        "Upload videos, import SCORM packages, add quizzes, and organize your curriculum into sections. Use Teachific Studio™ to record and edit directly in the browser.",
+        "Describe your topic and let Teachific™ AI draft a full course outline, lesson content, and a sales landing page. Upload videos, add quizzes, import SCORM, and publish — all in one place.",
       icon: BookOpen,
     },
     {
@@ -431,10 +439,10 @@ function HowItWorksSection() {
             className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            From idea to income in four steps
+            From idea to income — in no time
           </h2>
           <p className="max-w-xl mx-auto text-lg text-gray-500">
-            Teachific is designed to get you live fast — and keep growing with you as your school
+            Teachific™ is designed to get you live fast — and keep growing with you as your school
             scales.
           </p>
         </div>
@@ -472,7 +480,7 @@ function TestimonialsSection() {
   const testimonials = [
     {
       quote:
-        "Teachific replaced three separate tools I was paying for. The SCORM support alone saved me hours every week, and my students love the clean learning experience.",
+        "Teachific™ replaced three separate tools I was paying for. The SCORM support alone saved me hours every week, and my students love the clean learning experience.",
       name: "Dr. Sarah Mitchell",
       role: "Medical Education Director",
       rating: 5,
@@ -501,7 +509,7 @@ function TestimonialsSection() {
             className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight"
             style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            Educators love Teachific
+            Educators love Teachific™
           </h2>
           <p className="text-lg text-gray-500">Real results from real creators.</p>
         </div>
@@ -552,7 +560,7 @@ const PRICING_TIERS: PricingTier[] = [
     highlighted: false,
     features: [
       "1 course",
-      "Up to 100 MB storage",
+      "100 GB storage",
       "Public school page",
       "Video lessons",
       "Quiz builder",
@@ -568,12 +576,12 @@ const PRICING_TIERS: PricingTier[] = [
     highlighted: false,
     features: [
       "Up to 5 courses",
-      "Up to 3 admins",
-      "500 MB storage",
+      "Up to 1,000 students",
+      "1 TB storage",
       "1 membership tier",
       "SCORM 1.2 & 2004 support",
       "Teachific Studio™",
-      "3% transaction fee",
+      "TeachificPay processing (2% fee)",
     ],
   },
   {
@@ -586,13 +594,13 @@ const PRICING_TIERS: PricingTier[] = [
     badge: "Most Popular",
     features: [
       "Up to 20 courses",
-      "Up to 500 students",
-      "500 GB storage",
+      "Up to 5,000 students",
+      "2 TB storage",
       "3 membership tiers",
       "Community access",
       "Custom domain",
       "White-label branding",
-      "1% transaction fee",
+      "TeachificPay or own gateway (0.5% fee)",
     ],
   },
   {
@@ -604,14 +612,14 @@ const PRICING_TIERS: PricingTier[] = [
     highlighted: false,
     features: [
       "Up to 50 courses",
-      "Up to 10,000 students",
-      "1 TB storage",
+      "Up to 15,000 students",
+      "5 TB storage",
       "10 membership tiers",
       "Email campaigns",
       "Deep analytics & exports",
       "Affiliate platform",
       "SSO / SAML",
-      "No transaction fees",
+      "TeachificPay or own gateway (0.5% fee)",
     ],
   },
   {
@@ -623,13 +631,13 @@ const PRICING_TIERS: PricingTier[] = [
     highlighted: false,
     features: [
       "Unlimited everything",
-      "5 TB storage",
+      "Unlimited storage",
       "Dedicated account manager",
       "Custom onboarding & training",
       "SLA uptime guarantee",
       "Custom integrations & API",
       "Audit logs & compliance reports",
-      "No transaction fees",
+      "TeachificPay or own gateway (0.5% fee)",
     ],
   },
 ];
@@ -637,8 +645,8 @@ const PRICING_TIERS: PricingTier[] = [
 type ComparisonRow = { feature: string; free: boolean | string; starter: boolean | string; builder: boolean | string; pro: boolean | string; enterprise: boolean | string };
 const COMPARISON_FEATURES: ComparisonRow[] = [
   { feature: "Courses", free: "1", starter: "5", builder: "20", pro: "50", enterprise: "Unlimited" },
-  { feature: "Students", free: "Unlimited", starter: "Unlimited", builder: "500", pro: "10,000", enterprise: "Unlimited" },
-  { feature: "Storage", free: "100 MB", starter: "500 MB", builder: "500 GB", pro: "1 TB", enterprise: "5 TB" },
+  { feature: "Students", free: "10", starter: "1,000", builder: "5,000", pro: "15,000", enterprise: "Unlimited" },
+  { feature: "Storage", free: "100 GB", starter: "1 TB", builder: "2 TB", pro: "5 TB", enterprise: "Unlimited" },
   { feature: "Video lessons", free: true, starter: true, builder: true, pro: true, enterprise: true },
   { feature: "Quiz builder", free: true, starter: true, builder: true, pro: true, enterprise: true },
   { feature: "Public school page", free: true, starter: true, builder: true, pro: true, enterprise: true },
@@ -652,7 +660,9 @@ const COMPARISON_FEATURES: ComparisonRow[] = [
   { feature: "Deep analytics", free: false, starter: false, builder: false, pro: true, enterprise: true },
   { feature: "Affiliate platform", free: false, starter: false, builder: false, pro: true, enterprise: true },
   { feature: "SSO / SAML", free: false, starter: false, builder: false, pro: true, enterprise: true },
-  { feature: "Transaction fee", free: "0%", starter: "3%", builder: "1%", pro: "0%", enterprise: "0%" },
+  { feature: "TeachificPay fee", free: "2%", starter: "2%", builder: "0.5%", pro: "0.5%", enterprise: "0.5%" },
+  { feature: "Custom payment gateway", free: false, starter: false, builder: true, pro: true, enterprise: true },
+  { feature: "Group registrations", free: false, starter: false, builder: false, pro: true, enterprise: true },
   { feature: "Dedicated support", free: false, starter: false, builder: false, pro: false, enterprise: true },
 ];
 
@@ -845,7 +855,7 @@ function CtaSection() {
           Start building today.
         </h2>
         <p className="text-xl text-white/80 mb-10 max-w-xl mx-auto">
-          Join thousands of educators who chose Teachific to share their expertise, grow their
+          Join thousands of educators who chose Teachific™ to share their expertise, grow their
           audience, and build sustainable income from their knowledge.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

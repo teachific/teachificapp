@@ -2130,3 +2130,68 @@
 - [x] Teal text and pulsing ring animation with Teachific wordmark
 - [x] Cache auth state in localStorage — returning users recognized instantly, no loading screen
 - [x] LandingPage redirects immediately when user is known from cache
+
+## Feature: Update Storage Limits Per Plan
+- [ ] Update stripePlans.ts storage limits: Free=100GB, Starter=1TB, Builder=2TB, Pro=5TB, Enterprise=Unlimited
+- [ ] Update LandingPage.tsx PRICING_TIERS storage feature text for all 5 tiers
+- [ ] Update backend storage gating to enforce new limits per plan
+- [ ] Update BillingPage storage display to show new limits
+
+## Feature: TeachificPay (Stripe Connect Express Platform)
+- [ ] Update PLAN_LIMITS: add customGateway flag (false for Free/Starter, true for Builder+)
+- [ ] Update PLAN_LIMITS: set teachificPayFeePercent (2% for Free/Starter, 0.5% for Builder+)
+- [ ] Update landing page comparison chart: add "Custom Payment Gateway" row, remove transaction fee row
+- [ ] Update landing page pricing cards: remove fee mentions, add TeachificPay badge
+- [ ] Backend: Stripe Connect Express onboarding endpoint for Builder+ creators
+- [ ] Backend: TeachificPay checkout (Stripe Connect with platform fee) for all plans
+- [ ] Backend: Enforce gateway rules — Free/Starter always use TeachificPay
+- [ ] Backend: Group registrations always route through TeachificPay regardless of plan
+- [ ] Backend: Store connected Stripe account ID on org (stripe_connect_account_id)
+- [ ] UI: TeachificPay onboarding flow in Payment Settings for Builder+ plans
+- [ ] UI: Payment gateway selector in org settings (TeachificPay vs own gateway) for Builder+
+- [ ] UI: TeachificPay badge/indicator on checkout pages
+- [ ] UI: Payout dashboard showing earnings, pending payouts, and fee breakdown
+
+## Bug Fix: Remove Transaction Fee from Pricing Cards on Sales Page
+- [ ] Find and remove transaction fee bullet from each pricing card on LandingPage
+- [ ] Keep TeachificPay fee info only in the comparison table (not in cards)
+
+## TeachificPay — Completion Audit (Apr 2026)
+### DONE ✅
+- [x] PLAN_LIMITS: customGateway flag (false Free/Starter, true Builder+) in stripePlans.ts
+- [x] PLAN_LIMITS: teachificPayFeePercent (2% Free/Starter, 0.5% Builder+) in stripePlans.ts
+- [x] DB schema: stripeConnectAccountId, stripeConnectStatus, paymentGateway, ownStripePublishableKey, ownStripeSecretKeyEncrypted on organizations table
+- [x] DB migration applied via migrate-teachificpay.mjs
+- [x] Backend teachificPayRouter registered at trpc.teachificPay.*
+- [x] Backend: getStatus — returns org connect status, tier, gateway, fee info
+- [x] Backend: startConnectOnboarding — creates Stripe Connect Express account + onboarding link
+- [x] Backend: syncConnectStatus — syncs account status from Stripe after onboarding return
+- [x] Backend: setGateway — lets Builder+ orgs switch between teachific_pay and own_gateway
+- [x] Backend: createCheckout — TeachificPay checkout with platform fee via Stripe Connect
+- [x] Backend: getEarnings — available/pending balance + payout history for connected account
+- [x] Backend: adminListAccounts — platform admin view of all connected orgs
+- [x] Backend: adminGetPlatformRevenue — platform-level fee revenue summary
+- [x] Backend: adminSetOrgGateway — platform admin can override org gateway
+- [x] Backend: adminRefundCharge — platform admin can issue refunds
+- [x] UI: OrgPaymentSettingsTab — TeachificPay section with fee info, plan messaging
+- [x] UI: TeachificPayConnectSection — Connect Express onboarding button, status badge, earnings summary
+- [x] UI: Custom Gateway section (Builder+ only) — own Stripe + PayPal credential entry
+- [x] Landing page: comparison table has TeachificPay fee row + Custom Payment Gateway row
+- [x] Landing page: pricing cards show TeachificPay fee (no transaction fee)
+- [x] Landing page: Teachific™ TM symbol on all body copy mentions
+- [x] Landing page: AI course/page builder messaging in features + How It Works steps
+
+### PENDING ❌
+- [ ] Platform Admin: Add "TeachificPay" tab to PlatformAdminPage using adminListAccounts + adminGetPlatformRevenue + adminRefundCharge procedures
+- [ ] Checkout enforcement: update course/product checkout flow to call trpc.teachificPay.createCheckout instead of billing.createCheckoutSession for TeachificPay orgs
+- [ ] Checkout enforcement: block own_gateway checkout for Free/Starter plans at the UI level
+- [ ] Group registration checkout: always route through TeachificPay regardless of org gateway setting
+- [ ] Connect return URL handler: call trpc.teachificPay.syncConnectStatus when user returns from Stripe onboarding (?connect=success in URL)
+- [ ] TeachificPay badge on student-facing checkout pages
+- [ ] Webhook: handle Stripe Connect account.updated events to auto-sync stripeConnectStatus
+
+## Saved Prompt — Landing Page Updates (Apr 2026)
+- [x] Add Teachific™ TM symbol to all body copy mentions on landing page
+- [x] Add AI tools messaging to "Create Your School" and "Build Your Courses" steps
+- [x] Add AI Course & Page Builder feature card to features grid
+- [x] Update How It Works headline to "From idea to income — in no time"

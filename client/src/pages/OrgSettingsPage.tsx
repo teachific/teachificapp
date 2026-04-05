@@ -781,7 +781,7 @@ export default function OrgSettingsPage() {
         </TabsContent>
 
         {/* Payment Settings Tab */}
-        <OrgPaymentSettingsTab orgId={orgCtx?.org?.id} />
+        <OrgPaymentSettingsTab orgId={orgCtx?.org?.id} plan={plan} />
         {/* Instructors Tab */}
         <InstructorsTab orgId={orgCtx?.org?.id} />
         {/* Site Policies Tab */}
@@ -1115,7 +1115,106 @@ function SitePoliciesTab({ orgId }: { orgId?: number }) {
   );
 }
 
-function OrgPaymentSettingsTab({ orgId }: { orgId?: number }) {
+// ─── TeachificPayConnectSection ──────────────────────────────────────────────
+function TeachificPayConnectSection({ orgId }: { orgId?: number }) {
+  const connectMutation = trpc.teachificPay.startConnectOnboarding.useMutation({
+    onSuccess: (data: { url: string; accountId: string }) => {
+      if (data.url) window.open(data.url, "_blank");
+    },
+    onError: (e: { message: string }) => toast.error(e.message),
+  });
+
+  const { data: status, isLoading: statusLoading } = trpc.teachificPay.getStatus.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId }
+  );
+
+  const { data: earnings, isLoading: earningsLoading } = trpc.teachificPay.getEarnings.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId && status?.stripeConnectStatus === "active" }
+  );
+
+  if (statusLoading) return <Skeleton className="h-20 w-full" />;
+
+  const isConnected = !!status?.stripeConnectAccountId;
+  const isActive = status?.stripeConnectStatus === "active";
+
+  // Compute balances from the nested balance shape returned by getEarnings
+  const availableBalance = earnings?.connected && earnings.balance
+    ? (earnings.balance as { available: { amount: number }[] }).available?.reduce((s, b) => s + b.amount, 0) ?? 0
+    : 0;
+  const pendingBalance = earnings?.connected && earnings.balance
+    ? (earnings.balance as { pending: { amount: number }[] }).pending?.reduce((s, b) => s + b.amount, 0) ?? 0
+    : 0;
+  const totalPayouts = earnings?.connected
+    ? (earnings.payouts as { amount: number }[]).reduce((s, p) => s + p.amount, 0)
+    : 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isConnected && isActive ? (
+            <Badge className="gap-1" style={{ background: "#189aa120", color: "#189aa1" }}>
+              <Check className="h-3 w-3" /> Connected
+            </Badge>
+          ) : isConnected ? (
+            <Badge variant="outline" className="gap-1 text-amber-600 border-amber-300">
+              <AlertCircle className="h-3 w-3" /> Onboarding incomplete
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="gap-1 text-muted-foreground">
+              Not connected
+            </Badge>
+          )}
+        </div>
+        <Button
+          size="sm"
+          variant={isConnected ? "outline" : "default"}
+          className="gap-2"
+          style={!isConnected ? { background: "#189aa1", color: "white" } : {}}
+          disabled={connectMutation.isPending}
+          onClick={() =>
+            orgId &&
+            connectMutation.mutate({
+              orgId,
+              returnUrl: `${window.location.origin}/settings/payment?connect=success`,
+              refreshUrl: `${window.location.origin}/settings/payment?connect=refresh`,
+            })
+          }
+        >
+          {connectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+          {isConnected ? "Manage TeachificPay Account" : "Connect to TeachificPay"}
+        </Button>
+      </div>
+
+      {isConnected && isActive && !earningsLoading && earnings?.connected && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Available Balance", value: `$${(availableBalance / 100).toFixed(2)}` },
+            { label: "Pending Balance", value: `$${(pendingBalance / 100).toFixed(2)}` },
+            { label: "Total Paid Out", value: `$${(totalPayouts / 100).toFixed(2)}` },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-lg p-3 text-center" style={{ background: "#189aa108", border: "1px solid #189aa120" }}>
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="text-lg font-bold" style={{ color: "#189aa1" }}>{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!isConnected && (
+        <p className="text-xs text-muted-foreground">
+          Connect your bank account to receive payouts from TeachificPay. Stripe handles identity verification securely.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function OrgPaymentSettingsTab({ orgId, plan = "free" }: { orgId?: number; plan?: string }) {
+  const canUseCustomGateway = ["builder", "pro", "enterprise"].includes(plan);
+  const teachificPayFee = ["builder", "pro", "enterprise"].includes(plan) ? "0.5%" : "2%";
   const utils = trpc.useUtils();
   const [stripePublishableKey, setStripePublishableKey] = useState("");
   const [stripeSecretKey, setStripeSecretKey] = useState("");
@@ -1183,11 +1282,52 @@ function OrgPaymentSettingsTab({ orgId }: { orgId?: number }) {
 
   return (
     <TabsContent value="payment" className="space-y-4">
+      {/* TeachificPay Section */}
+      <Card className="border-2" style={{ borderColor: "#189aa120" }}>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "#189aa115" }}>
+                <CreditCard className="h-5 w-5" style={{ color: "#189aa1" }} />
+              </div>
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  TeachificPay
+                  <Badge className="text-xs" style={{ background: "#189aa120", color: "#189aa1" }}>Powered by Stripe</Badge>
+                </CardTitle>
+                <CardDescription>Teachific's built-in payment processor — no setup required</CardDescription>
+              </div>
+            </div>
+            <Badge variant="outline" className="text-xs">{teachificPayFee} platform fee</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg p-4 space-y-3" style={{ background: "#189aa108", border: "1px solid #189aa120" }}>
+            <div className="flex items-start gap-2">
+              <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#189aa1" }} />
+              <p className="text-sm">
+                {canUseCustomGateway
+                  ? `Your ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan supports TeachificPay or your own payment gateway. TeachificPay charges a ${teachificPayFee} platform fee on transactions.`
+                  : `Your ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan uses TeachificPay exclusively for all payment processing. A ${teachificPayFee} platform fee applies to each transaction. Upgrade to Builder or higher to use your own payment gateway.`
+                }
+              </p>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#189aa1" }} />
+              <p className="text-sm">Group registrations always process through TeachificPay regardless of plan.</p>
+            </div>
+          </div>
+          <TeachificPayConnectSection orgId={orgId} />
+        </CardContent>
+      </Card>
+
+      {/* Custom Gateway Section — Builder+ only */}
+      {canUseCustomGateway && (
       <Card>
         <CardHeader>
-          <CardTitle>Payment Gateway Settings</CardTitle>
+          <CardTitle>Custom Payment Gateway</CardTitle>
           <CardDescription>
-            Configure Stripe and PayPal to collect payments from your members. These are your own payment accounts — separate from your Teachific subscription billing.
+            Configure your own Stripe or PayPal accounts to collect payments directly. Available on Builder plan and above.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -1339,6 +1479,7 @@ function OrgPaymentSettingsTab({ orgId }: { orgId?: number }) {
           )}
         </CardContent>
       </Card>
+      )}
     </TabsContent>
   );
 }

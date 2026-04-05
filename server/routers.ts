@@ -112,6 +112,7 @@ import { customAuthRouter } from "./customAuthRouter";
 import { communityRouter } from "./communityRouter";
 import { stripeRouter } from "./stripeRouter";
 import { authoringRouter } from "./authoringRouter";
+import { teachificPayRouter } from "./teachificPayRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { ENV } from "./_core/env";
 
@@ -148,6 +149,7 @@ export const appRouter = router({
   community: communityRouter,
   billing: stripeRouter,
   authoring: authoringRouter,
+  teachificPay: teachificPayRouter,
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   auth: router({

@@ -27,7 +27,9 @@ export interface PlanLimits {
   // Features (boolean)
   whiteLabel: boolean;
   emailMarketing: boolean;
-  transactionFeePercent: number; // 0 = no fee
+  transactionFeePercent: number; // legacy — kept for reference
+  teachificPayFeePercent: number; // platform fee on TeachificPay transactions
+  customGateway: boolean; // can use own Stripe/payment gateway
   groupRegistrations: boolean;
   deepAnalytics: boolean;
   affiliatePlatform: boolean;
@@ -46,15 +48,17 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     monthlyPrice: 0,
     annualPrice: 0,
     maxAdmins: 1,
-    maxMembers: 1,
+    maxMembers: 10,
     maxCourses: 1,
     maxCommunities: 0,
     maxInstructors: 0, // admin is only instructor
-    maxStorageBytes: 100 * 1024 * 1024, // 100 MB
+    maxStorageBytes: 100 * 1024 * 1024 * 1024, // 100 GB
     maxMembershipTiers: 0,
     whiteLabel: false,
     emailMarketing: false,
     transactionFeePercent: 0,
+    teachificPayFeePercent: 2, // 2% TeachificPay fee
+    customGateway: false, // must use TeachificPay
     groupRegistrations: false,
     deepAnalytics: false,
     affiliatePlatform: false,
@@ -71,15 +75,17 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     monthlyPrice: 3900, // $39
     annualPrice: 39900, // $399
     maxAdmins: 1,
-    maxMembers: 3,
+    maxMembers: 1000,
     maxCourses: 5,
     maxCommunities: 0,
     maxInstructors: 1,
-    maxStorageBytes: 500 * 1024 * 1024, // 500 MB
+    maxStorageBytes: 1024 * 1024 * 1024 * 1024, // 1 TB
     maxMembershipTiers: 1,
     whiteLabel: false,
     emailMarketing: false,
     transactionFeePercent: 3,
+    teachificPayFeePercent: 2, // 2% TeachificPay fee
+    customGateway: false, // must use TeachificPay
     groupRegistrations: false,
     deepAnalytics: false,
     affiliatePlatform: false,
@@ -96,15 +102,17 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     monthlyPrice: 9900, // $99
     annualPrice: 99900, // $999
     maxAdmins: 1,
-    maxMembers: 500,
+    maxMembers: 5000,
     maxCourses: 20,
     maxCommunities: 1,
     maxInstructors: 3,
-    maxStorageBytes: 500 * 1024 * 1024 * 1024, // 500 GB
+    maxStorageBytes: 2 * 1024 * 1024 * 1024 * 1024, // 2 TB
     maxMembershipTiers: 3,
     whiteLabel: true,
     emailMarketing: false,
     transactionFeePercent: 1,
+    teachificPayFeePercent: 0.5, // 0.5% TeachificPay fee if they choose TeachificPay
+    customGateway: true, // can use own gateway or TeachificPay
     groupRegistrations: false,
     deepAnalytics: false, // basic analytics only
     affiliatePlatform: false,
@@ -121,15 +129,17 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     monthlyPrice: 19900, // $199
     annualPrice: 199900, // $1999
     maxAdmins: 3,
-    maxMembers: 10000,
+    maxMembers: 15000,
     maxCourses: 50,
     maxCommunities: 3,
     maxInstructors: 10,
-    maxStorageBytes: 1024 * 1024 * 1024 * 1024, // 1 TB
+    maxStorageBytes: 5 * 1024 * 1024 * 1024 * 1024, // 5 TB
     maxMembershipTiers: 10,
     whiteLabel: true,
     emailMarketing: true,
     transactionFeePercent: 0,
+    teachificPayFeePercent: 0.5, // 0.5% TeachificPay fee if they choose TeachificPay
+    customGateway: true, // can use own gateway or TeachificPay
     groupRegistrations: true,
     deepAnalytics: true,
     affiliatePlatform: true,
@@ -150,11 +160,13 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     maxCourses: -1,
     maxCommunities: -1,
     maxInstructors: -1,
-    maxStorageBytes: 5 * 1024 * 1024 * 1024 * 1024, // 5 TB
+    maxStorageBytes: -1, // Unlimited
     maxMembershipTiers: -1,
     whiteLabel: true,
     emailMarketing: true,
     transactionFeePercent: 0,
+    teachificPayFeePercent: 0.5, // 0.5% TeachificPay fee if they choose TeachificPay
+    customGateway: true, // can use own gateway or TeachificPay
     groupRegistrations: true,
     deepAnalytics: true,
     affiliatePlatform: true,

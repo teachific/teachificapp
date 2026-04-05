@@ -718,11 +718,12 @@ export async function deleteOrgLimitOverride(orgId: number, featureKey: string) 
 // ─── Storage Usage ────────────────────────────────────────────────────────────
 /**
  * Returns total bytes used by an org across SCORM file assets and media library items,
- * plus the org's maxStorageBytes quota.
+ * plus the org's storage quota derived from their active subscription plan.
+ * Returns maxBytes = -1 for unlimited (Enterprise).
  */
 export async function getOrgStorageUsage(orgId: number): Promise<{ usedBytes: number; maxBytes: number }> {
   const db = await getDb();
-  if (!db) return { usedBytes: 0, maxBytes: 10 * 1024 * 1024 * 1024 };
+  if (!db) return { usedBytes: 0, maxBytes: 100 * 1024 * 1024 * 1024 }; // default 100 GB (free tier)
 
   // Sum file sizes from SCORM file assets (via contentPackages)
   const [scormResult] = await db
@@ -737,9 +738,12 @@ export async function getOrgStorageUsage(orgId: number): Promise<{ usedBytes: nu
     .from(orgMediaLibrary)
     .where(eq(orgMediaLibrary.orgId, orgId));
 
-  // Get the org's quota
-  const org = await getOrgById(orgId);
-  const maxBytes = org?.maxStorageBytes ?? 10 * 1024 * 1024 * 1024; // default 10 GB
+  // Derive quota from the org's active subscription plan
+  const { PLAN_LIMITS } = await import("./stripePlans");
+  const { orgSubscriptions } = await import("../drizzle/schema");
+  const [sub] = await db.select().from(orgSubscriptions).where(eq(orgSubscriptions.orgId, orgId)).limit(1);
+  const planTier = (sub?.plan ?? "free") as keyof typeof PLAN_LIMITS;
+  const maxBytes = PLAN_LIMITS[planTier]?.maxStorageBytes ?? 100 * 1024 * 1024 * 1024; // default 100 GB
 
   const usedBytes = Number(scormResult?.total ?? 0) + Number(mediaResult?.total ?? 0);
   return { usedBytes, maxBytes };

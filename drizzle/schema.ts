@@ -70,6 +70,12 @@ export const organizations = mysqlTable("organizations", {
   footerLinks: text("footerLinks"),
   // Primary org flag — the owner's default org shown on login
   isPrimary: boolean("isPrimary").default(false).notNull(),
+  // TeachificPay / Stripe Connect
+  stripeConnectAccountId: varchar("stripeConnectAccountId", { length: 255 }),
+  stripeConnectStatus: mysqlEnum("stripeConnectStatus", ["not_connected", "pending", "active", "restricted", "suspended"]).default("not_connected").notNull(),
+  paymentGateway: mysqlEnum("paymentGateway", ["teachific_pay", "own_gateway"]).default("teachific_pay").notNull(),
+  ownStripePublishableKey: varchar("ownStripePublishableKey", { length: 255 }),
+  ownStripeSecretKeyEncrypted: text("ownStripeSecretKeyEncrypted"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
