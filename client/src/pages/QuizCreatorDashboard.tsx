@@ -40,6 +40,10 @@ export default function QuizCreatorDashboard() {
   }
 
   const qcRole = roleData?.role ?? "none";
+  const qcTrialEndsAt = roleData?.trialEndsAt ?? null;
+  const qcIsTrialing = qcRole !== "none" && qcTrialEndsAt && new Date(qcTrialEndsAt) > new Date();
+  const qcIsPaid = qcRole !== "none" && !qcIsTrialing;
+  const showQcWatermarkBanner = qcRole !== "none" && !qcIsPaid;
 
   if (qcRole === "none") {
     // No access — redirect to sales page
@@ -82,6 +86,14 @@ export default function QuizCreatorDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0b1d35]">
+      {showQcWatermarkBanner && (
+        <div className="bg-teal-600 text-white text-sm font-medium flex items-center justify-center gap-3 px-4 py-2">
+          <span>Your quiz exports include a <strong>Created with Teachific™</strong> watermark on the free/trial plan.</span>
+          <Link href="/quiz-creator-pro">
+            <span className="underline underline-offset-2 cursor-pointer hover:text-teal-200 transition-colors">Upgrade to remove →</span>
+          </Link>
+        </div>
+      )}
       {/* Top navigation bar */}
       <header className="h-14 border-b border-white/10 flex items-center justify-between px-6 bg-[#0b1d35] shrink-0">
         <div className="flex items-center gap-3">

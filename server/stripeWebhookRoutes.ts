@@ -88,10 +88,20 @@ router.post(
                 if (db) {
                   const { users } = await import("../drizzle/schema");
                   const { eq } = await import("drizzle-orm");
+                  // Fetch subscription to get trial end date
+                  let trialEndsAt: Date | null = null;
+                  if (session.subscription) {
+                    const stripe = getStripe();
+                    const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+                    if (sub.trial_end) trialEndsAt = new Date(sub.trial_end * 1000);
+                  }
                   await db.update(users)
-                    .set({ studioRole: studioTier as any })
+                    .set({
+                      studioRole: studioTier as any,
+                      ...(trialEndsAt ? { studioTrialEndsAt: trialEndsAt } : {}),
+                    })
                     .where(eq(users.id, userId));
-                  console.log(`[Stripe Webhook] User ${userId} studio role updated to ${studioTier}`);
+                  console.log(`[Stripe Webhook] User ${userId} studio role updated to ${studioTier}${trialEndsAt ? ` (trial until ${trialEndsAt.toISOString()})` : ""}`);
                 }
               } catch (err: any) {
                 console.error("[Stripe Webhook] Studio role update failed:", err.message);
@@ -186,6 +196,36 @@ router.post(
 
           await upsertOrgSubscription(orgId, { status: "past_due" });
           console.log(`[Stripe Webhook] Org ${orgId} payment failed, status: past_due`);
+          break;
+        }
+
+        case "account.updated": {
+          // Stripe Connect: sync account status when onboarding completes or capabilities change
+          const account = event.data.object as Stripe.Account;
+          const accountId = account.id;
+          if (!accountId) break;
+          const db = await getDb();
+          if (!db) break;
+          const { organizations } = await import("../drizzle/schema");
+          const { eq } = await import("drizzle-orm");
+          // Determine new status
+          const chargesEnabled = account.charges_enabled ?? false;
+          const payoutsEnabled = account.payouts_enabled ?? false;
+          const detailsSubmitted = account.details_submitted ?? false;
+          let newStatus: string;
+          if (chargesEnabled && payoutsEnabled) {
+            newStatus = "active";
+          } else if (detailsSubmitted) {
+            newStatus = "pending";
+          } else {
+            newStatus = "incomplete";
+          }
+          // Update the org that has this Connect account
+          await db
+            .update(organizations)
+            .set({ stripeConnectStatus: newStatus } as any)
+            .where(eq((organizations as any).stripeConnectAccountId, accountId));
+          console.log(`[Stripe Webhook] Connect account ${accountId} status updated to ${newStatus}`);
           break;
         }
 

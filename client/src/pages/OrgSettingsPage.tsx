@@ -1117,6 +1117,27 @@ function SitePoliciesTab({ orgId }: { orgId?: number }) {
 
 // ─── TeachificPayConnectSection ──────────────────────────────────────────────
 function TeachificPayConnectSection({ orgId }: { orgId?: number }) {
+  const utils = trpc.useUtils();
+  const syncStatus = trpc.teachificPay.syncConnectStatus.useMutation({
+    onSuccess: () => {
+      utils.teachificPay.getStatus.invalidate({ orgId: orgId! });
+      utils.teachificPay.getEarnings.invalidate({ orgId: orgId! });
+      toast.success("Connect account status refreshed");
+    },
+  });
+  // Auto-sync when returning from Stripe Connect onboarding
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connectParam = params.get("connect");
+    if (connectParam === "success" || connectParam === "refresh") {
+      if (orgId !== undefined) syncStatus.mutate({ orgId });
+      // Clean up the URL param without a full reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete("connect");
+      window.history.replaceState({}, "", url.toString());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
   const connectMutation = trpc.teachificPay.startConnectOnboarding.useMutation({
     onSuccess: (data: { url: string; accountId: string }) => {
       if (data.url) window.open(data.url, "_blank");

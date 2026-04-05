@@ -93,6 +93,7 @@ import {
   Pencil,
   PenTool,
   FileQuestion,
+  DollarSign,
 } from "lucide-react"
 import { cn } from "@/lib/utils";
 
@@ -1415,6 +1416,9 @@ export default function PlatformAdminPage() {
           <TabsTrigger value="quizcreator" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <FileQuestion className="w-3.5 h-3.5" /> QuizCreator
           </TabsTrigger>
+          <TabsTrigger value="teachificpay" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
+            <DollarSign className="w-3.5 h-3.5" /> TeachificPay
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab />
@@ -1451,6 +1455,9 @@ export default function PlatformAdminPage() {
         </TabsContent>
         <TabsContent value="quizcreator">
           <QuizCreatorAdminTab />
+        </TabsContent>
+        <TabsContent value="teachificpay">
+          <TeachificPayAdminTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -2260,6 +2267,163 @@ function QuizCreatorAdminTab() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ─── TeachificPay Admin Tab ──────────────────────────────────────────────────
+function TeachificPayAdminTab() {
+  const { data: accounts = [] } = trpc.teachificPay.adminListAccounts.useQuery();
+  const { data: revenue } = trpc.teachificPay.adminGetPlatformRevenue.useQuery();
+  const setGateway = trpc.teachificPay.adminSetOrgGateway.useMutation({
+    onSuccess: () => { toast.success("Gateway updated"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const [search, setSearch] = useState("");
+  const filtered = accounts.filter((a) =>
+    a.name?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const statusColor: Record<string, string> = {
+    not_connected: "bg-slate-100 text-slate-600 border-slate-200",
+    pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    active: "bg-green-100 text-green-700 border-green-200",
+    restricted: "bg-red-100 text-red-700 border-red-200",
+  };
+
+  const fmt = (cents: number, currency = "usd") =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
+
+  return (
+    <div className="space-y-4">
+      {revenue && (
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="bg-gray-50 border-gray-200">
+            <CardContent className="pt-5">
+              <p className="text-xs text-slate-500 mb-1">Total Fees Collected</p>
+              <p className="text-2xl font-bold text-teal-600">{fmt(revenue.totalFeesCollected)}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gray-50 border-gray-200">
+            <CardContent className="pt-5">
+              <p className="text-xs text-slate-500 mb-1">Fees Refunded</p>
+              <p className="text-2xl font-bold text-red-500">{fmt(revenue.totalFeesRefunded)}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gray-50 border-gray-200">
+            <CardContent className="pt-5">
+              <p className="text-xs text-slate-500 mb-1">Net Platform Revenue</p>
+              <p className="text-2xl font-bold text-slate-900">{fmt(revenue.netFees)}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-slate-900 flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-teal-500" />
+            TeachificPay™ — Connected Schools
+          </CardTitle>
+          <CardDescription className="text-slate-600">
+            All organizations and their Stripe Connect status, payment gateway, and platform fee settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Search schools..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 bg-white border-gray-300 text-slate-900"
+              />
+            </div>
+            <Badge variant="outline" className="text-slate-600">{filtered.length} schools</Badge>
+          </div>
+          <div className="rounded-lg border border-gray-200 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-gray-200 bg-gray-50">
+                  <TableHead className="text-slate-700 font-semibold">School</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Connect Status</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Gateway</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Stripe Account ID</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Created</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={6} className="text-center text-slate-500 py-8">No schools found</TableCell></TableRow>
+                )}
+                {filtered.map((a) => (
+                  <TableRow key={a.id} className="border-gray-200 hover:bg-gray-50">
+                    <TableCell className="font-medium text-slate-900">{a.name}</TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${statusColor[a.stripeConnectStatus ?? "not_connected"] ?? statusColor.not_connected}`}>
+                        {a.stripeConnectStatus ?? "not_connected"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${a.paymentGateway === "own_gateway" ? "bg-violet-100 text-violet-700 border-violet-200" : "bg-teal-100 text-teal-700 border-teal-200"}`}>
+                        {a.paymentGateway === "own_gateway" ? "Own Gateway" : "TeachificPay"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-slate-500 text-xs font-mono">{a.stripeConnectAccountId ?? "—"}</TableCell>
+                    <TableCell className="text-slate-500 text-xs">{a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "—"}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={a.paymentGateway ?? "teachific_pay"}
+                        onValueChange={(gw) => setGateway.mutate({ orgId: a.id, gateway: gw as "teachific_pay" | "own_gateway" })}
+                      >
+                        <SelectTrigger className="w-36 h-7 text-xs bg-white border-gray-300 text-slate-900">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="teachific_pay" className="text-slate-900 text-xs">TeachificPay</SelectItem>
+                          <SelectItem value="own_gateway" className="text-slate-900 text-xs">Own Gateway</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+      {revenue && revenue.recentFees.length > 0 && (
+        <Card className="bg-gray-50 border-gray-200">
+          <CardHeader>
+            <CardTitle className="text-slate-900 text-base">Recent Platform Fee Transactions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border border-gray-200 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-gray-200 bg-gray-50">
+                    <TableHead className="text-slate-700 font-semibold">Fee ID</TableHead>
+                    <TableHead className="text-slate-700 font-semibold">Amount</TableHead>
+                    <TableHead className="text-slate-700 font-semibold">Refunded</TableHead>
+                    <TableHead className="text-slate-700 font-semibold">Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {revenue.recentFees.map((fee) => (
+                    <TableRow key={fee.id} className="border-gray-200 hover:bg-gray-50">
+                      <TableCell className="text-slate-500 text-xs font-mono">{fee.id}</TableCell>
+                      <TableCell className="text-slate-900 font-medium">{fmt(fee.amount, fee.currency)}</TableCell>
+                      <TableCell className="text-red-500 text-sm">{fee.amountRefunded > 0 ? fmt(fee.amountRefunded, fee.currency) : "—"}</TableCell>
+                      <TableCell className="text-slate-500 text-xs">{new Date(fee.createdAt * 1000).toLocaleDateString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

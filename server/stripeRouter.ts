@@ -421,11 +421,19 @@ export const stripeRouter = router({
   getStudioSubscription: protectedProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     const { users } = await import("../drizzle/schema");
-    const rows = await db.select({ studioRole: users.studioRole }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
+    const rows = await db.select({
+      studioRole: users.studioRole,
+      studioTrialEndsAt: users.studioTrialEndsAt,
+    }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
     const studioRole = (rows[0]?.studioRole ?? "none") as string;
+    const trialEndsAt = rows[0]?.studioTrialEndsAt ?? null;
+    const isInTrial = studioRole !== "none" && trialEndsAt && new Date(trialEndsAt) > new Date();
     return {
       tier: studioRole as "none" | "creator" | "pro" | "team",
       isActive: studioRole !== "none",
+      trialEndsAt,
+      isInTrial: !!isInTrial,
+      isPaid: studioRole !== "none" && !isInTrial,
     };
   }),
 

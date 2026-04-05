@@ -2188,7 +2188,7 @@
 - [ ] Group registration checkout: always route through TeachificPay regardless of org gateway setting
 - [ ] Connect return URL handler: call trpc.teachificPay.syncConnectStatus when user returns from Stripe onboarding (?connect=success in URL)
 - [ ] TeachificPay badge on student-facing checkout pages
-- [ ] Webhook: handle Stripe Connect account.updated events to auto-sync stripeConnectStatus
+- [x] Webhook: handle Stripe Connect account.updated events to auto-sync stripeConnectStatus
 
 ## Saved Prompt — Landing Page Updates (Apr 2026)
 - [x] Add Teachific™ TM symbol to all body copy mentions on landing page
@@ -2234,3 +2234,11 @@
 - [x] Each tab: list customers, plan/role, trial status, joined date
 - [x] Each tab: ability to view/edit customer role via dropdown
 - [ ] Each tab: platform revenue summary for that product (pending Stripe integration)
+
+## Watermark on Free/Trial Exports
+- [ ] Free accounts and free trial users (Studio, QuizCreator, TeachificCreator) must have "Created with Teachific™" watermark on ALL exports, downloads, and outputs
+- [ ] TeachificCreator: inject watermark HTML/CSS overlay into exported SCORM/HTML packages
+- [ ] QuizCreator: inject watermark into quiz PDF exports and any downloadable output
+- [ ] Studio: overlay watermark on exported/downloaded video files
+- [ ] Show "Remove watermark — upgrade to paid plan" notice on free/trial dashboards
+- [ ] Watermark must be persistent (cannot be easily removed by end user)

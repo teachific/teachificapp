@@ -150,8 +150,19 @@ export default function StudioDashboard() {
   }
 
   // ── Full dashboard ──────────────────────────────────────────────────────
+  const showStudioWatermarkBanner = !isPrivileged && studioSub && !studioSub.isPaid;
+
   return (
-    <div className="min-h-screen bg-[#0a0f1e] text-white flex">
+    <div className="min-h-screen bg-[#0a0f1e] text-white flex flex-col">
+      {showStudioWatermarkBanner && (
+        <div className="bg-violet-600 text-white text-sm font-medium flex items-center justify-center gap-3 px-4 py-2 shrink-0">
+          <span>Your exports include a <strong>Created with Teachific™</strong> watermark on the free/trial plan.</span>
+          <Link href="/studio-pro">
+            <span className="underline underline-offset-2 cursor-pointer hover:text-violet-200 transition-colors">Upgrade to remove →</span>
+          </Link>
+        </div>
+      )}
+      <div className="flex flex-1">
       {/* Sidebar */}
       <aside className="w-64 bg-white/[0.03] border-r border-white/10 flex flex-col shrink-0 hidden md:flex">
         {/* Logo */}
@@ -371,6 +382,7 @@ export default function StudioDashboard() {
           </section>
         </div>
       </main>
+      </div>
     </div>
   );
 }

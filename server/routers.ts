@@ -72,7 +72,7 @@ import {
   getOrgLimitsEnriched,
   getOrgStorageUsage,
 } from "./db";
-import { courseEnrollments, organizations, orgMembers } from "../drizzle/schema";
+import { courseEnrollments, organizations, orgMembers, users } from "../drizzle/schema";
 import { eq, sql } from "drizzle-orm";
 import {
   getOrgSubscription,
@@ -1304,7 +1304,7 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     // XLS Export — returns base64-encoded XLSX buffer
     exportXls: protectedProcedure
       .input(z.object({ quizId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
         const XLSX = await import("xlsx");
         const quiz = await getQuizById(input.quizId);
         if (!quiz) throw new TRPCError({ code: "NOT_FOUND" });
@@ -1345,6 +1345,24 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         }];
         const wsTemplate = XLSX.utils.json_to_sheet(templateRows);
         XLSX.utils.book_append_sheet(wb, wsTemplate, "Template");
+        // Add watermark sheet for free/trial users
+        const db = await getDb();
+        if (db) {
+          const [userRow] = await db.select({
+            quizCreatorRole: users.quizCreatorRole,
+            quizCreatorTrialEndsAt: users.quizCreatorTrialEndsAt,
+          }).from(users).where(eq(users.id, ctx.user.id));
+          const qRole = (userRow as any)?.quizCreatorRole ?? "none";
+          const qTrial = (userRow as any)?.quizCreatorTrialEndsAt ?? null;
+          const isTrialing = qRole !== "none" && qTrial && new Date(qTrial) > new Date();
+          const isPaid = qRole !== "none" && !isTrialing;
+          if (!isPaid) {
+            const wsWatermark = XLSX.utils.json_to_sheet([{
+              "": "Created with Teachific\u2122 \u2014 This export was generated on the free/trial plan. Upgrade at teachific.com to remove this notice.",
+            }]);
+            XLSX.utils.book_append_sheet(wb, wsWatermark, "Teachific\u2122");
+          }
+        }
         const buf = XLSX.write(wb, { type: "base64", bookType: "xlsx" }) as string;
         return { base64: buf, filename: `${quiz.title ?? "quiz"}.xlsx` };
       }),
@@ -2005,7 +2023,11 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     /** Get the current user's QuizCreator role */
     getMyRole: protectedProcedure.query(async ({ ctx }) => {
       const user = await getUserById(ctx.user.id);
-      return { role: (user?.quizCreatorRole ?? "none") as "none" | "lite" | "premium" };
+      const role = (user?.quizCreatorRole ?? "none") as "none" | "lite" | "premium";
+      const trialEndsAt = (user as any)?.quizCreatorTrialEndsAt ?? null;
+      const isInTrial = role !== "none" && trialEndsAt && new Date(trialEndsAt) > new Date();
+      const isPaid = role !== "none" && !isInTrial;
+      return { role, trialEndsAt, isInTrial, isPaid };
     }),
 
     /** Admin: set a user's QuizCreator role */

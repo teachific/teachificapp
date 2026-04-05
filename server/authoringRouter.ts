@@ -243,7 +243,8 @@ window.ScormAPI = ScormAPI;
 function buildCourseHtml(
   project: { title: string },
   slides: Array<{ title: string; contentJson: string | null; background: string | null; notes: string | null }>,
-  scormVersion: "scorm12" | "scorm2004" | "html5"
+  scormVersion: "scorm12" | "scorm2004" | "html5",
+  showWatermark = false
 ) {
   const apiScript =
     scormVersion === "scorm12"
@@ -385,6 +386,7 @@ function buildCourseHtml(
     updateNav();
   });
 </script>
+${showWatermark ? `<div id="teachific-watermark" style="position:fixed;bottom:0;left:0;right:0;z-index:999999;pointer-events:none;display:flex;align-items:center;justify-content:center;padding:6px 16px;background:rgba(24,154,161,0.93);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:12px;font-weight:600;color:#fff;letter-spacing:0.02em;user-select:none;-webkit-user-select:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="margin-right:6px;flex-shrink:0" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Created with Teachific™ — <a href="https://teachific.com" target="_blank" rel="noopener" style="color:#4ad9e0;text-decoration:none;margin-left:4px;pointer-events:all;">Upgrade to remove watermark</a></div>` : ''}
 </body>
 </html>`;
 }
@@ -725,10 +727,21 @@ export const authoringRouter = router({
         .where(eq(authoringSlides.projectId, input.projectId))
         .orderBy(asc(authoringSlides.slideIndex));
 
+      // Check if user is on free/trial — apply watermark if so
+      const [userRow] = await db.select({
+        creatorRole: users.creatorRole,
+        creatorTrialEndsAt: users.creatorTrialEndsAt,
+      }).from(users).where(eq(users.id, ctx.user.id));
+      const creatorRole = (userRow as any)?.creatorRole ?? "none";
+      const trialEndsAt = (userRow as any)?.creatorTrialEndsAt ?? null;
+      const isTrialing = creatorRole !== "none" && trialEndsAt && new Date(trialEndsAt) > new Date();
+      const isPaidCreator = creatorRole !== "none" && !isTrialing;
+      const showWatermark = !isPaidCreator; // free or trial users get watermark
+
       // Build ZIP
       const zip = new JSZip();
 
-      const html = buildCourseHtml(project, slides, input.format);
+      const html = buildCourseHtml(project, slides, input.format, showWatermark);
       zip.file("index.html", html);
 
       // Add course data JS
@@ -769,10 +782,17 @@ export const authoringRouter = router({
   // ── User role ─────────────────────────────────────────────────────────────
 
   getMyCreatorRole: protectedProcedure.query(async ({ ctx }) => {
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-    const [user] = await db.select().from(users).where(eq(users.id, ctx.user.id));
-    return { role: (user as any).creatorRole ?? "none" };
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    const [user] = await db.select({
+      creatorRole: users.creatorRole,
+      creatorTrialEndsAt: users.creatorTrialEndsAt,
+    }).from(users).where(eq(users.id, ctx.user.id));
+    const role = (user as any)?.creatorRole ?? "none";
+    const trialEndsAt = (user as any)?.creatorTrialEndsAt ?? null;
+    const isInTrial = role !== "none" && trialEndsAt && new Date(trialEndsAt) > new Date();
+    const isPaid = role !== "none" && !isInTrial;
+    return { role, trialEndsAt, isInTrial, isPaid };
   }),
 
   setCreatorRole: protectedProcedure

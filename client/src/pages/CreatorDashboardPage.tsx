@@ -64,6 +64,7 @@ export default function CreatorDashboardPage() {
   const utils = trpc.useUtils();
 
   const { data: projects = [], isLoading } = trpc.authoring.listProjects.useQuery({});
+  const { data: roleData } = trpc.authoring.getMyCreatorRole.useQuery();
 
   const createProject = trpc.authoring.createProject.useMutation({
     onSuccess: (data) => {
@@ -102,8 +103,18 @@ export default function CreatorDashboardPage() {
     createProject.mutate({ title: newTitle.trim(), orgId: 0 });
   };
 
+  const showWatermarkBanner = roleData && !roleData.isPaid;
+
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-white">
+      {showWatermarkBanner && (
+        <div className="bg-[#189aa1] text-white text-sm font-medium flex items-center justify-center gap-3 px-4 py-2">
+          <span>Your exports include a <strong>Created with Teachific™</strong> watermark on the free/trial plan.</span>
+          <Link href="/creator-pro">
+            <span className="underline underline-offset-2 cursor-pointer hover:text-[#4ad9e0] transition-colors">Upgrade to remove →</span>
+          </Link>
+        </div>
+      )}
       {/* ── Top nav ──────────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0f1e]/95 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">

@@ -2819,10 +2819,27 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
           const arrayBuf = await res.arrayBuffer();
           await fs.promises.writeFile(tmpIn, Buffer.from(arrayBuf));
           await fs.promises.writeFile(tmpAss, assContent, "utf-8");
+          // Check if user is on free/trial — add watermark if so
+          let showVideoWatermark = true;
+          const dbForWm = await getDb();
+          if (dbForWm) {
+            const { users: usersTable } = await import("../drizzle/schema");
+            const [wmUser] = await dbForWm.select({
+              studioRole: usersTable.studioRole,
+              studioTrialEndsAt: usersTable.studioTrialEndsAt,
+            }).from(usersTable).where(eq(usersTable.id, ctx.user.id));
+            const sRole = (wmUser as any)?.studioRole ?? "none";
+            const sTrial = (wmUser as any)?.studioTrialEndsAt ?? null;
+            const isTrialing = sRole !== "none" && sTrial && new Date(sTrial) > new Date();
+            showVideoWatermark = !(sRole !== "none" && !isTrialing);
+          }
+          const vfFilter = showVideoWatermark
+            ? `ass=${tmpAss},drawtext=text='Created with Teachific\u2122':fontcolor=white:fontsize=20:box=1:boxcolor=0x189aa1@0.85:boxborderw=8:x=w-tw-20:y=h-th-20`
+            : `ass=${tmpAss}`;
           await execFileAsync("ffmpeg", [
             "-y",
             "-i", tmpIn,
-            "-vf", `ass=${tmpAss}`,
+            "-vf", vfFilter,
             "-c:v", "libx264",
             "-preset", "fast",
             "-crf", "23",

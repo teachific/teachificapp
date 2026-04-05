@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
+import { Link } from "wouter";
 import { toast } from "sonner";
 import {
   ChevronLeft,
@@ -387,12 +388,30 @@ export default function CourseSalesPage() {
     onError: (e) => toast.error(e.message),
   });
 
+  const checkoutMut = trpc.teachificPay.createCheckout.useMutation({
+    onSuccess: (data) => {
+      if (data.checkoutUrl) {
+        toast.info("Redirecting to secure checkout...");
+        window.open(data.checkoutUrl, "_blank");
+      }
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const handleEnroll = (pricingId?: number, price?: number) => {
-    if (!user) { window.location.href = getLoginUrl(); return; }
+    if (!user) { window.location.href = "/login"; return; }
     if (!course) return;
     if (price && price > 0) {
-      // Paid course — redirect to payment (Stripe not yet configured, show info)
-      toast.info("Payment processing coming soon. Contact the course provider to enroll.");
+      checkoutMut.mutate({
+        orgId: course.orgId,
+        courseId: course.id,
+        priceInCents: Math.round(price * 100),
+        courseName: course.title,
+        isGroupRegistration: false,
+        groupSize: 1,
+        successUrl: `${window.location.origin}/learn/${courseId}?enrolled=1`,
+        cancelUrl: window.location.href,
+      });
       return;
     }
     enrollMut.mutate({ courseId, orgId: course.orgId, pricingId, amountPaid: 0 });

@@ -602,7 +602,7 @@ const PRICING_TIERS: PricingTier[] = [
       "1 membership tier",
       "SCORM 1.2 & 2004 support",
       "Teachific Studio™",
-      "TeachificPay processing (2% fee)",
+      "TeachificPay™ built-in payments",
     ],
   },
   {
@@ -621,7 +621,7 @@ const PRICING_TIERS: PricingTier[] = [
       "Community access",
       "Custom domain",
       "White-label branding",
-      "TeachificPay or own gateway (0.5% fee)",
+      "TeachificPay™ or custom payment gateway",
     ],
   },
   {
@@ -640,7 +640,7 @@ const PRICING_TIERS: PricingTier[] = [
       "Deep analytics & exports",
       "Affiliate platform",
       "SSO / SAML",
-      "TeachificPay or own gateway (0.5% fee)",
+      "TeachificPay™ or custom payment gateway",
     ],
   },
   {
@@ -658,7 +658,7 @@ const PRICING_TIERS: PricingTier[] = [
       "SLA uptime guarantee",
       "Custom integrations & API",
       "Audit logs & compliance reports",
-      "TeachificPay or own gateway (0.5% fee)",
+      "TeachificPay™ or custom payment gateway",
     ],
   },
 ];
