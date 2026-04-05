@@ -2213,8 +2213,24 @@
 - [x] Replace "Start Free Trial" with "Get Started Free" (points to /register)
 - [x] Free plan = always free (no trial), paid plans = sign up then upgrade from billing
 - [x] Remove any trial-period language from pricing cards and comparison table
-- [ ] Decide and document: will paid plans ever have a trial? If yes, implement trial_ends_at field
+- [x] Decision: YES — 14-day free trial for paid plans. trial_ends_at fields added to schema for Studio, Creator, QuizCreator. LMS org trial via Stripe trial_period_days:14 on checkout.
 
 ## Bug Fix: Remove TeachificPay Fee Row from Comparison Chart (Apr 2026)
 - [x] Remove "TeachificPay fee" row from COMPARISON_FEATURES array in LandingPage.tsx
 - [x] Keep "Custom payment gateway" row (it's a feature, not a fee)
+
+## Feature: Standalone Product Sales Pages + Admin Tools (Apr 2026)
+### Sales Pages
+- [x] Audit TeachificCreator current status — backend fully built, dashboard/editor/sales page exist, admin procedures added
+- [ ] Build /quiz-creator standalone sales page for Teachific QuizCreator™
+- [ ] Update /creator-pro sales page — ensure branding, pricing, and CTA consistency
+- [ ] Update /studio-pro sales page — ensure branding, pricing, and CTA consistency
+- [x] Add "Products" dropdown or nav links to main LandingPage nav (Creator, Studio, QuizCreator)
+- [x] Add standalone product links to LandingPage footer
+### Platform Admin Tools
+- [x] Add "TeachificCreator™ Customers" tab to PlatformAdminPage
+- [x] Add "Teachific Studio™ Customers" tab to PlatformAdminPage
+- [x] Add "Teachific QuizCreator™ Customers" tab to PlatformAdminPage
+- [x] Each tab: list customers, plan/role, trial status, joined date
+- [x] Each tab: ability to view/edit customer role via dropdown
+- [ ] Each tab: platform revenue summary for that product (pending Stripe integration)

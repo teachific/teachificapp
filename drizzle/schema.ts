@@ -32,10 +32,16 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
   // QuizCreator standalone product access role
   quizCreatorRole: mysqlEnum("quizCreatorRole", ["none", "lite", "premium"]).default("none").notNull(),
+  // QuizCreator 14-day trial end date (null = no trial started, past date = trial expired)
+  quizCreatorTrialEndsAt: timestamp("quizCreatorTrialEndsAt"),
   // Teachific Studio standalone product access role
   studioRole: mysqlEnum("studioRole", ["none", "creator", "pro", "team"]).default("none").notNull(),
+  // Studio 14-day trial end date (null = no trial started, past date = trial expired)
+  studioTrialEndsAt: timestamp("studioTrialEndsAt"),
   // TeachificCreator™ standalone product access role
   creatorRole: mysqlEnum("creatorRole", ["none", "starter", "pro", "team"]).default("none").notNull(),
+  // Creator 14-day trial end date (null = no trial started, past date = trial expired)
+  creatorTrialEndsAt: timestamp("creatorTrialEndsAt"),
 });
 
 export type User = typeof users.$inferSelect;

@@ -58,6 +58,35 @@ function LandingNav() {
           <a href="#pricing" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
             Pricing
           </a>
+          {/* Products dropdown */}
+          <div className="relative group">
+            <button className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1">
+              Tools <span className="text-xs opacity-60">&#9662;</span>
+            </button>
+            <div className="absolute top-full left-0 mt-2 w-60 bg-white rounded-xl shadow-xl border border-gray-100 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50">
+              <a href="/creator-pro" className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                <span className="text-base mt-0.5">✏️</span>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Teachific™ Creator</div>
+                  <div className="text-xs text-gray-500">eLearning authoring tool</div>
+                </div>
+              </a>
+              <a href="/studio-pro" className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                <span className="text-base mt-0.5">🎬</span>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Teachific™ Studio</div>
+                  <div className="text-xs text-gray-500">Course authoring &amp; hosting</div>
+                </div>
+              </a>
+              <a href="/quiz-creator-pro" className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                <span className="text-base mt-0.5">📝</span>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Teachific™ QuizCreator</div>
+                  <div className="text-xs text-gray-500">Standalone quiz builder</div>
+                </div>
+              </a>
+            </div>
+          </div>
         </div>
 
         {/* Auth buttons */}
@@ -886,7 +915,7 @@ function LandingFooter() {
 
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4">
-              Product
+              Platform
             </h4>
             <ul className="space-y-2 text-sm">
               <li>
@@ -902,6 +931,29 @@ function LandingFooter() {
               <li>
                 <a href="#how-it-works" className="hover:text-white transition-colors">
                   How It Works
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4">
+              Standalone Tools
+            </h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <a href="/creator-pro" className="hover:text-white transition-colors">
+                  Teachific™ Creator
+                </a>
+              </li>
+              <li>
+                <a href="/studio-pro" className="hover:text-white transition-colors">
+                  Teachific™ Studio
+                </a>
+              </li>
+              <li>
+                <a href="/quiz-creator-pro" className="hover:text-white transition-colors">
+                  Teachific™ QuizCreator
                 </a>
               </li>
             </ul>

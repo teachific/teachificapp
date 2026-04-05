@@ -91,6 +91,8 @@ import {
   X,
   Check,
   Pencil,
+  PenTool,
+  FileQuestion,
 } from "lucide-react"
 import { cn } from "@/lib/utils";
 
@@ -1404,6 +1406,15 @@ export default function PlatformAdminPage() {
           <TabsTrigger value="plans" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <CreditCard className="w-3.5 h-3.5" /> Subscription Plans
           </TabsTrigger>
+          <TabsTrigger value="creator" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
+            <PenTool className="w-3.5 h-3.5" /> Creator
+          </TabsTrigger>
+          <TabsTrigger value="studio" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
+            <Video className="w-3.5 h-3.5" /> Studio
+          </TabsTrigger>
+          <TabsTrigger value="quizcreator" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
+            <FileQuestion className="w-3.5 h-3.5" /> QuizCreator
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab />
@@ -1431,6 +1442,15 @@ export default function PlatformAdminPage() {
         </TabsContent>
         <TabsContent value="plans">
           <SubscriptionPlansTab />
+        </TabsContent>
+        <TabsContent value="creator">
+          <CreatorAdminTab />
+        </TabsContent>
+        <TabsContent value="studio">
+          <StudioAdminTab />
+        </TabsContent>
+        <TabsContent value="quizcreator">
+          <QuizCreatorAdminTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -1952,6 +1972,294 @@ function SubscriptionPlansTab() {
         </Table>
       </div>
       <p className="text-xs text-slate-500">Click any cell to edit. Use -1 for unlimited. Press Enter or click ✓ to save.</p>
+    </div>
+  );
+}
+
+// ─── Shared helpers ──────────────────────────────────────────────────────────
+const ROLE_BADGE: Record<string, string> = {
+  none: "bg-slate-100 text-slate-600 border-slate-200",
+  starter: "bg-blue-100 text-blue-700 border-blue-200",
+  lite: "bg-blue-100 text-blue-700 border-blue-200",
+  creator: "bg-violet-100 text-violet-700 border-violet-200",
+  pro: "bg-amber-100 text-amber-700 border-amber-200",
+  premium: "bg-amber-100 text-amber-700 border-amber-200",
+  team: "bg-emerald-100 text-emerald-700 border-emerald-200",
+};
+function RoleBadge({ role }: { role: string }) {
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${ROLE_BADGE[role] ?? ROLE_BADGE.none}`}>
+      {role === "none" ? "No Access" : role.charAt(0).toUpperCase() + role.slice(1)}
+    </span>
+  );
+}
+function TrialBadge({ trialEndsAt }: { trialEndsAt: Date | null | undefined }) {
+  if (!trialEndsAt) return null;
+  const now = new Date();
+  const end = new Date(trialEndsAt);
+  const expired = end < now;
+  const daysLeft = Math.ceil((end.getTime() - now.getTime()) / 86400000);
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ml-1 ${
+      expired ? "bg-red-100 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200"
+    }`}>
+      {expired ? "Trial expired" : `Trial: ${daysLeft}d left`}
+    </span>
+  );
+}
+
+// ─── TeachificCreator Admin Tab ──────────────────────────────────────────────
+function CreatorAdminTab() {
+  const { data: users = [], refetch } = trpc.authoring.adminListCreatorUsers.useQuery();
+  const setRole = trpc.authoring.adminSetCreatorRole.useMutation({
+    onSuccess: () => { refetch(); toast.success("Creator role updated"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const [search, setSearch] = useState("");
+  const filtered = users.filter((u) =>
+    u.name?.toLowerCase().includes(search.toLowerCase()) ||
+    u.email?.toLowerCase().includes(search.toLowerCase())
+  );
+  return (
+    <div className="space-y-4">
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-slate-900 flex items-center gap-2">
+            <PenTool className="w-4 h-4 text-teal-500" />
+            Teachific™ Creator — User Management
+          </CardTitle>
+          <CardDescription className="text-slate-600">
+            View and manage all users with a Teachific™ Creator subscription or trial.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Search users..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 bg-white border-gray-300 text-slate-900"
+              />
+            </div>
+            <Badge variant="outline" className="text-slate-600">{filtered.length} users</Badge>
+          </div>
+          <div className="rounded-lg border border-gray-200 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-gray-200 bg-gray-50">
+                  <TableHead className="text-slate-700 font-semibold">User</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Email</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Creator Role</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Trial</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Joined</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={6} className="text-center text-slate-500 py-8">No users found</TableCell></TableRow>
+                )}
+                {filtered.map((u) => (
+                  <TableRow key={u.id} className="border-gray-200 hover:bg-gray-50">
+                    <TableCell className="font-medium text-slate-900">{u.name ?? "—"}</TableCell>
+                    <TableCell className="text-slate-600 text-sm">{u.email}</TableCell>
+                    <TableCell><RoleBadge role={u.creatorRole} /></TableCell>
+                    <TableCell><TrialBadge trialEndsAt={u.creatorTrialEndsAt} /></TableCell>
+                    <TableCell className="text-slate-500 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={u.creatorRole}
+                        onValueChange={(role) => setRole.mutate({ userId: u.id, role: role as "none" | "starter" | "pro" | "team" })}
+                      >
+                        <SelectTrigger className="w-28 h-7 text-xs bg-white border-gray-300 text-slate-900">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["none", "starter", "pro", "team"].map((r) => (
+                            <SelectItem key={r} value={r} className="text-slate-900 text-xs">{r === "none" ? "No Access" : r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Teachific Studio Admin Tab ──────────────────────────────────────────────
+function StudioAdminTab() {
+  const { data: users = [], refetch } = trpc.billing.adminListStudioUsers.useQuery();
+  const setRole = trpc.billing.adminSetStudioRole.useMutation({
+    onSuccess: () => { refetch(); toast.success("Studio role updated"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const [search, setSearch] = useState("");
+  const filtered = users.filter((u) =>
+    u.name?.toLowerCase().includes(search.toLowerCase()) ||
+    u.email?.toLowerCase().includes(search.toLowerCase())
+  );
+  return (
+    <div className="space-y-4">
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-slate-900 flex items-center gap-2">
+            <Video className="w-4 h-4 text-teal-500" />
+            Teachific™ Studio — User Management
+          </CardTitle>
+          <CardDescription className="text-slate-600">
+            View and manage all users with a Teachific™ Studio subscription or trial.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Search users..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 bg-white border-gray-300 text-slate-900"
+              />
+            </div>
+            <Badge variant="outline" className="text-slate-600">{filtered.length} users</Badge>
+          </div>
+          <div className="rounded-lg border border-gray-200 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-gray-200 bg-gray-50">
+                  <TableHead className="text-slate-700 font-semibold">User</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Email</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Studio Role</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Trial</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Joined</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={6} className="text-center text-slate-500 py-8">No users found</TableCell></TableRow>
+                )}
+                {filtered.map((u) => (
+                  <TableRow key={u.id} className="border-gray-200 hover:bg-gray-50">
+                    <TableCell className="font-medium text-slate-900">{u.name ?? "—"}</TableCell>
+                    <TableCell className="text-slate-600 text-sm">{u.email}</TableCell>
+                    <TableCell><RoleBadge role={u.studioRole} /></TableCell>
+                    <TableCell><TrialBadge trialEndsAt={u.studioTrialEndsAt} /></TableCell>
+                    <TableCell className="text-slate-500 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={u.studioRole}
+                        onValueChange={(role) => setRole.mutate({ userId: u.id, role: role as "none" | "creator" | "pro" | "team" })}
+                      >
+                        <SelectTrigger className="w-28 h-7 text-xs bg-white border-gray-300 text-slate-900">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["none", "creator", "pro", "team"].map((r) => (
+                            <SelectItem key={r} value={r} className="text-slate-900 text-xs">{r === "none" ? "No Access" : r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Teachific QuizCreator Admin Tab ─────────────────────────────────────────
+function QuizCreatorAdminTab() {
+  const { data: users = [], refetch } = trpc.quizCreator.listUsersWithRole.useQuery();
+  const setRole = trpc.quizCreator.setUserRole.useMutation({
+    onSuccess: () => { refetch(); toast.success("QuizCreator role updated"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const [search, setSearch] = useState("");
+  const filtered = users.filter((u: { name?: string | null; email?: string | null }) =>
+    u.name?.toLowerCase().includes(search.toLowerCase()) ||
+    u.email?.toLowerCase().includes(search.toLowerCase())
+  );
+  return (
+    <div className="space-y-4">
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-slate-900 flex items-center gap-2">
+            <FileQuestion className="w-4 h-4 text-teal-500" />
+            Teachific™ QuizCreator — User Management
+          </CardTitle>
+          <CardDescription className="text-slate-600">
+            View and manage all users with a Teachific™ QuizCreator subscription or trial.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Search users..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 bg-white border-gray-300 text-slate-900"
+              />
+            </div>
+            <Badge variant="outline" className="text-slate-600">{filtered.length} users</Badge>
+          </div>
+          <div className="rounded-lg border border-gray-200 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-gray-200 bg-gray-50">
+                  <TableHead className="text-slate-700 font-semibold">User</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Email</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">QuizCreator Role</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Joined</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={5} className="text-center text-slate-500 py-8">No users found</TableCell></TableRow>
+                )}
+                {(filtered as Array<{ id: number; name?: string | null; email?: string | null; role: string; quizCreatorRole: string }>).map((u) => (
+                  <TableRow key={u.id} className="border-gray-200 hover:bg-gray-50">
+                    <TableCell className="font-medium text-slate-900">{u.name ?? "—"}</TableCell>
+                    <TableCell className="text-slate-600 text-sm">{u.email}</TableCell>
+                    <TableCell><RoleBadge role={u.quizCreatorRole} /></TableCell>
+                    <TableCell className="text-slate-500 text-xs">—</TableCell>
+                    <TableCell>
+                      <Select
+                        value={u.quizCreatorRole}
+                        onValueChange={(role) => setRole.mutate({ userId: u.id, role: role as "none" | "lite" | "premium" })}
+                      >
+                        <SelectTrigger className="w-28 h-7 text-xs bg-white border-gray-300 text-slate-900">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["none", "lite", "premium"].map((r) => (
+                            <SelectItem key={r} value={r} className="text-slate-900 text-xs">{r === "none" ? "No Access" : r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

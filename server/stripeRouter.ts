@@ -5,7 +5,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, adminProcedure, router } from "./_core/trpc";
 import { getStripe, STRIPE_PRICE_IDS, PLAN_LIMITS, type PlanTier } from "./stripePlans";
 import { getOrgSubscription, upsertOrgSubscription } from "./lmsDb";
 import { ENV } from "./_core/env";
@@ -126,12 +126,14 @@ export const stripeRouter = router({
           customer_name: ctx.user.name ?? "",
         },
         subscription_data: {
+          // 14-day free trial — no charge until trial ends
+          trial_period_days: 14,
           metadata: {
             org_id: String(orgCtx.orgId),
             plan: input.plan,
           },
         },
-        success_url: `${input.origin}/lms/billing?success=1&plan=${input.plan}`,
+        success_url: `${input.origin}/lms/billing?success=1&plan=${input.plan}&trial=1`,
         cancel_url: `${input.origin}/lms/billing?cancelled=1`,
       });
 
@@ -427,6 +429,35 @@ export const stripeRouter = router({
     };
   }),
 
+  // ── Admin: list all Studio users ────────────────────────────────────────
+  adminListStudioUsers: adminProcedure.query(async () => {
+    const db = await getDb();
+    const { users } = await import("../drizzle/schema");
+    const allUsers = await db.select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      studioRole: users.studioRole,
+      studioTrialEndsAt: users.studioTrialEndsAt,
+      createdAt: users.createdAt,
+    }).from(users).orderBy(users.createdAt);
+    return allUsers.map((u) => ({
+      ...u,
+      studioRole: (u.studioRole ?? "none") as "none" | "creator" | "pro" | "team",
+    }));
+  }),
+  // ── Admin: set a user's Studio role ──────────────────────────────────────
+  adminSetStudioRole: adminProcedure
+    .input(z.object({
+      userId: z.number(),
+      role: z.enum(["none", "creator", "pro", "team"]),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      const { users } = await import("../drizzle/schema");
+      await db.update(users).set({ studioRole: input.role }).where(eq(users.id, input.userId));
+      return { success: true };
+    }),
   // ── Enterprise contact-sales inquiry ─────────────────────────────────────
   contactEnterprise: protectedProcedure
     .input(z.object({

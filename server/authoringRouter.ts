@@ -790,4 +790,41 @@ export const authoringRouter = router({
         .where(eq(users.id, input.userId));
       return { success: true };
     }),
+
+  // ── Admin: list all Creator users ────────────────────────────────────────
+  adminListCreatorUsers: protectedProcedure.query(async ({ ctx }) => {
+    if (!["site_owner", "site_admin"].includes(ctx.user.role)) {
+      throw new TRPCError({ code: "FORBIDDEN" });
+    }
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    const allUsers = await db.select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      creatorRole: users.creatorRole,
+      creatorTrialEndsAt: users.creatorTrialEndsAt,
+      createdAt: users.createdAt,
+    }).from(users).orderBy(users.createdAt);
+    return allUsers.map((u) => ({
+      ...u,
+      creatorRole: ((u as any).creatorRole ?? "none") as "none" | "starter" | "pro" | "team",
+    }));
+  }),
+
+  // ── Admin: set a user's Creator role (admin version) ────────────────────────
+  adminSetCreatorRole: protectedProcedure
+    .input(z.object({
+      userId: z.number(),
+      role: z.enum(["none", "starter", "pro", "team"]),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (!["site_owner", "site_admin"].includes(ctx.user.role)) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await db.update(users).set({ creatorRole: input.role } as any).where(eq(users.id, input.userId));
+      return { success: true };
+    }),
 });

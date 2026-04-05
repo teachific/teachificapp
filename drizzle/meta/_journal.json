@@ -379,6 +379,13 @@
       "when": 1775390579552,
       "tag": "0053_zippy_zombie",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "5",
+      "when": 1775392960915,
+      "tag": "0054_serious_shinko_yamashiro",
+      "breakpoints": true
     }
   ]
 }

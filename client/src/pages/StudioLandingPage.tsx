@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/useAuth";
-import { getLoginUrl } from "@/const";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -144,11 +144,11 @@ export default function StudioLandingPage() {
 
   function handleCTA(tier: "free" | "creator" | "pro" | "team") {
     if (tier === "free") {
-      if (!user) { window.location.href = getLoginUrl(); return; }
+      if (!user) { window.location.href = "/register"; return; }
       window.location.href = "/studio";
       return;
     }
-    if (!user) { window.location.href = getLoginUrl(); return; }
+    if (!user) { window.location.href = "/register"; return; }
     setLoadingTier(tier);
     checkoutMutation.mutate({
       tier,
@@ -176,7 +176,7 @@ export default function StudioLandingPage() {
                 <Link href="/studio">Open Studio</Link>
               </Button>
             ) : (
-              <Button size="sm" className="bg-violet-600 hover:bg-violet-700" onClick={() => { window.location.href = getLoginUrl(); }}>
+              <Button size="sm" className="bg-violet-600 hover:bg-violet-700" onClick={() => { window.location.href = "/login"; }}>
                 Sign In
               </Button>
             )}

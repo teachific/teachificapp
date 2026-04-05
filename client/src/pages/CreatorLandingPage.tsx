@@ -227,12 +227,12 @@ export default function CreatorLandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/creator">
+            <Link href="/login">
               <Button variant="ghost" size="sm" className="text-white/70 hover:text-white">
                 Sign In
               </Button>
             </Link>
-            <Link href="/creator">
+            <Link href="/register">
               <Button size="sm" className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold">
                 Start Free Trial
               </Button>
@@ -530,7 +530,7 @@ export default function CreatorLandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/creator">
+                <Link href="/register">
                   <Button
                     className={`w-full font-semibold ${
                       tier.highlight
@@ -592,7 +592,7 @@ export default function CreatorLandingPage() {
                 No desktop software. No PowerPoint plugins. Just pure eLearning authoring power.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/creator">
+                <Link href="/register">
                   <Button size="lg" className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-bold px-10 h-14 text-base">
                     Start Your Free Trial
                     <ArrowRight className="ml-2 w-5 h-5" />
