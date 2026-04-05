@@ -2195,3 +2195,26 @@
 - [x] Add AI tools messaging to "Create Your School" and "Build Your Courses" steps
 - [x] Add AI Course & Page Builder feature card to features grid
 - [x] Update How It Works headline to "From idea to income — in no time"
+
+## Feature: Dedicated Teachific-Branded Auth Pages (Apr 2026)
+- [ ] Build /login page — Teachific-branded, email + password, no Manus branding
+- [ ] Build /signup page — Teachific-branded, name + email + password, no Manus branding
+- [ ] Backend: auth.emailLogin procedure (email + password → session cookie)
+- [ ] Backend: auth.emailRegister procedure (name + email + password → session cookie)
+- [ ] Backend: auth.forgotPassword procedure (send reset email via SendGrid)
+- [ ] Backend: auth.resetPassword procedure (token → new password)
+- [x] Update all getLoginUrl() calls on landing page to point to /login
+- [x] Update all signUpUrl calls on landing page to point to /register
+- [x] Remove Manus OAuth portal redirect from all public-facing CTAs
+- [ ] Keep Manus OAuth as optional fallback for admin/owner login only
+
+## Bug Fix / Clarification: Free Trial CTA Buttons (Apr 2026)
+- [x] Audit all "Start Free Trial" buttons on landing page — no trial structure exists
+- [x] Replace "Start Free Trial" with "Get Started Free" (points to /register)
+- [x] Free plan = always free (no trial), paid plans = sign up then upgrade from billing
+- [x] Remove any trial-period language from pricing cards and comparison table
+- [ ] Decide and document: will paid plans ever have a trial? If yes, implement trial_ends_at field
+
+## Bug Fix: Remove TeachificPay Fee Row from Comparison Chart (Apr 2026)
+- [x] Remove "TeachificPay fee" row from COMPARISON_FEATURES array in LandingPage.tsx
+- [x] Keep "Custom payment gateway" row (it's a feature, not a fee)

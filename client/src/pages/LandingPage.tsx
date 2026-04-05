@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import LoadingScreen from "@/components/LoadingScreen";
-import { getLoginUrl } from "@/const";
 import {
   BookOpen,
   Users,
@@ -33,9 +32,6 @@ const AQUA = "#4ad9e0";
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 function LandingNav() {
-  const loginUrl = getLoginUrl();
-  const signUpUrl = loginUrl.replace("type=signIn", "type=signUp");
-
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -67,13 +63,13 @@ function LandingNav() {
         {/* Auth buttons */}
         <div className="flex items-center gap-3">
           <a
-            href={loginUrl}
-            className="hidden sm:inline-flex text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2"
+            href="/login"
+            className="text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors"
           >
             Log In
           </a>
           <a
-            href={signUpUrl}
+            href="/register"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-white px-4 py-2 rounded-lg transition-all hover:opacity-90 hover:shadow-md"
             style={{ background: `linear-gradient(135deg, ${TEAL}, ${AQUA})` }}
           >
@@ -87,11 +83,8 @@ function LandingNav() {
 
 // ─── Hero ──────────────────────────────────────────────────────────────────────
 function HeroSection() {
-  const loginUrl = getLoginUrl();
-  const signUpUrl = loginUrl.replace("type=signIn", "type=signUp");
-
   return (
-    <section className="relative pt-32 pb-24 overflow-hidden bg-white">
+    <section id="hero" className="relative pt-32 pb-24 overflow-hidden bg-white">
       {/* Background gradient blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
@@ -128,12 +121,11 @@ function HeroSection() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-14">
           <a
-            href={signUpUrl}
-            className="inline-flex items-center gap-2 text-base font-bold text-white px-8 py-4 rounded-xl shadow-lg transition-all hover:shadow-xl hover:scale-105"
+            href="/register"
+            className="inline-flex items-center gap-2 text-base font-bold px-8 py-4 rounded-xl text-white shadow-lg transition-all hover:shadow-xl hover:scale-105"
             style={{ background: `linear-gradient(135deg, ${TEAL}, ${AQUA})` }}
           >
-            Start for Free <ArrowRight className="w-4 h-4" />
-          </a>
+            Get Started Free <ArrowRight className="w-4 h-4" />         </a>
           <a
             href="#how-it-works"
             className="inline-flex items-center gap-2 text-base font-semibold text-gray-700 px-8 py-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all"
@@ -572,7 +564,7 @@ const PRICING_TIERS: PricingTier[] = [
     price: "$39",
     period: "per month",
     description: "For new creators ready to sell their first courses and memberships.",
-    cta: "Start Free Trial",
+    cta: "Get Started Free",
     highlighted: false,
     features: [
       "Up to 5 courses",
@@ -589,7 +581,7 @@ const PRICING_TIERS: PricingTier[] = [
     price: "$99",
     period: "per month",
     description: "For growing schools with a community and multiple instructors.",
-    cta: "Start Free Trial",
+    cta: "Get Started Free",
     highlighted: true,
     badge: "Most Popular",
     features: [
@@ -608,7 +600,7 @@ const PRICING_TIERS: PricingTier[] = [
     price: "$199",
     period: "per month",
     description: "For established schools that need advanced analytics, email marketing, and scale.",
-    cta: "Start Free Trial",
+    cta: "Get Started Free",
     highlighted: false,
     features: [
       "Up to 50 courses",
@@ -660,16 +652,12 @@ const COMPARISON_FEATURES: ComparisonRow[] = [
   { feature: "Deep analytics", free: false, starter: false, builder: false, pro: true, enterprise: true },
   { feature: "Affiliate platform", free: false, starter: false, builder: false, pro: true, enterprise: true },
   { feature: "SSO / SAML", free: false, starter: false, builder: false, pro: true, enterprise: true },
-  { feature: "TeachificPay fee", free: "2%", starter: "2%", builder: "0.5%", pro: "0.5%", enterprise: "0.5%" },
   { feature: "Custom payment gateway", free: false, starter: false, builder: true, pro: true, enterprise: true },
   { feature: "Group registrations", free: false, starter: false, builder: false, pro: true, enterprise: true },
   { feature: "Dedicated support", free: false, starter: false, builder: false, pro: false, enterprise: true },
 ];
 
 function PricingSection() {
-  const loginUrl = getLoginUrl();
-  const signUpUrl = loginUrl.replace("type=signIn", "type=signUp");
-
   return (
     <section id="pricing" className="py-24 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -752,9 +740,7 @@ function PricingSection() {
                 href={
                   tier.name === "Enterprise"
                     ? "mailto:hello@teachific.app"
-                    : tier.name === "Free"
-                    ? signUpUrl
-                    : signUpUrl
+                    : "/register"
                 }
                 className={`w-full text-center py-3 px-6 rounded-xl text-sm font-bold transition-all block ${
                   tier.highlighted
@@ -833,9 +819,6 @@ function PricingSection() {
 
 // ─── Final CTA ────────────────────────────────────────────────────────────────
 function CtaSection() {
-  const loginUrl = getLoginUrl();
-  const signUpUrl = loginUrl.replace("type=signIn", "type=signUp");
-
   return (
     <section
       className="py-24 relative overflow-hidden"
@@ -860,14 +843,14 @@ function CtaSection() {
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <a
-            href={signUpUrl}
+            href="/register"
             className="inline-flex items-center gap-2 text-base font-bold px-8 py-4 rounded-xl bg-white hover:bg-gray-50 shadow-lg transition-all hover:shadow-xl hover:scale-105"
             style={{ color: TEAL }}
           >
             Create Your Free Account <ArrowRight className="w-4 h-4" />
           </a>
           <a
-            href={loginUrl}
+            href="/login"
             className="inline-flex items-center gap-2 text-base font-semibold px-8 py-4 rounded-xl border-2 border-white/40 text-white hover:bg-white/10 transition-all"
           >
             Already have an account? Log In
