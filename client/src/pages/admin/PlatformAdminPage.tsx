@@ -296,6 +296,26 @@ function OrgsTab() {
   });
   const [editingLimit, setEditingLimit] = useState<{ featureKey: string; value: string } | null>(null);
 
+  // Users tab state
+  const { data: orgMembersData = [], refetch: refetchMembers } = trpc.platformAdmin.getOrgMembers.useQuery(
+    { orgId: editOrg?.id ?? 0 },
+    { enabled: !!editOrg && activeTab === "users" }
+  );
+  const [addMemberEmail, setAddMemberEmail] = useState("");
+  const [addMemberRole, setAddMemberRole] = useState<"user" | "org_admin">("user");
+  const addUserToOrgByEmail = trpc.platformAdmin.addUserToOrgByEmail.useMutation({
+    onSuccess: () => { refetchMembers(); setAddMemberEmail(""); toast.success("User added to org"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const removeOrgMemberMut = trpc.platformAdmin.removeOrgMember.useMutation({
+    onSuccess: () => { refetchMembers(); refetch(); toast.success("Member removed"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateOrgMemberRoleMut = trpc.platformAdmin.updateOrgMemberRole.useMutation({
+    onSuccess: () => { refetchMembers(); toast.success("Role updated"); },
+    onError: (e) => toast.error(e.message),
+  });
+
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const [createOrgForm, setCreateOrgForm] = useState({ orgName: "", orgSlug: "", adminName: "", adminEmail: "", plan: "free" as "free"|"starter"|"builder"|"pro"|"enterprise" });
   const createOrgWithAdmin = trpc.platformAdmin.createOrgWithAdmin.useMutation({
@@ -418,6 +438,7 @@ function OrgsTab() {
               <TabsTrigger value="details" className="flex-1 text-slate-700 data-[state=active]:bg-white data-[state=active]:text-slate-900">Details</TabsTrigger>
               <TabsTrigger value="subscription" className="flex-1 text-slate-700 data-[state=active]:bg-white data-[state=active]:text-slate-900">Subscription</TabsTrigger>
               <TabsTrigger value="limits" className="flex-1 text-slate-700 data-[state=active]:bg-white data-[state=active]:text-slate-900">Limit Overrides</TabsTrigger>
+              <TabsTrigger value="users" className="flex-1 text-slate-700 data-[state=active]:bg-white data-[state=active]:text-slate-900">Users</TabsTrigger>
             </TabsList>
 
             {/* Details Tab */}
@@ -565,6 +586,109 @@ function OrgsTab() {
                 upsertOrgLimit={upsertOrgLimit}
                 deleteOrgLimit={deleteOrgLimit}
               />
+            </TabsContent>
+
+            {/* Users Tab */}
+            <TabsContent value="users" className="mt-4 space-y-3">
+              {/* Add user by email */}
+              <div className="rounded-md border border-gray-200 bg-white p-3 space-y-2">
+                <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <UserPlus className="w-3.5 h-3.5 text-teal-500" /> Add User to Org
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="User email address"
+                    value={addMemberEmail}
+                    onChange={(e) => setAddMemberEmail(e.target.value)}
+                    className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs flex-1"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                  <Select value={addMemberRole} onValueChange={(v) => setAddMemberRole(v as "user" | "org_admin")}>
+                    <SelectTrigger className="bg-gray-50 border-gray-300 text-slate-900 h-8 text-xs w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-gray-200">
+                      <SelectItem value="user" className="text-slate-900 text-xs">Member</SelectItem>
+                      <SelectItem value="org_admin" className="text-slate-900 text-xs">Org Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs bg-teal-600 hover:bg-teal-700 shrink-0"
+                    disabled={addUserToOrgByEmail.isPending || !addMemberEmail.trim()}
+                    onClick={() => {
+                      if (!editOrg || !addMemberEmail.trim()) return;
+                      addUserToOrgByEmail.mutate({ orgId: editOrg.id, email: addMemberEmail.trim(), role: addMemberRole });
+                    }}
+                  >
+                    {addUserToOrgByEmail.isPending ? "Adding..." : "Add"}
+                  </Button>
+                </div>
+              </div>
+              {/* Members list */}
+              <div className="rounded-md border border-gray-200 overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-gray-200 hover:bg-transparent bg-gray-50">
+                      <TableHead className="text-slate-700 text-xs py-2">Name</TableHead>
+                      <TableHead className="text-slate-700 text-xs py-2">Email</TableHead>
+                      <TableHead className="text-slate-700 text-xs py-2">Role</TableHead>
+                      <TableHead className="text-slate-700 text-xs py-2">Joined</TableHead>
+                      <TableHead className="text-slate-700 text-xs py-2 w-10"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orgMembersData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-slate-500 text-xs py-6">No members yet</TableCell>
+                      </TableRow>
+                    ) : (
+                      orgMembersData.map((m) => (
+                        <TableRow key={m.id} className="border-gray-200 hover:bg-gray-50">
+                          <TableCell className="text-slate-900 text-xs py-2 font-medium">{m.user?.name ?? "—"}</TableCell>
+                          <TableCell className="text-slate-600 text-xs py-2">{m.user?.email ?? "—"}</TableCell>
+                          <TableCell className="text-xs py-2">
+                            <Select
+                              value={m.role}
+                              onValueChange={(v) => {
+                                if (!editOrg) return;
+                                updateOrgMemberRoleMut.mutate({ orgId: editOrg.id, userId: m.userId, role: v as "org_admin" | "user" });
+                              }}
+                            >
+                              <SelectTrigger className="bg-gray-50 border-gray-300 text-slate-900 h-7 text-xs w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white border-gray-200">
+                                <SelectItem value="org_super_admin" className="text-slate-900 text-xs">Super Admin</SelectItem>
+                                <SelectItem value="org_admin" className="text-slate-900 text-xs">Org Admin</SelectItem>
+                                <SelectItem value="member" className="text-slate-900 text-xs">Member</SelectItem>
+                                <SelectItem value="user" className="text-slate-900 text-xs">User</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-slate-500 text-xs py-2">{new Date(m.joinedAt).toLocaleDateString()}</TableCell>
+                          <TableCell className="py-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              disabled={removeOrgMemberMut.isPending}
+                              onClick={() => {
+                                if (!editOrg) return;
+                                removeOrgMemberMut.mutate({ orgId: editOrg.id, userId: m.userId });
+                              }}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </TabsContent>
           </Tabs>
           <DialogFooter className="gap-2 flex-wrap mt-2">

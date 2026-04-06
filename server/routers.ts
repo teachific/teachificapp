@@ -2111,6 +2111,63 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         await db2.delete(appVersions).where(eq(appVersions.id, input.id));
         return { success: true };
       }),
+
+    // ── Org Member Management (Platform Admin) ──────────────────────────────
+    getOrgMembers: adminProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input }) => {
+        const members = await getOrgMembers(input.orgId);
+        const userList = await Promise.all(members.map((m) => getUserById(m.userId)));
+        return members.map((m, i) => ({
+          ...m,
+          user: userList[i] ?? null,
+        }));
+      }),
+
+    removeOrgMember: adminProcedure
+      .input(z.object({ orgId: z.number(), userId: z.number() }))
+      .mutation(async ({ input }) => {
+        await removeOrgMember(input.orgId, input.userId);
+        return { success: true };
+      }),
+
+    updateOrgMemberRole: adminProcedure
+      .input(z.object({
+        orgId: z.number(),
+        userId: z.number(),
+        role: z.enum(["org_super_admin", "org_admin", "member", "user"]),
+      }))
+      .mutation(async ({ input }) => {
+        await updateOrgMemberRole(input.orgId, input.userId, input.role as any);
+        return { success: true };
+      }),
+
+    addUserToOrg: adminProcedure
+      .input(z.object({
+        orgId: z.number(),
+        userId: z.number(),
+        role: z.enum(["org_admin", "user"]).default("user"),
+      }))
+      .mutation(async ({ input }) => {
+        const existing = await getOrgMember(input.orgId, input.userId);
+        if (existing) throw new TRPCError({ code: "CONFLICT", message: "User is already a member of this org" });
+        await addOrgMember(input.orgId, input.userId, input.role as any);
+        return { success: true };
+      }),
+    addUserToOrgByEmail: adminProcedure
+      .input(z.object({
+        orgId: z.number(),
+        email: z.string().email(),
+        role: z.enum(["org_admin", "user"]).default("user"),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await getUserByEmail(input.email);
+        if (!user) throw new TRPCError({ code: "NOT_FOUND", message: `No user found with email ${input.email}` });
+        const existing = await getOrgMember(input.orgId, user.id);
+        if (existing) throw new TRPCError({ code: "CONFLICT", message: "User is already a member of this org" });
+        await addOrgMember(input.orgId, user.id, input.role as any);
+        return { success: true, userId: user.id, name: user.name, email: user.email };
+      }),
   }),
 
   // ─── QuizCreator Product ──────────────────────────────────────────────────────

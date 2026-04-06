@@ -247,8 +247,7 @@ export default function OrgSettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <div className="overflow-x-auto pb-1">
-          <TabsList className="flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-9 gap-0">
+        <TabsList className="h-auto flex flex-wrap gap-1 p-1">
             <TabsTrigger value="general" className="gap-1.5 whitespace-nowrap">
               <Building2 className="h-4 w-4" /> General
             </TabsTrigger>
@@ -276,9 +275,7 @@ export default function OrgSettingsPage() {
             <TabsTrigger value="homepage" className="gap-1.5 whitespace-nowrap">
               <Globe className="h-4 w-4" /> Homepage
             </TabsTrigger>
-          </TabsList>
-        </div>
-
+           </TabsList>
         {/* General Tab */}
         <TabsContent value="general" className="space-y-4">
           <Card>

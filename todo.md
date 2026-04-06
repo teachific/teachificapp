@@ -2389,3 +2389,17 @@
 - [x] Add "Record & Upload" nav item to Studio sidebar that opens embedded recorder
 - [x] Update homepage footer Legal section with real /privacy, /terms, /policies links
 - [x] Update footer grid to 5 columns for better layout
+
+## Org User Management in Platform Admin (Apr 6)
+- [ ] Add getOrgMembersAdmin procedure to platformAdmin router
+- [ ] Add removeOrgMemberAdmin and updateOrgMemberRoleAdmin procedures to platformAdmin router
+- [ ] Add Users tab to org edit dialog in PlatformAdminPage showing all org members with role, email, name
+- [ ] Allow editing role (org_admin / user) and removing members directly from the org edit dialog
+- [ ] Add "Add Existing User" search to the Users tab to add a platform user to the org
+
+## Session: Org Settings Tabs Fix + Platform Admin Users Tab (Apr 2026)
+- [x] Fix Organization Settings tabs overlapping on small screens — replaced fixed grid with flex-wrap layout
+- [x] Add Users tab to org edit dialog in Platform Admin — shows all members with role, joined date, remove button, and add-by-email form
+- [x] Add addUserToOrgByEmail procedure to platformAdmin router
+- [x] Extend updateOrgMemberRole to accept all org role values (org_super_admin, org_admin, member, user)
+- [x] Verify stripePlans.ts single-plan prices are correct (Creator $117/mo or $999/yr, Studio $47/mo or $399/yr, QuizCreator $47/mo or $399/yr)
