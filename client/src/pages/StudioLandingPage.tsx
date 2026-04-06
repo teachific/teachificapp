@@ -1,384 +1,604 @@
 import { useState } from "react";
-import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/hooks/useAuth";
-
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { Link } from "wouter";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  Check, Zap, Video, BookOpen, FileCode2, Brain, Palette, Users,
-  ArrowRight, Star, Play, Upload, Layers, Sparkles
+  CheckCircle2,
+  Video,
+  Mic,
+  Scissors,
+  Captions,
+  Zap,
+  Download,
+  Monitor,
+  Camera,
+  Sparkles,
+  ArrowRight,
+  Play,
+  Star,
+  Users,
+  Clock,
+  BarChart3,
+  ChevronRight,
 } from "lucide-react";
+
+// ─── Pricing ──────────────────────────────────────────────────────────────────
+const PLAN_FEATURES = [
+  "Screen recording (full screen, window, or tab)",
+  "Camera recording (webcam overlay or standalone)",
+  "Screen + camera simultaneous recording",
+  "AI-powered transcription (Whisper)",
+  "Transcript-based editing — cut by deleting text",
+  "Auto-generate 10 highlight clips from transcript",
+  "Closed captions with 8 style presets",
+  "Caption color, font, background & opacity controls",
+  "Export to MP4 (up to 4K)",
+  "Auto-save recordings to Media Library",
+  "Snap-to-corner draggable camera bubble",
+  "Publish directly to Teachific LMS™",
+  "50 GB media storage",
+  "Priority email & chat support",
+];
 
 const PLANS = [
   {
-    tier: "free" as const,
-    name: "Free",
-    monthlyPrice: 0,
-    annualPrice: 0,
-    description: "Get started for free",
+    id: "pro",
+    name: "Teachific Studio™",
     badge: null,
-    features: [
-      "1 course project",
-      "5 lessons",
-      "100 MB storage",
-      "Basic quiz builder",
-      "SCORM export",
-      "Community support",
-    ],
-    cta: "Start Free",
-    highlight: false,
-  },
-  {
-    tier: "creator" as const,
-    name: "Creator",
-    monthlyPrice: 19,
-    annualPrice: 179,
-    description: "For solo course creators",
-    badge: null,
-    features: [
-      "10 course projects",
-      "100 lessons",
-      "5 GB storage",
-      "All lesson types",
-      "Quiz & assessment builder",
-      "Media library",
-      "SCORM & xAPI export",
-      "Email support",
-    ],
-    cta: "Start Creating",
-    highlight: false,
-  },
-  {
-    tier: "pro" as const,
-    name: "Pro",
-    monthlyPrice: 49,
-    annualPrice: 449,
-    description: "For serious content creators",
-    badge: "Most Popular",
-    features: [
-      "Unlimited course projects",
-      "Unlimited lessons",
-      "50 GB storage",
-      "AI content assistant",
-      "Video hosting & player",
-      "Custom branding",
-      "Advanced quiz analytics",
-      "Priority support",
-    ],
-    cta: "Go Pro",
+    monthlyPrice: 47,
+    annualPrice: 399,
+    description: "Everything you need to record, edit, and publish professional training videos — one simple plan.",
+    features: PLAN_FEATURES,
+    cta: "Start Free Trial",
     highlight: true,
   },
   {
-    tier: "team" as const,
-    name: "Team",
-    monthlyPrice: 99,
-    annualPrice: 899,
-    description: "For teams & agencies",
+    id: "enterprise",
+    name: "Enterprise",
     badge: null,
+    monthlyPrice: null,
+    annualPrice: null,
+    description: "For large organizations with custom requirements.",
     features: [
-      "Everything in Pro",
-      "5 team seats",
-      "Shared media library",
-      "Team collaboration tools",
-      "Version history",
-      "Dedicated onboarding",
-      "SLA support",
+      "Everything in Teachific Studio™",
+      "Unlimited seats",
+      "SSO / SAML integration",
+      "Unlimited storage",
+      "Custom SLA & uptime guarantee",
+      "White-label player",
+      "Dedicated onboarding & training",
     ],
-    cta: "Get Team",
+    cta: "Contact Sales",
     highlight: false,
   },
 ];
 
 const FEATURES = [
   {
+    icon: Monitor,
+    title: "Screen Recording",
+    desc: "Capture your full screen, a specific window, or a browser tab in crystal-clear quality — up to 4K.",
+  },
+  {
+    icon: Camera,
+    title: "Camera Recording",
+    desc: "Record from your webcam as a full-screen feed or as a draggable picture-in-picture bubble overlay.",
+  },
+  {
+    icon: Captions,
+    title: "AI Transcription",
+    desc: "Whisper-powered transcription generates accurate captions automatically after every recording.",
+  },
+  {
+    icon: Scissors,
+    title: "Transcript-Based Editing",
+    desc: "Edit your video by editing the transcript — delete words to cut footage, just like editing a document.",
+  },
+  {
+    icon: Zap,
+    title: "Auto-Highlight Clips",
+    desc: "Studio AI scans your transcript and auto-generates 10 highlight clips for social media or previews.",
+  },
+  {
+    icon: Download,
+    title: "MP4 Export",
+    desc: "Export finished videos as MP4 with burned-in captions, or as a separate SRT file for any player.",
+  },
+  {
+    icon: BarChart3,
+    title: "Caption Style Editor",
+    desc: "Choose from 8 caption presets or fully customize font, color, background, opacity, and size.",
+  },
+  {
     icon: Video,
-    title: "Video Lessons",
-    desc: "Upload, host, and stream HD video with built-in player and chapter markers.",
-  },
-  {
-    icon: Brain,
-    title: "AI Content Assist",
-    desc: "Generate lesson outlines, quiz questions, and course descriptions with AI.",
-  },
-  {
-    icon: FileCode2,
-    title: "SCORM & xAPI Export",
-    desc: "Export any course as SCORM 1.2, SCORM 2004, or xAPI for any LMS.",
-  },
-  {
-    icon: BookOpen,
-    title: "Rich Lesson Editor",
-    desc: "Text, video, audio, PDF, embed, quiz, and interactive content blocks.",
-  },
-  {
-    icon: Palette,
-    title: "Custom Branding",
-    desc: "White-label your courses with your own logo, colors, and domain.",
-  },
-  {
-    icon: Layers,
     title: "Media Library",
-    desc: "Centralized asset management — images, videos, audio, and documents.",
+    desc: "All recordings auto-save to your Media Library. Organize, search, and reuse clips across projects.",
+  },
+  {
+    icon: Mic,
+    title: "Publish to Teachific LMS™",
+    desc: "One-click publish your finished video directly to your Teachific school. Live in seconds.",
+  },
+];
+
+const TESTIMONIALS = [
+  {
+    name: "James R.",
+    role: "L&D Manager",
+    company: "TechCorp Global",
+    quote:
+      "The transcript-based editing is a game-changer. I cut a 30-minute recording down to 12 minutes in under 5 minutes — just by deleting text.",
+    stars: 5,
+  },
+  {
+    name: "Anika S.",
+    role: "Instructional Designer",
+    company: "HealthLearn Inc.",
+    quote:
+      "Auto-highlight clips save me hours every week. Studio finds the best moments and I just approve them. My learners love the short-form previews.",
+    stars: 5,
+  },
+  {
+    name: "Tom W.",
+    role: "Freelance Trainer",
+    company: "Self-employed",
+    quote:
+      "At $47/mo I get everything I need: screen + cam recording, captions, and direct publish to my Teachific school. No other tool comes close.",
+    stars: 5,
   },
 ];
 
 export default function StudioLandingPage() {
-  const { user } = useAuth();
-  const [interval, setInterval] = useState<"monthly" | "annual">("monthly");
-  const [loadingTier, setLoadingTier] = useState<string | null>(null);
-
-  const checkoutMutation = trpc.billing.createStudioCheckout.useMutation({
-    onSuccess: (data) => {
-      if (data.checkoutUrl) {
-        window.open(data.checkoutUrl, "_blank");
-        toast.success("Redirecting to checkout…", { description: "A new tab has been opened." });
-      }
-    },
-    onError: (err) => {
-      toast.error("Checkout failed", { description: err.message });
-      setLoadingTier(null);
-    },
-  });
-
-  function handleCTA(tier: "free" | "creator" | "pro" | "team") {
-    if (tier === "free") {
-      if (!user) { window.location.href = "/register"; return; }
-      window.location.href = "/studio";
-      return;
-    }
-    if (!user) { window.location.href = "/register"; return; }
-    setLoadingTier(tier);
-    checkoutMutation.mutate({
-      tier,
-      interval,
-      origin: window.location.origin,
-    });
-  }
+  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e] text-white">
-      {/* ── Nav ── */}
-      <nav className="sticky top-0 z-50 bg-[#0a0f1e]/90 backdrop-blur border-b border-white/10">
+    <div className="min-h-screen bg-[#0a0f1e] text-white font-sans">
+      {/* ── Nav ─────────────────────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0f1e]/90 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/">
-            <span className="text-xl font-black tracking-tight cursor-pointer">
-              <span className="text-white">Teachific</span>
-              <span className="text-violet-400"> Studio</span>
-            </span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <a href="#features" className="text-white/60 hover:text-white text-sm hidden sm:block transition-colors">Features</a>
-            <a href="#pricing" className="text-white/60 hover:text-white text-sm hidden sm:block transition-colors">Pricing</a>
-            {user ? (
-              <Button size="sm" className="bg-violet-600 hover:bg-violet-700" asChild>
-                <Link href="/studio">Open Studio</Link>
-              </Button>
-            ) : (
-              <Button size="sm" className="bg-violet-600 hover:bg-violet-700" onClick={() => { window.location.href = "/login"; }}>
+          <div className="flex items-center gap-8">
+            <Link href="/">
+              <span className="text-xl font-bold tracking-tight cursor-pointer">
+                <span className="text-white">Teachific</span>
+                <span className="text-violet-400"> Studio</span>
+                <sup className="text-[10px] text-violet-400 ml-0.5">™</sup>
+              </span>
+            </Link>
+            <div className="hidden md:flex items-center gap-6 text-sm text-white/70">
+              <a href="#features" className="hover:text-white transition-colors">Features</a>
+              <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+              <a href="#testimonials" className="hover:text-white transition-colors">Reviews</a>
+              <Link href="/studio" className="hover:text-white transition-colors">Dashboard</Link>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/login">
+              <Button variant="ghost" size="sm" className="text-white/70 hover:text-white">
                 Sign In
               </Button>
-            )}
+            </Link>
+            <Link href="/register">
+              <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white font-semibold">
+                Start Free Trial
+              </Button>
+            </Link>
           </div>
         </div>
       </nav>
 
-      {/* ── Hero ── */}
-      <section className="relative py-28 px-6 text-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-900/30 via-transparent to-indigo-900/20 pointer-events-none" />
-        <div className="absolute top-20 left-1/4 w-72 h-72 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative max-w-4xl mx-auto">
+      {/* ── Hero ────────────────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden pt-24 pb-32 px-6">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-violet-600/20 rounded-full blur-[120px]" />
+        </div>
+
+        <div className="relative max-w-4xl mx-auto text-center">
           <Badge className="mb-6 bg-violet-500/20 text-violet-300 border-violet-500/30 text-sm px-4 py-1">
             <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-            Now with AI Content Assistant
+            Record. Transcribe. Edit. Publish.
           </Badge>
-          <h1 className="text-5xl sm:text-7xl font-black mb-6 leading-tight">
-            Build Better Courses,{" "}
+
+          <h1 className="text-5xl md:text-7xl font-extrabold leading-tight tracking-tight mb-6">
+            Training Videos{" "}
             <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
-              Faster
+              Made Simple
             </span>
           </h1>
-          <p className="text-xl text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Teachific Studio is a powerful standalone course authoring tool. Create, host, and export
-            professional eLearning content — no LMS required.
+
+          <p className="text-xl text-white/70 max-w-2xl mx-auto mb-10 leading-relaxed">
+            Teachific Studio™ is a professional screen and camera recording tool with AI transcription,
+            transcript-based editing, auto-highlight clips, and one-click publish to your Teachific LMS™.
           </p>
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              size="lg"
-              className="bg-violet-600 hover:bg-violet-700 text-white font-semibold px-8 h-12"
-              onClick={() => handleCTA("free")}
-            >
-              Start Free <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
+            <Link href="/register">
+              <Button size="lg" className="bg-violet-600 hover:bg-violet-700 text-white font-bold px-8 h-14 text-base">
+                Start Free Trial
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </Link>
             <Button
               size="lg"
               variant="outline"
-              className="border-white/20 text-white hover:bg-white/10 h-12 px-8"
-              onClick={() => { document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" }); }}
+              className="border-white/20 text-white hover:bg-white/10 h-14 text-base px-8"
+              onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
             >
-              <Play className="mr-2 w-4 h-4" /> See Pricing
+              <Play className="mr-2 w-5 h-5 fill-current" />
+              See Features
             </Button>
           </div>
-          <p className="mt-4 text-sm text-white/40">No credit card required • Free forever plan available</p>
-        </div>
-      </section>
 
-      {/* ── Features ── */}
-      <section id="features" className="py-24 px-6 bg-white/[0.02]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-black mb-4">Everything You Need to Create</h2>
-            <p className="text-white/50 text-lg max-w-xl mx-auto">
-              Professional course authoring tools without the complexity.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-violet-500/40 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center mb-4">
-                  <f.icon className="w-5 h-5 text-violet-400" />
-                </div>
-                <h3 className="font-bold text-lg mb-2">{f.title}</h3>
-                <p className="text-white/50 text-sm leading-relaxed">{f.desc}</p>
+          <p className="mt-5 text-sm text-white/40">
+            14-day free trial · No credit card required · Cancel anytime
+          </p>
+        </div>
+
+        {/* Mock recorder preview */}
+        <div className="relative max-w-5xl mx-auto mt-16">
+          <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-violet-600/10 bg-[#111827]">
+            <div className="h-10 bg-[#0d1424] border-b border-white/10 flex items-center px-4 gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500/60" />
+              <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
+              <div className="w-3 h-3 rounded-full bg-green-500/60" />
+              <div className="ml-4 flex-1 h-5 bg-white/5 rounded text-xs text-white/30 flex items-center px-3">
+                Teachific Studio™ — Module 3: Product Demo Recording
               </div>
-            ))}
+            </div>
+            <div className="flex h-[380px]">
+              {/* Transcript panel */}
+              <div className="w-64 bg-[#0d1424] border-r border-white/10 p-4 flex flex-col gap-2 overflow-hidden">
+                <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">Transcript</p>
+                {[
+                  { time: "0:00", text: "Welcome to the product demo...", selected: false },
+                  { time: "0:12", text: "Today we'll cover the main features", selected: true },
+                  { time: "0:28", text: "Starting with the dashboard overview", selected: false },
+                  { time: "0:45", text: "Notice the new analytics panel", selected: false },
+                  { time: "1:02", text: "You can filter by date range here", selected: false },
+                ].map((seg) => (
+                  <div
+                    key={seg.time}
+                    className={`rounded-lg p-2 text-xs border cursor-pointer ${
+                      seg.selected
+                        ? "border-violet-500 bg-violet-500/20 text-violet-200"
+                        : "border-white/5 bg-white/5 text-white/50 hover:bg-white/10"
+                    }`}
+                  >
+                    <span className="text-[10px] text-white/30 block mb-0.5">{seg.time}</span>
+                    {seg.text}
+                  </div>
+                ))}
+              </div>
+              {/* Video canvas */}
+              <div className="flex-1 bg-[#1a2236] flex items-center justify-center relative">
+                <div className="w-[480px] h-[270px] bg-gradient-to-br from-[#1a0d3a] to-[#0a1628] rounded-xl border border-white/10 shadow-xl flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-violet-600/30 flex items-center justify-center">
+                      <Play className="w-8 h-8 text-violet-400 fill-current ml-1" />
+                    </div>
+                  </div>
+                  {/* Camera bubble */}
+                  <div className="absolute bottom-3 right-3 w-16 h-16 rounded-full border-2 border-violet-500/60 bg-[#0d1424] flex items-center justify-center">
+                    <Camera className="w-6 h-6 text-violet-400" />
+                  </div>
+                  {/* Caption overlay */}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 px-3 py-1 rounded text-xs text-white whitespace-nowrap">
+                    Today we'll cover the main features
+                  </div>
+                </div>
+              </div>
+              {/* Timeline */}
+              <div className="w-48 bg-[#0d1424] border-l border-white/10 p-4 flex flex-col gap-3">
+                <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Highlight Clips</p>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <div key={n} className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-[10px] text-violet-400 font-bold">
+                      {n}
+                    </div>
+                    <div className="flex-1">
+                      <div className="h-2 bg-white/10 rounded-full mb-1" />
+                      <div className="h-1.5 bg-white/5 rounded-full w-3/4" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── Social Proof ── */}
-      <section className="py-16 px-6 border-y border-white/10">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-10 text-center">
+      {/* ── Stats ───────────────────────────────────────────────────────────── */}
+      <section className="border-y border-white/10 bg-white/5 py-10 px-6">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
-            { stat: "10,000+", label: "Courses Created" },
-            { stat: "500K+", label: "Learners Reached" },
-            { stat: "4.9/5", label: "Average Rating" },
-            { stat: "99.9%", label: "Uptime SLA" },
-          ].map((item) => (
-            <div key={item.label}>
-              <div className="text-3xl font-black text-violet-400">{item.stat}</div>
-              <div className="text-white/50 text-sm mt-1">{item.label}</div>
+            { value: "AI", label: "Whisper Transcription" },
+            { value: "10", label: "Auto Highlight Clips" },
+            { value: "4K", label: "Max Export Quality" },
+            { value: "14-day", label: "Free Trial" },
+          ].map((s) => (
+            <div key={s.label}>
+              <p className="text-2xl md:text-3xl font-extrabold text-violet-400">{s.value}</p>
+              <p className="text-sm text-white/50 mt-1">{s.label}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── Pricing ── */}
+      {/* ── Features ────────────────────────────────────────────────────────── */}
+      <section id="features" className="py-24 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <Badge className="mb-4 bg-violet-500/20 text-violet-300 border-violet-500/30">
+              Everything You Need
+            </Badge>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
+              Built for Training Video Creators
+            </h2>
+            <p className="text-lg text-white/60 max-w-2xl mx-auto">
+              Record, transcribe, edit, and publish — all in one place, without leaving your browser.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {FEATURES.map((f) => (
+              <Card key={f.title} className="bg-white/5 border-white/10 hover:border-violet-500/40 transition-colors">
+                <CardContent className="p-6">
+                  <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center mb-4">
+                    <f.icon className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <h3 className="font-bold text-white mb-2">{f.title}</h3>
+                  <p className="text-sm text-white/60 leading-relaxed">{f.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Comparison ──────────────────────────────────────────────────────── */}
+      <section className="py-16 px-6 bg-white/5 border-y border-white/10">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-extrabold text-center mb-10">
+            Teachific Studio™ vs. Other Recording Tools
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="text-left py-3 px-4 text-white/60 font-medium">Feature</th>
+                  <th className="py-3 px-4 text-violet-400 font-bold">Teachific Studio™</th>
+                  <th className="py-3 px-4 text-white/40 font-medium">Loom</th>
+                  <th className="py-3 px-4 text-white/40 font-medium">Camtasia</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["Screen + camera recording", true, true, true],
+                  ["AI transcription", true, true, false],
+                  ["Transcript-based editing", true, true, false],
+                  ["Auto-generate highlight clips", true, false, false],
+                  ["Direct LMS publish", true, false, false],
+                  ["Closed caption style editor", true, false, true],
+                  ["Starting price/mo", "$47", "$12.50", "$33"],
+                ].map(([feature, ts, loom, cam], i) => (
+                  <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                    <td className="py-3 px-4 text-white/70">{feature}</td>
+                    {[ts, loom, cam].map((val, j) => (
+                      <td key={j} className="py-3 px-4 text-center">
+                        {typeof val === "boolean" ? (
+                          val ? (
+                            <CheckCircle2 className="w-5 h-5 text-violet-400 mx-auto" />
+                          ) : (
+                            <span className="text-white/20">—</span>
+                          )
+                        ) : (
+                          <span className={j === 0 ? "text-violet-400 font-bold" : "text-white/40"}>
+                            {val}
+                          </span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Pricing ─────────────────────────────────────────────────────────── */}
       <section id="pricing" className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-black mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-white/50 text-lg mb-8">Start free, upgrade when you're ready.</p>
-            {/* Interval toggle */}
-            <div className="inline-flex items-center bg-white/10 rounded-full p-1 gap-1">
+            <Badge className="mb-4 bg-violet-500/20 text-violet-300 border-violet-500/30">
+              Simple Pricing
+            </Badge>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
+              Simple, Transparent Pricing
+            </h2>
+            <p className="text-lg text-white/60 mb-8">
+              One plan. All features. 14-day free trial. No credit card required.
+            </p>
+            {/* Billing toggle */}
+            <div className="inline-flex items-center gap-3 bg-white/10 rounded-full p-1">
               <button
-                onClick={() => setInterval("monthly")}
-                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                  interval === "monthly" ? "bg-violet-600 text-white shadow" : "text-white/60 hover:text-white"
+                onClick={() => setBilling("monthly")}
+                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                  billing === "monthly" ? "bg-violet-600 text-white" : "text-white/60 hover:text-white"
                 }`}
               >
                 Monthly
               </button>
               <button
-                onClick={() => setInterval("annual")}
-                className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                  interval === "annual" ? "bg-violet-600 text-white shadow" : "text-white/60 hover:text-white"
+                onClick={() => setBilling("annual")}
+                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                  billing === "annual" ? "bg-violet-600 text-white" : "text-white/60 hover:text-white"
                 }`}
               >
-                Annual <span className="ml-1 text-xs text-green-400 font-semibold">Save ~20%</span>
+                Annual
+                <span className="ml-1.5 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full">
+                  Save 29%
+                </span>
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             {PLANS.map((plan) => (
               <div
-                key={plan.tier}
-                className={`relative rounded-2xl p-6 flex flex-col border transition-all ${
+                key={plan.id}
+                className={`relative rounded-2xl border p-6 flex flex-col ${
                   plan.highlight
-                    ? "bg-violet-600/20 border-violet-500 shadow-lg shadow-violet-500/20"
-                    : "bg-white/5 border-white/10 hover:border-white/20"
+                    ? "border-violet-500 bg-gradient-to-b from-violet-600/20 to-violet-600/5 shadow-xl shadow-violet-500/20"
+                    : "border-white/10 bg-white/5"
                 }`}
               >
                 {plan.badge && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-violet-500 text-white border-0 text-xs px-3 py-0.5">
-                      <Star className="w-3 h-3 mr-1" />
+                    <Badge className="bg-violet-600 text-white border-0 text-xs px-3 py-1">
                       {plan.badge}
                     </Badge>
                   </div>
                 )}
                 <div className="mb-4">
-                  <h3 className="font-bold text-lg">{plan.name}</h3>
-                  <p className="text-white/50 text-sm">{plan.description}</p>
+                  <h3 className="text-lg font-bold text-white">{plan.name}</h3>
+                  <p className="text-sm text-white/50 mt-1">{plan.description}</p>
                 </div>
                 <div className="mb-6">
-                  {plan.monthlyPrice === 0 ? (
-                    <span className="text-4xl font-black">Free</span>
-                  ) : (
+                  {plan.monthlyPrice !== null ? (
                     <>
-                      <span className="text-4xl font-black">
-                        ${interval === "monthly" ? plan.monthlyPrice : Math.round(plan.annualPrice / 12)}
+                      <span className="text-4xl font-extrabold text-white">
+                        ${billing === "monthly" ? plan.monthlyPrice : Math.round((plan.annualPrice ?? 0) / 12)}
                       </span>
-                      <span className="text-white/40 text-sm ml-1">/mo</span>
-                      {interval === "annual" && (
-                        <div className="text-xs text-green-400 mt-1">
-                          Billed ${plan.annualPrice}/yr
-                        </div>
+                      <span className="text-white/50 text-sm ml-1">/mo</span>
+                      {billing === "annual" && (
+                        <p className="text-xs text-green-400 mt-1">
+                          ${plan.annualPrice}/yr billed annually — save ${(plan.monthlyPrice! * 12) - (plan.annualPrice ?? 0)}
+                        </p>
                       )}
                     </>
+                  ) : (
+                    <span className="text-2xl font-extrabold text-white">Custom</span>
                   )}
                 </div>
                 <ul className="space-y-2.5 mb-8 flex-1">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm text-white/70">
-                      <Check className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-violet-400 mt-0.5 shrink-0" />
                       {f}
                     </li>
                   ))}
                 </ul>
-                <Button
-                  onClick={() => handleCTA(plan.tier)}
-                  disabled={loadingTier === plan.tier}
-                  className={`w-full font-semibold ${
-                    plan.highlight
-                      ? "bg-violet-600 hover:bg-violet-700 text-white"
-                      : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
-                  }`}
-                >
-                  {loadingTier === plan.tier ? "Loading…" : plan.cta}
-                </Button>
+                <Link href={plan.id === "enterprise" ? "mailto:sales@teachific.app" : "/register"}>
+                  <Button
+                    className={`w-full font-semibold ${
+                      plan.highlight
+                        ? "bg-violet-600 hover:bg-violet-700 text-white"
+                        : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                    }`}
+                  >
+                    {plan.cta}
+                    <ChevronRight className="ml-1 w-4 h-4" />
+                  </Button>
+                </Link>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── CTA Banner ── */}
-      <section className="py-20 px-6 bg-gradient-to-r from-violet-900/40 to-indigo-900/40 border-t border-white/10">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl font-black mb-4">Ready to Create?</h2>
-          <p className="text-white/60 text-lg mb-8">
-            Join thousands of creators building world-class eLearning content with Teachific Studio.
-          </p>
-          <Button
-            size="lg"
-            className="bg-violet-600 hover:bg-violet-700 text-white font-semibold px-10 h-12"
-            onClick={() => handleCTA("free")}
-          >
-            Get Started Free <ArrowRight className="ml-2 w-4 h-4" />
-          </Button>
+      {/* ── Testimonials ────────────────────────────────────────────────────── */}
+      <section id="testimonials" className="py-20 px-6 bg-white/5 border-y border-white/10">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl font-extrabold text-center mb-12">
+            Loved by Training Video Creators
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {TESTIMONIALS.map((t) => (
+              <Card key={t.name} className="bg-white/5 border-white/10">
+                <CardContent className="p-6">
+                  <div className="flex gap-0.5 mb-4">
+                    {Array.from({ length: t.stars }).map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                  <p className="text-sm text-white/70 leading-relaxed mb-4">"{t.quote}"</p>
+                  <div>
+                    <p className="font-semibold text-white text-sm">{t.name}</p>
+                    <p className="text-xs text-white/40">
+                      {t.role} · {t.company}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="py-8 px-6 border-t border-white/10 text-center text-white/30 text-sm">
-        <p>© {new Date().getFullYear()} Teachific. All rights reserved.</p>
-        <div className="flex justify-center gap-6 mt-3">
-          <Link href="/lms" className="hover:text-white/60 transition-colors">Teachific LMS</Link>
-          <Link href="/quiz-creator-pro" className="hover:text-white/60 transition-colors">QuizCreator</Link>
-          <a href="mailto:support@teachific.com" className="hover:text-white/60 transition-colors">Support</a>
+      {/* ── CTA ─────────────────────────────────────────────────────────────── */}
+      <section className="py-24 px-6">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="relative rounded-3xl border border-violet-500/30 bg-gradient-to-b from-violet-600/15 to-transparent p-12">
+            <div className="absolute inset-0 rounded-3xl bg-violet-600/5 blur-xl" />
+            <div className="relative">
+              <Video className="w-12 h-12 text-violet-400 mx-auto mb-6" />
+              <h2 className="text-4xl font-extrabold mb-4">
+                Start Recording Today
+              </h2>
+              <p className="text-lg text-white/60 mb-8">
+                Join thousands of trainers and instructional designers who use Teachific Studio™ to create
+                professional training videos — without the complexity.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/register">
+                  <Button size="lg" className="bg-violet-600 hover:bg-violet-700 text-white font-bold px-10 h-14 text-base">
+                    Start Your Free Trial
+                    <ArrowRight className="ml-2 w-5 h-5" />
+                  </Button>
+                </Link>
+                <Link href="/">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-white/20 text-white hover:bg-white/10 h-14 text-base px-8"
+                  >
+                    <Users className="mr-2 w-5 h-5" />
+                    View Teachific LMS™
+                  </Button>
+                </Link>
+              </div>
+              <p className="mt-4 text-sm text-white/40">
+                Already have an account?{" "}
+                <Link href="/studio" className="text-violet-400 hover:underline">
+                  Open Studio
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ──────────────────────────────────────────────────────────── */}
+      <footer className="border-t border-white/10 py-10 px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-white">
+              Teachific<span className="text-violet-400"> Studio</span>
+              <sup className="text-[10px] text-violet-400">™</sup>
+            </span>
+            <span className="text-white/30 text-sm">by Teachific™</span>
+          </div>
+          <div className="flex items-center gap-6 text-sm text-white/40">
+            <Link href="/" className="hover:text-white transition-colors">Teachific Home</Link>
+            <Link href="/creator-pro" className="hover:text-white transition-colors">TeachificCreator™</Link>
+            <Link href="/quiz-creator-pro" className="hover:text-white transition-colors">QuizCreator™</Link>
+            <a href="#" className="hover:text-white transition-colors">Privacy</a>
+            <a href="#" className="hover:text-white transition-colors">Terms</a>
+          </div>
+          <p className="text-sm text-white/30">
+            © {new Date().getFullYear()} Teachific™. All rights reserved.
+          </p>
         </div>
       </footer>
     </div>

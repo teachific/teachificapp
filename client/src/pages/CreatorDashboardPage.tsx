@@ -37,6 +37,10 @@ import {
   Sparkles,
   LayoutTemplate,
   Play,
+  Zap,
+  Crown,
+  Check,
+  Timer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -60,6 +64,9 @@ export default function CreatorDashboardPage() {
   const [newTitle, setNewTitle] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("blank");
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeTier, setUpgradeTier] = useState<"starter" | "pro" | "team">("pro");
+  const [upgradeInterval, setUpgradeInterval] = useState<"monthly" | "annual">("monthly");
 
   const utils = trpc.useUtils();
 
@@ -105,14 +112,61 @@ export default function CreatorDashboardPage() {
 
   const showWatermarkBanner = roleData && !roleData.isPaid;
 
+  // Trial countdown
+  const trialDaysLeft = roleData?.trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(roleData.trialEndsAt).getTime() - Date.now()) / 86400000))
+    : null;
+  const isInTrial = roleData?.isInTrial ?? false;
+
+  const createCreatorCheckout = trpc.billing.createCreatorCheckout.useMutation({
+    onSuccess: (data) => {
+      if (data.checkoutUrl) window.open(data.checkoutUrl, "_blank");
+      toast.success("Redirecting to checkout...");
+      setShowUpgradeModal(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const CREATOR_PLANS = [
+    {
+      tier: "starter" as const,
+      name: "Starter",
+      monthlyPrice: 29,
+      annualPrice: 279,
+      features: ["Unlimited projects", "SCORM 1.2 & 2004 export", "HTML5 export", "Basic templates", "Email support"],
+    },
+    {
+      tier: "pro" as const,
+      name: "Pro",
+      monthlyPrice: 59,
+      annualPrice: 569,
+      features: ["Everything in Starter", "AI course generation", "Branching scenarios", "Custom branding", "Priority support"],
+      popular: true,
+    },
+    {
+      tier: "team" as const,
+      name: "Team",
+      monthlyPrice: 149,
+      annualPrice: 1439,
+      features: ["Everything in Pro", "5 team members", "Shared asset library", "Team analytics", "Dedicated support"],
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-white">
       {showWatermarkBanner && (
         <div className="bg-[#189aa1] text-white text-sm font-medium flex items-center justify-center gap-3 px-4 py-2">
+          {isInTrial && trialDaysLeft !== null && (
+            <span className="flex items-center gap-1.5">
+              <Timer className="w-3.5 h-3.5" />
+              <strong>{trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} left in trial</strong>
+            </span>
+          )}
           <span>Your exports include a <strong>Created with Teachific™</strong> watermark on the free/trial plan.</span>
-          <Link href="/creator-pro">
-            <span className="underline underline-offset-2 cursor-pointer hover:text-[#4ad9e0] transition-colors">Upgrade to remove →</span>
-          </Link>
+          <button
+            onClick={() => setShowUpgradeModal(true)}
+            className="underline underline-offset-2 cursor-pointer hover:text-[#4ad9e0] transition-colors"
+          >Upgrade to remove →</button>
         </div>
       )}
       {/* ── Top nav ──────────────────────────────────────────────────────────── */}
@@ -131,6 +185,23 @@ export default function CreatorDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {isInTrial && trialDaysLeft !== null && (
+              <div className="hidden md:flex items-center gap-1.5 text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full px-3 py-1">
+                <Timer className="w-3 h-3" />
+                <span>{trialDaysLeft}d trial left</span>
+              </div>
+            )}
+            {showWatermarkBanner && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:flex text-xs border-[#189aa1]/50 text-[#4ad9e0] hover:bg-[#189aa1]/10"
+                onClick={() => setShowUpgradeModal(true)}
+              >
+                <Crown className="w-3 h-3 mr-1.5" />
+                Upgrade
+              </Button>
+            )}
             <Link href="/lms">
               <Button variant="ghost" size="sm" className="text-white/60 hover:text-white text-xs">
                 Back to LMS
@@ -286,6 +357,102 @@ export default function CreatorDashboardPage() {
               className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold"
             >
               {createProject.isPending ? "Creating..." : "Create Project"}
+              <ChevronRight className="ml-1 w-4 h-4" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Upgrade Modal ─────────────────────────────────────────────────────── */}
+      <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
+        <DialogContent className="bg-[#0d1627] border-white/10 text-white max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Crown className="w-6 h-6 text-[#4ad9e0]" />
+              Upgrade TeachificCreator™
+            </DialogTitle>
+            <p className="text-white/50 text-sm mt-1">Remove watermarks, unlock AI tools, and export without limits.</p>
+          </DialogHeader>
+
+          {/* Billing toggle */}
+          <div className="flex items-center justify-center gap-3 py-2">
+            <button
+              onClick={() => setUpgradeInterval("monthly")}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                upgradeInterval === "monthly"
+                  ? "bg-[#189aa1] text-white"
+                  : "text-white/50 hover:text-white"
+              }`}
+            >Monthly</button>
+            <button
+              onClick={() => setUpgradeInterval("annual")}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                upgradeInterval === "annual"
+                  ? "bg-[#189aa1] text-white"
+                  : "text-white/50 hover:text-white"
+              }`}
+            >
+              Annual
+              <span className="ml-1.5 text-[10px] bg-amber-500/20 text-amber-300 rounded px-1 py-0.5">Save 20%</span>
+            </button>
+          </div>
+
+          {/* Plan cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-2">
+            {CREATOR_PLANS.map((plan) => (
+              <button
+                key={plan.tier}
+                onClick={() => setUpgradeTier(plan.tier)}
+                className={`relative rounded-xl border p-4 text-left transition-all ${
+                  upgradeTier === plan.tier
+                    ? "border-[#189aa1] bg-[#189aa1]/10"
+                    : "border-white/10 bg-white/5 hover:border-white/20"
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-[#189aa1] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                    MOST POPULAR
+                  </div>
+                )}
+                <p className="font-bold text-white text-lg">{plan.name}</p>
+                <p className="text-2xl font-extrabold text-[#4ad9e0] mt-1">
+                  ${upgradeInterval === "monthly" ? plan.monthlyPrice : Math.round(plan.annualPrice / 12)}
+                  <span className="text-sm font-normal text-white/40">/mo</span>
+                </p>
+                {upgradeInterval === "annual" && (
+                  <p className="text-xs text-white/40 mt-0.5">${plan.annualPrice}/yr billed annually</p>
+                )}
+                <ul className="mt-3 space-y-1.5">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-1.5 text-xs text-white/70">
+                      <Check className="w-3 h-3 text-[#4ad9e0] mt-0.5 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </button>
+            ))}
+          </div>
+
+          <div className="bg-white/5 rounded-lg p-3 text-xs text-white/50 flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>14-day free trial included. Cancel anytime. Test card: 4242 4242 4242 4242.</span>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowUpgradeModal(false)} className="text-white/60 hover:text-white">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createCreatorCheckout.mutate({
+                tier: upgradeTier,
+                interval: upgradeInterval,
+                origin: window.location.origin,
+              })}
+              disabled={createCreatorCheckout.isPending}
+              className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold"
+            >
+              {createCreatorCheckout.isPending ? "Redirecting..." : `Start ${CREATOR_PLANS.find(p => p.tier === upgradeTier)?.name} Plan`}
               <ChevronRight className="ml-1 w-4 h-4" />
             </Button>
           </DialogFooter>

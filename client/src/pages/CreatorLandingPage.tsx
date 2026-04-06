@@ -27,69 +27,52 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-// ─── Pricing tiers ────────────────────────────────────────────────────────────
+// ─── Pricing ──────────────────────────────────────────────────────────────────
+const PLAN_FEATURES = [
+  "Unlimited projects",
+  "Slide editor with 50+ layouts",
+  "Quiz & assessment builder (7 question types)",
+  "SCORM 1.2 & SCORM 2004 export",
+  "HTML5 standalone export",
+  "Branching scenarios & dialogue trees",
+  "Advanced interactions (hotspot, timeline, drag-drop, flip cards)",
+  "Video & audio narration recording",
+  "Publish directly to Teachific LMS™",
+  "AI slide content & quiz generator",
+  "Content Library (characters, backgrounds, icons, objects)",
+  "Role-Play scenario builder",
+  "PowerPoint import & export",
+  "Custom themes & brand kit",
+  "50 GB media storage",
+  "Priority email & chat support",
+];
+
+const PLAN = {
+  monthlyPrice: 117,
+  annualPrice: 999,
+  annualMonthly: 83, // 999/12 rounded
+  description: "Everything you need to build world-class eLearning — one simple plan.",
+  cta: "Start Free Trial",
+  // kept for legacy shape compatibility
+  id: "pro",
+  name: "TeachificCreator™",
+  badge: null,
+  highlight: true,
+  features: PLAN_FEATURES,
+};
+
+// Legacy TIERS kept as single-element array so the grid renders the one card
 const TIERS = [
   {
-    id: "starter",
-    name: "Starter",
-    badge: null,
-    monthlyPrice: 29,
-    annualPrice: 279,
-    description: "Perfect for solo course creators and freelancers.",
-    features: [
-      "Up to 10 active projects",
-      "Slide editor with 20+ layouts",
-      "Quiz & assessment builder",
-      "SCORM 1.2 export",
-      "HTML5 standalone export",
-      "Basic interactions (tabs, accordion)",
-      "1 GB media storage",
-      "Email support",
-    ],
-    cta: "Start Free Trial",
-    highlight: false,
-  },
-  {
     id: "pro",
-    name: "Pro",
-    badge: "Most Popular",
-    monthlyPrice: 59,
-    annualPrice: 569,
-    description: "For professional instructional designers and small teams.",
-    features: [
-      "Unlimited projects",
-      "All Starter features",
-      "SCORM 2004 export",
-      "Branching scenarios & dialogue trees",
-      "Advanced interactions (hotspot, timeline, drag-drop)",
-      "Video & audio narration recording",
-      "Publish directly to Teachific LMS",
-      "AI slide content generator",
-      "10 GB media storage",
-      "Priority support",
-    ],
+    name: "TeachificCreator™",
+    badge: null,
+    monthlyPrice: 117,
+    annualPrice: 999,
+    description: "Everything you need to build world-class eLearning — one simple plan.",
+    features: PLAN_FEATURES,
     cta: "Start Free Trial",
     highlight: true,
-  },
-  {
-    id: "team",
-    name: "Team",
-    badge: null,
-    monthlyPrice: 149,
-    annualPrice: 1439,
-    description: "For L&D teams that need collaboration and brand control.",
-    features: [
-      "Everything in Pro",
-      "Up to 10 team seats",
-      "Shared asset library",
-      "Brand kit (colors, fonts, logos)",
-      "Co-editing & comments",
-      "Custom player themes",
-      "50 GB media storage",
-      "Dedicated success manager",
-    ],
-    cta: "Start Free Trial",
-    highlight: false,
   },
   {
     id: "enterprise",
@@ -99,7 +82,7 @@ const TIERS = [
     annualPrice: null,
     description: "For large organizations with custom requirements.",
     features: [
-      "Everything in Team",
+      "Everything in TeachificCreator™",
       "Unlimited seats",
       "SSO / SAML integration",
       "On-premise deployment option",
@@ -198,7 +181,7 @@ const TESTIMONIALS = [
     role: "Freelance eLearning Developer",
     company: "Self-employed",
     quote:
-      "As a solo creator, the Starter plan gives me everything I need. The quiz builder alone is worth the subscription price.",
+      "As a solo creator, TeachificCreator™ gives me everything I need. The quiz builder alone is worth the subscription price.",
     stars: 5,
   },
 ];
@@ -420,7 +403,7 @@ export default function CreatorLandingPage() {
                   ["Direct LMS publish", true, false, false],
                   ["AI content generation", true, false, false],
                   ["Team collaboration", true, false, true],
-                  ["Starting price/mo", "$29", "$770/yr", "$1,299/yr"],
+                  ["Starting price/mo", "$117", "$770/yr", "$1,299/yr"],
                 ].map(([feature, tc, ispring, art], i) => (
                   <tr key={i} className="border-b border-white/5 hover:bg-white/5">
                     <td className="py-3 px-4 text-white/70">{feature}</td>
@@ -455,10 +438,10 @@ export default function CreatorLandingPage() {
               Simple Pricing
             </Badge>
             <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-              Choose Your Plan
+              Simple, Transparent Pricing
             </h2>
             <p className="text-lg text-white/60 mb-8">
-              All plans include a 14-day free trial. No credit card required.
+              One plan. All features. 14-day free trial. No credit card required.
             </p>
             {/* Billing toggle */}
             <div className="inline-flex items-center gap-3 bg-white/10 rounded-full p-1">
@@ -484,7 +467,7 @@ export default function CreatorLandingPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             {TIERS.map((tier) => (
               <div
                 key={tier.id}
@@ -514,7 +497,7 @@ export default function CreatorLandingPage() {
                       <span className="text-white/50 text-sm ml-1">/mo</span>
                       {billing === "annual" && (
                         <p className="text-xs text-green-400 mt-1">
-                          ${tier.annualPrice}/yr billed annually
+                          ${tier.annualPrice}/yr billed annually — save ${(tier.monthlyPrice! * 12) - (tier.annualPrice ?? 0)}
                         </p>
                       )}
                     </>

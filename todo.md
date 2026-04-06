@@ -2242,3 +2242,85 @@
 - [ ] Studio: overlay watermark on exported/downloaded video files
 - [ ] Show "Remove watermark — upgrade to paid plan" notice on free/trial dashboards
 - [ ] Watermark must be persistent (cannot be easily removed by end user)
+
+## Full UX Audit & Creator Upgrade Flow (Apr 5, 2026)
+
+- [ ] Full end-to-end user flow test: landing page, auth, nav, all product links
+- [ ] Build TeachificCreator in-app upgrade modal (calls createCreatorCheckout)
+- [ ] Add trial countdown badge to TeachificCreator dashboard
+- [ ] Add trial countdown badge to Teachific Studio dashboard
+- [ ] Add trial countdown badge to Teachific QuizCreator dashboard
+- [ ] Test and verify LMS org 14-day trial checkout flow
+- [ ] Test and verify Studio checkout trial flow
+- [ ] Test and verify TeachificPay Connect onboarding flow
+- [ ] Fix all bugs found during testing
+
+## Full UX Audit & Creator Upgrade Flow (Apr 5, 2026)
+
+- [ ] Full end-to-end user flow test: landing page, auth, nav, all product links
+- [ ] Build TeachificCreator in-app upgrade modal (calls createCreatorCheckout)
+- [ ] Add trial countdown badge to TeachificCreator dashboard
+- [ ] Add trial countdown badge to Teachific Studio dashboard
+- [ ] Add trial countdown badge to Teachific QuizCreator dashboard
+- [ ] Test and verify LMS org 14-day trial checkout flow
+- [ ] Test and verify Studio checkout trial flow
+- [ ] Test and verify TeachificPay Connect onboarding flow
+- [ ] Fix all bugs found during testing
+
+## Confirmed Product Architecture (Apr 5 2026)
+
+### Desktop App Decisions
+- [ ] Build TeachificCreator™ as Electron standalone desktop app (Windows + Mac) at $117/mo
+- [ ] TeachificCreator™ includes: slide authoring, PPTX import/export, SCORM export, QuizMaker built-in, Studio video tools built-in, Content Library (characters/backgrounds/objects/icons), AI image gen, role-play builder, interactions
+- [ ] Build Teachific QuizCreator™ as Electron standalone desktop app (Windows + Mac) at $47/mo
+- [ ] QuizCreator features: Form View + Slide View, question groups, shuffle, True/False/MC/Image/Hotspot/Matching/Sequence/Fill-in-blank, intro slide, user info form, quiz properties (title/size/time limit/scoring), player customization (features/navigation/color scheme/text/font/corner radius), import questions (Excel/CSV), translation, preview, publish (SCORM/HTML5/.quiz)
+- [ ] Build Teachific Studio™ as Electron standalone desktop app (Windows + Mac) at $47/mo
+- [ ] Studio features: screen/camera/both recording, transcription generation, transcription-based editing (delete words = cut video, like Loom), AI-generated 10 highlight clips from full video, export as MP4, video timeline editor
+- [ ] All three desktop apps use login-based activation (email/password through Teachific)
+- [ ] All three desktop apps have 14-day free trial
+- [ ] All three desktop apps show watermark on exports for free/trial users
+
+### LMS Studio Lite Gating
+- [ ] Update LMS plan gating: Teachific Studio™ Lite (record only) available from Builder plan and above
+- [ ] Studio Lite = record only (camera, screen, or both) — no editing
+- [ ] Add upgrade prompts to TeachificStudio desktop app from Studio Lite in LMS
+
+### Web Dashboards (retained)
+- [ ] Update /creator dashboard to be download hub for TeachificCreator™ desktop app
+- [ ] Update /studio dashboard to be download hub for Teachific Studio™ desktop app
+- [ ] Update /quiz-creator-app dashboard to be download hub for QuizCreator™ desktop app
+- [ ] Each dashboard has product-specific media library
+- [ ] Users can choose to save to product media library OR LMS media library
+
+### Pricing Updates
+- [x] Update TeachificCreator™ sales page: $117/mo
+- [x] Update Teachific Studio™ sales page: $47/mo
+- [x] Update Teachific QuizCreator™ sales page: $47/mo
+- [ ] Remove placeholder pricing tiers (Starter/Pro/Team) from Creator upgrade modal
+- [x] Add annual billing option (2 months free) to all three products
+
+
+## Confirmed Product Architecture (Apr 5 2026)
+
+### Desktop Apps
+- [ ] TeachificCreator desktop app (Electron, Win+Mac) $117/mo - slide authoring, PPTX import/export, SCORM export, QuizMaker built-in, Studio video tools built-in, Content Library, AI image gen, role-play, interactions
+- [ ] Teachific QuizCreator desktop app (Electron, Win+Mac) $47/mo - Form/Slide View, question groups, shuffle, all question types, quiz properties, player customization, import questions, translation, SCORM/HTML5 publish
+- [ ] Teachific Studio desktop app (Electron, Win+Mac) $47/mo - screen/camera recording, transcription, transcription-based editing (Loom-style), 10 AI highlight clips, MP4 export, timeline editor
+- [ ] All desktop apps: login-based activation, 14-day trial, watermark on free/trial exports
+
+### LMS Studio Lite Gating
+- [ ] Studio Lite (record only, no editing) available from Builder plan and above
+- [ ] Add upgrade prompts to Studio desktop app from Studio Lite in LMS
+
+### Web Dashboards as Download Hubs
+- [ ] /creator dashboard = download hub for TeachificCreator desktop + product media library
+- [ ] /studio dashboard = download hub for Studio desktop + product media library
+- [ ] /quiz-creator-app dashboard = download hub for QuizCreator desktop + product media library
+- [ ] Users can save to product media library OR LMS media library
+
+### Pricing Updates
+- [x] Update TeachificCreator sales page to $117/mo (single plan, not tiered)
+- [x] Update Studio sales page to $47/mo (single plan)
+- [x] Update QuizCreator sales page to $47/mo (single plan)
+- [x] Add annual billing option (2 months free) to all three products
+- [ ] Remove Starter/Pro/Team tiers from Creator upgrade modal - single plan only

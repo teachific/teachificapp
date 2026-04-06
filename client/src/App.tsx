@@ -317,7 +317,9 @@ function Router() {
     path.startsWith("/quiz-creator-app") ||
     path.startsWith("/quiz-creator-pro") ||
     path.startsWith("/studio") ||
-    path.startsWith("/studio-pro");
+    path.startsWith("/studio-pro") ||
+    path.startsWith("/creator") ||
+    path.startsWith("/policies");
   return isBare ? <BareRouter /> : <AdminRouter />;
 }
 

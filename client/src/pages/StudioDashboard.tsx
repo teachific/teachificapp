@@ -151,11 +151,21 @@ export default function StudioDashboard() {
 
   // ── Full dashboard ──────────────────────────────────────────────────────
   const showStudioWatermarkBanner = !isPrivileged && studioSub && !studioSub.isPaid;
+  const studioTrialDaysLeft = studioSub?.trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(studioSub.trialEndsAt).getTime() - Date.now()) / 86400000))
+    : null;
+  const studioIsInTrial = studioSub?.isInTrial ?? false;
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-white flex flex-col">
       {showStudioWatermarkBanner && (
         <div className="bg-violet-600 text-white text-sm font-medium flex items-center justify-center gap-3 px-4 py-2 shrink-0">
+          {studioIsInTrial && studioTrialDaysLeft !== null && (
+            <span className="flex items-center gap-1.5">
+              <span className="text-violet-200">⏱</span>
+              <strong>{studioTrialDaysLeft} day{studioTrialDaysLeft !== 1 ? "s" : ""} left in trial</strong>
+            </span>
+          )}
           <span>Your exports include a <strong>Created with Teachific™</strong> watermark on the free/trial plan.</span>
           <Link href="/studio-pro">
             <span className="underline underline-offset-2 cursor-pointer hover:text-violet-200 transition-colors">Upgrade to remove →</span>
@@ -173,11 +183,17 @@ export default function StudioDashboard() {
           </span>
         </div>
 
-        {/* Plan badge */}
-        <div className="px-4 py-3 border-b border-white/10">
+        {/* Plan badge + trial countdown */}
+        <div className="px-4 py-3 border-b border-white/10 space-y-2">
           <Badge className={`text-xs px-2 py-0.5 ${TIER_STYLES[tier]}`}>
             {isPrivileged ? "Owner" : TIER_LABELS[tier]} Plan
           </Badge>
+          {studioIsInTrial && studioTrialDaysLeft !== null && (
+            <div className="flex items-center gap-1.5 text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full px-2 py-0.5 w-fit">
+              <span className="text-[10px]">⏱</span>
+              <span>{studioTrialDaysLeft}d trial left</span>
+            </div>
+          )}
         </div>
 
         {/* Nav */}

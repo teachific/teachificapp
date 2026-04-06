@@ -44,6 +44,9 @@ export default function QuizCreatorDashboard() {
   const qcIsTrialing = qcRole !== "none" && qcTrialEndsAt && new Date(qcTrialEndsAt) > new Date();
   const qcIsPaid = qcRole !== "none" && !qcIsTrialing;
   const showQcWatermarkBanner = qcRole !== "none" && !qcIsPaid;
+  const qcTrialDaysLeft = qcTrialEndsAt
+    ? Math.max(0, Math.ceil((new Date(qcTrialEndsAt).getTime() - Date.now()) / 86400000))
+    : null;
 
   if (qcRole === "none") {
     // No access — redirect to sales page
@@ -88,6 +91,12 @@ export default function QuizCreatorDashboard() {
     <div className="min-h-screen flex flex-col bg-[#0b1d35]">
       {showQcWatermarkBanner && (
         <div className="bg-teal-600 text-white text-sm font-medium flex items-center justify-center gap-3 px-4 py-2">
+          {qcIsTrialing && qcTrialDaysLeft !== null && (
+            <span className="flex items-center gap-1.5">
+              <span>⏱</span>
+              <strong>{qcTrialDaysLeft} day{qcTrialDaysLeft !== 1 ? "s" : ""} left in trial</strong>
+            </span>
+          )}
           <span>Your quiz exports include a <strong>Created with Teachific™</strong> watermark on the free/trial plan.</span>
           <Link href="/quiz-creator-pro">
             <span className="underline underline-offset-2 cursor-pointer hover:text-teal-200 transition-colors">Upgrade to remove →</span>
@@ -110,6 +119,12 @@ export default function QuizCreatorDashboard() {
           >
             {qcRole === "premium" ? "Premium" : "Lite"}
           </Badge>
+          {qcIsTrialing && qcTrialDaysLeft !== null && (
+            <div className="flex items-center gap-1 text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full px-2 py-0.5">
+              <span className="text-[10px]">⏱</span>
+              <span>{qcTrialDaysLeft}d trial</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-4">

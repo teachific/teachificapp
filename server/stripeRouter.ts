@@ -466,6 +466,46 @@ export const stripeRouter = router({
       await db.update(users).set({ studioRole: input.role }).where(eq(users.id, input.userId));
       return { success: true };
     }),
+  // ── TeachificCreator™ checkout ──────────────────────────────────────────────
+  createCreatorCheckout: protectedProcedure
+    .input(z.object({
+      tier: z.enum(["starter", "pro", "team"]),
+      interval: z.enum(["monthly", "annual"]),
+      origin: z.string().url(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const stripe = getStripe();
+      const priceKey = `creator_${input.tier}_${input.interval}`;
+      const priceId = STRIPE_PRICE_IDS[priceKey];
+      if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Creator price not found. Please try again shortly." });
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        customer_email: ctx.user.email ?? undefined,
+        client_reference_id: String(ctx.user.id),
+        metadata: {
+          user_id: String(ctx.user.id),
+          customer_email: ctx.user.email ?? "",
+          customer_name: ctx.user.name ?? "",
+          creator_tier: input.tier,
+          product_type: "creator",
+        },
+        subscription_data: {
+          trial_period_days: 14,
+          metadata: {
+            user_id: String(ctx.user.id),
+            creator_tier: input.tier,
+            product_type: "creator",
+          },
+        },
+        success_url: `${input.origin}/creator?upgraded=1`,
+        cancel_url: `${input.origin}/creator-pro`,
+        allow_promotion_codes: true,
+      });
+      return { checkoutUrl: session.url };
+    }),
+
   // ── Enterprise contact-sales inquiry ─────────────────────────────────────
   contactEnterprise: protectedProcedure
     .input(z.object({
