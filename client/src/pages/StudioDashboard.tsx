@@ -11,8 +11,9 @@ import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import {
   BookOpen, Plus, Video, Brain, FileCode2, BarChart3,
-  Settings, LogOut, Layers, Zap, ArrowRight, Clock,
+  Settings, LogOut, Layers, Zap, ArrowRight, Clock, Download,
 } from "lucide-react";
+import { DownloadPage } from "@/components/DownloadPage";
 
 // ── Tier badge colours ─────────────────────────────────────────────────────
 const TIER_STYLES: Record<string, string> = {
@@ -72,11 +73,13 @@ const NAV_ITEMS = [
   { icon: Brain, label: "Media Library", href: "/media-library" },
   { icon: FileCode2, label: "Quiz Builder", href: "/quizzes/new" },
   { icon: Settings, label: "Settings", href: "/profile" },
+  { icon: Download, label: "Download App", href: "#download" },
 ];
 
 export default function StudioDashboard() {
   const { user, loading: authLoading } = useAuth();
   const [, navigate] = useLocation();
+  const [activePage, setActivePage] = useState<"dashboard" | "download">("dashboard");
 
   const { data: studioSub, isLoading: subLoading } = trpc.billing.getStudioSubscription.useQuery(undefined, {
     enabled: !!user,
@@ -199,14 +202,30 @@ export default function StudioDashboard() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {NAV_ITEMS.map((item) => (
-            <Link key={item.href} href={item.href}>
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer text-sm font-medium">
+          {NAV_ITEMS.map((item) =>
+            item.href === "#download" ? (
+              <button
+                key={item.href}
+                onClick={() => setActivePage("download")}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer text-sm font-medium ${
+                  activePage === "download" ? "text-white bg-white/10" : "text-white/60 hover:text-white hover:bg-white/10"
+                }`}
+              >
                 <item.icon className="w-4 h-4 shrink-0" />
                 {item.label}
-              </div>
-            </Link>
-          ))}
+              </button>
+            ) : (
+              <Link key={item.href} href={item.href}>
+                <div
+                  onClick={() => setActivePage("dashboard")}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer text-sm font-medium"
+                >
+                  <item.icon className="w-4 h-4 shrink-0" />
+                  {item.label}
+                </div>
+              </Link>
+            )
+          )}
         </nav>
 
         {/* User + logout */}
@@ -265,6 +284,8 @@ export default function StudioDashboard() {
         </div>
 
         <div className="p-6 max-w-6xl mx-auto space-y-8">
+          {activePage === "download" && <DownloadPage product="studio" />}
+          {activePage !== "download" && <>
           {/* Quick actions */}
           <section>
             <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-4">Quick Actions</h2>
@@ -400,6 +421,7 @@ export default function StudioDashboard() {
               </CardContent>
             </Card>
           </section>
+          </>}
         </div>
       </main>
       </div>

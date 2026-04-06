@@ -2036,6 +2036,81 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         await updatePlatformSettings(input);
         return { success: true };
       }),
+
+    // ── Desktop App Version Management ──────────────────────────────────────
+    // Public: get latest download URLs for a product
+    getLatestAppVersion: publicProcedure
+      .input(z.object({ product: z.enum(["creator", "studio", "quizcreator"]) }))
+      .query(async ({ input }) => {
+        const db2 = await getDb();
+        if (!db2) return null;
+        const { appVersions } = await import("../drizzle/schema");
+        const { eq, and } = await import("drizzle-orm");
+        const rows = await db2.select().from(appVersions)
+          .where(and(eq(appVersions.product, input.product), eq(appVersions.isLatest, true)))
+          .limit(1);
+        return rows[0] ?? null;
+      }),
+
+    // Public: get all versions for all products
+    getAllAppVersions: publicProcedure.query(async () => {
+      const db2 = await getDb();
+      if (!db2) return [];
+      const { appVersions } = await import("../drizzle/schema");
+      return db2.select().from(appVersions);
+    }),
+
+    // Admin: upsert an app version (create or update)
+    upsertAppVersion: adminProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        product: z.enum(["creator", "studio", "quizcreator"]),
+        version: z.string().min(1),
+        releaseNotes: z.string().optional(),
+        windowsUrl: z.string().optional(),
+        macUrl: z.string().optional(),
+        isLatest: z.boolean().default(false),
+      }))
+      .mutation(async ({ input }) => {
+        const db2 = await getDb();
+        if (!db2) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { appVersions } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        if (input.isLatest) {
+          await db2.update(appVersions).set({ isLatest: false }).where(eq(appVersions.product, input.product));
+        }
+        if (input.id) {
+          await db2.update(appVersions).set({
+            version: input.version,
+            releaseNotes: input.releaseNotes ?? null,
+            windowsUrl: input.windowsUrl || null,
+            macUrl: input.macUrl || null,
+            isLatest: input.isLatest,
+          }).where(eq(appVersions.id, input.id));
+        } else {
+          await db2.insert(appVersions).values({
+            product: input.product,
+            version: input.version,
+            releaseNotes: input.releaseNotes ?? null,
+            windowsUrl: input.windowsUrl || null,
+            macUrl: input.macUrl || null,
+            isLatest: input.isLatest,
+          });
+        }
+        return { success: true };
+      }),
+
+    // Admin: delete an app version
+    deleteAppVersion: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const db2 = await getDb();
+        if (!db2) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { appVersions } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        await db2.delete(appVersions).where(eq(appVersions.id, input.id));
+        return { success: true };
+      }),
   }),
 
   // ─── QuizCreator Product ──────────────────────────────────────────────────────

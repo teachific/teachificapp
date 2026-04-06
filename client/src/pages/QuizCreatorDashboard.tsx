@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import QuizCreatorPage from "./QuizCreatorPage";
 import { ProductSwitcher } from "@/components/ProductSwitcher";
+import { DownloadPage } from "@/components/DownloadPage";
+import { Download } from "lucide-react";
 
 /**
  * QuizCreatorDashboard
@@ -16,6 +18,7 @@ import { ProductSwitcher } from "@/components/ProductSwitcher";
  */
 export default function QuizCreatorDashboard() {
   const { user, loading: authLoading } = useAuth();
+  const [showDownload, setShowDownload] = useState(false);
   const { data: roleData, isLoading: roleLoading } = trpc.quizCreator.getMyRole.useQuery(undefined, {
     enabled: !!user,
   });
@@ -130,6 +133,15 @@ export default function QuizCreatorDashboard() {
 
         <div className="flex items-center gap-4">
           <ProductSwitcher current="quizCreator" variant="topbar" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`text-xs gap-1.5 ${showDownload ? "text-teal-400" : "text-white/60 hover:text-white"}`}
+            onClick={() => setShowDownload(!showDownload)}
+          >
+            <Download className="w-3.5 h-3.5" />
+            Download App
+          </Button>
           <span className="text-white/50 text-sm hidden sm:block">{user?.name ?? user?.email}</span>
           <Button
             variant="outline"
@@ -158,7 +170,7 @@ export default function QuizCreatorDashboard() {
 
       {/* Full quiz creator tool */}
       <div className="flex-1 overflow-hidden">
-        <QuizCreatorPage />
+        {showDownload ? <DownloadPage product="quizcreator" /> : <QuizCreatorPage />}
       </div>
     </div>
   );

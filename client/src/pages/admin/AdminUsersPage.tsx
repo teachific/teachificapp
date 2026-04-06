@@ -316,6 +316,9 @@ export default function AdminUsersPage() {
                 placeholder="Jane Smith"
                 value={addForm.name}
                 onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                autoCorrect="off"
+                autoCapitalize="words"
+                spellCheck={false}
               />
             </div>
             <div className="space-y-1.5">
@@ -412,6 +415,9 @@ export default function AdminUsersPage() {
                     value={editForm.name}
                     onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                     placeholder="Full name"
+                    autoCorrect="off"
+                    autoCapitalize="words"
+                    spellCheck={false}
                   />
                 </div>
                 <div className="space-y-1.5">

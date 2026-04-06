@@ -1941,3 +1941,23 @@ export const authoringSlides = mysqlTable("authoringSlides", {
 });
 export type AuthoringSlide = typeof authoringSlides.$inferSelect;
 export type InsertAuthoringSlide = typeof authoringSlides.$inferInsert;
+
+// ─── Desktop App Versions ────────────────────────────────────────────────────
+// Stores installer download URLs for each product version.
+// Managed by Platform Admin → App Versions tab.
+export const appVersions = mysqlTable("app_versions", {
+  id: bigint("id", { mode: "number" }).primaryKey().autoincrement(),
+  // Product identifier: "creator" | "studio" | "quizcreator"
+  product: mysqlEnum("product", ["creator", "studio", "quizcreator"]).notNull(),
+  version: varchar("version", { length: 32 }).notNull(), // e.g. "1.0.0"
+  releaseNotes: text("releaseNotes"),
+  // Download URLs (S3/CDN links to .exe and .dmg)
+  windowsUrl: varchar("windowsUrl", { length: 1024 }),
+  macUrl: varchar("macUrl", { length: 1024 }),
+  // Whether this is the current latest version for this product
+  isLatest: boolean("isLatest").default(false).notNull(),
+  releasedAt: timestamp("releasedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AppVersion = typeof appVersions.$inferSelect;
+export type InsertAppVersion = typeof appVersions.$inferInsert;

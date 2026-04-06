@@ -2047,6 +2047,43 @@ export default function FormBuilderPage() {
   const [resultsSubTab, setResultsSubTab] = useState("results-table");
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [importUrlOpen, setImportUrlOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importPreview, setImportPreview] = useState<{ title: string; description: string; fields: any[] } | null>(null);
+
+  const importFromUrlMutation = trpc.forms.importFromUrl.useMutation({
+    onSuccess: (data) => {
+      setImportPreview(data);
+    },
+    onError: (e) => {
+      toast.error(e.message);
+    },
+  });
+
+  const handleApplyImport = () => {
+    if (!importPreview) return;
+    // Optionally update form title/description if they are empty
+    if (!formSettings?.title || formSettings.title === "Untitled Form") {
+      setFormSettings((s: any) => ({ ...s, title: importPreview.title, description: importPreview.description }));
+    }
+    // Append imported fields to existing fields
+    const newFields = importPreview.fields.map((f: any) => ({
+      id: newTempId(),
+      type: f.type as FieldType,
+      label: f.label,
+      placeholder: f.placeholder ?? "",
+      required: f.required,
+      sortOrder: fields.length + f.sortOrder,
+      options: f.options ?? [],
+      isBranchingSource: false,
+    }));
+    setFields((prev) => [...prev, ...newFields]);
+    markDirty();
+    setImportUrlOpen(false);
+    setImportPreview(null);
+    setImportUrl("");
+    toast.success(`Imported ${newFields.length} field${newFields.length !== 1 ? "s" : ""} from URL`);
+  };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -2285,6 +2322,17 @@ export default function FormBuilderPage() {
           >
             {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
             {isSaving ? "Saving..." : isDirty ? "Save" : "Saved"}
+          </Button>
+
+          {/* Import from URL */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setImportUrlOpen(true); setImportPreview(null); setImportUrl(""); }}
+            className="gap-1.5 h-7 text-xs"
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            Import from URL
           </Button>
 
           {/* View Form */}
@@ -2856,6 +2904,71 @@ export default function FormBuilderPage() {
           </main>
         </div>
       )}
+
+      {/* ── Import from URL Dialog ── */}
+      <Dialog open={importUrlOpen} onOpenChange={(o) => { setImportUrlOpen(o); if (!o) { setImportPreview(null); setImportUrl(""); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Import Form from URL
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Paste the URL of any web page containing a form. Teachific will extract the fields automatically using AI.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="https://example.com/contact"
+                value={importUrl}
+                onChange={(e) => setImportUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && importUrl && !importFromUrlMutation.isPending) importFromUrlMutation.mutate({ url: importUrl }); }}
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+              />
+              <Button
+                onClick={() => importFromUrlMutation.mutate({ url: importUrl })}
+                disabled={!importUrl || importFromUrlMutation.isPending}
+                className="shrink-0"
+              >
+                {importFromUrlMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Extract"}
+              </Button>
+            </div>
+
+            {importPreview && (
+              <div className="border border-border rounded-lg p-4 space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Detected form</p>
+                  <p className="font-semibold text-sm">{importPreview.title}</p>
+                  {importPreview.description && <p className="text-xs text-muted-foreground mt-0.5">{importPreview.description}</p>}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">{importPreview.fields.length} field{importPreview.fields.length !== 1 ? "s" : ""} found</p>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {importPreview.fields.map((f: any, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-xs bg-muted rounded px-2.5 py-1.5">
+                        <span className="font-mono text-muted-foreground w-16 shrink-0">{f.type}</span>
+                        <span className="font-medium truncate">{f.label}</span>
+                        {f.required && <span className="ml-auto text-red-500 shrink-0">required</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button variant="outline" size="sm" onClick={() => { setImportPreview(null); setImportUrl(""); }} className="flex-1">
+                    Try Another URL
+                  </Button>
+                  <Button size="sm" onClick={handleApplyImport} className="flex-1">
+                    Add {importPreview.fields.length} Field{importPreview.fields.length !== 1 ? "s" : ""} to Form
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

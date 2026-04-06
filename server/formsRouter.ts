@@ -1238,4 +1238,107 @@ export const formsRouter = router({
       }).where(eq(forms.id, formId));
       return { success: true };
     }),
+
+  // ── Import form fields from a URL (LLM-powered scraper) ───────────────────
+  importFromUrl: protectedProcedure
+    .input(z.object({ url: z.string().url() }))
+    .mutation(async ({ input }) => {
+      // Fetch the page HTML
+      let html = "";
+      try {
+        const res = await fetch(input.url, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; TeachificBot/1.0)" },
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        html = await res.text();
+      } catch (e: any) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Could not fetch URL: ${e.message}` });
+      }
+
+      // Strip scripts/styles/tags and truncate to 40k chars for LLM
+      const stripped = html
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 40000);
+
+      const { invokeLLM } = await import("./_core/llm");
+      const result = await invokeLLM({
+        messages: [
+          {
+            role: "system",
+            content: "You are a form extraction assistant. Given the text content of a web page that contains a form, extract all form fields and return them as a JSON object. Only extract actual user-input fields (text, email, phone, number, textarea, select/dropdown, radio, checkbox, date, file, url, rating). Do NOT include submit buttons or hidden fields.",
+          },
+          {
+            role: "user",
+            content: `Extract all form fields from this page content:\n\n${stripped}`,
+          },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "form_extraction",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                title: { type: "string", description: "The form title or page title" },
+                description: { type: "string", description: "A brief description of the form's purpose" },
+                fields: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      type: { type: "string", enum: ["text", "email", "phone", "number", "textarea", "select", "radio", "checkbox", "date", "file", "url", "rating", "section"] },
+                      label: { type: "string" },
+                      placeholder: { type: "string" },
+                      required: { type: "boolean" },
+                      options: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: { value: { type: "string" }, label: { type: "string" } },
+                          required: ["value", "label"],
+                          additionalProperties: false,
+                        },
+                      },
+                    },
+                    required: ["type", "label", "required", "options"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ["title", "description", "fields"],
+              additionalProperties: false,
+            },
+          },
+        },
+      });
+
+      const content = result?.choices?.[0]?.message?.content;
+      if (!content) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "LLM returned no content" });
+
+      let parsed: any;
+      try {
+        parsed = typeof content === "string" ? JSON.parse(content) : content;
+      } catch {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not parse LLM response" });
+      }
+
+      return {
+        title: parsed.title ?? "",
+        description: parsed.description ?? "",
+        fields: (parsed.fields ?? []).map((f: any, i: number) => ({
+          type: f.type ?? "text",
+          label: f.label ?? `Field ${i + 1}`,
+          placeholder: f.placeholder ?? "",
+          required: f.required ?? false,
+          options: (f.options ?? []).map((o: any) => ({ value: String(o.value), label: String(o.label) })),
+          sortOrder: i,
+        })),
+      };
+    }),
 });

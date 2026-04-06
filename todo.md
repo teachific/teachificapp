@@ -2365,3 +2365,19 @@
 - [x] Create public PlatformPoliciesPage at /policies, /terms, /privacy
 - [x] Update App.tsx routing so /policies serves platform docs (not org-specific)
 - [x] Keep /policies/:orgSlug for org-specific policies (unchanged)
+
+## Desktop Apps & Form Import (Apr 6 2026)
+- [x] Build Electron project scaffolding for TeachificCreator (main.js, preload, splash, electron-builder config)
+- [x] Build Electron project scaffolding for Teachific Studio (main.js, preload, splash, electron-builder config)
+- [x] Build Electron project scaffolding for Teachific QuizCreator (main.js, preload, splash, electron-builder config)
+- [x] Write GitHub Actions CI workflow to build .exe and .dmg for all three apps
+- [x] Add app_versions table to database schema for managing installer download URLs
+- [x] Add getLatestAppVersion and upsertAppVersion procedures to platformAdmin router
+- [x] Add App Versions tab to Platform Admin for managing installer URLs per product
+- [x] Build shared DownloadPage component for all three product dashboards
+- [x] Add Download App nav link to CreatorDashboardPage
+- [x] Add Download App nav item to StudioDashboard
+- [x] Add Download App button to QuizCreatorDashboard topbar
+- [x] Add importFromUrl procedure to formsRouter (LLM-powered form field extraction)
+- [x] Add Import from URL button and dialog to FormBuilderPage toolbar
+- [x] Fix autocorrect on all name input fields (MembersPage, PlatformAdminPage, AdminUsersPage)

@@ -425,7 +425,7 @@ function OrgsTab() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5 col-span-2">
                   <Label className="text-slate-800">Name</Label>
-                  <Input value={editForm.name ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="bg-white border-gray-300 text-slate-900" />
+                  <Input value={editForm.name ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="bg-white border-gray-300 text-slate-900" autoCorrect="off" autoCapitalize="words" spellCheck={false} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-slate-800">Slug</Label>
@@ -621,7 +621,7 @@ function OrgsTab() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-slate-700 text-sm">Admin Name *</Label>
-                  <Input value={createOrgForm.adminName} onChange={e => setCreateOrgForm(f => ({ ...f, adminName: e.target.value }))} placeholder="Jane Smith" className="bg-white border-gray-300 text-slate-900" />
+                  <Input value={createOrgForm.adminName} onChange={e => setCreateOrgForm(f => ({ ...f, adminName: e.target.value }))} placeholder="Jane Smith" className="bg-white border-gray-300 text-slate-900" autoCorrect="off" autoCapitalize="words" spellCheck={false} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-slate-700 text-sm">Admin Email *</Label>
@@ -973,7 +973,7 @@ function UsersTab() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label className="text-slate-800">Name</Label>
-              <Input value={editForm.name ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="bg-white border-gray-300 text-slate-900" />
+              <Input value={editForm.name ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="bg-white border-gray-300 text-slate-900" autoCorrect="off" autoCapitalize="words" spellCheck={false} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-slate-800">Email</Label>
@@ -1422,6 +1422,9 @@ export default function PlatformAdminPage() {
           <TabsTrigger value="policies" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <Shield className="w-3.5 h-3.5" /> Policies
           </TabsTrigger>
+          <TabsTrigger value="appversions" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
+            <Download className="w-3.5 h-3.5" /> App Versions
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab />
@@ -1464,6 +1467,9 @@ export default function PlatformAdminPage() {
         </TabsContent>
         <TabsContent value="policies">
           <PlatformPoliciesTab />
+        </TabsContent>
+        <TabsContent value="appversions">
+          <AppVersionsTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -2534,6 +2540,208 @@ function PlatformPoliciesTab() {
           {updatePolicies.isPending ? "Saving..." : <><Check className="w-4 h-4 mr-1.5" /> Save Policies</>}
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ─── App Versions Tab ────────────────────────────────────────────────────────
+function AppVersionsTab() {
+  const { data: versions = [], refetch } = trpc.platformAdmin.getAllAppVersions.useQuery();
+  const upsert = trpc.platformAdmin.upsertAppVersion.useMutation({
+    onSuccess: () => { refetch(); setShowDialog(false); toast.success("Version saved"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const del = trpc.platformAdmin.deleteAppVersion.useMutation({
+    onSuccess: () => { refetch(); toast.success("Version deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [showDialog, setShowDialog] = useState(false);
+  const [editing, setEditing] = useState<typeof versions[0] | null>(null);
+  const [form, setForm] = useState({
+    product: "creator" as "creator" | "studio" | "quizcreator",
+    version: "",
+    releaseNotes: "",
+    windowsUrl: "",
+    macUrl: "",
+    isLatest: true,
+  });
+
+  function openNew() {
+    setEditing(null);
+    setForm({ product: "creator", version: "", releaseNotes: "", windowsUrl: "", macUrl: "", isLatest: true });
+    setShowDialog(true);
+  }
+
+  function openEdit(v: typeof versions[0]) {
+    setEditing(v);
+    setForm({
+      product: v.product,
+      version: v.version,
+      releaseNotes: v.releaseNotes ?? "",
+      windowsUrl: v.windowsUrl ?? "",
+      macUrl: v.macUrl ?? "",
+      isLatest: v.isLatest,
+    });
+    setShowDialog(true);
+  }
+
+  const PRODUCT_LABELS: Record<string, string> = {
+    creator: "TeachificCreator™",
+    studio: "Teachific Studio™",
+    quizcreator: "Teachific QuizCreator™",
+  };
+
+  const grouped = ["creator", "studio", "quizcreator"].map(p => ({
+    product: p,
+    label: PRODUCT_LABELS[p],
+    versions: versions.filter(v => v.product === p).sort((a, b) => new Date(b.releasedAt).getTime() - new Date(a.releasedAt).getTime()),
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Desktop App Versions</h2>
+          <p className="text-sm text-slate-600 mt-0.5">Manage installer download URLs for Windows (.exe) and macOS (.dmg) builds.</p>
+        </div>
+        <Button onClick={openNew} className="bg-teal-600 hover:bg-teal-700 text-white gap-1.5">
+          <Plus className="w-4 h-4" /> Add Version
+        </Button>
+      </div>
+
+      {grouped.map(({ product, label, versions: pvs }) => (
+        <Card key={product} className="bg-gray-50 border-gray-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-slate-900 text-base flex items-center gap-2">
+              <Download className="w-4 h-4 text-teal-500" />
+              {label}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pvs.length === 0 ? (
+              <p className="text-sm text-slate-500 py-2">No versions added yet. Click "Add Version" to upload installer URLs.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Version</TableHead>
+                    <TableHead>Windows</TableHead>
+                    <TableHead>macOS</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Released</TableHead>
+                    <TableHead className="w-10"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pvs.map(v => (
+                    <TableRow key={v.id}>
+                      <TableCell className="font-mono text-sm">{v.version}</TableCell>
+                      <TableCell>
+                        {v.windowsUrl ? (
+                          <a href={v.windowsUrl} target="_blank" rel="noreferrer" className="text-teal-600 hover:underline text-sm flex items-center gap-1">
+                            <Download className="w-3 h-3" /> .exe
+                          </a>
+                        ) : <span className="text-slate-400 text-sm">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        {v.macUrl ? (
+                          <a href={v.macUrl} target="_blank" rel="noreferrer" className="text-teal-600 hover:underline text-sm flex items-center gap-1">
+                            <Download className="w-3 h-3" /> .dmg
+                          </a>
+                        ) : <span className="text-slate-400 text-sm">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        {v.isLatest ? (
+                          <Badge className="bg-teal-100 text-teal-800 border-teal-200">Latest</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-slate-500">Archived</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-slate-500">
+                        {new Date(v.releasedAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(v)}>
+                              <Edit className="w-3.5 h-3.5 mr-2" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => { if (confirm("Delete this version?")) del.mutate({ id: v.id }); }}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="bg-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit Version" : "Add New Version"}</DialogTitle>
+            <DialogDescription>Enter the version number and CDN/S3 download URLs for the installer files.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Product</Label>
+              <Select value={form.product} onValueChange={(v) => setForm(f => ({ ...f, product: v as any }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="creator">TeachificCreator™</SelectItem>
+                  <SelectItem value="studio">Teachific Studio™</SelectItem>
+                  <SelectItem value="quizcreator">Teachific QuizCreator™</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Version Number</Label>
+              <Input placeholder="1.0.0" value={form.version} onChange={e => setForm(f => ({ ...f, version: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Windows Download URL (.exe)</Label>
+              <Input placeholder="https://cdn.teachific.app/releases/creator/TeachificCreator-1.0.0-Setup.exe" value={form.windowsUrl} onChange={e => setForm(f => ({ ...f, windowsUrl: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>macOS Download URL (.dmg)</Label>
+              <Input placeholder="https://cdn.teachific.app/releases/creator/TeachificCreator-1.0.0.dmg" value={form.macUrl} onChange={e => setForm(f => ({ ...f, macUrl: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Release Notes (optional)</Label>
+              <Textarea placeholder="What's new in this version..." value={form.releaseNotes} onChange={e => setForm(f => ({ ...f, releaseNotes: e.target.value }))} rows={3} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={form.isLatest} onCheckedChange={v => setForm(f => ({ ...f, isLatest: v }))} />
+              <Label>Mark as latest (shown as download on product pages)</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
+            <Button
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+              disabled={upsert.isPending || !form.version}
+              onClick={() => upsert.mutate({ ...form, id: editing?.id })}
+            >
+              {upsert.isPending ? "Saving..." : "Save Version"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

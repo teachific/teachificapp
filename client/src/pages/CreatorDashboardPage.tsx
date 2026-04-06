@@ -42,7 +42,9 @@ import {
   Crown,
   Check,
   Timer,
+  Download,
 } from "lucide-react";
+import { DownloadPage } from "@/components/DownloadPage";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -67,6 +69,7 @@ export default function CreatorDashboardPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeInterval, setUpgradeInterval] = useState<"monthly" | "annual">("monthly");
+  const [activePage, setActivePage] = useState<"projects" | "download">("projects");
 
   const utils = trpc.useUtils();
 
@@ -166,8 +169,19 @@ export default function CreatorDashboardPage() {
                 <sup className="text-[10px] text-[#4ad9e0] ml-0.5">™</sup>
               </span>
             </Link>
-            <div className="hidden md:flex items-center gap-1 text-sm text-white/60">
-              <span>My Projects</span>
+            <div className="hidden md:flex items-center gap-4 text-sm text-white/60">
+              <button
+                onClick={() => setActivePage("projects")}
+                className={`hover:text-white transition-colors ${activePage === "projects" ? "text-white font-medium" : ""}`}
+              >
+                My Projects
+              </button>
+              <button
+                onClick={() => setActivePage("download")}
+                className={`hover:text-white transition-colors flex items-center gap-1.5 ${activePage === "download" ? "text-white font-medium" : ""}`}
+              >
+                <Download className="w-3.5 h-3.5" /> Download App
+              </button>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -202,6 +216,9 @@ export default function CreatorDashboardPage() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-6 py-10">
+        {/* ── Download Page ─────────────────────────────────────────────────── */}
+        {activePage === "download" && <DownloadPage product="creator" />}
+        {activePage !== "download" && (<>
         {/* ── Header ─────────────────────────────────────────────────────────── */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
@@ -281,6 +298,7 @@ export default function CreatorDashboardPage() {
             ))}
           </div>
         )}
+        </>)}
       </div>
 
       {/* ── New Project Dialog ───────────────────────────────────────────────── */}

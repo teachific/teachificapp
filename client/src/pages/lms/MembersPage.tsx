@@ -470,6 +470,9 @@ export default function MembersPage() {
                   placeholder="Jane Smith"
                   value={addForm.name}
                   onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                  autoCorrect="off"
+                  autoCapitalize="words"
+                  spellCheck={false}
                 />
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
