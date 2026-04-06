@@ -108,6 +108,7 @@ import ProfilePage from "./pages/profile/ProfilePage";
 import BillingPage from "./pages/profile/BillingPage";
 
 import LandingPage from "./pages/LandingPage";
+import { getSubdomain } from "./hooks/useSubdomain";
 import QuizCreatorPage from "./pages/QuizCreatorPage";
 import QuizCreatorGate from "./pages/QuizCreatorGate";
 import QuizCreatorDashboard from "./pages/QuizCreatorDashboard";
@@ -141,8 +142,8 @@ function BareRouter() {
       <Route path="/shop/:slug" component={DigitalProductSalesPage} />
       <Route path="/forms/:orgSlug/:slug" component={FormPlayerPage} />
       <Route path="/forms/:slug" component={FormPlayerPage} />
-      <Route path="/school" component={SchoolPage} />
-      <Route path="/school/:orgSlug" component={SchoolPage} />
+      <Route path="/school">{() => <SchoolPage />}</Route>
+      <Route path="/school/:orgSlug">{() => <SchoolPage />}</Route>
       <Route path="/school/courses/:courseId" component={CourseSalesPage} />
       <Route path="/school/:orgSlug/courses/:courseId" component={CourseSalesPage} />
       {/* Member portal routes — require auth, show member sidebar */}
@@ -301,7 +302,45 @@ function AdminRouter() {
   );
 }
 
+/**
+ * SubdomainSchoolRouter
+ * When the app is accessed via an org subdomain (e.g. allaboutultrasound.teachific.app),
+ * render the school portal directly. All paths on that subdomain serve learner pages.
+ */
+function SubdomainSchoolRouter({ subdomain }: { subdomain: string }) {
+  return (
+    <Switch>
+      {/* Auth works on subdomains */}
+      <Route path="/login" component={LoginPage} />
+      <Route path="/register" component={RegisterPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/verify-email" component={VerifyEmailPage} />
+      {/* Course player */}
+      <Route path="/learn/:courseId/overview" component={CourseOverviewPage} />
+      <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
+      <Route path="/learn/:courseId" component={CoursePlayerPage} />
+      {/* Learner portal */}
+      <Route path="/my-courses" component={SchoolMyCoursesPage} />
+      {/* Course sales page */}
+      <Route path="/courses/:courseId" component={CourseSalesPage} />
+      {/* Community */}
+      <Route path="/community/:hubId" component={CommunityLearnerPage} />
+      {/* Embed */}
+      <Route path="/embed/:id" component={EmbedPage} />
+      {/* Default: school homepage for this org, resolved by subdomain */}
+      <Route>{() => <SchoolPage subdomainOrg={subdomain} />}</Route>
+    </Switch>
+  );
+}
+
 function Router() {
+  // If running on an org subdomain, serve the school portal directly
+  const subdomain = getSubdomain();
+  if (subdomain) {
+    return <SubdomainSchoolRouter subdomain={subdomain} />;
+  }
+
   const path = window.location.pathname;
   const isBare =
     path === "/" ||

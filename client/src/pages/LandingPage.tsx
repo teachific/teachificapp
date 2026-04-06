@@ -32,7 +32,7 @@ const TEAL = "#189aa1";
 const AQUA = "#4ad9e0";
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
-function LandingNav() {
+function LandingNav({ user }: { user?: { name?: string | null; email?: string | null } | null }) {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -73,7 +73,7 @@ function LandingNav() {
                 </div>
               </a>
               <a href="/studio-pro" className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
-                <span className="text-base mt-0.5">🎬</span>
+                <span className="text-base mt-0.5">🎦</span>
                 <div>
                   <div className="text-sm font-semibold text-gray-900">Teachific™ Studio</div>
                   <div className="text-xs text-gray-500">Course authoring &amp; hosting</div>
@@ -90,21 +90,38 @@ function LandingNav() {
           </div>
         </div>
 
-        {/* Auth buttons */}
+        {/* Auth buttons — context-aware */}
         <div className="flex items-center gap-3">
-          <a
-            href="/login"
-            className="text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors"
-          >
-            Log In
-          </a>
-          <a
-            href="/register"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-white px-4 py-2 rounded-lg transition-all hover:opacity-90 hover:shadow-md"
-            style={{ background: `linear-gradient(135deg, ${TEAL}, ${AQUA})` }}
-          >
-            Get Started Free <ArrowRight className="w-3.5 h-3.5" />
-          </a>
+          {user ? (
+            <>
+              <span className="text-sm text-gray-500 hidden sm:block">
+                {user.name ?? user.email}
+              </span>
+              <a
+                href="/lms"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-white px-4 py-2 rounded-lg transition-all hover:opacity-90 hover:shadow-md"
+                style={{ background: `linear-gradient(135deg, ${TEAL}, ${AQUA})` }}
+              >
+                Go to Dashboard <ArrowRight className="w-3.5 h-3.5" />
+              </a>
+            </>
+          ) : (
+            <>
+              <a
+                href="/login"
+                className="text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Log In
+              </a>
+              <a
+                href="/register"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-white px-4 py-2 rounded-lg transition-all hover:opacity-90 hover:shadow-md"
+                style={{ background: `linear-gradient(135deg, ${TEAL}, ${AQUA})` }}
+              >
+                Get Started Free <ArrowRight className="w-3.5 h-3.5" />
+              </a>
+            </>
+          )}
         </div>
       </div>
     </nav>
@@ -1014,39 +1031,17 @@ function LandingFooter() {
 // ─── Main Export ──────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const { user, loading } = useAuth();
-  const { subs, isLoading: subsLoading } = useSubscriptions();
-  const [, navigate] = useLocation();
 
   useEffect(() => {
     document.title = "Teachific™ — Build & Sell Online Courses";
   }, []);
 
-  // Smart redirect: send authenticated users to their primary subscribed product
-  // Priority: LMS > Studio > Creator > QuizCreator
-  useEffect(() => {
-    if (!user || subsLoading || !subs) return;
-    if (subs.lms.isActive) {
-      navigate("/lms");
-    } else if (subs.studio.isActive) {
-      navigate("/studio");
-    } else if (subs.creator.isActive) {
-      navigate("/creator");
-    } else if (subs.quizCreator.isActive) {
-      navigate("/quiz-creator");
-    } else {
-      // No active subscription — default to LMS (they can sign up there)
-      navigate("/lms");
-    }
-  }, [user, subs, subsLoading, navigate]);
-
-  // If user is already known (from cache or server), redirect silently
-  if (user) return null;
   // Show branded loading screen only while we're waiting for the server
   if (loading) return <LoadingScreen />;
 
   return (
     <div className="min-h-screen bg-white">
-      <LandingNav />
+      <LandingNav user={user} />
       <HeroSection />
       <StatsSection />
       <FeaturesSection />

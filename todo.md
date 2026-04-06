@@ -2339,3 +2339,12 @@
 - [x] Wire createCreatorSingleCheckout in upgrade modal (replaces old createCreatorCheckout)
 - [x] Add createCreatorSingleCheckout, createStudioSingleCheckout, createQuizCreatorCheckout to stripeRouter
 - [x] Update stripePlans.ts with single-plan prices for all three standalone apps
+
+## Homepage & Subdomain Fixes (Apr 2026)
+
+- [x] Remove auto-redirect from landing page — logged-in users should see the homepage and choose to log in themselves
+- [x] Audit subdomain routing for org-specific subdomains (e.g. allaboutultrasound.teachific.app)
+- [x] Add frontend subdomain detection (useSubdomain hook + SubdomainSchoolRouter in App.tsx)
+- [x] Add subdomainOrg prop to SchoolPage so subdomain-based org resolution works
+- [x] Update LandingNav to show "Go to Dashboard" button for logged-in users instead of auto-redirecting
+- [ ] Configure wildcard DNS CNAME record (*.teachific.app → teachific.app) in domain registrar — MANUAL STEP REQUIRED
