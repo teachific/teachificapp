@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/useAuth";
+import { ProductSwitcher } from "@/components/ProductSwitcher";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -229,6 +230,8 @@ export default function StudioDashboard() {
             Sign Out
           </Button>
         </div>
+        {/* Cross-product switcher */}
+        <ProductSwitcher current="studio" variant="sidebar" />
       </aside>
 
       {/* Main content */}
@@ -240,6 +243,7 @@ export default function StudioDashboard() {
             <p className="text-xs text-white/40">Welcome back, {user?.name?.split(" ")[0] ?? "Creator"}</p>
           </div>
           <div className="flex items-center gap-3">
+            <ProductSwitcher current="studio" variant="topbar" />
             <Button
               size="sm"
               variant="outline"

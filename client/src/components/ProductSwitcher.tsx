@@ -1,0 +1,129 @@
+/**
+ * ProductSwitcher
+ * Shows links to other Teachific products the current user is subscribed to.
+ * Renders nothing if the user has no cross-product subscriptions.
+ */
+import { Link } from "wouter";
+import { useSubscriptions } from "@/hooks/useSubscriptions";
+import { Video, PenTool, HelpCircle, LayoutDashboard } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+type ProductSwitcherProps = {
+  /** Which product the user is currently on — that product is hidden from the switcher */
+  current: "lms" | "studio" | "creator" | "quizCreator";
+  /** Visual variant: "sidebar" for the LMS sidebar, "topbar" for standalone dashboards */
+  variant?: "sidebar" | "topbar";
+};
+
+const PRODUCTS = [
+  {
+    key: "lms" as const,
+    label: "Teachific LMS",
+    shortLabel: "LMS",
+    path: "/lms",
+    icon: LayoutDashboard,
+    color: "text-[#15a4b7]",
+    bg: "bg-[#15a4b7]/10 hover:bg-[#15a4b7]/20",
+    border: "border-[#15a4b7]/30",
+  },
+  {
+    key: "studio" as const,
+    label: "Teachific Studio™",
+    shortLabel: "Studio",
+    path: "/studio",
+    icon: Video,
+    color: "text-violet-400",
+    bg: "bg-violet-500/10 hover:bg-violet-500/20",
+    border: "border-violet-500/30",
+  },
+  {
+    key: "creator" as const,
+    label: "TeachificCreator™",
+    shortLabel: "Creator",
+    path: "/creator",
+    icon: PenTool,
+    color: "text-[#4ad9e0]",
+    bg: "bg-[#189aa1]/10 hover:bg-[#189aa1]/20",
+    border: "border-[#189aa1]/30",
+  },
+  {
+    key: "quizCreator" as const,
+    label: "QuizCreator™",
+    shortLabel: "Quiz",
+    path: "/quiz-creator",
+    icon: HelpCircle,
+    color: "text-amber-400",
+    bg: "bg-amber-500/10 hover:bg-amber-500/20",
+    border: "border-amber-500/30",
+  },
+];
+
+export function ProductSwitcher({ current, variant = "topbar" }: ProductSwitcherProps) {
+  const { subs, isLoading } = useSubscriptions();
+
+  if (isLoading || !subs) return null;
+
+  const subscriptionMap: Record<string, boolean> = {
+    lms: subs.lms.isActive,
+    studio: subs.studio.isActive,
+    creator: subs.creator.isActive,
+    quizCreator: subs.quizCreator.isActive,
+  };
+
+  const available = PRODUCTS.filter(
+    (p) => p.key !== current && subscriptionMap[p.key]
+  );
+
+  if (available.length === 0) return null;
+
+  if (variant === "sidebar") {
+    return (
+      <div className="px-3 py-2 border-t border-sidebar-border/40">
+        <p className="text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-wider mb-1.5 px-1">
+          My Apps
+        </p>
+        <div className="space-y-0.5">
+          {available.map((product) => {
+            const Icon = product.icon;
+            const isInTrial =
+              product.key !== "lms" &&
+              (subs as any)[product.key]?.isInTrial;
+            return (
+              <Link key={product.key} href={product.path}>
+                <button className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${product.bg} ${product.color}`}>
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{product.label}</span>
+                  {isInTrial && (
+                    <Badge className="ml-auto text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-400 border-amber-500/30">
+                      Trial
+                    </Badge>
+                  )}
+                </button>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // topbar variant — compact pill buttons
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs text-white/30 mr-1">Switch to:</span>
+      {available.map((product) => {
+        const Icon = product.icon;
+        return (
+          <Link key={product.key} href={product.path}>
+            <button
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${product.bg} ${product.color} ${product.border}`}
+            >
+              <Icon className="w-3 h-3 shrink-0" />
+              {product.shortLabel}
+            </button>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}

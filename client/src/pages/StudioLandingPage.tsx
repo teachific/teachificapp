@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -151,6 +154,30 @@ const TESTIMONIALS = [
 
 export default function StudioLandingPage() {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
+
+  const checkout = trpc.billing.createStudioSingleCheckout.useMutation({
+    onSuccess: (data) => {
+      if (data.checkoutUrl) {
+        toast.success("Redirecting to Stripe checkout...");
+        window.open(data.checkoutUrl, "_blank");
+      }
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  function handleCTA(planId: string) {
+    if (planId === "enterprise") {
+      window.location.href = "mailto:sales@teachific.app";
+      return;
+    }
+    if (user) {
+      checkout.mutate({ interval: billing, origin: window.location.origin });
+    } else {
+      navigate("/register");
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-white font-sans">
@@ -173,16 +200,32 @@ export default function StudioLandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-white/70 hover:text-white">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white font-semibold">
-                Start Free Trial
-              </Button>
-            </Link>
+            {user ? (
+              <>
+                <Link href="/studio">
+                  <Button variant="ghost" size="sm" className="text-white/70 hover:text-white">Dashboard</Button>
+                </Link>
+                <Button
+                  size="sm"
+                  className="bg-violet-600 hover:bg-violet-700 text-white font-semibold"
+                  onClick={() => checkout.mutate({ interval: billing, origin: window.location.origin })}
+                  disabled={checkout.isPending}
+                >
+                  {checkout.isPending ? "Redirecting..." : "Subscribe Now"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" size="sm" className="text-white/70 hover:text-white">Sign In</Button>
+                </Link>
+                <Link href="/register">
+                  <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white font-semibold">
+                    Start Free Trial
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -489,18 +532,18 @@ export default function StudioLandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href={plan.id === "enterprise" ? "mailto:sales@teachific.app" : "/register"}>
-                  <Button
-                    className={`w-full font-semibold ${
-                      plan.highlight
-                        ? "bg-violet-600 hover:bg-violet-700 text-white"
-                        : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
-                    }`}
-                  >
-                    {plan.cta}
-                    <ChevronRight className="ml-1 w-4 h-4" />
-                  </Button>
-                </Link>
+                <Button
+                  onClick={() => handleCTA(plan.id)}
+                  disabled={checkout.isPending && plan.id !== "enterprise"}
+                  className={`w-full font-semibold ${
+                    plan.highlight
+                      ? "bg-violet-600 hover:bg-violet-700 text-white"
+                      : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                  }`}
+                >
+                  {checkout.isPending && plan.id !== "enterprise" ? "Redirecting..." : plan.cta}
+                  <ChevronRight className="ml-1 w-4 h-4" />
+                </Button>
               </div>
             ))}
           </div>
@@ -551,12 +594,15 @@ export default function StudioLandingPage() {
                 professional training videos — without the complexity.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/register">
-                  <Button size="lg" className="bg-violet-600 hover:bg-violet-700 text-white font-bold px-10 h-14 text-base">
-                    Start Your Free Trial
-                    <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                </Link>
+                <Button
+                  size="lg"
+                  className="bg-violet-600 hover:bg-violet-700 text-white font-bold px-10 h-14 text-base"
+                  onClick={() => handleCTA("studio")}
+                  disabled={checkout.isPending}
+                >
+                  {checkout.isPending ? "Redirecting..." : "Start Your Free Trial"}
+                  <ArrowRight className="ml-2 w-5 h-5" />
+                </Button>
                 <Link href="/">
                   <Button
                     size="lg"

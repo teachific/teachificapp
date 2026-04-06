@@ -67,6 +67,7 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { trpc } from "@/lib/trpc";
+import { ProductSwitcher } from "./ProductSwitcher";
 
 // ─── Impersonation Banner ────────────────────────────────────────────────────
 function ImpersonationBanner({ userName }: { userName: string }) {
@@ -552,6 +553,10 @@ function DashboardLayoutContent({
               );
             })}
           </SidebarContent>
+          {/* Cross-product switcher — only shown when user has other subscriptions */}
+          {!isCollapsed && (
+            <ProductSwitcher current="lms" variant="sidebar" />
+          )}
           {/* Plan badge in sidebar footer */}
           {!isCollapsed && (
             <div className="px-3 py-2 border-t border-sidebar-border/40">

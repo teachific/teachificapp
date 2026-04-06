@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useSubscriptions } from "@/hooks/useSubscriptions";
 import LoadingScreen from "@/components/LoadingScreen";
 import {
   BookOpen,
@@ -1013,19 +1014,30 @@ function LandingFooter() {
 // ─── Main Export ──────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const { user, loading } = useAuth();
+  const { subs, isLoading: subsLoading } = useSubscriptions();
   const [, navigate] = useLocation();
 
   useEffect(() => {
     document.title = "Teachific™ — Build & Sell Online Courses";
   }, []);
 
-  // Redirect authenticated users to the dashboard immediately
-  // This fires on first render if user is already known from localStorage cache
+  // Smart redirect: send authenticated users to their primary subscribed product
+  // Priority: LMS > Studio > Creator > QuizCreator
   useEffect(() => {
-    if (user) {
+    if (!user || subsLoading || !subs) return;
+    if (subs.lms.isActive) {
+      navigate("/lms");
+    } else if (subs.studio.isActive) {
+      navigate("/studio");
+    } else if (subs.creator.isActive) {
+      navigate("/creator");
+    } else if (subs.quizCreator.isActive) {
+      navigate("/quiz-creator");
+    } else {
+      // No active subscription — default to LMS (they can sign up there)
       navigate("/lms");
     }
-  }, [user, navigate]);
+  }, [user, subs, subsLoading, navigate]);
 
   // If user is already known (from cache or server), redirect silently
   if (user) return null;

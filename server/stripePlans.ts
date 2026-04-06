@@ -9,6 +9,7 @@ import { ENV } from "./_core/env";
 export type PlanTier = "free" | "starter" | "builder" | "pro" | "enterprise";
 export type StudioTier = "free" | "creator" | "pro" | "team";
 export type CreatorTier = "none" | "starter" | "pro" | "team";
+export type QuizCreatorTier = "none" | "lite" | "premium";
 
 export interface PlanLimits {
   name: string;
@@ -254,7 +255,48 @@ export async function ensureStripePlans(): Promise<void> {
     STRIPE_PRICE_IDS[annualKey] = annualPrice.id;
   }
 
-  // Studio plans
+  // ── Teachific Studio™ single plan ────────────────────────────────────────────
+  const studioSinglePlan = { name: "Teachific Studio", monthlyPrice: 4700, annualPrice: 39900 };
+  {
+    const products = await stripe.products.list({ limit: 100 });
+    let product = products.data.find((p) => p.metadata?.product_key === "studio_single");
+    if (!product) {
+      product = await stripe.products.create({
+        name: studioSinglePlan.name,
+        description: "Teachific Studio™ — screen recording, AI transcription, highlight clips, MP4 export",
+        metadata: { product_key: "studio_single", product_type: "studio" },
+      });
+    }
+    const existingPrices = await stripe.prices.list({ product: product.id, limit: 100 });
+    let monthlyPrice = existingPrices.data.find(
+      (p) => p.recurring?.interval === "month" && p.metadata?.product_key === "studio_single" && p.active
+    );
+    if (!monthlyPrice) {
+      monthlyPrice = await stripe.prices.create({
+        product: product.id,
+        unit_amount: studioSinglePlan.monthlyPrice,
+        currency: "usd",
+        recurring: { interval: "month" },
+        metadata: { product_key: "studio_single", interval: "monthly", product_type: "studio" },
+      });
+    }
+    STRIPE_PRICE_IDS["studio_single_monthly"] = monthlyPrice.id;
+    let annualPrice = existingPrices.data.find(
+      (p) => p.recurring?.interval === "year" && p.metadata?.product_key === "studio_single" && p.active
+    );
+    if (!annualPrice) {
+      annualPrice = await stripe.prices.create({
+        product: product.id,
+        unit_amount: studioSinglePlan.annualPrice,
+        currency: "usd",
+        recurring: { interval: "year" },
+        metadata: { product_key: "studio_single", interval: "annual", product_type: "studio" },
+      });
+    }
+    STRIPE_PRICE_IDS["studio_single_annual"] = annualPrice.id;
+  }
+
+  // Studio plans (legacy tiers — kept for existing subscribers)
   const studioPaidTiers: StudioTier[] = ["creator", "pro", "team"];
   const studioPlans: Record<StudioTier, { name: string; monthlyPrice: number; annualPrice: number }> = {
     free: { name: "Studio Free", monthlyPrice: 0, annualPrice: 0 },
@@ -304,7 +346,89 @@ export async function ensureStripePlans(): Promise<void> {
     STRIPE_PRICE_IDS[`studio_${tier}_annual`] = annualPrice.id;
   }
 
-  // TeachificCreator™ plans
+  // ── TeachificCreator™ single plan ─────────────────────────────────────────────
+  const creatorSinglePlan = { name: "TeachificCreator", monthlyPrice: 11700, annualPrice: 99900 };
+  {
+    const products = await stripe.products.list({ limit: 100 });
+    let product = products.data.find((p) => p.metadata?.product_key === "creator_single");
+    if (!product) {
+      product = await stripe.products.create({
+        name: creatorSinglePlan.name,
+        description: "TeachificCreator™ — SCORM authoring, branching scenarios, AI content generation",
+        metadata: { product_key: "creator_single", product_type: "creator" },
+      });
+    }
+    const existingPrices = await stripe.prices.list({ product: product.id, limit: 100 });
+    let monthlyPrice = existingPrices.data.find(
+      (p) => p.recurring?.interval === "month" && p.metadata?.product_key === "creator_single" && p.active
+    );
+    if (!monthlyPrice) {
+      monthlyPrice = await stripe.prices.create({
+        product: product.id,
+        unit_amount: creatorSinglePlan.monthlyPrice,
+        currency: "usd",
+        recurring: { interval: "month" },
+        metadata: { product_key: "creator_single", interval: "monthly", product_type: "creator" },
+      });
+    }
+    STRIPE_PRICE_IDS["creator_single_monthly"] = monthlyPrice.id;
+    let annualPrice = existingPrices.data.find(
+      (p) => p.recurring?.interval === "year" && p.metadata?.product_key === "creator_single" && p.active
+    );
+    if (!annualPrice) {
+      annualPrice = await stripe.prices.create({
+        product: product.id,
+        unit_amount: creatorSinglePlan.annualPrice,
+        currency: "usd",
+        recurring: { interval: "year" },
+        metadata: { product_key: "creator_single", interval: "annual", product_type: "creator" },
+      });
+    }
+    STRIPE_PRICE_IDS["creator_single_annual"] = annualPrice.id;
+  }
+
+  // ── Teachific QuizCreator™ single plan ─────────────────────────────────────────
+  const quizCreatorSinglePlan = { name: "Teachific QuizCreator", monthlyPrice: 4700, annualPrice: 39900 };
+  {
+    const products = await stripe.products.list({ limit: 100 });
+    let product = products.data.find((p) => p.metadata?.product_key === "quiz_creator_single");
+    if (!product) {
+      product = await stripe.products.create({
+        name: quizCreatorSinglePlan.name,
+        description: "Teachific QuizCreator™ — 7 question types, AES-256 encrypted .quiz files, LMS integration",
+        metadata: { product_key: "quiz_creator_single", product_type: "quiz_creator" },
+      });
+    }
+    const existingPrices = await stripe.prices.list({ product: product.id, limit: 100 });
+    let monthlyPrice = existingPrices.data.find(
+      (p) => p.recurring?.interval === "month" && p.metadata?.product_key === "quiz_creator_single" && p.active
+    );
+    if (!monthlyPrice) {
+      monthlyPrice = await stripe.prices.create({
+        product: product.id,
+        unit_amount: quizCreatorSinglePlan.monthlyPrice,
+        currency: "usd",
+        recurring: { interval: "month" },
+        metadata: { product_key: "quiz_creator_single", interval: "monthly", product_type: "quiz_creator" },
+      });
+    }
+    STRIPE_PRICE_IDS["quiz_creator_single_monthly"] = monthlyPrice.id;
+    let annualPrice = existingPrices.data.find(
+      (p) => p.recurring?.interval === "year" && p.metadata?.product_key === "quiz_creator_single" && p.active
+    );
+    if (!annualPrice) {
+      annualPrice = await stripe.prices.create({
+        product: product.id,
+        unit_amount: quizCreatorSinglePlan.annualPrice,
+        currency: "usd",
+        recurring: { interval: "year" },
+        metadata: { product_key: "quiz_creator_single", interval: "annual", product_type: "quiz_creator" },
+      });
+    }
+    STRIPE_PRICE_IDS["quiz_creator_single_annual"] = annualPrice.id;
+  }
+
+  // TeachificCreator™ plans (legacy tiers — kept for existing subscribers)
   const creatorPaidTiers: Array<"starter" | "pro" | "team"> = ["starter", "pro", "team"];
   const creatorPlans: Record<"starter" | "pro" | "team", { name: string; monthlyPrice: number; annualPrice: number }> = {
     starter: { name: "TeachificCreator Starter", monthlyPrice: 2900, annualPrice: 27900 },

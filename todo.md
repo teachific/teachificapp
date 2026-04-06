@@ -2324,3 +2324,18 @@
 - [x] Update QuizCreator sales page to $47/mo (single plan)
 - [x] Add annual billing option (2 months free) to all three products
 - [ ] Remove Starter/Pro/Team tiers from Creator upgrade modal - single plan only
+
+## Cross-Product Navigation & Functional Fixes (Apr 2026)
+
+- [x] Create useSubscriptions hook (calls billing.getAllSubscriptions in one query)
+- [x] Add getAllSubscriptions procedure to stripeRouter (LMS + Studio + Creator + QuizCreator)
+- [x] Create ProductSwitcher component (sidebar + topbar variants, only shows subscribed products)
+- [x] Add ProductSwitcher to LMS DashboardLayout sidebar footer
+- [x] Add ProductSwitcher to StudioDashboard sidebar and topbar
+- [x] Add ProductSwitcher to CreatorDashboardPage topbar (replaced static Back to LMS link)
+- [x] Add ProductSwitcher to QuizCreatorDashboard topbar
+- [x] Smart redirect on landing page: LMS > Studio > Creator > QuizCreator priority
+- [x] Replace old tiered upgrade modal in CreatorDashboardPage with single-plan $117/mo modal
+- [x] Wire createCreatorSingleCheckout in upgrade modal (replaces old createCreatorCheckout)
+- [x] Add createCreatorSingleCheckout, createStudioSingleCheckout, createQuizCreatorCheckout to stripeRouter
+- [x] Update stripePlans.ts with single-plan prices for all three standalone apps

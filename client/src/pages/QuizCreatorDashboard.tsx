@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import QuizCreatorPage from "./QuizCreatorPage";
+import { ProductSwitcher } from "@/components/ProductSwitcher";
 
 /**
  * QuizCreatorDashboard
@@ -128,6 +129,7 @@ export default function QuizCreatorDashboard() {
         </div>
 
         <div className="flex items-center gap-4">
+          <ProductSwitcher current="quizCreator" variant="topbar" />
           <span className="text-white/50 text-sm hidden sm:block">{user?.name ?? user?.email}</span>
           <Button
             variant="outline"

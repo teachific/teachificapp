@@ -506,6 +506,110 @@ export const stripeRouter = router({
       return { checkoutUrl: session.url };
     }),
 
+  // ── TeachificCreator™ single-plan checkout ($117/mo or $999/yr) ───────────────
+  createCreatorSingleCheckout: protectedProcedure
+    .input(z.object({
+      interval: z.enum(["monthly", "annual"]),
+      origin: z.string().url(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const stripe = getStripe();
+      const priceKey = `creator_single_${input.interval}`;
+      const priceId = STRIPE_PRICE_IDS[priceKey];
+      if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "TeachificCreator price not found. Please try again shortly." });
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        customer_email: ctx.user.email ?? undefined,
+        client_reference_id: String(ctx.user.id),
+        allow_promotion_codes: true,
+        metadata: {
+          user_id: String(ctx.user.id),
+          customer_email: ctx.user.email ?? "",
+          customer_name: ctx.user.name ?? "",
+          product_type: "creator",
+          creator_tier: "single",
+        },
+        subscription_data: {
+          trial_period_days: 14,
+          metadata: { user_id: String(ctx.user.id), product_type: "creator" },
+        },
+        success_url: `${input.origin}/creator?upgraded=1`,
+        cancel_url: `${input.origin}/creator-pro`,
+      });
+      return { checkoutUrl: session.url };
+    }),
+
+  // ── Teachific Studio™ single-plan checkout ($47/mo or $399/yr) ────────────────
+  createStudioSingleCheckout: protectedProcedure
+    .input(z.object({
+      interval: z.enum(["monthly", "annual"]),
+      origin: z.string().url(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const stripe = getStripe();
+      const priceKey = `studio_single_${input.interval}`;
+      const priceId = STRIPE_PRICE_IDS[priceKey];
+      if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Teachific Studio price not found. Please try again shortly." });
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        customer_email: ctx.user.email ?? undefined,
+        client_reference_id: String(ctx.user.id),
+        allow_promotion_codes: true,
+        metadata: {
+          user_id: String(ctx.user.id),
+          customer_email: ctx.user.email ?? "",
+          customer_name: ctx.user.name ?? "",
+          product_type: "studio",
+          studio_tier: "single",
+        },
+        subscription_data: {
+          trial_period_days: 14,
+          metadata: { user_id: String(ctx.user.id), product_type: "studio" },
+        },
+        success_url: `${input.origin}/studio?upgraded=1`,
+        cancel_url: `${input.origin}/studio-pro`,
+      });
+      return { checkoutUrl: session.url };
+    }),
+
+  // ── Teachific QuizCreator™ single-plan checkout ($47/mo or $399/yr) ──────────
+  createQuizCreatorCheckout: protectedProcedure
+    .input(z.object({
+      interval: z.enum(["monthly", "annual"]),
+      origin: z.string().url(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const stripe = getStripe();
+      const priceKey = `quiz_creator_single_${input.interval}`;
+      const priceId = STRIPE_PRICE_IDS[priceKey];
+      if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "QuizCreator price not found. Please try again shortly." });
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        payment_method_types: ["card"],
+        line_items: [{ price: priceId, quantity: 1 }],
+        customer_email: ctx.user.email ?? undefined,
+        client_reference_id: String(ctx.user.id),
+        allow_promotion_codes: true,
+        metadata: {
+          user_id: String(ctx.user.id),
+          customer_email: ctx.user.email ?? "",
+          customer_name: ctx.user.name ?? "",
+          product_type: "quiz_creator",
+        },
+        subscription_data: {
+          trial_period_days: 14,
+          metadata: { user_id: String(ctx.user.id), product_type: "quiz_creator" },
+        },
+        success_url: `${input.origin}/quiz-creator?upgraded=1`,
+        cancel_url: `${input.origin}/quiz-creator-pro`,
+      });
+      return { checkoutUrl: session.url };
+    }),
+
   // ── Enterprise contact-sales inquiry ─────────────────────────────────────
   contactEnterprise: protectedProcedure
     .input(z.object({
@@ -534,4 +638,69 @@ export const stripeRouter = router({
       });
       return { success: true };
     }),
+
+  // ── Get all product subscriptions for the current user (cross-product nav) ─────────
+  getAllSubscriptions: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    const { users, orgMembers, orgSubscriptions } = await import("../drizzle/schema");
+
+    // User-level roles (Studio, Creator, QuizCreator)
+    const [userRow] = await db
+      .select({
+        studioRole: users.studioRole,
+        studioTrialEndsAt: users.studioTrialEndsAt,
+        creatorRole: users.creatorRole,
+        creatorTrialEndsAt: users.creatorTrialEndsAt,
+        quizCreatorRole: users.quizCreatorRole,
+        quizCreatorTrialEndsAt: users.quizCreatorTrialEndsAt,
+      })
+      .from(users)
+      .where(eq(users.id, ctx.user.id))
+      .limit(1);
+
+    // LMS org subscription
+    const [orgRow] = await db
+      .select({ orgId: orgMembers.orgId })
+      .from(orgMembers)
+      .where(eq(orgMembers.userId, ctx.user.id))
+      .limit(1);
+
+    let lmsPlan: string = "free";
+    let lmsIsActive = false;
+    if (orgRow) {
+      const [orgSub] = await db
+        .select({ plan: orgSubscriptions.plan, status: orgSubscriptions.status })
+        .from(orgSubscriptions)
+        .where(eq(orgSubscriptions.orgId, orgRow.orgId))
+        .limit(1);
+      lmsPlan = orgSub?.plan ?? "free";
+      lmsIsActive = !!orgSub && orgSub.status !== "cancelled";
+    }
+    const hasLms = lmsIsActive || lmsPlan !== "free";
+
+    // Studio
+    const studioRole = (userRow?.studioRole ?? "none") as string;
+    const studioTrialEndsAt = userRow?.studioTrialEndsAt ?? null;
+    const studioInTrial = studioRole !== "none" && studioTrialEndsAt && new Date(studioTrialEndsAt) > new Date();
+    const hasStudio = studioRole !== "none";
+
+    // Creator
+    const creatorRole = (userRow?.creatorRole ?? "none") as string;
+    const creatorTrialEndsAt = userRow?.creatorTrialEndsAt ?? null;
+    const creatorInTrial = creatorRole !== "none" && creatorTrialEndsAt && new Date(creatorTrialEndsAt) > new Date();
+    const hasCreator = creatorRole !== "none";
+
+    // QuizCreator
+    const quizRole = (userRow?.quizCreatorRole ?? "none") as string;
+    const quizTrialEndsAt = userRow?.quizCreatorTrialEndsAt ?? null;
+    const quizInTrial = quizRole !== "none" && quizTrialEndsAt && new Date(quizTrialEndsAt) > new Date();
+    const hasQuizCreator = quizRole !== "none";
+
+    return {
+      lms: { plan: lmsPlan, isActive: hasLms },
+      studio: { tier: studioRole, isActive: hasStudio, isInTrial: !!studioInTrial },
+      creator: { tier: creatorRole, isActive: hasCreator, isInTrial: !!creatorInTrial },
+      quizCreator: { tier: quizRole, isActive: hasQuizCreator, isInTrial: !!quizInTrial },
+    };
+  }),
 });
