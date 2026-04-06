@@ -2016,6 +2016,26 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         ctx.res.clearCookie(IMPERSONATION_ORIGINAL_COOKIE, { ...cookieOptions, maxAge: -1 });
         return { success: true };
       }),
+
+    // ── Platform-level Legal Policies ────────────────────────────────────────
+    // Public: anyone can read the platform policies (shown at /policies)
+    getPolicies: publicProcedure.query(async () => {
+      const settings = await getPlatformSettings();
+      return {
+        termsOfService: settings?.termsOfService ?? "",
+        privacyPolicy: settings?.privacyPolicy ?? "",
+      };
+    }),
+    // Admin-only: update platform policies
+    updatePolicies: adminProcedure
+      .input(z.object({
+        termsOfService: z.string().optional(),
+        privacyPolicy: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        await updatePlatformSettings(input);
+        return { success: true };
+      }),
   }),
 
   // ─── QuizCreator Product ──────────────────────────────────────────────────────

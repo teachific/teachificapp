@@ -2348,3 +2348,20 @@
 - [x] Add subdomainOrg prop to SchoolPage so subdomain-based org resolution works
 - [x] Update LandingNav to show "Go to Dashboard" button for logged-in users instead of auto-redirecting
 - [ ] Configure wildcard DNS CNAME record (*.teachific.app → teachific.app) in domain registrar — MANUAL STEP REQUIRED
+
+## Platform-Level Policies (Apr 2026)
+
+- [ ] Add platform_settings table columns for termsOfService and privacyPolicy (separate from org)
+- [ ] Add getPlatformPolicies (public) and updatePlatformPolicies (admin-only) tRPC procedures
+- [ ] Build Platform Policies editor tab under Platform Admin page
+- [ ] Create public PlatformPoliciesPage served at /policies (not linked to any org)
+- [ ] Update routing so /policies shows platform docs, /policies/:orgSlug still shows org docs
+
+## Platform-Level Policies (Apr 2026)
+- [x] Add termsOfService and privacyPolicy columns to platform_settings table
+- [x] Run migration to add columns to live database
+- [x] Add getPolicies (public) and updatePolicies (admin-only) procedures to platformAdmin router
+- [x] Build PlatformPoliciesTab editor under Platform Admin → Policies tab
+- [x] Create public PlatformPoliciesPage at /policies, /terms, /privacy
+- [x] Update App.tsx routing so /policies serves platform docs (not org-specific)
+- [x] Keep /policies/:orgSlug for org-specific policies (unchanged)

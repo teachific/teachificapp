@@ -1419,6 +1419,9 @@ export default function PlatformAdminPage() {
           <TabsTrigger value="teachificpay" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <DollarSign className="w-3.5 h-3.5" /> TeachificPay
           </TabsTrigger>
+          <TabsTrigger value="policies" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
+            <Shield className="w-3.5 h-3.5" /> Policies
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab />
@@ -1458,6 +1461,9 @@ export default function PlatformAdminPage() {
         </TabsContent>
         <TabsContent value="teachificpay">
           <TeachificPayAdminTab />
+        </TabsContent>
+        <TabsContent value="policies">
+          <PlatformPoliciesTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -2424,6 +2430,110 @@ function TeachificPayAdminTab() {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+// ─── Platform Policies Tab ───────────────────────────────────────────────────
+function PlatformPoliciesTab() {
+  const { data: policies, refetch } = trpc.platformAdmin.getPolicies.useQuery();
+  const updatePolicies = trpc.platformAdmin.updatePolicies.useMutation({
+    onSuccess: () => { refetch(); toast.success("Policies saved"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [termsHtml, setTermsHtml] = useState<string>("");
+  const [privacyHtml, setPrivacyHtml] = useState<string>("");
+  const [initialized, setInitialized] = useState(false);
+
+  // Initialise form once data loads
+  if (policies && !initialized) {
+    setTermsHtml(policies.termsOfService ?? "");
+    setPrivacyHtml(policies.privacyPolicy ?? "");
+    setInitialized(true);
+  }
+
+  const publicUrl = `${window.location.origin}/policies`;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-slate-900 flex items-center gap-2">
+            <Shield className="w-4 h-4 text-teal-500" />
+            Platform Legal Policies
+          </CardTitle>
+          <CardDescription className="text-slate-600">
+            These are Teachific's platform-wide Terms of Service and Privacy Policy — completely
+            independent of any org or school. They are publicly accessible at{" "}
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-teal-600 underline underline-offset-2 hover:text-teal-700 font-medium"
+            >
+              {publicUrl}
+            </a>
+            .
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
+      {/* Terms of Service */}
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-slate-900 flex items-center gap-2 text-base">
+            <FileText className="w-4 h-4 text-teal-500" />
+            Terms of Service
+          </CardTitle>
+          <CardDescription className="text-slate-600 text-xs">
+            Paste HTML or plain text. This will be rendered on the public policies page.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={termsHtml}
+            onChange={(e) => setTermsHtml(e.target.value)}
+            placeholder="<h2>Terms of Service</h2><p>By using Teachific...</p>"
+            className="bg-white border-gray-300 text-slate-900 font-mono text-xs min-h-[320px] resize-y"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Privacy Policy */}
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-slate-900 flex items-center gap-2 text-base">
+            <Shield className="w-4 h-4 text-teal-500" />
+            Privacy Policy
+          </CardTitle>
+          <CardDescription className="text-slate-600 text-xs">
+            Paste HTML or plain text. This will be rendered on the public policies page.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={privacyHtml}
+            onChange={(e) => setPrivacyHtml(e.target.value)}
+            placeholder="<h2>Privacy Policy</h2><p>We collect the following information...</p>"
+            className="bg-white border-gray-300 text-slate-900 font-mono text-xs min-h-[320px] resize-y"
+          />
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-500">
+          Changes are saved immediately and reflected at the public URL.
+        </p>
+        <Button
+          onClick={() => updatePolicies.mutate({ termsOfService: termsHtml, privacyPolicy: privacyHtml })}
+          disabled={updatePolicies.isPending}
+          className="bg-teal-600 hover:bg-teal-700 text-white"
+        >
+          {updatePolicies.isPending ? "Saving..." : <><Check className="w-4 h-4 mr-1.5" /> Save Policies</>}
+        </Button>
+      </div>
     </div>
   );
 }

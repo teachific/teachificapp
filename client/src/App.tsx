@@ -108,6 +108,7 @@ import ProfilePage from "./pages/profile/ProfilePage";
 import BillingPage from "./pages/profile/BillingPage";
 
 import LandingPage from "./pages/LandingPage";
+import PlatformPoliciesPage from "./pages/PlatformPoliciesPage";
 import { getSubdomain } from "./hooks/useSubdomain";
 import QuizCreatorPage from "./pages/QuizCreatorPage";
 import QuizCreatorGate from "./pages/QuizCreatorGate";
@@ -150,6 +151,11 @@ function BareRouter() {
       <Route path="/school/:orgSlug/my-courses" component={SchoolMyCoursesPage} />
       <Route path="/school/my-courses" component={SchoolMyCoursesPage} />
       <Route path="/community/:hubId" component={CommunityLearnerPage} />
+      {/* Platform-level legal policies — independent of any org */}
+      <Route path="/policies" component={PlatformPoliciesPage} />
+      <Route path="/terms" component={PlatformPoliciesPage} />
+      <Route path="/privacy" component={PlatformPoliciesPage} />
+      {/* Org-specific policies */}
       <Route path="/policies/:orgSlug" component={OrgPoliciesPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
@@ -358,7 +364,9 @@ function Router() {
     path.startsWith("/studio") ||
     path.startsWith("/studio-pro") ||
     path.startsWith("/creator") ||
-    path.startsWith("/policies");
+    path.startsWith("/policies") ||
+    path === "/terms" ||
+    path === "/privacy";
   return isBare ? <BareRouter /> : <AdminRouter />;
 }
 

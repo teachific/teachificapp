@@ -803,6 +803,9 @@ export const platformSettings = mysqlTable("platform_settings", {
   tagline: varchar("tagline", { length: 500 }),
   headingFont: varchar("headingFont", { length: 128 }).default("Inter"),
   bodyFont: varchar("bodyFont", { length: 128 }).default("Inter"),
+  // Platform-level legal policies (independent of any org)
+  termsOfService: text("termsOfService"),
+  privacyPolicy: text("privacyPolicy"),
   // Platform-wide video watermark
   watermarkImageUrl: text("watermarkImageUrl"),
   watermarkOpacity: int("watermarkOpacity").default(30),
