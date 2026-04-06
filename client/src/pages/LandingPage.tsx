@@ -916,7 +916,7 @@ function LandingFooter() {
   return (
     <footer className="bg-gray-900 text-gray-400 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-8 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 mb-10">
           <div className="sm:col-span-1">
             <div
               className="text-2xl font-extrabold mb-3"
@@ -1006,13 +1006,18 @@ function LandingFooter() {
             </h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/privacy" className="hover:text-white transition-colors">
                   Privacy Policy
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <a href="/terms" className="hover:text-white transition-colors">
                   Terms of Service
+                </a>
+              </li>
+              <li>
+                <a href="/policies" className="hover:text-white transition-colors">
+                  All Policies
                 </a>
               </li>
             </ul>

@@ -183,6 +183,7 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
     { enabled: !!item.id }
   );
   const deleteClipMutation = trpc.lms.media.deleteClip.useMutation();
+  const extractClipMutation = trpc.lms.media.extractClip.useMutation();
 
   // Prevent double-firing in React StrictMode
   const hasAutoTriggeredRef = useRef(false);
@@ -449,44 +450,25 @@ function VideoEditor({ item, orgId, onSaved }: { item: MediaItem; orgId: number;
   const handleDownloadClip = async (clip: ClipSelection) => {
     setDownloadingClipId(clip.id);
     try {
-      // Use MediaRecorder to capture the clip from the video element
-      const video = videoRef.current;
-      if (!video) throw new Error("Video not ready");
-      // Seek to start
-      video.currentTime = clip.startSec;
-      await new Promise<void>((res) => { video.onseeked = () => res(); setTimeout(res, 500); });
-      // Capture via canvas stream
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
-      const ctx2d = canvas.getContext("2d")!;
-      const stream = canvas.captureStream(30);
-      const chunks: Blob[] = [];
-      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
-      const mr = new MediaRecorder(stream, { mimeType });
-      mr.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-      const done = new Promise<void>((res) => { mr.onstop = () => res(); });
-      mr.start(100);
-      video.play();
-      const clipDur = clip.endSec - clip.startSec;
-      const drawLoop = () => {
-        if (video.currentTime >= clip.endSec || video.paused) { mr.stop(); video.pause(); return; }
-        ctx2d.drawImage(video, 0, 0, canvas.width, canvas.height);
-        requestAnimationFrame(drawLoop);
-      };
-      drawLoop();
-      setTimeout(() => { if (mr.state !== "inactive") { mr.stop(); video.pause(); } }, (clipDur + 1) * 1000);
-      await done;
-      const blob = new Blob(chunks, { type: mimeType });
-      const url = URL.createObjectURL(blob);
+      toast.info(`Exporting "${clip.label}" as MP4… this may take a moment`);
+      const result = await extractClipMutation.mutateAsync({
+        orgId,
+        mediaItemId: item.id,
+        clipId: clip.savedId,
+        label: clip.label,
+        startSec: clip.startSec,
+        endSec: clip.endSec,
+        sourceUrl: item.url,
+      });
+      // Trigger browser download from the S3 URL returned by the server
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `${clip.label.replace(/[^a-z0-9]/gi, "-")}.webm`;
+      a.href = (result as any).url;
+      a.download = `${clip.label.replace(/[^a-z0-9]/gi, "-")}.mp4`;
+      a.target = "_blank";
       a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-      toast.success(`Clip "${clip.label}" downloaded`);
+      toast.success(`Clip "${clip.label}" exported as MP4`);
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to download clip");
+      toast.error(err?.message ?? "Failed to export clip — " + (err?.message ?? "unknown error"));
     } finally {
       setDownloadingClipId(null);
     }

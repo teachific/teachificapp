@@ -2381,3 +2381,11 @@
 - [x] Add importFromUrl procedure to formsRouter (LLM-powered form field extraction)
 - [x] Add Import from URL button and dialog to FormBuilderPage toolbar
 - [x] Fix autocorrect on all name input fields (MembersPage, PlatformAdminPage, AdminUsersPage)
+
+## GitHub, Studio Recorder & Footer (Apr 6 2026)
+- [x] Push Electron desktop app code to private GitHub repo (teachific/teachific-desktop-apps)
+- [x] Wire clip export to server-side FFmpeg extractClip — produces MP4 with audio
+- [x] Embed RecordEditPage directly in StudioDashboard (no redirect to /media-library)
+- [x] Add "Record & Upload" nav item to Studio sidebar that opens embedded recorder
+- [x] Update homepage footer Legal section with real /privacy, /terms, /policies links
+- [x] Update footer grid to 5 columns for better layout

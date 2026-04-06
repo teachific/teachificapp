@@ -14,6 +14,7 @@ import {
   Settings, LogOut, Layers, Zap, ArrowRight, Clock, Download,
 } from "lucide-react";
 import { DownloadPage } from "@/components/DownloadPage";
+import RecordEditPage from "./RecordEditPage";
 
 // ── Tier badge colours ─────────────────────────────────────────────────────
 const TIER_STYLES: Record<string, string> = {
@@ -68,7 +69,7 @@ const QUICK_ACTIONS = [
 
 // ── Sidebar nav items ──────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { icon: Video, label: "Record & Upload", href: "/media-library#record-edit" },
+  { icon: Video, label: "Record & Upload", href: "#record" },
   { icon: BookOpen, label: "My Courses", href: "/lms/courses" },
   { icon: Brain, label: "Media Library", href: "/media-library" },
   { icon: FileCode2, label: "Quiz Builder", href: "/quizzes/new" },
@@ -79,7 +80,7 @@ const NAV_ITEMS = [
 export default function StudioDashboard() {
   const { user, loading: authLoading } = useAuth();
   const [, navigate] = useLocation();
-  const [activePage, setActivePage] = useState<"dashboard" | "download">("dashboard");
+  const [activePage, setActivePage] = useState<"dashboard" | "download" | "record">("dashboard");
 
   const { data: studioSub, isLoading: subLoading } = trpc.billing.getStudioSubscription.useQuery(undefined, {
     enabled: !!user,
@@ -203,12 +204,14 @@ export default function StudioDashboard() {
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1">
           {NAV_ITEMS.map((item) =>
-            item.href === "#download" ? (
+            (item.href === "#download" || item.href === "#record") ? (
               <button
                 key={item.href}
-                onClick={() => setActivePage("download")}
+                onClick={() => setActivePage(item.href === "#download" ? "download" : "record")}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer text-sm font-medium ${
-                  activePage === "download" ? "text-white bg-white/10" : "text-white/60 hover:text-white hover:bg-white/10"
+                  (item.href === "#download" && activePage === "download") || (item.href === "#record" && activePage === "record")
+                    ? "text-white bg-white/10"
+                    : "text-white/60 hover:text-white hover:bg-white/10"
                 }`}
               >
                 <item.icon className="w-4 h-4 shrink-0" />
@@ -267,7 +270,7 @@ export default function StudioDashboard() {
               size="sm"
               variant="outline"
               className="border-white/20 text-white hover:bg-white/10"
-              onClick={() => navigate("/media-library#record-edit")}
+              onClick={() => setActivePage("record")}
             >
               <Video className="w-3.5 h-3.5 mr-1.5" />
               Record
@@ -285,7 +288,19 @@ export default function StudioDashboard() {
 
         <div className="p-6 max-w-6xl mx-auto space-y-8">
           {activePage === "download" && <DownloadPage product="studio" />}
-          {activePage !== "download" && <>
+          {activePage === "record" && (
+            <div className="-mx-6 -mt-6">
+              <div className="flex items-center gap-2 px-6 py-3 border-b border-white/10">
+                <button onClick={() => setActivePage("dashboard")} className="text-white/50 hover:text-white text-sm flex items-center gap-1.5 transition-colors">
+                  ← Back to Dashboard
+                </button>
+              </div>
+              <div className="h-[calc(100vh-8rem)] overflow-auto">
+                <RecordEditPage />
+              </div>
+            </div>
+          )}
+          {activePage !== "download" && activePage !== "record" && <>
           {/* Quick actions */}
           <section>
             <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-4">Quick Actions</h2>
