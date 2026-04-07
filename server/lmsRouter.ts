@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
   getCoursesByOrg,
@@ -188,6 +188,7 @@ import { storagePut } from "./storage";
 import { transcribeAudio } from "./_core/voiceTranscription";
 import { getLimits } from "../shared/tierLimits";
 import { sendEmail, resolveMergeTags, buildUnsubscribeToken } from "./sendgrid";
+import { courseEnrollmentHtml, groupManagerAssignmentHtml } from "./emailTemplates";
 import { getOrgMembers, getUserById } from "./db";
 
 // ─── Role helpers ────────────────────────────────────────────────────────────
@@ -266,16 +267,11 @@ async function autoEnrollMemberIfEnabled(orgId: number, userId: number): Promise
           await sendEmail({
             to: user.email,
             subject: `You've been enrolled in ${enrolledCourseTitles.length === 1 ? enrolledCourseTitles[0] : `${enrolledCourseTitles.length} courses`} at ${org.name}`,
-            html: `
-              <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
-                <h2 style="color:#1a1a1a">Welcome to ${org.name}!</h2>
-                <p>Hi ${user.name ?? "there"},</p>
-                <p>You have been automatically enrolled in the following course${enrolledCourseTitles.length > 1 ? "s" : ""}:</p>
-                <ul style="padding-left:20px">${courseListHtml}</ul>
-                <p>Log in to your account to start learning.</p>
-                <p style="color:#666;font-size:13px">This email was sent by ${org.name} via Teachific.</p>
-              </div>
-            `,
+            html: courseEnrollmentHtml({
+              userName: user.name ?? "there",
+              orgName: org.name,
+              courseTitles: enrolledCourseTitles,
+            }),
           });
         }
       } catch (emailErr) {
@@ -2390,6 +2386,65 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
   }),
   // ── Media Upload ────────────────────────────────────────────────────────
   media: router({
+    // List all media items for an org (with optional type/search filter)
+    listOrgMedia: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        typeFilter: z.enum(["all", "image", "video", "audio", "document", "archive"]).default("all"),
+        search: z.string().optional(),
+        page: z.number().default(1),
+        pageSize: z.number().default(50),
+      }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) return { items: [], total: 0 };
+        const { orgMediaLibrary } = await import("../drizzle/schema");
+        const rows = await db.select().from(orgMediaLibrary)
+          .where(eq(orgMediaLibrary.orgId, input.orgId))
+          .orderBy(desc(orgMediaLibrary.createdAt));
+        let filtered = rows;
+        if (input.typeFilter !== "all") {
+          filtered = filtered.filter(r => {
+            const m = r.mimeType;
+            if (input.typeFilter === "image") return m.startsWith("image/");
+            if (input.typeFilter === "video") return m.startsWith("video/");
+            if (input.typeFilter === "audio") return m.startsWith("audio/");
+            if (input.typeFilter === "archive") return m === "application/zip" || m === "application/x-zip-compressed" || m.includes("zip");
+            if (input.typeFilter === "document") return (
+              m === "application/pdf" ||
+              m === "application/msword" ||
+              m.includes("wordprocessingml") ||
+              m.includes("officedocument")
+            );
+            return true;
+          });
+        }
+        if (input.search) {
+          const q = input.search.toLowerCase();
+          filtered = filtered.filter(r => r.filename.toLowerCase().includes(q));
+        }
+        const total = filtered.length;
+        const start = (input.page - 1) * input.pageSize;
+        return {
+          items: filtered.slice(start, start + input.pageSize).map(r => ({
+            ...r,
+            tags: r.tags ? JSON.parse(r.tags) : [],
+          })),
+          total,
+        };
+      }),
+    // Delete a media item by ID
+    deleteOrgMedia: protectedProcedure
+      .input(z.object({ orgId: z.number(), id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { orgMediaLibrary } = await import("../drizzle/schema");
+        await db.delete(orgMediaLibrary).where(eq(orgMediaLibrary.id, input.id));
+        return { ok: true };
+      }),
     getUploadUrl: protectedProcedure
       .input(
         z.object({
@@ -3010,7 +3065,12 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
           await sendEmail({
             to: input.managerEmail,
             subject: `You've been assigned as Group Manager: ${input.name}`,
-            html: `<p>Hi ${input.managerName ?? 'there'},</p><p>You have been assigned as the Group Manager for <strong>${input.name}</strong>${org ? ` at <strong>${org.name}</strong>` : ''}.</p><p>Your group has <strong>${input.seats} seat${input.seats !== 1 ? 's' : ''}</strong> available.</p><p>Log in to your portal to manage your group members and track enrollments.</p><p>Best,<br/>The Teachific Team</p>`,
+            html: groupManagerAssignmentHtml({
+              managerName: input.managerName ?? "there",
+              groupName: input.name,
+              orgName: org?.name,
+              seats: input.seats,
+            }),
           });
           await updateGroup(group.id, { welcomeEmailSent: true });
         }
@@ -3048,7 +3108,12 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
           await sendEmail({
             to: targetEmail,
             subject: `Group Manager Assignment: ${groupName}`,
-            html: `<p>Hi ${targetName},</p><p>You have been assigned as the Group Manager for <strong>${groupName}</strong>${org ? ` at <strong>${org.name}</strong>` : ''}.</p><p>Log in to your portal to manage your group members and track enrollments.</p><p>Best,<br/>The Teachific Team</p>`,
+            html: groupManagerAssignmentHtml({
+              managerName: targetName,
+              groupName,
+              orgName: org?.name,
+              seats: input.seats ?? g.seats ?? 0,
+            }),
           });
           await updateGroup(id, { welcomeEmailSent: true });
         }

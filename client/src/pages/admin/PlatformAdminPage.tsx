@@ -3069,6 +3069,11 @@ function AppVersionsTab() {
     studio: "Teachific Studio™",
     quizcreator: "Teachific QuizCreator™",
   };
+  const PRODUCT_ICONS: Record<string, string> = {
+    creator: "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/icon-creator-Q43rWNPW6eUUYkvwYEJxKM.webp",
+    studio: "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/icon-studio-7F38Gi9E9JiKgfVToa93B8.webp",
+    quizcreator: "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/icon-quizcreator-kzKXGqXXzBGSWcXxf64Xiw.webp",
+  };
 
   const grouped = ["creator", "studio", "quizcreator"].map(p => ({
     product: p,
@@ -3092,7 +3097,7 @@ function AppVersionsTab() {
         <Card key={product} className="bg-gray-50 border-gray-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-slate-900 text-base flex items-center gap-2">
-              <Download className="w-4 h-4 text-teal-500" />
+              <img src={PRODUCT_ICONS[product]} alt={label} className="w-7 h-7 rounded-lg shrink-0" />
               {label}
             </CardTitle>
           </CardHeader>

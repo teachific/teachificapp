@@ -2462,3 +2462,29 @@
 ## Account & UI Fixes (Apr 7)
 - [x] Fix larawilliams0501 account plan to show correct subscription (not Free Plan)
 - [x] Fix sidebar MY APPS icon colors — all icons must use teal variants only (no yellow/orange/purple)
+
+## Desktop App SVG Icons (Apr 7)
+- [x] Design TeachificCreator icon SVG (pen/document authoring theme, teal)
+- [x] Design Teachific Studio icon SVG (video camera theme, teal)
+- [x] Design TeachificQuizCreator icon SVG (quiz/brain/checkmark theme, teal)
+- [x] Upload all three SVGs to CDN
+- [x] Update DownloadPage component to show SVG icons per product
+- [x] Update Platform Admin desktop app management UI to show SVG icons
+- [x] Update ProductSwitcher to use SVG icons instead of Lucide icons
+- [ ] Push SVG icon files to all three desktop app GitHub repos for use in electron-builder
+
+## Branded HTML Email Templates (Apr 7)
+- [x] Create base Teachific email HTML template (header with logo, footer with links)
+- [x] Create verification/magic-link email template
+- [x] Create password reset email template
+- [x] Create welcome email template
+- [x] Create course enrollment confirmation email template
+- [x] Update SendGrid email sending code to use HTML templates
+- [ ] Test all email templates render correctly
+
+## Media Library File Type Expansion (Apr 2026)
+- [x] Extend allowed upload types: ZIP, PDF, Word (.doc/.docx), images (jpg/png/gif/webp/svg), video (mp4/mov/webm), audio (mp3/wav/ogg/m4a)
+- [x] Update server-side MIME type validation and S3 upload handler
+- [x] Update DB schema if needed (mediaType enum or string field)
+- [x] Update media library UI: file type icons, preview thumbnails, filter tabs
+- [x] Wire branded HTML email templates into all sendEmail call sites

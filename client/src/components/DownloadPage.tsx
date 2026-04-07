@@ -10,16 +10,21 @@ import { Download, Monitor, Apple, CheckCircle, AlertCircle, ExternalLink } from
 
 type Product = "creator" | "studio" | "quizcreator";
 
+// CDN icon URLs generated for each app
+const PRODUCT_ICONS: Record<Product, string> = {
+  creator: "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/icon-creator-fh5hJUsjdbmWvBAkxZwdUW.png",
+  studio: "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/icon-studio-QfLuZUAyea2tjKNUuBfvDh.png",
+  quizcreator: "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/icon-quizcreator-ewg2xD9EHi2w37hRrSU4Nt.png",
+};
+
 const PRODUCT_INFO: Record<Product, {
   name: string;
   tagline: string;
-  color: string;
   features: string[];
 }> = {
   creator: {
     name: "TeachificCreator™",
     tagline: "Professional course authoring and eLearning content creation",
-    color: "teal",
     features: [
       "Drag-and-drop course builder",
       "SCORM 1.2 & 2004 export",
@@ -32,7 +37,6 @@ const PRODUCT_INFO: Record<Product, {
   studio: {
     name: "Teachific Studio™",
     tagline: "Screen recording, transcription, and video editing for educators",
-    color: "violet",
     features: [
       "Screen, camera, and audio recording",
       "AI transcription with editing",
@@ -45,7 +49,6 @@ const PRODUCT_INFO: Record<Product, {
   quizcreator: {
     name: "Teachific QuizCreator™",
     tagline: "Professional quiz and assessment builder with analytics",
-    color: "amber",
     features: [
       "Multiple question types",
       "Branching and adaptive logic",
@@ -79,20 +82,7 @@ interface DownloadPageProps {
 export function DownloadPage({ product }: DownloadPageProps) {
   const { data: version, isLoading } = trpc.platformAdmin.getLatestAppVersion.useQuery({ product });
   const info = PRODUCT_INFO[product];
-
-  const colorMap: Record<string, string> = {
-    teal: "from-teal-600 to-teal-700",
-    violet: "from-violet-600 to-violet-700",
-    amber: "from-amber-500 to-amber-600",
-  };
-  const badgeMap: Record<string, string> = {
-    teal: "bg-teal-100 text-teal-800",
-    violet: "bg-violet-100 text-violet-800",
-    amber: "bg-amber-100 text-amber-800",
-  };
-
-  const gradient = colorMap[info.color];
-  const badgeCls = badgeMap[info.color];
+  const iconUrl = PRODUCT_ICONS[product];
 
   function detectPlatform(): "windows" | "mac" | "unknown" {
     const ua = navigator.userAgent.toLowerCase();
@@ -106,14 +96,22 @@ export function DownloadPage({ product }: DownloadPageProps) {
   return (
     <div className="max-w-4xl mx-auto space-y-8 py-6">
       {/* Hero */}
-      <div className={`rounded-2xl bg-gradient-to-br ${gradient} p-8 text-white`}>
+      <div className="rounded-2xl bg-gradient-to-br from-[#0e8a96] to-[#0a6e78] p-8 text-white">
         <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold">{info.name}</h1>
-            <p className="text-white/80 mt-1 text-sm max-w-md">{info.tagline}</p>
-            {version && (
-              <Badge className={`mt-3 ${badgeCls} font-mono`}>v{version.version}</Badge>
-            )}
+          <div className="flex items-start gap-5">
+            {/* App icon */}
+            <img
+              src={iconUrl}
+              alt={`${info.name} icon`}
+              className="w-20 h-20 rounded-2xl shadow-lg shrink-0"
+            />
+            <div>
+              <h1 className="text-2xl font-bold">{info.name}</h1>
+              <p className="text-white/80 mt-1 text-sm max-w-md">{info.tagline}</p>
+              {version && (
+                <Badge className="mt-3 bg-white/20 text-white border-white/30 font-mono">v{version.version}</Badge>
+              )}
+            </div>
           </div>
           <div className="flex flex-col gap-2 min-w-[200px]">
             {isLoading ? (
@@ -165,7 +163,7 @@ export function DownloadPage({ product }: DownloadPageProps) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-teal-500" />
+              <CheckCircle className="w-4 h-4 text-[#15a4b7]" />
               What's Included
             </CardTitle>
           </CardHeader>
@@ -173,7 +171,7 @@ export function DownloadPage({ product }: DownloadPageProps) {
             <ul className="space-y-2">
               {info.features.map(f => (
                 <li key={f} className="flex items-start gap-2 text-sm text-slate-700">
-                  <CheckCircle className="w-3.5 h-3.5 text-teal-500 mt-0.5 shrink-0" />
+                  <CheckCircle className="w-3.5 h-3.5 text-[#15a4b7] mt-0.5 shrink-0" />
                   {f}
                 </li>
               ))}
@@ -234,7 +232,7 @@ export function DownloadPage({ product }: DownloadPageProps) {
       <Card className="bg-slate-50 border-slate-200">
         <CardContent className="pt-5">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-[#15a4b7] shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-slate-800">Installation Notes</p>
               <p className="text-sm text-slate-600">
@@ -247,7 +245,7 @@ export function DownloadPage({ product }: DownloadPageProps) {
                 href="https://teachific.app/help"
                 target="_blank"
                 rel="noreferrer"
-                className="text-sm text-teal-600 hover:underline flex items-center gap-1 mt-2"
+                className="text-sm text-[#15a4b7] hover:underline flex items-center gap-1 mt-2"
               >
                 <ExternalLink className="w-3.5 h-3.5" /> View full installation guide
               </a>

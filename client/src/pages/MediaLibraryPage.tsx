@@ -1,21 +1,23 @@
 import { useState } from "react";
-import { Upload, FileArchive, BookOpen, Layers, Video } from "lucide-react";
+import { Upload, FileArchive, BookOpen, Layers, Video, FolderOpen } from "lucide-react";
 import UploadPage from "./UploadPage";
 import FilesPage from "./FilesPage";
+import MediaFilesPage from "./MediaFilesPage";
 import QuizzesPage from "./QuizzesPage";
 import FlashcardsPage from "./FlashcardsPage";
 import RecordEditPage from "./RecordEditPage";
 
-type TabId = "files" | "upload" | "quizzes" | "flashcards" | "record-edit";
+type TabId = "files" | "upload" | "media-files" | "quizzes" | "flashcards" | "record-edit";
 
 function getDefaultTab(): TabId {
   const hash = window.location.hash.replace("#", "") as TabId;
-  return (["files", "upload", "quizzes", "flashcards", "record-edit"] as TabId[]).includes(hash) ? hash : "files";
+  return (["files", "upload", "media-files", "quizzes", "flashcards", "record-edit"] as TabId[]).includes(hash) ? hash : "files";
 }
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: "files", label: "My Files", icon: FileArchive },
   { id: "upload", label: "Upload Content", icon: Upload },
+  { id: "media-files", label: "Media Library", icon: FolderOpen },
   { id: "record-edit", label: "Teachific Studio™", icon: Video },
   { id: "quizzes", label: "Quizzes", icon: BookOpen },
   { id: "flashcards", label: "Flashcards", icon: Layers },
@@ -56,6 +58,7 @@ export default function MediaLibraryPage() {
       <div className="flex-1 min-h-0 overflow-auto">
         {activeTab === "files" && <FilesPage />}
         {activeTab === "upload" && <UploadPage />}
+        {activeTab === "media-files" && <MediaFilesPage />}
         {activeTab === "record-edit" && <RecordEditPage />}
         {activeTab === "quizzes" && <QuizzesPage />}
         {activeTab === "flashcards" && <FlashcardsPage />}

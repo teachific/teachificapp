@@ -13,6 +13,7 @@ import { users } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { sendEmail } from "./sendgrid";
 import * as dbHelpers from "./db";
+import { verifyEmailHtml, resetPasswordHtml } from "./emailTemplates";
 
 const COOKIE_NAME = "teachific_session";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -32,47 +33,6 @@ function serializeCookie(name: string, value: string, maxAge: number): string {
   let str = `${name}=${encodeURIComponent(value)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
   if (isProduction) str += "; Secure";
   return str;
-}
-
-// ─── Email Templates ──────────────────────────────────────────────────────────
-function verifyEmailHtml(name: string, verifyUrl: string): string {
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Verify your email</title></head>
-<body style="font-family:sans-serif;background:#f4f4f5;margin:0;padding:40px 0;">
-  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
-    <div style="background:#189aa1;padding:32px 40px;">
-      <span style="font-size:28px;font-weight:700;color:#fff;">teach</span><span style="font-size:28px;font-weight:700;color:#4ad9e0;">ific</span><span style="font-size:16px;color:#fff;">™</span>
-    </div>
-    <div style="padding:40px;">
-      <h2 style="margin:0 0 16px;color:#111;">Verify your email address</h2>
-      <p style="color:#555;line-height:1.6;">Hi ${name || "there"},</p>
-      <p style="color:#555;line-height:1.6;">Thanks for signing up! Please verify your email address to activate your account.</p>
-      <a href="${verifyUrl}" style="display:inline-block;margin:24px 0;padding:14px 32px;background:#189aa1;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Verify Email Address</a>
-      <p style="color:#888;font-size:13px;">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
-      <p style="color:#aaa;font-size:12px;margin-top:32px;border-top:1px solid #f0f0f0;padding-top:16px;">Teachific™ · hello@teachific.net</p>
-    </div>
-  </div>
-</body></html>`;
-}
-
-function resetPasswordHtml(name: string, resetUrl: string): string {
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Reset your password</title></head>
-<body style="font-family:sans-serif;background:#f4f4f5;margin:0;padding:40px 0;">
-  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
-    <div style="background:#189aa1;padding:32px 40px;">
-      <span style="font-size:28px;font-weight:700;color:#fff;">teach</span><span style="font-size:28px;font-weight:700;color:#4ad9e0;">ific</span><span style="font-size:16px;color:#fff;">™</span>
-    </div>
-    <div style="padding:40px;">
-      <h2 style="margin:0 0 16px;color:#111;">Reset your password</h2>
-      <p style="color:#555;line-height:1.6;">Hi ${name || "there"},</p>
-      <p style="color:#555;line-height:1.6;">We received a request to reset your Teachific password. Click the button below to choose a new password.</p>
-      <a href="${resetUrl}" style="display:inline-block;margin:24px 0;padding:14px 32px;background:#189aa1;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Reset Password</a>
-      <p style="color:#888;font-size:13px;">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
-      <p style="color:#aaa;font-size:12px;margin-top:32px;border-top:1px solid #f0f0f0;padding-top:16px;">Teachific™ · hello@teachific.net</p>
-    </div>
-  </div>
-</body></html>`;
 }
 
 // ─── Router ───────────────────────────────────────────────────────────────────

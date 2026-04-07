@@ -10,6 +10,8 @@ import { getStripe, PLAN_LIMITS, type PlanTier } from "./stripePlans";
 import { upsertOrgSubscription, createEnrollment, getEnrollment } from "./lmsDb";
 import { getUserByEmail, getDb } from "./db";
 import { sendEmail } from "./sendgrid";
+import { courseEnrollmentHtml } from "./emailTemplates";
+import { getCourseById } from "./lmsDb";
 
 const router = express.Router();
 
@@ -62,10 +64,15 @@ router.post(
                   if (!existing) {
                     await createEnrollment({ courseId, userId: user.id, orgId, amountPaid });
                     console.log(`[Stripe Webhook] User ${user.id} enrolled in course ${courseId}`);
+                    const course = await getCourseById(courseId).catch(() => null);
                     await sendEmail({
                       to: user.email ?? "",
                       subject: `Your enrollment is confirmed!`,
-                      html: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px"><h2>You're enrolled!</h2><p>Hi ${user.name ?? "there"},</p><p>Your payment of <strong>$${amountPaid.toFixed(2)}</strong> was successful and you now have access to your course.</p><p>Log in to your account to start learning.</p></div>`,
+                      html: courseEnrollmentHtml({
+                        userName: user.name ?? "there",
+                        courseTitles: course?.title ? [course.title] : ["your course"],
+                        amountPaid,
+                      }),
                     });
                   }
                 } else {
