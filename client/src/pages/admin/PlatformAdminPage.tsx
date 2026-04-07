@@ -97,8 +97,271 @@ import {
   ExternalLink,
   AlertCircle,
   RefreshCw,
+  Map,
+  Laptop,
+  ChevronRight,
 } from "lucide-react"
 import { cn } from "@/lib/utils";
+
+// ─── Sitemap ────────────────────────────────────────────────────────────────
+const BASE = "https://teachific.app";
+type SitemapEntry = { label: string; path: string; description?: string };
+type SitemapSection = { title: string; icon: React.ReactNode; entries: SitemapEntry[] };
+
+const SITEMAP_SECTIONS: SitemapSection[] = [
+  {
+    title: "Public / Marketing",
+    icon: <Globe className="w-4 h-4" />,
+    entries: [
+      { label: "Home", path: "/", description: "Landing page" },
+      { label: "Pricing", path: "/#pricing" },
+      { label: "Features", path: "/#features" },
+      { label: "Policies", path: "/policies", description: "Terms & Privacy" },
+    ],
+  },
+  {
+    title: "Auth",
+    icon: <LogIn className="w-4 h-4" />,
+    entries: [
+      { label: "Login", path: "/login" },
+      { label: "Register", path: "/register" },
+      { label: "Forgot Password", path: "/forgot-password" },
+      { label: "Reset Password", path: "/reset-password" },
+      { label: "Verify Email", path: "/verify-email" },
+    ],
+  },
+  {
+    title: "LMS Dashboard",
+    icon: <GraduationCap className="w-4 h-4" />,
+    entries: [
+      { label: "Dashboard", path: "/lms" },
+      { label: "My Courses", path: "/lms/my-courses" },
+      { label: "Branding", path: "/lms/branding" },
+      { label: "Settings", path: "/lms/settings" },
+    ],
+  },
+  {
+    title: "Courses",
+    icon: <BookOpen className="w-4 h-4" />,
+    entries: [
+      { label: "All Courses", path: "/lms/courses" },
+      { label: "New Course", path: "/lms/courses/new" },
+      { label: "Course Builder", path: "/lms/courses/:id", description: "Dynamic — requires course ID" },
+      { label: "Webinars", path: "/lms/webinars" },
+      { label: "Forms", path: "/lms/forms" },
+    ],
+  },
+  {
+    title: "Members",
+    icon: <Users className="w-4 h-4" />,
+    entries: [
+      { label: "Users", path: "/members/users" },
+      { label: "Groups", path: "/members/groups" },
+      { label: "Group Manager Portal", path: "/members/group-manager" },
+      { label: "Certificates", path: "/members/certificates" },
+      { label: "Discussions", path: "/members/discussions" },
+      { label: "Assignments", path: "/members/assignments" },
+    ],
+  },
+  {
+    title: "Products",
+    icon: <Zap className="w-4 h-4" />,
+    entries: [
+      { label: "Memberships", path: "/products/memberships" },
+      { label: "Bundles", path: "/products/bundles" },
+      { label: "Community", path: "/products/community" },
+      { label: "Categories", path: "/products/categories" },
+      { label: "Digital Downloads", path: "/admin/downloads" },
+    ],
+  },
+  {
+    title: "Marketing",
+    icon: <BarChart3 className="w-4 h-4" />,
+    entries: [
+      { label: "Website", path: "/marketing/website" },
+      { label: "Email Campaigns", path: "/marketing/email" },
+      { label: "Funnels", path: "/marketing/funnels" },
+      { label: "Affiliates", path: "/marketing/affiliates" },
+      { label: "Custom Pages", path: "/lms/custom-pages" },
+      { label: "Page Builder", path: "/lms/page-builder/:pageId", description: "Dynamic — requires page ID" },
+    ],
+  },
+  {
+    title: "Sales",
+    icon: <DollarSign className="w-4 h-4" />,
+    entries: [
+      { label: "Orders", path: "/sales/orders" },
+      { label: "Subscriptions", path: "/sales/subscriptions" },
+      { label: "Group Orders", path: "/sales/group-orders" },
+      { label: "Coupons", path: "/sales/coupons" },
+      { label: "Invoices", path: "/sales/invoices" },
+      { label: "Revenue Partners", path: "/sales/revenue-partners" },
+    ],
+  },
+  {
+    title: "Analytics",
+    icon: <Activity className="w-4 h-4" />,
+    entries: [
+      { label: "Revenue Analytics", path: "/analytics/revenue" },
+      { label: "Engagement Analytics", path: "/analytics/engagement" },
+      { label: "Marketing Analytics", path: "/analytics/marketing" },
+      { label: "Custom Reports", path: "/analytics/custom-reports" },
+      { label: "Student Activity Log", path: "/lms/activity" },
+    ],
+  },
+  {
+    title: "Integrations",
+    icon: <Webhook className="w-4 h-4" />,
+    entries: [
+      { label: "Integrations Hub", path: "/integrations" },
+      { label: "API", path: "/integrations/api" },
+      { label: "Webhooks", path: "/integrations/webhooks" },
+    ],
+  },
+  {
+    title: "Media & Files",
+    icon: <FileText className="w-4 h-4" />,
+    entries: [
+      { label: "Media Library", path: "/media-library" },
+      { label: "Quizzes", path: "/media-library#quizzes" },
+    ],
+  },
+  {
+    title: "Profile & Billing",
+    icon: <CreditCard className="w-4 h-4" />,
+    entries: [
+      { label: "Profile", path: "/profile" },
+      { label: "Billing", path: "/billing" },
+    ],
+  },
+  {
+    title: "Platform Admin",
+    icon: <Shield className="w-4 h-4" />,
+    entries: [
+      { label: "Platform Admin", path: "/platform-admin" },
+      { label: "Admin — Orgs", path: "/admin/orgs" },
+      { label: "Admin — Users", path: "/admin/users" },
+      { label: "Admin — Permissions", path: "/admin/permissions" },
+      { label: "Admin — Settings", path: "/admin/settings" },
+    ],
+  },
+  {
+    title: "Desktop Apps",
+    icon: <Laptop className="w-4 h-4" />,
+    entries: [
+      { label: "TeachificCreator™ Dashboard", path: "/creator" },
+      { label: "TeachificCreator™ Download", path: "/creator/download" },
+      { label: "TeachificCreator™ Pro (Marketing)", path: "/creator-pro" },
+      { label: "Teachific Studio™ Dashboard", path: "/studio" },
+      { label: "Teachific Studio™ Download", path: "/studio/download" },
+      { label: "Teachific Studio™ Pro (Marketing)", path: "/studio-pro" },
+      { label: "Teachific QuizCreator™ Dashboard", path: "/quiz-creator-app" },
+      { label: "Teachific QuizCreator™ Download", path: "/quiz-creator-app/download" },
+      { label: "Teachific QuizCreator™ Pro (Marketing)", path: "/quiz-creator-pro" },
+    ],
+  },
+  {
+    title: "Learner / Student Portals",
+    icon: <GraduationCap className="w-4 h-4" />,
+    entries: [
+      { label: "Course Player", path: "/learn/:courseId", description: "Dynamic — requires course ID" },
+      { label: "Community Hub", path: "/community/:hubId", description: "Dynamic — requires hub ID" },
+      { label: "Quiz Player", path: "/quizzes/:id/play", description: "Dynamic — requires quiz ID" },
+      { label: "Quiz Results", path: "/quizzes/:id/results/:attemptId", description: "Dynamic" },
+    ],
+  },
+];
+
+function SitemapTab() {
+  const [search, setSearch] = useState("");
+  const q = search.toLowerCase();
+  const filtered = useMemo(() => {
+    if (!q) return SITEMAP_SECTIONS;
+    return SITEMAP_SECTIONS
+      .map((sec) => ({
+        ...sec,
+        entries: sec.entries.filter(
+          (e) =>
+            e.label.toLowerCase().includes(q) ||
+            e.path.toLowerCase().includes(q) ||
+            (e.description ?? "").toLowerCase().includes(q)
+        ),
+      }))
+      .filter((sec) => sec.entries.length > 0 || sec.title.toLowerCase().includes(q));
+  }, [q]);
+  const totalPages = SITEMAP_SECTIONS.reduce((n, s) => n + s.entries.length, 0);
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Platform Sitemap</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {totalPages} pages across {SITEMAP_SECTIONS.length} sections — live links to teachific.app
+          </p>
+        </div>
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search pages…"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400/40 focus:border-teal-400"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filtered.map((section) => (
+          <div key={section.title} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-200">
+              <span className="text-teal-600">{section.icon}</span>
+              <span className="font-semibold text-slate-800 text-sm">{section.title}</span>
+              <span className="ml-auto text-xs text-slate-400">{section.entries.length}</span>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {section.entries.map((entry) => {
+                const isDynamic = entry.path.includes(":");
+                return (
+                  <li key={entry.path}>
+                    {isDynamic ? (
+                      <div className="flex items-start gap-2 px-4 py-2.5">
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-300 mt-0.5 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm text-slate-500 font-medium">{entry.label}</p>
+                          <p className="text-xs text-slate-400 font-mono truncate">{entry.path}</p>
+                          {entry.description && <p className="text-xs text-slate-400 italic">{entry.description}</p>}
+                        </div>
+                      </div>
+                    ) : (
+                      <a
+                        href={`${BASE}${entry.path}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-2 px-4 py-2.5 hover:bg-teal-50 transition-colors group"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-teal-500 mt-0.5 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-slate-800 font-medium group-hover:text-teal-700 truncate">{entry.label}</p>
+                          <p className="text-xs text-slate-400 font-mono truncate">{entry.path}</p>
+                          {entry.description && <p className="text-xs text-slate-400 italic">{entry.description}</p>}
+                        </div>
+                      </a>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+      {filtered.length === 0 && (
+        <div className="text-center py-16 text-slate-400">
+          <Map className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm">No pages match "{search}"</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Plan badge ──────────────────────────────────────────────────────────────
 const PLAN_COLORS: Record<string, string> = {
@@ -1633,6 +1896,9 @@ export default function PlatformAdminPage() {
           <TabsTrigger value="appversions" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <Download className="w-3.5 h-3.5" /> App Versions
           </TabsTrigger>
+          <TabsTrigger value="sitemap" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
+            <Map className="w-3.5 h-3.5" /> Sitemap
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab />
@@ -1678,6 +1944,9 @@ export default function PlatformAdminPage() {
         </TabsContent>
         <TabsContent value="appversions">
           <AppVersionsTab />
+        </TabsContent>
+        <TabsContent value="sitemap">
+          <SitemapTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -2117,10 +2386,10 @@ function SubscriptionPlansTab() {
   });
 
   // Build a lookup: featureKey → plan → limitValue
-  const limitsMap = new Map<string, Record<string, number>>();
+  const limitsMap: Record<string, Record<string, number>> = {};
   for (const row of rawLimits as any[]) {
-    if (!limitsMap.has(row.featureKey)) limitsMap.set(row.featureKey, {});
-    limitsMap.get(row.featureKey)![row.plan] = row.limitValue;
+    if (!limitsMap[row.featureKey]) limitsMap[row.featureKey] = {};
+    limitsMap[row.featureKey][row.plan] = row.limitValue;
   }
 
   const [editing, setEditing] = useState<{ featureKey: string; plan: string; value: string } | null>(null);
@@ -2163,7 +2432,7 @@ function SubscriptionPlansTab() {
               <TableRow key={feature.key} className="border-gray-200 hover:bg-gray-50">
                 <TableCell className="font-medium text-slate-800 text-sm">{feature.label}</TableCell>
                 {PLANS.map(plan => {
-                  const val = limitsMap.get(feature.key)?.[plan] ?? "—";
+                  const val = limitsMap[feature.key]?.[plan] ?? "—";
                   const isEditing = editing?.featureKey === feature.key && editing?.plan === plan;
                   return (
                     <TableCell key={plan} className="text-center">
@@ -2184,7 +2453,7 @@ function SubscriptionPlansTab() {
                       ) : (
                         <button
                           className="text-sm font-mono text-slate-700 hover:text-teal-600 hover:underline cursor-pointer px-2 py-1 rounded hover:bg-teal-50 transition-colors"
-                          onClick={() => setEditing({ featureKey: feature.key, plan, value: String(val === "—" ? 0 : val) })}
+                          onClick={() => setEditing({ featureKey: feature.key, plan, value: String(val === "\u2014" || val === undefined ? 0 : val) })}
                           title="Click to edit"
                         >
                           {val === -1 ? "∞" : val}

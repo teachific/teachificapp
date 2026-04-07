@@ -2451,3 +2451,10 @@
 - [ ] Handle update events: checking, available, not-available, downloaded, error
 - [ ] Update build.yml to publish release assets (latest.yml / latest-mac.yml metadata files)
 - [ ] Test update flow end-to-end
+
+## Platform Admin: Sitemap Tab
+- [x] Add Sitemap tab to Platform Admin with live links to all 60+ pages across 15 sections
+- [x] Search/filter across all pages by label, path, or description
+- [x] Dynamic routes shown as non-clickable with description (requires ID)
+- [x] Static routes open teachific.app in new tab
+- [x] Desktop Apps section included with all 9 desktop app pages
