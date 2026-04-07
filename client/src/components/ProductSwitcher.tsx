@@ -32,9 +32,9 @@ const PRODUCTS = [
     shortLabel: "Studio",
     path: "/studio",
     icon: Video,
-    color: "text-violet-400",
-    bg: "bg-violet-500/10 hover:bg-violet-500/20",
-    border: "border-violet-500/30",
+    color: "text-[#15a4b7]",
+    bg: "bg-[#15a4b7]/10 hover:bg-[#15a4b7]/20",
+    border: "border-[#15a4b7]/30",
   },
   {
     key: "creator" as const,
@@ -52,9 +52,9 @@ const PRODUCTS = [
     shortLabel: "Quiz",
     path: "/quiz-creator",
     icon: HelpCircle,
-    color: "text-amber-400",
-    bg: "bg-amber-500/10 hover:bg-amber-500/20",
-    border: "border-amber-500/30",
+    color: "text-[#0e8a96]",
+    bg: "bg-[#0e8a96]/10 hover:bg-[#0e8a96]/20",
+    border: "border-[#0e8a96]/30",
   },
 ];
 
@@ -94,7 +94,7 @@ export function ProductSwitcher({ current, variant = "topbar" }: ProductSwitcher
                   <Icon className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">{product.label}</span>
                   {isInTrial && (
-                    <Badge className="ml-auto text-[9px] px-1 py-0 h-4 bg-amber-500/20 text-amber-400 border-amber-500/30">
+                    <Badge className="ml-auto text-[9px] px-1 py-0 h-4 bg-[#15a4b7]/20 text-[#15a4b7] border-[#15a4b7]/30">
                       Trial
                     </Badge>
                   )}

@@ -124,7 +124,7 @@ export default function QuizCreatorDashboard() {
             {qcRole === "premium" ? "Premium" : "Lite"}
           </Badge>
           {qcIsTrialing && qcTrialDaysLeft !== null && (
-            <div className="flex items-center gap-1 text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full px-2 py-0.5">
+            <div className="flex items-center gap-1 text-xs bg-[#15a4b7]/20 text-[#4ad9e0] border border-[#15a4b7]/30 rounded-full px-2 py-0.5">
               <span className="text-[10px]">⏱</span>
               <span>{qcTrialDaysLeft}d trial</span>
             </div>

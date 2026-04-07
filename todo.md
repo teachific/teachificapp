@@ -2458,3 +2458,7 @@
 - [x] Dynamic routes shown as non-clickable with description (requires ID)
 - [x] Static routes open teachific.app in new tab
 - [x] Desktop Apps section included with all 9 desktop app pages
+
+## Account & UI Fixes (Apr 7)
+- [x] Fix larawilliams0501 account plan to show correct subscription (not Free Plan)
+- [x] Fix sidebar MY APPS icon colors — all icons must use teal variants only (no yellow/orange/purple)

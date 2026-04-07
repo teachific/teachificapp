@@ -24,10 +24,10 @@ export interface PlanLimits {
 
 export const PLAN_DISPLAY: Record<PlanTier, { label: string; color: string }> = {
   free: { label: "Free", color: "text-muted-foreground" },
-  starter: { label: "Starter", color: "text-blue-500" },
-  builder: { label: "Builder", color: "text-violet-500" },
-  pro: { label: "Pro", color: "text-amber-500" },
-  enterprise: { label: "Enterprise", color: "text-emerald-500" },
+  starter: { label: "Starter", color: "text-[#4ad9e0]" },
+  builder: { label: "Builder", color: "text-[#15a4b7]" },
+  pro: { label: "Pro", color: "text-[#0e8a96]" },
+  enterprise: { label: "Enterprise", color: "text-[#0a6e78]" },
 };
 
 export function usePlanLimits() {
