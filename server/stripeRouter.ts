@@ -704,7 +704,66 @@ export const stripeRouter = router({
     };
   }),
 
-  // ── Platform Admin: Stripe integration status ─────────────────────────────
+  // ── Desktop app download URLs (subscription-gated) ─────────────────────────
+  getDesktopDownloads: protectedProcedure
+    .input(z.object({ app: z.enum(["creator", "studio", "quizCreator"]) }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      const { users } = await import("../drizzle/schema");
+      const [userRow] = await db
+        .select({
+          creatorRole: users.creatorRole,
+          studioRole: users.studioRole,
+          quizCreatorRole: users.quizCreatorRole,
+        })
+        .from(users)
+        .where(eq(users.id, ctx.user.id))
+        .limit(1);
+
+      const roleMap: Record<string, string> = {
+        creator: userRow?.creatorRole ?? "none",
+        studio: userRow?.studioRole ?? "none",
+        quizCreator: userRow?.quizCreatorRole ?? "none",
+      };
+      const hasAccess = roleMap[input.app] !== "none";
+
+      if (!hasAccess) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "An active subscription is required to download this app.",
+        });
+      }
+
+      // GitHub release asset URLs — filenames are set by electron-builder in package.json
+      const DOWNLOAD_URLS: Record<string, { windows: string; mac: string; version: string; releasePage: string }> = {
+        creator: {
+          version: "1.0.0",
+          releasePage: "https://github.com/teachific/teachific-creator-desktop/releases/tag/v1.0.0",
+          windows: "https://github.com/teachific/teachific-creator-desktop/releases/download/v1.0.0/TeachificCreator-Setup-1.0.0.exe",
+          mac: "https://github.com/teachific/teachific-creator-desktop/releases/download/v1.0.0/TeachificCreator-1.0.0.dmg",
+        },
+        studio: {
+          version: "1.0.0",
+          releasePage: "https://github.com/teachific/teachific-studio-desktop/releases/tag/v1.0.0",
+          windows: "https://github.com/teachific/teachific-studio-desktop/releases/download/v1.0.0/TeachificStudio-Setup-1.0.0.exe",
+          mac: "https://github.com/teachific/teachific-studio-desktop/releases/download/v1.0.0/TeachificStudio-1.0.0.dmg",
+        },
+        quizCreator: {
+          version: "1.0.0",
+          releasePage: "https://github.com/teachific/teachific-quizcreator-desktop/releases/tag/v1.0.0",
+          windows: "https://github.com/teachific/teachific-quizcreator-desktop/releases/download/v1.0.0/TeachificQuizCreator-Setup-1.0.0.exe",
+          mac: "https://github.com/teachific/teachific-quizcreator-desktop/releases/download/v1.0.0/TeachificQuizCreator-1.0.0.dmg",
+        },
+      };
+
+      return {
+        hasAccess: true,
+        app: input.app,
+        ...DOWNLOAD_URLS[input.app],
+      };
+    }),
+
+  // ── Platform Admin: Stripe integration status ─────────────────
   getStripeStatus: adminProcedure.query(async () => {
     const isConfigured = !!ENV.stripeSecretKey;
     const hasWebhookSecret = !!ENV.stripeWebhookSecret;

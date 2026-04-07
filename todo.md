@@ -2412,3 +2412,34 @@
 - [x] Fix sandbox claim URL to use the full token-based URL from project config (not generic /claim_sandbox)
 - [x] Update getStripeStatus procedure to return the correct full claim URL
 - [x] Build real Stripe integration UI in Platform Admin IntegrationsTab (replace coming soon toast)
+
+## Task: Update Stripe to Live Mode Keys (Apr 2026)
+- [x] Update STRIPE_SECRET_KEY to live key
+- [x] Update VITE_STRIPE_PUBLISHABLE_KEY to live key
+- [x] Verify live keys work and Stripe plans re-initialize
+
+## Task: Build Desktop App Installers v1.0.0 (Apr 2026)
+- [ ] Verify CI workflows in teachific-creator-desktop, teachific-studio-desktop, teachific-quizcreator-desktop
+- [ ] Create v1.0.0 release tag in teachific-creator-desktop
+- [ ] Create v1.0.0 release tag in teachific-studio-desktop
+- [ ] Create v1.0.0 release tag in teachific-quizcreator-desktop
+- [ ] Confirm .exe and .dmg installers are attached to each release
+
+## Feature: Subscription-Gated Desktop App Download Pages (Apr 2026)
+- [ ] Add getDesktopDownloads tRPC procedure - checks subscription, returns GitHub release asset URLs per app
+- [ ] Build /creator/download page - gated by creator subscription, shows Windows/Mac download buttons
+- [ ] Build /studio/download page - gated by studio subscription, shows Windows/Mac download buttons
+- [ ] Build /quiz-creator/download page - gated by quiz creator subscription, shows Windows/Mac download buttons
+- [ ] Add download page links from each app dashboard
+- [ ] Write vitest tests for the getDesktopDownloads procedure
+
+## Bug Fix: Desktop CI build.yml
+- [x] Fix build.yml in teachific-creator-desktop: remove npm cache from setup-node, upgrade to Node 22
+- [x] Fix build.yml in teachific-studio-desktop: remove npm cache from setup-node, upgrade to Node 22
+- [x] Fix build.yml in teachific-quizcreator-desktop: remove npm cache from setup-node, upgrade to Node 22
+
+## Feature: Subscription-Gated Desktop Download Pages
+- [x] Add getDesktopDownloads procedure to stripeRouter (checks subscription, returns GitHub release URLs)
+- [x] Create DesktopDownloadPage.tsx (standalone gated page per app)
+- [x] Add routes /creator/download, /studio/download, /quiz-creator-app/download in App.tsx
+- [x] DownloadPage component in each dashboard reads URLs from App Versions table

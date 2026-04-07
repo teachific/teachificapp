@@ -119,6 +119,7 @@ import StudioLandingPage from "./pages/StudioLandingPage";
 import CreatorDashboardPage from "./pages/CreatorDashboardPage";
 import CreatorEditorPage from "./pages/CreatorEditorPage";
 import CreatorLandingPage from "./pages/CreatorLandingPage";
+import DesktopDownloadPage from "./pages/DesktopDownloadPage";
 // Auth pages (no sidebar)
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
@@ -167,15 +168,18 @@ function BareRouter() {
       {/* Standalone Quiz Creator — gated by role */}
       <Route path="/quiz-creator" component={QuizCreatorGate} />
       {/* QuizCreator standalone app for users without LMS access */}
+      <Route path="/quiz-creator-app/download">{() => <DesktopDownloadPage app="quizCreator" />}</Route>
       <Route path="/quiz-creator-app" component={QuizCreatorDashboard} />
       {/* QuizCreator sales/marketing page */}
       <Route path="/quiz-creator-pro" component={QuizCreatorLandingPage} />
       {/* Teachific Studio standalone dashboard */}
+      <Route path="/studio/download">{() => <DesktopDownloadPage app="studio" />}</Route>
       <Route path="/studio" component={StudioDashboard} />
       {/* Teachific Studio sales/marketing page */}
       <Route path="/studio-pro" component={StudioLandingPage} />
       {/* TeachificCreator™ — eLearning authoring tool */}
       <Route path="/creator-pro" component={CreatorLandingPage} />
+      <Route path="/creator/download">{() => <DesktopDownloadPage app="creator" />}</Route>
       <Route path="/creator" component={CreatorDashboardPage} />
       <Route path="/creator/:projectId" component={CreatorEditorPage} />
     </Switch>
