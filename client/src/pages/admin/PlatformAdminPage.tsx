@@ -94,6 +94,9 @@ import {
   PenTool,
   FileQuestion,
   DollarSign,
+  ExternalLink,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react"
 import { cn } from "@/lib/utils";
 
@@ -1413,55 +1416,136 @@ function PageCreatorTab() {
 
 // ─── Integrations Tab ─────────────────────────────────────────────────────────
 function IntegrationsTab() {
-  const integrations = [
-    { name: "Stripe", desc: "Payment processing for course sales and subscriptions", icon: CreditCard, status: "not_configured", color: "text-violet-400" },
-    { name: "SendGrid", desc: "Transactional and marketing email delivery", icon: FileText, status: "configured", color: "text-blue-400" },
-    { name: "Zapier", desc: "Automate workflows with 5,000+ apps", icon: Zap, status: "not_configured", color: "text-orange-400" },
-    { name: "Webhooks", desc: "Send real-time event data to external services", icon: Webhook, status: "not_configured", color: "text-teal-400" },
-    { name: "REST API", desc: "Programmatic access to your platform data", icon: Code2, status: "configured", color: "text-green-400" },
-  ];
-  const [apiKeyVisible, setApiKeyVisible] = useState(false);
-  const apiKey = "sk_live_teachific_platform_key_demo";
+  const { data: stripeStatus, isLoading: stripeLoading, refetch: refetchStripe } = trpc.billing.getStripeStatus.useQuery();
+
   return (
     <div className="space-y-4">
+      {/* Stripe Integration Card */}
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-slate-900 text-sm flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-violet-400" /> Stripe
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {stripeStatus?.isConfigured ? (
+                <Badge variant="outline" className="border-green-500/40 text-green-600 text-xs">Active</Badge>
+              ) : (
+                <Badge variant="outline" className="border-amber-500/40 text-amber-600 text-xs">Not configured</Badge>
+              )}
+              <Button size="icon" variant="ghost" className="w-7 h-7 text-slate-500" onClick={() => refetchStripe()}>
+                <RefreshCw className={cn("w-3.5 h-3.5", stripeLoading && "animate-spin")} />
+              </Button>
+            </div>
+          </div>
+          <CardDescription className="text-slate-700">Payment processing for platform subscriptions and course sales</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {stripeLoading ? (
+            <div className="text-slate-500 text-sm py-2">Loading Stripe status...</div>
+          ) : stripeStatus ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-white border border-gray-200 space-y-1">
+                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Mode</p>
+                  <div className="flex items-center gap-1.5">
+                    {stripeStatus.isTestMode ? (
+                      <><AlertCircle className="w-3.5 h-3.5 text-amber-500" /><span className="text-sm font-semibold text-amber-600">Test Mode</span></>
+                    ) : (
+                      <><CheckCircle className="w-3.5 h-3.5 text-green-500" /><span className="text-sm font-semibold text-green-600">Live Mode</span></>
+                    )}
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-white border border-gray-200 space-y-1">
+                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Publishable Key</p>
+                  <p className="text-sm font-mono text-slate-800">{stripeStatus.publishableKeyPrefix ?? <span className="text-slate-400 italic">Not set</span>}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-white border border-gray-200 space-y-1">
+                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Webhook Secret</p>
+                  <div className="flex items-center gap-1.5">
+                    {stripeStatus.hasWebhookSecret ? (
+                      <><CheckCircle className="w-3.5 h-3.5 text-green-500" /><span className="text-sm text-green-600">Configured</span></>
+                    ) : (
+                      <><AlertCircle className="w-3.5 h-3.5 text-amber-500" /><span className="text-sm text-amber-600">Not set</span></>
+                    )}
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-white border border-gray-200 space-y-1">
+                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Price IDs Loaded</p>
+                  <p className="text-sm font-semibold text-slate-800">{stripeStatus.priceCount} plan prices</p>
+                </div>
+              </div>
+              {stripeStatus.isTestMode && stripeStatus.claimUrl && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-amber-800">Stripe sandbox not yet claimed</p>
+                    <p className="text-xs text-amber-700 mt-0.5">Claim your sandbox to activate test payments. Expires June 3, 2026. Once claimed, enter live keys in Settings → Payment when ready to go live.</p>
+                    <a
+                      href={stripeStatus.claimUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-amber-800 underline underline-offset-2 hover:text-amber-900"
+                    >
+                      Claim Stripe Sandbox <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+              )}
+              {stripeStatus.priceIds.length > 0 && (
+                <details className="group">
+                  <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-700 select-none">Show {stripeStatus.priceIds.length} loaded price IDs</summary>
+                  <div className="mt-2 grid grid-cols-1 gap-1 max-h-48 overflow-y-auto">
+                    {stripeStatus.priceIds.map(({ key, id }) => (
+                      <div key={key} className="flex items-center justify-between px-2 py-1 rounded bg-white border border-gray-100 text-xs">
+                        <span className="text-slate-600 font-medium">{key}</span>
+                        <span className="font-mono text-slate-400 truncate ml-2">{id}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center gap-2 text-amber-600 text-sm">
+              <AlertCircle className="w-4 h-4" /> Unable to load Stripe status
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* SendGrid Card */}
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-slate-900 text-sm flex items-center gap-2">
+              <FileText className="w-4 h-4 text-blue-400" /> SendGrid
+            </CardTitle>
+            <Badge variant="outline" className="border-green-500/40 text-green-600 text-xs">Active</Badge>
+          </div>
+          <CardDescription className="text-slate-700">Transactional and marketing email delivery — configured via platform environment</CardDescription>
+        </CardHeader>
+      </Card>
+
+      {/* Other integrations */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {integrations.map((intg)=>(
+        {[
+          { name: "Zapier", desc: "Automate workflows with 5,000+ apps", icon: Zap, color: "text-orange-400" },
+          { name: "Webhooks", desc: "Send real-time event data to external services", icon: Webhook, color: "text-teal-400" },
+          { name: "REST API", desc: "Programmatic access to your platform data", icon: Code2, color: "text-green-400" },
+        ].map((intg) => (
           <Card key={intg.name} className="bg-gray-50 border-gray-200">
             <CardContent className="p-4 flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-gray-100/50 shrink-0"><intg.icon className={cn("w-5 h-5",intg.color)}/></div>
+              <div className="p-2 rounded-lg bg-gray-100/50 shrink-0"><intg.icon className={cn("w-5 h-5", intg.color)} /></div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-slate-900 font-semibold text-sm">{intg.name}</p>
-                  <Badge variant="outline" className={intg.status==="configured"?"border-green-500/40 text-green-300 text-xs":"border-gray-300 text-slate-700 text-xs"}>{intg.status==="configured"?"Active":"Not configured"}</Badge>
-                </div>
+                <p className="text-slate-900 font-semibold text-sm">{intg.name}</p>
                 <p className="text-xs text-slate-700 mt-0.5">{intg.desc}</p>
               </div>
-              <Button size="sm" variant="outline" className="border-gray-300 text-slate-800 hover:text-slate-900 shrink-0" onClick={()=>toast.info("Integration configuration coming soon")}>{intg.status==="configured"?"Manage":"Configure"}</Button>
+              <Button size="sm" variant="outline" className="border-gray-300 text-slate-800 hover:text-slate-900 shrink-0" onClick={() => toast.info("Coming soon")}>Configure</Button>
             </CardContent>
           </Card>
         ))}
       </div>
-      <Card className="bg-gray-50 border-gray-200">
-        <CardHeader className="pb-3"><CardTitle className="text-slate-900 text-sm flex items-center gap-2"><Code2 className="w-4 h-4 text-teal-400"/> Platform API Key</CardTitle><CardDescription className="text-slate-700">Use this key to authenticate server-to-server API requests</CardDescription></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Input value={apiKeyVisible ? apiKey : "•".repeat(40)} readOnly className="bg-gray-50 border-gray-300 text-slate-900 font-mono text-xs"/>
-            <Button size="icon" variant="outline" className="border-gray-300 text-slate-800 hover:text-slate-900 shrink-0" onClick={()=>setApiKeyVisible(v=>!v)}><Search className="w-4 h-4"/></Button>
-            <Button size="icon" variant="outline" className="border-gray-300 text-slate-800 hover:text-slate-900 shrink-0" onClick={()=>{navigator.clipboard.writeText(apiKey);toast.success("API key copied");}}><Copy className="w-4 h-4"/></Button>
-          </div>
-          <p className="text-xs text-slate-500">Keep this key secret — it grants full API access to your platform.</p>
-        </CardContent>
-      </Card>
-      <Card className="bg-gray-50 border-gray-200">
-        <CardHeader className="pb-3"><CardTitle className="text-slate-900 text-sm flex items-center gap-2"><Webhook className="w-4 h-4 text-teal-400"/> Webhook Endpoints</CardTitle><CardDescription className="text-slate-700">Configure URLs to receive real-time event notifications</CardDescription></CardHeader>
-        <CardContent>
-          <div className="text-center py-6">
-            <Webhook className="w-8 h-8 text-slate-600 mx-auto mb-2"/>
-            <p className="text-slate-700 text-sm">No webhook endpoints configured</p>
-            <Button size="sm" variant="outline" className="mt-3 border-gray-300 text-slate-800 hover:text-slate-900 gap-1.5" onClick={()=>toast.info("Webhook management coming soon")}><Plus className="w-3.5 h-3.5"/> Add Endpoint</Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

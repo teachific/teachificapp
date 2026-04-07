@@ -703,4 +703,25 @@ export const stripeRouter = router({
       quizCreator: { tier: quizRole, isActive: hasQuizCreator, isInTrial: !!quizInTrial },
     };
   }),
+
+  // ── Platform Admin: Stripe integration status ─────────────────────────────
+  getStripeStatus: adminProcedure.query(async () => {
+    const isConfigured = !!ENV.stripeSecretKey;
+    const hasWebhookSecret = !!ENV.stripeWebhookSecret;
+    const publishableKeyPrefix = ENV.stripePublishableKey
+      ? ENV.stripePublishableKey.slice(0, 14) + "..."
+      : null;
+    const isTestMode = ENV.stripeSecretKey?.startsWith("sk_test_") ?? false;
+    const priceCount = Object.keys(STRIPE_PRICE_IDS).length;
+    const priceIds = Object.entries(STRIPE_PRICE_IDS).map(([key, id]) => ({ key, id }));
+    return {
+      isConfigured,
+      isTestMode,
+      hasWebhookSecret,
+      publishableKeyPrefix,
+      priceCount,
+      priceIds,
+      claimUrl: isTestMode ? "https://dashboard.stripe.com/claim_sandbox/YWNjdF8xVElITmQ1NEtpeUUwbExZLDE3NzU5MjQwNTEv100hEZaCvIU" : null,
+    };
+  }),
 });

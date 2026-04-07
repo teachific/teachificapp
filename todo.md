@@ -2403,3 +2403,12 @@
 - [x] Add addUserToOrgByEmail procedure to platformAdmin router
 - [x] Extend updateOrgMemberRole to accept all org role values (org_super_admin, org_admin, member, user)
 - [x] Verify stripePlans.ts single-plan prices are correct (Creator $117/mo or $999/yr, Studio $47/mo or $399/yr, QuizCreator $47/mo or $399/yr)
+
+## Bug Fix: Platform Admin Stripe Integration Shows "Coming Soon" (Apr 2026)
+- [x] Find the "coming soon" placeholder in PlatformAdminPage Stripe integration tab
+- [x] Replace with real Stripe integration UI (plan prices, webhook status, sandbox claim link, key status)
+
+## Bug Fix: Stripe Sandbox Claim Link Goes to Wrong Page (Apr 2026)
+- [x] Fix sandbox claim URL to use the full token-based URL from project config (not generic /claim_sandbox)
+- [x] Update getStripeStatus procedure to return the correct full claim URL
+- [x] Build real Stripe integration UI in Platform Admin IntegrationsTab (replace coming soon toast)
