@@ -2237,8 +2237,8 @@ function TrialBadge({ trialEndsAt }: { trialEndsAt: Date | null | undefined }) {
 
 // ─── TeachificCreator Admin Tab ──────────────────────────────────────────────
 function CreatorAdminTab() {
-  const { data: users = [], refetch } = trpc.authoring.adminListCreatorUsers.useQuery();
-  const setRole = trpc.authoring.adminSetCreatorRole.useMutation({
+  const { data: users = [], refetch } = trpc.billing.adminListCreatorUsers.useQuery();
+  const setRole = trpc.billing.adminSetCreatorRole.useMutation({
     onSuccess: () => { refetch(); toast.success("Creator role updated"); },
     onError: (e) => toast.error(e.message),
   });
@@ -2409,13 +2409,13 @@ function StudioAdminTab() {
 
 // ─── Teachific QuizCreator Admin Tab ─────────────────────────────────────────
 function QuizCreatorAdminTab() {
-  const { data: users = [], refetch } = trpc.quizCreator.listUsersWithRole.useQuery();
-  const setRole = trpc.quizCreator.setUserRole.useMutation({
+  const { data: users = [], refetch } = trpc.billing.adminListQuizCreatorUsers.useQuery();
+  const setRole = trpc.billing.adminSetQuizCreatorRole.useMutation({
     onSuccess: () => { refetch(); toast.success("QuizCreator role updated"); },
     onError: (e) => toast.error(e.message),
   });
   const [search, setSearch] = useState("");
-  const filtered = users.filter((u: { name?: string | null; email?: string | null }) =>
+  const filtered = users.filter((u) =>
     u.name?.toLowerCase().includes(search.toLowerCase()) ||
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
@@ -2451,6 +2451,7 @@ function QuizCreatorAdminTab() {
                   <TableHead className="text-slate-700 font-semibold">User</TableHead>
                   <TableHead className="text-slate-700 font-semibold">Email</TableHead>
                   <TableHead className="text-slate-700 font-semibold">QuizCreator Role</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">Trial</TableHead>
                   <TableHead className="text-slate-700 font-semibold">Joined</TableHead>
                   <TableHead className="text-slate-700 font-semibold">Actions</TableHead>
                 </TableRow>
@@ -2459,12 +2460,13 @@ function QuizCreatorAdminTab() {
                 {filtered.length === 0 && (
                   <TableRow><TableCell colSpan={5} className="text-center text-slate-500 py-8">No users found</TableCell></TableRow>
                 )}
-                {(filtered as Array<{ id: number; name?: string | null; email?: string | null; role: string; quizCreatorRole: string }>).map((u) => (
+                {filtered.map((u) => (
                   <TableRow key={u.id} className="border-gray-200 hover:bg-gray-50">
                     <TableCell className="font-medium text-slate-900">{u.name ?? "—"}</TableCell>
                     <TableCell className="text-slate-600 text-sm">{u.email}</TableCell>
                     <TableCell><RoleBadge role={u.quizCreatorRole} /></TableCell>
-                    <TableCell className="text-slate-500 text-xs">—</TableCell>
+                    <TableCell><TrialBadge trialEndsAt={u.quizCreatorTrialEndsAt} /></TableCell>
+                    <TableCell className="text-slate-500 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}</TableCell>
                     <TableCell>
                       <Select
                         value={u.quizCreatorRole}
@@ -2475,7 +2477,7 @@ function QuizCreatorAdminTab() {
                         </SelectTrigger>
                         <SelectContent>
                           {["none", "lite", "premium"].map((r) => (
-                            <SelectItem key={r} value={r} className="text-slate-900 text-xs">{r === "none" ? "No Access" : r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
+                             <SelectItem key={r} value={r} className="text-slate-900 text-xs">{r === "none" ? "No Access" : r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -2490,7 +2492,6 @@ function QuizCreatorAdminTab() {
     </div>
   );
 }
-
 // ─── TeachificPay Admin Tab ──────────────────────────────────────────────────
 function TeachificPayAdminTab() {
   const { data: accounts = [] } = trpc.teachificPay.adminListAccounts.useQuery();

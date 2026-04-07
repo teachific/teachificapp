@@ -466,6 +466,64 @@ export const stripeRouter = router({
       await db.update(users).set({ studioRole: input.role }).where(eq(users.id, input.userId));
       return { success: true };
     }),
+  // ── Admin: list all Creator users ─────────────────────────────────────────
+  adminListCreatorUsers: adminProcedure.query(async () => {
+    const db = await getDb();
+    const { users } = await import("../drizzle/schema");
+    const allUsers = await db.select({
+      id: users.id, name: users.name, email: users.email,
+      creatorRole: users.creatorRole, creatorTrialEndsAt: users.creatorTrialEndsAt, createdAt: users.createdAt,
+    }).from(users).orderBy(users.createdAt);
+    return allUsers.map((u) => ({ ...u, creatorRole: (u.creatorRole ?? "none") as "none" | "starter" | "pro" | "team" }));
+  }),
+  // ── Admin: set a user's Creator role ─────────────────────────────────────
+  adminSetCreatorRole: adminProcedure
+    .input(z.object({
+      userId: z.number(),
+      role: z.enum(["none", "starter", "pro", "team"]),
+      trialDays: z.number().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      const { users } = await import("../drizzle/schema");
+      const trialEndsAt = input.trialDays ? new Date(Date.now() + input.trialDays * 86400000) : null;
+      await db.update(users).set({ creatorRole: input.role, creatorTrialEndsAt: trialEndsAt }).where(eq(users.id, input.userId));
+      return { success: true };
+    }),
+  // ── Admin: list all QuizCreator users ────────────────────────────────────
+  adminListQuizCreatorUsers: adminProcedure.query(async () => {
+    const db = await getDb();
+    const { users } = await import("../drizzle/schema");
+    const allUsers = await db.select({
+      id: users.id, name: users.name, email: users.email,
+      quizCreatorRole: users.quizCreatorRole, quizCreatorTrialEndsAt: users.quizCreatorTrialEndsAt, createdAt: users.createdAt,
+    }).from(users).orderBy(users.createdAt);
+    return allUsers.map((u) => ({ ...u, quizCreatorRole: (u.quizCreatorRole ?? "none") as "none" | "lite" | "premium" }));
+  }),
+  // ── Admin: set a user's QuizCreator role ─────────────────────────────────
+  adminSetQuizCreatorRole: adminProcedure
+    .input(z.object({
+      userId: z.number(),
+      role: z.enum(["none", "lite", "premium"]),
+      trialDays: z.number().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      const { users } = await import("../drizzle/schema");
+      const trialEndsAt = input.trialDays ? new Date(Date.now() + input.trialDays * 86400000) : null;
+      await db.update(users).set({ quizCreatorRole: input.role, quizCreatorTrialEndsAt: trialEndsAt }).where(eq(users.id, input.userId));
+      return { success: true };
+    }),
+  // ── Admin: update Studio trial end date ──────────────────────────────────
+  adminSetStudioTrial: adminProcedure
+    .input(z.object({ userId: z.number(), trialDays: z.number().optional() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      const { users } = await import("../drizzle/schema");
+      const trialEndsAt = input.trialDays ? new Date(Date.now() + input.trialDays * 86400000) : null;
+      await db.update(users).set({ studioTrialEndsAt: trialEndsAt }).where(eq(users.id, input.userId));
+      return { success: true };
+    }),
   // ── TeachificCreator™ checkout ──────────────────────────────────────────────
   createCreatorCheckout: protectedProcedure
     .input(z.object({
@@ -734,32 +792,27 @@ export const stripeRouter = router({
         });
       }
 
-      // GitHub release asset URLs — filenames are set by electron-builder in package.json
-      const DOWNLOAD_URLS: Record<string, { windows: string; mac: string; version: string; releasePage: string }> = {
-        creator: {
-          version: "1.0.0",
-          releasePage: "https://github.com/teachific/teachific-creator-desktop/releases/tag/v1.0.0",
-          windows: "https://github.com/teachific/teachific-creator-desktop/releases/download/v1.0.0/TeachificCreator-Setup-1.0.0.exe",
-          mac: "https://github.com/teachific/teachific-creator-desktop/releases/download/v1.0.0/TeachificCreator-1.0.0.dmg",
-        },
-        studio: {
-          version: "1.0.0",
-          releasePage: "https://github.com/teachific/teachific-studio-desktop/releases/tag/v1.0.0",
-          windows: "https://github.com/teachific/teachific-studio-desktop/releases/download/v1.0.0/TeachificStudio-Setup-1.0.0.exe",
-          mac: "https://github.com/teachific/teachific-studio-desktop/releases/download/v1.0.0/TeachificStudio-1.0.0.dmg",
-        },
-        quizCreator: {
-          version: "1.0.0",
-          releasePage: "https://github.com/teachific/teachific-quizcreator-desktop/releases/tag/v1.0.0",
-          windows: "https://github.com/teachific/teachific-quizcreator-desktop/releases/download/v1.0.0/TeachificQuizCreator-Setup-1.0.0.exe",
-          mac: "https://github.com/teachific/teachific-quizcreator-desktop/releases/download/v1.0.0/TeachificQuizCreator-1.0.0.dmg",
-        },
+      // Pull latest download URLs from app_versions DB table
+      const dbProduct = input.app === "quizCreator" ? "quizcreator" : input.app;
+      const { appVersions } = await import("../drizzle/schema");
+      const { and: and2 } = await import("drizzle-orm");
+      const [latestRow] = await db
+        .select()
+        .from(appVersions)
+        .where(and2(eq(appVersions.product, dbProduct as "creator" | "studio" | "quizcreator"), eq(appVersions.isLatest, true)))
+        .limit(1);
+      const RELEASE_PAGES: Record<string, string> = {
+        creator: "https://github.com/teachific/teachific-creator-desktop/releases/latest",
+        studio: "https://github.com/teachific/teachific-studio-desktop/releases/latest",
+        quizcreator: "https://github.com/teachific/teachific-quizcreator-desktop/releases/latest",
       };
-
       return {
         hasAccess: true,
         app: input.app,
-        ...DOWNLOAD_URLS[input.app],
+        version: latestRow?.version ?? "1.0.2",
+        windows: latestRow?.windowsUrl ?? null,
+        mac: latestRow?.macUrl ?? null,
+        releasePage: RELEASE_PAGES[dbProduct],
       };
     }),
 

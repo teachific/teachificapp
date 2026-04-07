@@ -2443,3 +2443,11 @@
 - [x] Create DesktopDownloadPage.tsx (standalone gated page per app)
 - [x] Add routes /creator/download, /studio/download, /quiz-creator-app/download in App.tsx
 - [x] DownloadPage component in each dashboard reads URLs from App Versions table
+
+## Feature: Desktop App Auto-Update
+- [ ] Add electron-updater to package.json in all three desktop repos
+- [ ] Add publish config (GitHub Releases) to electron-builder in package.json
+- [ ] Update main.js in all three repos: check for updates on startup, show native dialog prompt
+- [ ] Handle update events: checking, available, not-available, downloaded, error
+- [ ] Update build.yml to publish release assets (latest.yml / latest-mac.yml metadata files)
+- [ ] Test update flow end-to-end

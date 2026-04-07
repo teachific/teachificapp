@@ -139,7 +139,7 @@ export default function DesktopDownloadPage({ app }: { app: AppKey }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Windows */}
                   <button
-                    onClick={() => handleDownload("windows", data.windows)}
+                    onClick={() => handleDownload("windows", data.windows ?? "")}
                     className="flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 hover:border-teal-400 hover:bg-teal-50/50 transition-all text-left group"
                   >
                     <div className="p-3 rounded-lg bg-blue-100 shrink-0">
@@ -158,7 +158,7 @@ export default function DesktopDownloadPage({ app }: { app: AppKey }) {
 
                   {/* macOS */}
                   <button
-                    onClick={() => handleDownload("mac", data.mac)}
+                    onClick={() => handleDownload("mac", data.mac ?? "")}
                     className="flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 hover:border-teal-400 hover:bg-teal-50/50 transition-all text-left group"
                   >
                     <div className="p-3 rounded-lg bg-slate-100 shrink-0">
