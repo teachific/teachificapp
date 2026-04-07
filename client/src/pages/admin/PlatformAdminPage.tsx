@@ -2453,7 +2453,7 @@ function SubscriptionPlansTab() {
                       ) : (
                         <button
                           className="text-sm font-mono text-slate-700 hover:text-teal-600 hover:underline cursor-pointer px-2 py-1 rounded hover:bg-teal-50 transition-colors"
-                          onClick={() => setEditing({ featureKey: feature.key, plan, value: String(val === "\u2014" || val === undefined ? 0 : val) })}
+                          onClick={() => setEditing({ featureKey: feature.key, plan, value: String((val as unknown) === "\u2014" || val === undefined ? 0 : val) })}
                           title="Click to edit"
                         >
                           {val === -1 ? "∞" : val}
