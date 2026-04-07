@@ -109,6 +109,7 @@ import BillingPage from "./pages/profile/BillingPage";
 
 import LandingPage from "./pages/LandingPage";
 import PlatformPoliciesPage from "./pages/PlatformPoliciesPage";
+import HelpPage from "./pages/HelpPage";
 import { getSubdomain } from "./hooks/useSubdomain";
 import QuizCreatorPage from "./pages/QuizCreatorPage";
 import QuizCreatorGate from "./pages/QuizCreatorGate";
@@ -153,6 +154,7 @@ function BareRouter() {
       <Route path="/school/my-courses" component={SchoolMyCoursesPage} />
       <Route path="/community/:hubId" component={CommunityLearnerPage} />
       {/* Platform-level legal policies — independent of any org */}
+      <Route path="/help" component={HelpPage} />
       <Route path="/policies" component={PlatformPoliciesPage} />
       <Route path="/terms" component={PlatformPoliciesPage} />
       <Route path="/privacy" component={PlatformPoliciesPage} />

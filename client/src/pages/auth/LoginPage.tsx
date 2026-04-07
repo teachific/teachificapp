@@ -25,8 +25,9 @@ export default function LoginPage() {
   const params = new URLSearchParams(search);
   const returnTo = params.get("returnTo") ?? "";
 
-  // Desktop app context: returnTo points to /creator, /studio, or /quiz-creator
-  const isDesktop = ["/creator", "/studio", "/quiz-creator"].some((p) =>
+  // Desktop app context: detect via context=desktop param OR returnTo pointing to app routes
+  const contextParam = params.get("context") ?? "";
+  const isDesktop = contextParam === "desktop" || ["/creator", "/studio", "/quiz-creator", "/quiz-creator-app"].some((p) =>
     returnTo.startsWith(p)
   );
 
@@ -56,6 +57,8 @@ export default function LoginPage() {
       ? "Teachific Studio™"
       : returnTo.startsWith("/quiz-creator")
       ? "Teachific QuizCreator™"
+      : contextParam === "desktop" && !returnTo
+      ? "Teachific"
       : "TeachificCreator™";
 
     return (
