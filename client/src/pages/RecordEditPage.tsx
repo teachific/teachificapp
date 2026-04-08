@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/useAuth";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useLocation } from "wouter";
 import { useUploadQueue } from "@/contexts/UploadQueueContext";
 
@@ -1156,6 +1157,15 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
     navigator.mediaDevices.addEventListener("devicechange", refreshDevices);
     return () => navigator.mediaDevices.removeEventListener("devicechange", refreshDevices);
   }, []);
+
+  // Route video preview playback to selected speaker output device
+  useEffect(() => {
+    const el = previewRef.current as any;
+    if (!el) return;
+    if (typeof el.setSinkId === "function") {
+      el.setSinkId(selectedOutput || "").catch(() => {});
+    }
+  }, [selectedOutput]);
 
   // Derive resolution from quality setting
   const qualityDimensions = { "720p": { w: 1280, h: 720 }, "1080p": { w: 1920, h: 1080 }, "4k": { w: 3840, h: 2160 } };
@@ -2351,7 +2361,16 @@ function RecordAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item:
                       </Button>
                     </div>
                   </div>
-                  <audio src={rec.url} controls className="w-full mt-2 h-8" />
+                  <audio
+                    src={rec.url}
+                    controls
+                    className="w-full mt-2 h-8"
+                    ref={(el) => {
+                      if (el && selectedAudioOutput && typeof (el as any).setSinkId === "function") {
+                        (el as any).setSinkId(selectedAudioOutput).catch(() => {});
+                      }
+                    }}
+                  />
                 </div>
               ))}
             </div>
@@ -2629,6 +2648,7 @@ export default function RecordEditPage() {
   const [lastSavedItem, setLastSavedItem] = useState<MediaItem | undefined>(undefined);
   const { user } = useAuth();
   const orgId = (user as any)?.orgId ?? 1;
+  const { isBuilder, isLoading: planLoading } = usePlanLimits();
 
   const handleItemSaved = useCallback((item: MediaItem) => {
     setLastSavedItem(item);
@@ -2728,17 +2748,52 @@ export default function RecordEditPage() {
 
       {/* Tab content */}
       <div className="flex-1 min-h-0 overflow-auto">
-        {activeTab === "record" && (
-          <RecordTab orgId={orgId} onSaved={handleItemSaved} />
-        )}
-        {activeTab === "upload" && (
-          <UploadTab orgId={orgId} onSaved={handleUploadSaved} />
-        )}
-        {activeTab === "edit" && (
-          <EditTab orgId={orgId} initialItem={lastSavedItem} />
-        )}
-        {activeTab === "audio" && (
-          <AudioTab orgId={orgId} onSaved={handleItemSaved} />
+        {(activeTab === "record" || activeTab === "audio") && !planLoading && !isBuilder ? (
+          <div className="flex flex-col items-center justify-center h-full gap-6 p-10 text-center">
+            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg">
+              <Video className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold mb-2">Builder Plan Required</h2>
+              <p className="text-muted-foreground max-w-md">
+                Browser-based recording is available on the <strong>Builder plan</strong> and above.
+                Upgrade to start recording video and audio directly in your browser.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                className="gap-2 bg-[#0e8a96] hover:bg-[#0a6e78] text-white"
+                onClick={() => setLocation("/settings/billing")}
+              >
+                <Zap className="h-4 w-4" />
+                Upgrade to Builder
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setLocation("/studio/download")}
+              >
+                <Download className="h-4 w-4" />
+                Download Desktop App
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">The full Teachific Studio™ desktop app is available on all plans with no recording limits.</p>
+          </div>
+        ) : (
+          <>
+            {activeTab === "record" && (
+              <RecordTab orgId={orgId} onSaved={handleItemSaved} />
+            )}
+            {activeTab === "upload" && (
+              <UploadTab orgId={orgId} onSaved={handleUploadSaved} />
+            )}
+            {activeTab === "edit" && (
+              <EditTab orgId={orgId} initialItem={lastSavedItem} />
+            )}
+            {activeTab === "audio" && (
+              <AudioTab orgId={orgId} onSaved={handleItemSaved} />
+            )}
+          </>
         )}
       </div>
     </div>

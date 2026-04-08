@@ -2281,9 +2281,9 @@
 - [ ] All three desktop apps show watermark on exports for free/trial users
 
 ### LMS Studio Lite Gating
-- [ ] Update LMS plan gating: Teachific Studio™ Lite (record only) available from Builder plan and above
+- [x] Update LMS plan gating: Teachific Studio™ Lite (record only) available from Builder plan and above
 - [ ] Studio Lite = record only (camera, screen, or both) — no editing
-- [ ] Add upgrade prompts to TeachificStudio desktop app from Studio Lite in LMS
+- [x] Add upgrade prompts to TeachificStudio desktop app from Studio Lite in LMS
 
 ### Web Dashboards (retained)
 - [ ] Update /creator dashboard to be download hub for TeachificCreator™ desktop app
@@ -2309,8 +2309,8 @@
 - [ ] All desktop apps: login-based activation, 14-day trial, watermark on free/trial exports
 
 ### LMS Studio Lite Gating
-- [ ] Studio Lite (record only, no editing) available from Builder plan and above
-- [ ] Add upgrade prompts to Studio desktop app from Studio Lite in LMS
+- [x] Studio Lite (record only, no editing) available from Builder plan and above
+- [x] Add upgrade prompts to Studio desktop app from Studio Lite in LMS
 
 ### Web Dashboards as Download Hubs
 - [ ] /creator dashboard = download hub for TeachificCreator desktop + product media library
