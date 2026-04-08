@@ -18,7 +18,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  File, FileArchive, FileText, Film, Image, Loader2, MoreVertical,
+  File, FileArchive, FileText, Film, Image, Link2, Loader2, MoreVertical,
   Music, Search, Trash2, Upload, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -423,6 +423,21 @@ function MediaFileCard({
         )}
       </div>
 
+      {/* Copy URL button — always visible on hover */}
+      <div className="absolute top-1.5 left-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          className="h-6 w-6 rounded-full bg-background/90 border border-border flex items-center justify-center shadow-sm hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors"
+          title="Copy CDN URL"
+          onClick={() => {
+            navigator.clipboard.writeText(item.url).then(() => {
+              toast.success("URL copied to clipboard", { description: item.filename });
+            }).catch(() => toast.error("Failed to copy URL"));
+          }}
+        >
+          <Link2 className="h-3 w-3" />
+        </button>
+      </div>
+
       {/* Actions overlay */}
       <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <DropdownMenu>
@@ -432,6 +447,16 @@ function MediaFileCard({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="text-sm">
+            <DropdownMenuItem
+              onClick={() => {
+                navigator.clipboard.writeText(item.url).then(() => {
+                  toast.success("URL copied to clipboard", { description: item.filename });
+                }).catch(() => toast.error("Failed to copy URL"));
+              }}
+            >
+              <Link2 className="h-3.5 w-3.5 mr-1.5" />
+              Copy URL
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a href={item.url} target="_blank" rel="noopener noreferrer">
                 Open in new tab

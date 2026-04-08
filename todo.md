@@ -2488,3 +2488,11 @@
 - [x] Update DB schema if needed (mediaType enum or string field)
 - [x] Update media library UI: file type icons, preview thumbnails, filter tabs
 - [x] Wire branded HTML email templates into all sendEmail call sites
+
+## GitHub SVG Icon Push & Media Copy URL (Apr 8)
+- [x] Find all three desktop app GitHub repos (Creator, Studio, QuizCreator)
+- [x] Push icon-creator.png to TeachificCreator repo (assets/icon.png)
+- [x] Push icon-studio.png to Teachific Studio repo (assets/icon.png)
+- [x] Push icon-quizcreator.png to TeachificQuizCreator repo (assets/icon.png)
+- [x] Add Copy URL button to each media file card in MediaFilesPage
+- [x] Show toast confirmation on copy
