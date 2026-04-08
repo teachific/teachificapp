@@ -2602,3 +2602,28 @@
 - [x] LandingPage.tsx: update gateway feature copy (only Pro/Enterprise can use own gateway)
 - [x] OrgSettingsPage.tsx: update TeachificPay section fee display and gateway toggle visibility
 - [x] teachificPayRouter.ts: remove group registration TeachificPay override (follow org gateway setting)
+
+## Admin Dispute Overview — Platform Admin Panel (Apr 2026)
+- [ ] tRPC: adminListAllDisputes — paginated list of all disputes across all orgs, with filters (status, org, date range)
+- [ ] tRPC: adminGetDisputeDetail — full dispute detail including charge info, learner, course, evidence submitted
+- [ ] tRPC: adminUpdateDisputeNote — add internal admin note to a dispute
+- [ ] tRPC: adminEscalateDispute — flag a dispute for escalation (email owner, mark as escalated)
+- [ ] UI: Disputes tab in PlatformAdminPage
+- [ ] UI: Summary stats bar (total open, total won, total lost, total amount at risk)
+- [ ] UI: Filterable dispute table (filter by status: warning_needs_response/needs_response/under_review/won/lost/all; filter by org; date range)
+- [ ] UI: Dispute detail drawer/modal (charge info, learner details, course, evidence status, deadline countdown, admin notes)
+- [ ] UI: Escalate button — marks dispute as escalated and sends notification to school owner
+- [ ] UI: Add Note button — internal admin notes per dispute
+- [ ] UI: Link to Stripe dispute dashboard for each dispute
+
+## Admin Dispute Overview — Completed (Apr 8, 2026)
+- [x] Add adminDisputeStats procedure (open/won/lost counts + amounts)
+- [x] Add adminListAllDisputes procedure (paginated, filterable by status/search, joins org name + learner email)
+- [x] Add adminAddDisputeNote procedure (internal admin notes on disputes)
+- [x] Add adminEscalateDispute procedure (flag dispute for priority attention)
+- [x] Add adminSubmitDisputeEvidence procedure (submit evidence to Stripe API)
+- [x] Add adminListAllCharges procedure (paginated, filterable, joins org + learner)
+- [x] Add adminNotes and escalated columns to teachific_pay_disputes table (migrated)
+- [x] TeachificPay admin tab now has 3 sub-tabs: Schools & Revenue, Disputes, Charge History
+- [x] Disputes panel: stats header (open/won/lost/total), searchable/filterable table, deadline countdown, escalate button, evidence submission form, inline admin notes
+- [x] Charge History panel: searchable/filterable table, refund action per charge

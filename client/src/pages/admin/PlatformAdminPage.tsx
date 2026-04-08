@@ -100,6 +100,16 @@ import {
   Map,
   Laptop,
   ChevronRight,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldX,
+  MessageSquare,
+  Send,
+  Flag,
+  Clock,
+  Filter,
+  ChevronLeft,
+  FileSearch,
 } from "lucide-react"
 import { cn } from "@/lib/utils";
 
@@ -2763,6 +2773,33 @@ function QuizCreatorAdminTab() {
 }
 // ─── TeachificPay Admin Tab ──────────────────────────────────────────────────
 function TeachificPayAdminTab() {
+  const [payTab, setPayTab] = useState<"schools" | "disputes" | "charges">("schools");
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1 border-b border-gray-200 pb-0">
+        {(["schools", "disputes", "charges"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setPayTab(t)}
+            className={cn(
+              "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors capitalize",
+              payTab === t
+                ? "border-teal-500 text-teal-700 bg-teal-50"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-gray-50"
+            )}
+          >
+            {t === "schools" ? "Schools & Revenue" : t === "disputes" ? "Disputes" : "Charge History"}
+          </button>
+        ))}
+      </div>
+      {payTab === "schools" && <TeachificPaySchoolsPanel />}
+      {payTab === "disputes" && <TeachificPayDisputesPanel />}
+      {payTab === "charges" && <TeachificPayChargesPanel />}
+    </div>
+  );
+}
+
+function TeachificPaySchoolsPanel() {
   const { data: accounts = [] } = trpc.teachificPay.adminListAccounts.useQuery();
   const { data: revenue } = trpc.teachificPay.adminGetPlatformRevenue.useQuery();
   const setGateway = trpc.teachificPay.adminSetOrgGateway.useMutation({
@@ -2773,17 +2810,14 @@ function TeachificPayAdminTab() {
   const filtered = accounts.filter((a) =>
     a.name?.toLowerCase().includes(search.toLowerCase())
   );
-
   const statusColor: Record<string, string> = {
     not_connected: "bg-slate-100 text-slate-600 border-slate-200",
     pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
     active: "bg-green-100 text-green-700 border-green-200",
     restricted: "bg-red-100 text-red-700 border-red-200",
   };
-
   const fmt = (cents: number, currency = "usd") =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
-
   return (
     <div className="space-y-4">
       {revenue && (
@@ -2914,6 +2948,498 @@ function TeachificPayAdminTab() {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+// ─── Disputes Panel ──────────────────────────────────────────────────────────
+const DISPUTE_STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  needs_response:           { label: "Needs Response",    color: "bg-red-100 text-red-700 border-red-200",       icon: <ShieldAlert className="w-3 h-3" /> },
+  warning_needs_response:   { label: "Warning — Respond", color: "bg-orange-100 text-orange-700 border-orange-200", icon: <ShieldAlert className="w-3 h-3" /> },
+  under_review:             { label: "Under Review",      color: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: <Clock className="w-3 h-3" /> },
+  warning_under_review:     { label: "Warning — Review",  color: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: <Clock className="w-3 h-3" /> },
+  won:                      { label: "Won",               color: "bg-green-100 text-green-700 border-green-200",   icon: <ShieldCheck className="w-3 h-3" /> },
+  lost:                     { label: "Lost",              color: "bg-slate-100 text-slate-600 border-slate-200",  icon: <ShieldX className="w-3 h-3" /> },
+  charge_refunded:          { label: "Charge Refunded",   color: "bg-blue-100 text-blue-700 border-blue-200",    icon: <CheckCircle className="w-3 h-3" /> },
+  warning_closed:           { label: "Warning Closed",    color: "bg-slate-100 text-slate-600 border-slate-200",  icon: <ShieldX className="w-3 h-3" /> },
+};
+
+function TeachificPayDisputesPanel() {
+  const fmt = (cents: number, currency = "usd") =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
+
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 25;
+  const [selectedDispute, setSelectedDispute] = useState<number | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [evidenceForm, setEvidenceForm] = useState({ email: "", description: "", notes: "" });
+  const [showEvidence, setShowEvidence] = useState(false);
+
+  const { data: stats } = trpc.teachificPay.adminDisputeStats.useQuery();
+  const { data: listData, refetch } = trpc.teachificPay.adminListAllDisputes.useQuery({
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    search: search || undefined,
+  });
+
+  const disputes = listData?.disputes ?? [];
+  const total = listData?.total ?? 0;
+
+  const addNote = trpc.teachificPay.adminAddDisputeNote.useMutation({
+    onSuccess: () => { toast.success("Note added"); setNoteText(""); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const escalate = trpc.teachificPay.adminEscalateDispute.useMutation({
+    onSuccess: () => { toast.success("Dispute escalated"); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const submitEvidence = trpc.teachificPay.adminSubmitDisputeEvidence.useMutation({
+    onSuccess: () => { toast.success("Evidence submitted to Stripe"); setShowEvidence(false); refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const selected = disputes.find((d) => d.id === selectedDispute);
+
+  const daysUntilDue = (dueBy: number | null | undefined) => {
+    if (!dueBy) return null;
+    const diff = Math.floor((dueBy - Date.now()) / 86400000);
+    return diff;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Stats header */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="bg-red-50 border-red-200">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-500" />
+                <p className="text-xs text-red-600 font-medium">Open Disputes</p>
+              </div>
+              <p className="text-2xl font-bold text-red-700 mt-1">{stats.open}</p>
+              <p className="text-xs text-red-500">{fmt(stats.openAmount)} at risk</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-green-500" />
+                <p className="text-xs text-green-600 font-medium">Won</p>
+              </div>
+              <p className="text-2xl font-bold text-green-700 mt-1">{stats.won}</p>
+              <p className="text-xs text-green-500">{fmt(stats.wonAmount)} recovered</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-slate-50 border-slate-200">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldX className="w-4 h-4 text-slate-500" />
+                <p className="text-xs text-slate-600 font-medium">Lost</p>
+              </div>
+              <p className="text-2xl font-bold text-slate-700 mt-1">{stats.lost}</p>
+              <p className="text-xs text-slate-500">{fmt(stats.lostAmount)} lost</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gray-50 border-gray-200">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-slate-400" />
+                <p className="text-xs text-slate-500 font-medium">All Time</p>
+              </div>
+              <p className="text-2xl font-bold text-slate-700 mt-1">{stats.total}</p>
+              <p className="text-xs text-slate-400">{fmt(stats.totalAmount)} total</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* Dispute list */}
+        <div className="flex-1 min-w-0">
+          <Card className="bg-gray-50 border-gray-200">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <CardTitle className="text-slate-900 text-base flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-red-500" />
+                  Dispute Management
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <Input
+                      placeholder="Search email or ID..."
+                      value={search}
+                      onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                      className="pl-8 h-8 text-xs w-52 bg-white border-gray-300 text-slate-900"
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
+                    <SelectTrigger className="h-8 text-xs w-44 bg-white border-gray-300 text-slate-900">
+                      <Filter className="w-3 h-3 mr-1" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
+                      <SelectItem value="needs_response" className="text-xs">Needs Response</SelectItem>
+                      <SelectItem value="warning_needs_response" className="text-xs">Warning — Respond</SelectItem>
+                      <SelectItem value="under_review" className="text-xs">Under Review</SelectItem>
+                      <SelectItem value="won" className="text-xs">Won</SelectItem>
+                      <SelectItem value="lost" className="text-xs">Lost</SelectItem>
+                      <SelectItem value="charge_refunded" className="text-xs">Charge Refunded</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-gray-200 bg-gray-100">
+                      <TableHead className="text-slate-700 font-semibold text-xs pl-4">School</TableHead>
+                      <TableHead className="text-slate-700 font-semibold text-xs">Learner</TableHead>
+                      <TableHead className="text-slate-700 font-semibold text-xs">Amount</TableHead>
+                      <TableHead className="text-slate-700 font-semibold text-xs">Status</TableHead>
+                      <TableHead className="text-slate-700 font-semibold text-xs">Due</TableHead>
+                      <TableHead className="text-slate-700 font-semibold text-xs">Date</TableHead>
+                      <TableHead className="text-slate-700 font-semibold text-xs">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {disputes.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-12">
+                          <FileSearch className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                          <p className="text-slate-400 text-sm">No disputes found</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {disputes.map((d) => {
+                      const statusMeta = DISPUTE_STATUS_LABELS[d.status] ?? { label: d.status, color: "bg-gray-100 text-gray-600 border-gray-200", icon: null };
+                      const days = daysUntilDue(d.evidenceDueBy);
+                      const isUrgent = days !== null && days <= 3 && days >= 0;
+                      return (
+                        <TableRow
+                          key={d.id}
+                          className={cn(
+                            "border-gray-200 cursor-pointer transition-colors",
+                            selectedDispute === d.id ? "bg-teal-50" : "hover:bg-gray-50",
+                            d.escalated ? "border-l-2 border-l-orange-400" : ""
+                          )}
+                          onClick={() => setSelectedDispute(selectedDispute === d.id ? null : d.id)}
+                        >
+                          <TableCell className="pl-4">
+                            <div className="font-medium text-slate-900 text-xs">{d.orgName ?? `Org #${d.orgId}`}</div>
+                            {d.escalated && <span className="inline-flex items-center gap-1 text-orange-600 text-xs font-semibold"><Flag className="w-3 h-3" /> Escalated</span>}
+                          </TableCell>
+                          <TableCell className="text-slate-500 text-xs">{d.learnerEmail ?? "—"}</TableCell>
+                          <TableCell className="text-slate-900 text-xs font-medium">{fmt(d.amount, d.currency)}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border ${statusMeta.color}`}>
+                              {statusMeta.icon}{statusMeta.label}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {days !== null ? (
+                              <span className={cn("text-xs font-medium", isUrgent ? "text-red-600" : days <= 7 ? "text-orange-500" : "text-slate-500")}>
+                                {days < 0 ? "Overdue" : days === 0 ? "Today" : `${days}d`}
+                              </span>
+                            ) : "—"}
+                          </TableCell>
+                          <TableCell className="text-slate-400 text-xs">{new Date(d.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {!d.escalated && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 text-xs text-orange-600 hover:bg-orange-50"
+                                  onClick={(e) => { e.stopPropagation(); escalate.mutate({ disputeId: d.id }); }}
+                                >
+                                  <Flag className="w-3 h-3 mr-1" />Escalate
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-xs text-teal-600 hover:bg-teal-50"
+                                onClick={(e) => { e.stopPropagation(); setSelectedDispute(d.id); setShowEvidence(true); }}
+                              >
+                                <Send className="w-3 h-3 mr-1" />Evidence
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Pagination */}
+              {total > PAGE_SIZE && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+                  <p className="text-xs text-slate-500">{total} total disputes</p>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" className="h-7 px-2" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                      <ChevronLeft className="w-3 h-3" />
+                    </Button>
+                    <span className="text-xs text-slate-600">Page {page + 1} of {Math.ceil(total / PAGE_SIZE)}</span>
+                    <Button size="sm" variant="outline" className="h-7 px-2" disabled={(page + 1) * PAGE_SIZE >= total} onClick={() => setPage(p => p + 1)}>
+                      <ChevronRight className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Detail panel */}
+        {selected && (
+          <div className="w-full md:w-80 shrink-0">
+            <Card className="bg-white border-gray-200 sticky top-4">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-slate-900 text-sm">Dispute Detail</CardTitle>
+                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setSelectedDispute(null)}>
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                <div className="grid grid-cols-2 gap-2">
+                  <div><p className="text-slate-400">School</p><p className="font-medium text-slate-900">{selected.orgName ?? `#${selected.orgId}`}</p></div>
+                  <div><p className="text-slate-400">Amount</p><p className="font-medium text-slate-900">{new Intl.NumberFormat("en-US", { style: "currency", currency: (selected.currency ?? "usd").toUpperCase() }).format(selected.amount / 100)}</p></div>
+                  <div><p className="text-slate-400">Reason</p><p className="font-medium text-slate-900 capitalize">{(selected.reason ?? "—").replace(/_/g, " ")}</p></div>
+                  <div><p className="text-slate-400">Evidence Due</p><p className={cn("font-medium", daysUntilDue(selected.evidenceDueBy) !== null && (daysUntilDue(selected.evidenceDueBy) ?? 99) <= 3 ? "text-red-600" : "text-slate-900")}>{selected.evidenceDueBy ? new Date(selected.evidenceDueBy).toLocaleDateString() : "—"}</p></div>
+                  <div><p className="text-slate-400">Evidence Submitted</p><p className={cn("font-medium", selected.evidenceSubmitted ? "text-green-600" : "text-slate-400")}>{selected.evidenceSubmitted ? "Yes" : "No"}</p></div>
+                  <div><p className="text-slate-400">Access Revoked</p><p className={cn("font-medium", selected.accessRevoked ? "text-red-600" : "text-green-600")}>{selected.accessRevoked ? "Yes" : "No"}</p></div>
+                </div>
+                <div>
+                  <p className="text-slate-400 mb-1">Stripe Dispute ID</p>
+                  <p className="font-mono text-slate-700 break-all">{selected.stripeDisputeId}</p>
+                </div>
+                {selected.adminNotes && (
+                  <div>
+                    <p className="text-slate-400 mb-1 flex items-center gap-1"><MessageSquare className="w-3 h-3" /> Admin Notes</p>
+                    <pre className="text-slate-700 whitespace-pre-wrap text-xs bg-slate-50 rounded p-2 border border-slate-200 max-h-40 overflow-y-auto">{selected.adminNotes}</pre>
+                  </div>
+                )}
+                {/* Add note */}
+                <div className="pt-1">
+                  <p className="text-slate-500 font-medium mb-1">Add Note</p>
+                  <Textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Internal note (not visible to school owner)..."
+                    className="text-xs min-h-[60px] bg-white border-gray-300 text-slate-900"
+                  />
+                  <Button
+                    size="sm"
+                    className="mt-2 h-7 text-xs bg-teal-600 hover:bg-teal-700 text-white"
+                    disabled={!noteText.trim() || addNote.isPending}
+                    onClick={() => addNote.mutate({ disputeId: selected.id, note: noteText })}
+                  >
+                    <MessageSquare className="w-3 h-3 mr-1" />
+                    {addNote.isPending ? "Saving..." : "Save Note"}
+                  </Button>
+                </div>
+                {/* Evidence form */}
+                {showEvidence && (
+                  <div className="pt-1 border-t border-gray-200">
+                    <p className="text-slate-500 font-medium mb-2">Submit Evidence to Stripe</p>
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="text-xs text-slate-500">Customer Email</Label>
+                        <Input value={evidenceForm.email} onChange={(e) => setEvidenceForm(f => ({ ...f, email: e.target.value }))} className="h-7 text-xs bg-white border-gray-300 text-slate-900" placeholder="learner@example.com" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-slate-500">Product Description</Label>
+                        <Input value={evidenceForm.description} onChange={(e) => setEvidenceForm(f => ({ ...f, description: e.target.value }))} className="h-7 text-xs bg-white border-gray-300 text-slate-900" placeholder="Online course: Introduction to..." />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-slate-500">Additional Notes</Label>
+                        <Textarea value={evidenceForm.notes} onChange={(e) => setEvidenceForm(f => ({ ...f, notes: e.target.value }))} className="text-xs min-h-[50px] bg-white border-gray-300 text-slate-900" placeholder="Learner accessed 8 of 10 modules..." />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs bg-teal-600 hover:bg-teal-700 text-white flex-1"
+                          disabled={submitEvidence.isPending}
+                          onClick={() => submitEvidence.mutate({
+                            disputeId: selected.id,
+                            stripeDisputeId: selected.stripeDisputeId,
+                            customerEmailAddress: evidenceForm.email || undefined,
+                            productDescription: evidenceForm.description || undefined,
+                            uncategorizedText: evidenceForm.notes || undefined,
+                          })}
+                        >
+                          <Send className="w-3 h-3 mr-1" />
+                          {submitEvidence.isPending ? "Submitting..." : "Submit to Stripe"}
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowEvidence(false)}>Cancel</Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Charge History Panel ────────────────────────────────────────────────────
+function TeachificPayChargesPanel() {
+  const fmt = (cents: number, currency = "usd") =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 25;
+
+  const { data: listData } = trpc.teachificPay.adminListAllCharges.useQuery({
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    search: search || undefined,
+  });
+
+  const charges = listData?.charges ?? [];
+  const total = listData?.total ?? 0;
+
+  const refundMut = trpc.teachificPay.adminRefundCharge.useMutation({
+    onSuccess: () => toast.success("Refund issued"),
+    onError: (e) => toast.error(e.message),
+  });
+
+  const STATUS_COLORS: Record<string, string> = {
+    succeeded: "bg-green-100 text-green-700 border-green-200",
+    pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    failed: "bg-red-100 text-red-700 border-red-200",
+    refunded: "bg-blue-100 text-blue-700 border-blue-200",
+    partially_refunded: "bg-violet-100 text-violet-700 border-violet-200",
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <CardTitle className="text-slate-900 text-base flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-teal-500" />
+              All Charges
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Input
+                  placeholder="Search email or charge ID..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                  className="pl-8 h-8 text-xs w-56 bg-white border-gray-300 text-slate-900"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
+                <SelectTrigger className="h-8 text-xs w-44 bg-white border-gray-300 text-slate-900">
+                  <Filter className="w-3 h-3 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
+                  <SelectItem value="succeeded" className="text-xs">Succeeded</SelectItem>
+                  <SelectItem value="pending" className="text-xs">Pending</SelectItem>
+                  <SelectItem value="failed" className="text-xs">Failed</SelectItem>
+                  <SelectItem value="refunded" className="text-xs">Refunded</SelectItem>
+                  <SelectItem value="partially_refunded" className="text-xs">Partially Refunded</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-gray-200 bg-gray-100">
+                  <TableHead className="text-slate-700 font-semibold text-xs pl-4">School</TableHead>
+                  <TableHead className="text-slate-700 font-semibold text-xs">Learner</TableHead>
+                  <TableHead className="text-slate-700 font-semibold text-xs">Amount</TableHead>
+                  <TableHead className="text-slate-700 font-semibold text-xs">Platform Fee</TableHead>
+                  <TableHead className="text-slate-700 font-semibold text-xs">Status</TableHead>
+                  <TableHead className="text-slate-700 font-semibold text-xs">Date</TableHead>
+                  <TableHead className="text-slate-700 font-semibold text-xs">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {charges.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <CreditCard className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-400 text-sm">No charges found</p>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {charges.map((c) => (
+                  <TableRow key={c.id} className="border-gray-200 hover:bg-gray-50">
+                    <TableCell className="pl-4 font-medium text-slate-900 text-xs">{c.orgName ?? `Org #${c.orgId}`}</TableCell>
+                    <TableCell className="text-slate-500 text-xs">{c.learnerEmail ?? "—"}</TableCell>
+                    <TableCell className="text-slate-900 text-xs font-medium">
+                      {fmt(c.amount, c.currency)}
+                      {c.amountRefunded > 0 && <span className="text-red-500 ml-1">(-{fmt(c.amountRefunded, c.currency)})</span>}
+                    </TableCell>
+                    <TableCell className="text-teal-600 text-xs font-medium">{fmt(c.platformFee, c.currency)}</TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600 border-gray-200"}`}>
+                        {c.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-slate-400 text-xs">{new Date(c.chargedAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {c.status === "succeeded" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs text-red-600 hover:bg-red-50"
+                          disabled={refundMut.isPending}
+                          onClick={() => {
+                            if (confirm(`Refund ${fmt(c.amount, c.currency)} to learner?`)) {
+                              refundMut.mutate({ chargeId: c.stripeChargeId, reason: "requested_by_customer" });
+                            }
+                          }}
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" />Refund
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {total > PAGE_SIZE && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+              <p className="text-xs text-slate-500">{total} total charges</p>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" className="h-7 px-2" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                  <ChevronLeft className="w-3 h-3" />
+                </Button>
+                <span className="text-xs text-slate-600">Page {page + 1} of {Math.ceil(total / PAGE_SIZE)}</span>
+                <Button size="sm" variant="outline" className="h-7 px-2" disabled={(page + 1) * PAGE_SIZE >= total} onClick={() => setPage(p => p + 1)}>
+                  <ChevronRight className="w-3 h-3" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

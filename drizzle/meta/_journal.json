@@ -414,6 +414,13 @@
       "when": 1775675764699,
       "tag": "0058_harsh_mystique",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "5",
+      "when": 1775677159455,
+      "tag": "0059_nasty_mole_man",
+      "breakpoints": true
     }
   ]
 }

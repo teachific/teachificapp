@@ -2009,6 +2009,10 @@ export const teachificPayDisputes = mysqlTable("teachific_pay_disputes", {
   learnerEmail: varchar("learnerEmail", { length: 256 }),
   // Access revoked when dispute was opened
   accessRevoked: boolean("accessRevoked").default(false).notNull(),
+  // Admin-only internal notes (appended with timestamps)
+  adminNotes: text("adminNotes"),
+  // Flagged for escalation by platform admin
+  escalated: boolean("escalated").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

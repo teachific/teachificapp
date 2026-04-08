@@ -13,7 +13,7 @@
  */
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, or, like, gte, lte } from "drizzle-orm";
 import { organizations, teachificPayDisputes, teachificPayCharges } from "../drizzle/schema";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getStripe, PLAN_LIMITS, PlanTier } from "./stripePlans";
@@ -575,7 +575,7 @@ export const teachificPayRouter = router({
     .input(
       z.object({
         chargeId: z.string(),
-        amountCents: z.number().optional(), // partial refund; omit for full
+        amountCents: z.number().optional(),
         reason: z.enum(["duplicate", "fraudulent", "requested_by_customer"]).default("requested_by_customer"),
       })
     )
@@ -583,19 +583,256 @@ export const teachificPayRouter = router({
       if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
         throw new TRPCError({ code: "FORBIDDEN" });
       }
-
       const stripe = getStripe();
       const refund = await stripe.refunds.create({
         charge: input.chargeId,
         amount: input.amountCents,
         reason: input.reason,
       });
+      return { refundId: refund.id, status: refund.status, amount: refund.amount, currency: refund.currency };
+    }),
 
-      return {
-        refundId: refund.id,
-        status: refund.status,
-        amount: refund.amount,
-        currency: refund.currency,
-      };
+  // ─── Platform Admin: Enhanced Dispute Management ──────────────────────────
+
+  /**
+   * [Platform Admin] Enhanced dispute list with org name, filters, and pagination.
+   */
+  adminListAllDisputes: protectedProcedure
+    .input(z.object({
+      limit: z.number().default(50),
+      offset: z.number().default(0),
+      status: z.string().optional(),
+      orgId: z.number().optional(),
+      search: z.string().optional(),
+      dateFrom: z.number().optional(),
+      dateTo: z.number().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const conditions: ReturnType<typeof eq>[] = [];
+      if (input.status && input.status !== "all") {
+        conditions.push(eq(teachificPayDisputes.status, input.status as any));
+      }
+      if (input.orgId) conditions.push(eq(teachificPayDisputes.orgId, input.orgId));
+      if (input.search) {
+        conditions.push(
+          or(
+            like(teachificPayDisputes.learnerEmail, `%${input.search}%`),
+            like(teachificPayDisputes.stripeDisputeId, `%${input.search}%`),
+            like(teachificPayDisputes.stripeChargeId, `%${input.search}%`),
+          ) as any
+        );
+      }
+      if (input.dateFrom) conditions.push(gte(teachificPayDisputes.createdAt, new Date(input.dateFrom)) as any);
+      if (input.dateTo) conditions.push(lte(teachificPayDisputes.createdAt, new Date(input.dateTo)) as any);
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const [rows, countRows] = await Promise.all([
+        db.select({
+          id: teachificPayDisputes.id,
+          orgId: teachificPayDisputes.orgId,
+          stripeDisputeId: teachificPayDisputes.stripeDisputeId,
+          stripeChargeId: teachificPayDisputes.stripeChargeId,
+          amount: teachificPayDisputes.amount,
+          currency: teachificPayDisputes.currency,
+          status: teachificPayDisputes.status,
+          reason: teachificPayDisputes.reason,
+          evidenceDueBy: teachificPayDisputes.evidenceDueBy,
+          evidenceSubmitted: teachificPayDisputes.evidenceSubmitted,
+          learnerEmail: teachificPayDisputes.learnerEmail,
+          accessRevoked: teachificPayDisputes.accessRevoked,
+          adminNotes: teachificPayDisputes.adminNotes,
+          escalated: teachificPayDisputes.escalated,
+          createdAt: teachificPayDisputes.createdAt,
+          updatedAt: teachificPayDisputes.updatedAt,
+          orgName: organizations.name,
+          orgSlug: organizations.slug,
+        })
+          .from(teachificPayDisputes)
+          .leftJoin(organizations, eq(teachificPayDisputes.orgId, organizations.id))
+          .where(whereClause)
+          .orderBy(desc(teachificPayDisputes.createdAt))
+          .limit(input.limit)
+          .offset(input.offset),
+        db.select({ total: sql<number>`count(*)` })
+          .from(teachificPayDisputes)
+          .where(whereClause),
+      ]);
+
+      return { disputes: rows, total: Number(countRows[0]?.total ?? 0) };
+    }),
+
+  /**
+   * [Platform Admin] Dispute summary stats for the dashboard header.
+   */
+  adminDisputeStats: protectedProcedure
+    .query(async ({ ctx }) => {
+      if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const rows = await db.select({
+        status: teachificPayDisputes.status,
+        count: sql<number>`count(*)`,
+        totalAmount: sql<number>`sum(${teachificPayDisputes.amount})`,
+      }).from(teachificPayDisputes).groupBy(teachificPayDisputes.status);
+
+      const stats = { open: 0, openAmount: 0, won: 0, wonAmount: 0, lost: 0, lostAmount: 0, total: 0, totalAmount: 0 };
+      const OPEN_STATUSES = ["needs_response", "warning_needs_response", "under_review", "warning_under_review"];
+      for (const row of rows) {
+        const count = Number(row.count);
+        const amount = Number(row.totalAmount ?? 0);
+        stats.total += count;
+        stats.totalAmount += amount;
+        if (OPEN_STATUSES.includes(row.status)) { stats.open += count; stats.openAmount += amount; }
+        else if (row.status === "won") { stats.won += count; stats.wonAmount += amount; }
+        else if (row.status === "lost") { stats.lost += count; stats.lostAmount += amount; }
+      }
+      return stats;
+    }),
+
+  /**
+   * [Platform Admin] Add an internal admin note to a dispute.
+   */
+  adminAddDisputeNote: protectedProcedure
+    .input(z.object({ disputeId: z.number(), note: z.string().min(1).max(2000) }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [existing] = await db.select({ adminNotes: teachificPayDisputes.adminNotes })
+        .from(teachificPayDisputes).where(eq(teachificPayDisputes.id, input.disputeId));
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+      const timestamp = new Date().toISOString();
+      const newNote = `[${timestamp}] ${ctx.user.name ?? ctx.user.email ?? "Admin"}: ${input.note}`;
+      const combined = existing.adminNotes ? `${existing.adminNotes}\n${newNote}` : newNote;
+      await db.update(teachificPayDisputes).set({ adminNotes: combined }).where(eq(teachificPayDisputes.id, input.disputeId));
+      return { success: true };
+    }),
+
+  /**
+   * [Platform Admin] Escalate a dispute — flags it and appends an escalation note.
+   */
+  adminEscalateDispute: protectedProcedure
+    .input(z.object({ disputeId: z.number(), message: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [dispute] = await db.select().from(teachificPayDisputes).where(eq(teachificPayDisputes.id, input.disputeId));
+      if (!dispute) throw new TRPCError({ code: "NOT_FOUND" });
+      const note = `[ESCALATED] ${new Date().toISOString()} — ${input.message ?? "Flagged for urgent attention by platform admin."}`;
+      const combined = dispute.adminNotes ? `${dispute.adminNotes}\n${note}` : note;
+      await db.update(teachificPayDisputes).set({ adminNotes: combined, escalated: true }).where(eq(teachificPayDisputes.id, input.disputeId));
+      return { success: true };
+    }),
+
+  /**
+   * [Platform Admin] Submit dispute evidence to Stripe on behalf of a school.
+   */
+  adminSubmitDisputeEvidence: protectedProcedure
+    .input(z.object({
+      disputeId: z.number(),
+      stripeDisputeId: z.string(),
+      customerEmailAddress: z.string().optional(),
+      productDescription: z.string().optional(),
+      uncategorizedText: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      const stripe = getStripe();
+      await stripe.disputes.update(input.stripeDisputeId, {
+        evidence: {
+          customer_email_address: input.customerEmailAddress,
+          product_description: input.productDescription,
+          uncategorized_text: input.uncategorizedText,
+        },
+        submit: true,
+      });
+      const db = await getDb();
+      if (db) await db.update(teachificPayDisputes).set({ evidenceSubmitted: true }).where(eq(teachificPayDisputes.id, input.disputeId));
+      return { success: true };
+    }),
+
+  /**
+   * [Platform Admin] Enhanced charge list with org name, filters, and pagination.
+   */
+  adminListAllCharges: protectedProcedure
+    .input(z.object({
+      limit: z.number().default(50),
+      offset: z.number().default(0),
+      orgId: z.number().optional(),
+      status: z.string().optional(),
+      search: z.string().optional(),
+      dateFrom: z.number().optional(),
+      dateTo: z.number().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const conditions: ReturnType<typeof eq>[] = [];
+      if (input.orgId) conditions.push(eq(teachificPayCharges.orgId, input.orgId));
+      if (input.status && input.status !== "all") conditions.push(eq(teachificPayCharges.status, input.status as any));
+      if (input.search) {
+        conditions.push(
+          or(
+            like(teachificPayCharges.learnerEmail, `%${input.search}%`),
+            like(teachificPayCharges.stripeChargeId, `%${input.search}%`),
+          ) as any
+        );
+      }
+      if (input.dateFrom) conditions.push(gte(teachificPayCharges.chargedAt, new Date(input.dateFrom)) as any);
+      if (input.dateTo) conditions.push(lte(teachificPayCharges.chargedAt, new Date(input.dateTo)) as any);
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const [rows, countRows] = await Promise.all([
+        db.select({
+          id: teachificPayCharges.id,
+          orgId: teachificPayCharges.orgId,
+          stripeChargeId: teachificPayCharges.stripeChargeId,
+          amount: teachificPayCharges.amount,
+          platformFee: teachificPayCharges.platformFee,
+          netAmount: teachificPayCharges.netAmount,
+          currency: teachificPayCharges.currency,
+          status: teachificPayCharges.status,
+          amountRefunded: teachificPayCharges.amountRefunded,
+          learnerEmail: teachificPayCharges.learnerEmail,
+          isGroupRegistration: teachificPayCharges.isGroupRegistration,
+          groupSize: teachificPayCharges.groupSize,
+          chargedAt: teachificPayCharges.chargedAt,
+          orgName: organizations.name,
+          orgSlug: organizations.slug,
+        })
+          .from(teachificPayCharges)
+          .leftJoin(organizations, eq(teachificPayCharges.orgId, organizations.id))
+          .where(whereClause)
+          .orderBy(desc(teachificPayCharges.chargedAt))
+          .limit(input.limit)
+          .offset(input.offset),
+        db.select({ total: sql<number>`count(*)` })
+          .from(teachificPayCharges)
+          .where(whereClause),
+      ]);
+
+      return { charges: rows, total: Number(countRows[0]?.total ?? 0) };
     }),
 });
