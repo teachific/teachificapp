@@ -410,8 +410,8 @@ export default function StudioLandingPage() {
                 <tr className="border-b border-white/10">
                   <th className="text-left py-3 px-4 text-white/60 font-medium">Feature</th>
                   <th className="py-3 px-4 text-violet-400 font-bold">Teachific Studio™</th>
-                  <th className="py-3 px-4 text-white/40 font-medium">Loom</th>
-                  <th className="py-3 px-4 text-white/40 font-medium">Camtasia</th>
+                  <th className="py-3 px-4 text-white/40 font-medium">Other Tools</th>
+                  <th className="py-3 px-4 text-white/40 font-medium">Screen Recorders</th>
                 </tr>
               </thead>
               <tbody>
@@ -423,10 +423,10 @@ export default function StudioLandingPage() {
                   ["Direct LMS publish", true, false, false],
                   ["Closed caption style editor", true, false, true],
                   ["Starting price/mo", "$47", "$12.50", "$33"],
-                ].map(([feature, ts, loom, cam], i) => (
+                ].map(([feature, ts, other, cam], i) => (
                   <tr key={i} className="border-b border-white/5 hover:bg-white/5">
                     <td className="py-3 px-4 text-white/70">{feature}</td>
-                    {[ts, loom, cam].map((val, j) => (
+                    {[ts, other, cam].map((val, j) => (
                       <td key={j} className="py-3 px-4 text-center">
                         {typeof val === "boolean" ? (
                           val ? (

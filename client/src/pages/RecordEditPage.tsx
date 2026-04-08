@@ -2701,7 +2701,7 @@ export default function RecordEditPage() {
             )}
           </div>
           <p className="text-xs text-teal-700 dark:text-teal-300 mt-0.5">
-            HD MP4 export &nbsp;·&nbsp; Multi-track editing &nbsp;·&nbsp; Auto-generate 10 highlight clips &nbsp;·&nbsp; Loom-style sharing &nbsp;·&nbsp; AI transcription
+            HD MP4 export &nbsp;·&nbsp; Multi-track editing &nbsp;·&nbsp; Auto-generate 10 highlight clips &nbsp;·&nbsp; Instant video sharing &nbsp;·&nbsp; AI transcription
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

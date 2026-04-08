@@ -42,7 +42,7 @@ const PRODUCT_INFO: Record<Product, {
       "AI transcription with editing",
       "Auto-generate 10 highlight clips",
       "Export to MP4 in HD",
-      "Loom-style video sharing",
+      "Instant video sharing",
       "Direct upload to your LMS",
     ],
   },
