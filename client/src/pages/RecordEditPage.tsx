@@ -1071,6 +1071,10 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
   const [selectedMic, setSelectedMic] = useState<string>("");
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>("");
+  const [outputDevices, setOutputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedOutput, setSelectedOutput] = useState<string>("");
+  const [videoQuality, setVideoQuality] = useState<"720p" | "1080p" | "4k">("1080p");
+  const [frameRate, setFrameRate] = useState<"24" | "30" | "60">("30");
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [savedItems, setSavedItems] = useState<Record<number, MediaItem>>({});
   const [autoSaving, setAutoSaving] = useState(false);
@@ -1140,19 +1144,30 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
   useEffect(() => { autoSaveRecordingRef.current = autoSaveRecording; }, [autoSaveRecording]);
 
   useEffect(() => {
-    navigator.mediaDevices.enumerateDevices().then((devices) => {
-      // Filter out devices with empty deviceId (returned before permission is granted)
-      setAudioDevices(devices.filter((d) => d.kind === "audioinput" && d.deviceId !== ""));
-      setVideoDevices(devices.filter((d) => d.kind === "videoinput" && d.deviceId !== ""));
-    }).catch(() => {});
+    const refreshDevices = () => {
+      navigator.mediaDevices.enumerateDevices().then((devices) => {
+        // Filter out devices with empty deviceId (returned before permission is granted)
+        setAudioDevices(devices.filter((d) => d.kind === "audioinput" && d.deviceId !== ""));
+        setVideoDevices(devices.filter((d) => d.kind === "videoinput" && d.deviceId !== ""));
+        setOutputDevices(devices.filter((d) => d.kind === "audiooutput" && d.deviceId !== ""));
+      }).catch(() => {});
+    };
+    refreshDevices();
+    navigator.mediaDevices.addEventListener("devicechange", refreshDevices);
+    return () => navigator.mediaDevices.removeEventListener("devicechange", refreshDevices);
   }, []);
+
+  // Derive resolution from quality setting
+  const qualityDimensions = { "720p": { w: 1280, h: 720 }, "1080p": { w: 1920, h: 1080 }, "4k": { w: 3840, h: 2160 } };
 
   useEffect(() => {
     if (mode !== "screen" && cameraEnabled) {
       // Request 16:9 aspect ratio explicitly to prevent black bars from 4:3 camera streams
+      const { w, h } = qualityDimensions[videoQuality];
+      const fps = parseInt(frameRate, 10);
       const videoConstraints: MediaTrackConstraints = selectedCamera
-        ? { deviceId: { exact: selectedCamera }, width: { ideal: 1280 }, height: { ideal: 720 }, aspectRatio: { ideal: 16 / 9 }, frameRate: { ideal: 30 } }
-        : { width: { ideal: 1280 }, height: { ideal: 720 }, aspectRatio: { ideal: 16 / 9 }, frameRate: { ideal: 30 } };
+        ? { deviceId: { exact: selectedCamera }, width: { ideal: w }, height: { ideal: h }, aspectRatio: { ideal: 16 / 9 }, frameRate: { ideal: fps } }
+        : { width: { ideal: w }, height: { ideal: h }, aspectRatio: { ideal: 16 / 9 }, frameRate: { ideal: fps } };
       const constraints: MediaStreamConstraints = { video: videoConstraints, audio: false };
       navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
         cameraStreamRef.current = stream;
@@ -1168,7 +1183,7 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
         cameraStreamRef.current = null;
       }
     };
-  }, [mode, cameraEnabled, selectedCamera]);
+  }, [mode, cameraEnabled, selectedCamera, videoQuality, frameRate]);
 
   // Re-attach camera stream whenever the video element is swapped (full-size ↔ bubble)
   useEffect(() => {
@@ -1557,10 +1572,50 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
       {/* Right panel */}
       <div className="w-80 border-l border-border flex flex-col overflow-hidden">
         {showSettings && (
-          <div className="p-4 border-b border-border flex flex-col gap-3">
-            <h3 className="font-semibold text-sm">Settings</h3>
+          <div className="p-4 border-b border-border flex flex-col gap-3 overflow-y-auto max-h-[60vh]">
+            <h3 className="font-semibold text-sm flex items-center gap-1.5"><Settings className="h-3.5 w-3.5" /> Recording Settings</h3>
+
+            {/* Camera */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-muted-foreground">Microphone</label>
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Camera className="h-3 w-3" /> Camera</label>
+              <Select value={selectedCamera || "__default__"} onValueChange={(v) => setSelectedCamera(v === "__default__" ? "" : v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default camera" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">Default camera</SelectItem>
+                  {videoDevices.map((d) => <SelectItem key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${d.deviceId.slice(0, 8)}`}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Video Quality */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Monitor className="h-3 w-3" /> Video Quality</label>
+              <Select value={videoQuality} onValueChange={(v) => setVideoQuality(v as "720p" | "1080p" | "4k")}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="720p">720p HD</SelectItem>
+                  <SelectItem value="1080p">1080p Full HD</SelectItem>
+                  <SelectItem value="4k">4K Ultra HD</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Frame Rate */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Film className="h-3 w-3" /> Frame Rate</label>
+              <Select value={frameRate} onValueChange={(v) => setFrameRate(v as "24" | "30" | "60")}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24">24 fps — Cinematic</SelectItem>
+                  <SelectItem value="30">30 fps — Standard</SelectItem>
+                  <SelectItem value="60">60 fps — Smooth</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Microphone */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Mic className="h-3 w-3" /> Microphone</label>
               <Select value={selectedMic || "__default__"} onValueChange={(v) => setSelectedMic(v === "__default__" ? "" : v)}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default microphone" /></SelectTrigger>
                 <SelectContent>
@@ -1569,15 +1624,27 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Speaker / Output */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-muted-foreground">Camera</label>
-              <Select value={selectedCamera || "__default__"} onValueChange={(v) => setSelectedCamera(v === "__default__" ? "" : v)}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default camera" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__default__">Default camera</SelectItem>
-                  {videoDevices.map((d) => <SelectItem key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${d.deviceId.slice(0, 8)}`}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Volume2 className="h-3 w-3" /> Speaker / Output</label>
+              {outputDevices.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">Output device selection not supported in this browser</p>
+              ) : (
+                <Select value={selectedOutput || "__default__"} onValueChange={(v) => setSelectedOutput(v === "__default__" ? "" : v)}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default speaker" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">Default speaker</SelectItem>
+                    {outputDevices.map((d) => <SelectItem key={d.deviceId} value={d.deviceId}>{d.label || `Speaker ${d.deviceId.slice(0, 8)}`}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {/* Current settings summary */}
+            <div className="rounded-lg bg-muted/40 px-3 py-2 flex flex-col gap-1">
+              <p className="text-xs font-medium text-muted-foreground">Active settings</p>
+              <p className="text-xs text-foreground">{videoQuality.toUpperCase()} · {frameRate} fps</p>
             </div>
           </div>
         )}
@@ -1927,6 +1994,14 @@ function RecordAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item:
   const [recordings, setRecordings] = useState<{ name: string; url: string; blob: Blob; duration: number; size: number }[]>([]);
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [savedItems, setSavedItems] = useState<Record<number, boolean>>({});
+  // Device selection
+  const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [audioOutputDevices, setAudioOutputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedAudioInput, setSelectedAudioInput] = useState<string>("");
+  const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>("");
+  const [sampleRate, setSampleRate] = useState<"44100" | "48000">("48000");
+  const [audioQuality, setAudioQuality] = useState<"standard" | "high">("high");
+  const [showAudioSettings, setShowAudioSettings] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1937,6 +2012,19 @@ function RecordAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item:
   const saveMediaItem = trpc.lms.media.saveMediaItem.useMutation();
 
   const isRecording = recordState === "recording";
+
+  // Enumerate audio devices on mount and on device change
+  useEffect(() => {
+    const refreshAudioDevices = () => {
+      navigator.mediaDevices.enumerateDevices().then((devices) => {
+        setAudioInputDevices(devices.filter((d) => d.kind === "audioinput" && d.deviceId !== ""));
+        setAudioOutputDevices(devices.filter((d) => d.kind === "audiooutput" && d.deviceId !== ""));
+      }).catch(() => {});
+    };
+    refreshAudioDevices();
+    navigator.mediaDevices.addEventListener("devicechange", refreshAudioDevices);
+    return () => navigator.mediaDevices.removeEventListener("devicechange", refreshAudioDevices);
+  }, []);
 
   const drawWaveform = useCallback(() => {
     const canvas = canvasRef.current;
@@ -1981,7 +2069,14 @@ function RecordAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item:
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioConstraints: MediaTrackConstraints = {
+        ...(selectedAudioInput ? { deviceId: { exact: selectedAudioInput } } : {}),
+        sampleRate: parseInt(sampleRate, 10),
+        echoCancellation: true,
+        noiseSuppression: audioQuality === "high",
+        autoGainControl: audioQuality === "high",
+      };
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
       const audioCtx = new AudioContext();
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
@@ -2151,10 +2246,76 @@ function RecordAudioSubTab({ orgId, onSaved }: { orgId: number; onSaved?: (item:
         </div>
       </div>
 
-      {/* Recordings list */}
+      {/* Recordings list + settings */}
       <div className="w-72 border-l border-border flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-border">
+        {showAudioSettings && (
+          <div className="p-4 border-b border-border flex flex-col gap-3 overflow-y-auto max-h-[60vh]">
+            <h3 className="font-semibold text-sm flex items-center gap-1.5"><Settings className="h-3.5 w-3.5" /> Audio Settings</h3>
+
+            {/* Microphone */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Mic className="h-3 w-3" /> Microphone</label>
+              <Select value={selectedAudioInput || "__default__"} onValueChange={(v) => setSelectedAudioInput(v === "__default__" ? "" : v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default microphone" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">Default microphone</SelectItem>
+                  {audioInputDevices.map((d) => <SelectItem key={d.deviceId} value={d.deviceId}>{d.label || `Mic ${d.deviceId.slice(0, 8)}`}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Speaker / Output */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Volume2 className="h-3 w-3" /> Speaker / Output</label>
+              {audioOutputDevices.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">Output device selection not supported in this browser</p>
+              ) : (
+                <Select value={selectedAudioOutput || "__default__"} onValueChange={(v) => setSelectedAudioOutput(v === "__default__" ? "" : v)}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default speaker" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">Default speaker</SelectItem>
+                    {audioOutputDevices.map((d) => <SelectItem key={d.deviceId} value={d.deviceId}>{d.label || `Speaker ${d.deviceId.slice(0, 8)}`}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {/* Sample Rate */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><SlidersHorizontal className="h-3 w-3" /> Sample Rate</label>
+              <Select value={sampleRate} onValueChange={(v) => setSampleRate(v as "44100" | "48000")}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="44100">44.1 kHz — CD Quality</SelectItem>
+                  <SelectItem value="48000">48 kHz — Studio Quality</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Audio Quality */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Headphones className="h-3 w-3" /> Audio Quality</label>
+              <Select value={audioQuality} onValueChange={(v) => setAudioQuality(v as "standard" | "high")}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">Standard — Echo cancellation only</SelectItem>
+                  <SelectItem value="high">High — Noise suppression + AGC</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Active settings summary */}
+            <div className="rounded-lg bg-muted/40 px-3 py-2 flex flex-col gap-1">
+              <p className="text-xs font-medium text-muted-foreground">Active settings</p>
+              <p className="text-xs text-foreground">{parseInt(sampleRate, 10) / 1000} kHz · {audioQuality === "high" ? "High quality" : "Standard"}</p>
+            </div>
+          </div>
+        )}
+        <div className="p-4 border-b border-border flex items-center justify-between">
           <h3 className="font-semibold text-sm">Recordings ({recordings.length})</h3>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowAudioSettings((s) => !s)}>
+            <Settings className="h-3.5 w-3.5 mr-1" /> Settings
+          </Button>
         </div>
         <div className="flex-1 overflow-y-auto">
           {recordings.length === 0 ? (
@@ -2485,13 +2646,19 @@ export default function RecordEditPage() {
     { id: "audio", label: "Audio", icon: Headphones },
   ];
 
+  const [, setLocation] = useLocation();
+  const { data: studioVersion } = trpc.platformAdmin.getLatestAppVersion.useQuery({ product: "studio" });
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div>
-          <h1 className="text-xl font-bold">Teachific Studio™</h1>
-          <p className="text-sm text-muted-foreground">Record, upload, and edit video and audio — add captions, transcripts, highlight clips, and AI-generated speech</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold">Teachific Studio™</h1>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 border border-teal-200 dark:border-teal-700">Lite</span>
+          </div>
+          <p className="text-sm text-muted-foreground">Browser-based recording &amp; editing — for the full desktop experience, download Teachific Studio™</p>
         </div>
         {lastSavedItem && (
           <div className="flex items-center gap-2 text-sm text-teal-600">
@@ -2499,6 +2666,42 @@ export default function RecordEditPage() {
             <span>Saved to Media Library</span>
           </div>
         )}
+      </div>
+
+      {/* Desktop App Upsell Banner */}
+      <div className="mx-6 mt-4 shrink-0 rounded-xl border border-teal-200 dark:border-teal-800 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-950/40 dark:to-cyan-950/40 p-4 flex items-center gap-4">
+        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#0e8a96] to-[#0a6e78] flex items-center justify-center shrink-0 shadow-sm">
+          <Video className="h-6 w-6 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-semibold text-teal-900 dark:text-teal-100">Unlock the full Teachific Studio™ desktop app</p>
+            {studioVersion && (
+              <span className="text-xs font-mono text-teal-600 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/50 px-1.5 py-0.5 rounded">v{studioVersion.version}</span>
+            )}
+          </div>
+          <p className="text-xs text-teal-700 dark:text-teal-300 mt-0.5">
+            HD MP4 export &nbsp;·&nbsp; Multi-track editing &nbsp;·&nbsp; Auto-generate 10 highlight clips &nbsp;·&nbsp; Loom-style sharing &nbsp;·&nbsp; AI transcription
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            size="sm"
+            className="gap-1.5 bg-[#0e8a96] hover:bg-[#0a6e78] text-white text-xs"
+            onClick={() => setLocation("/studio/download")}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download App
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-teal-300 text-teal-700 hover:bg-teal-50 dark:border-teal-700 dark:text-teal-300 dark:hover:bg-teal-900/30 text-xs"
+            onClick={() => setLocation("/studio")}
+          >
+            Learn More
+          </Button>
+        </div>
       </div>
 
       {/* Tab bar */}

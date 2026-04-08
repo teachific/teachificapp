@@ -18,6 +18,13 @@ import { useLocation } from "wouter";
 type DisplayMode = "native" | "lms_shell" | "quiz";
 type Step = "select" | "configure" | "uploading" | "done";
 
+interface UploadPageProps {
+  /** When provided, renders as embedded content (no breadcrumb header). Called when user closes/cancels. */
+  onClose?: () => void;
+  /** Called after a successful upload so the parent can refresh its list. */
+  onSuccess?: (packageId: number) => void;
+}
+
 const DISPLAY_MODES: Array<{ id: DisplayMode; label: string; desc: string; icon: React.ElementType }> = [
   {
     id: "native",
@@ -39,7 +46,7 @@ const DISPLAY_MODES: Array<{ id: DisplayMode; label: string; desc: string; icon:
   },
 ];
 
-export default function UploadPage() {
+export default function UploadPage({ onClose, onSuccess }: UploadPageProps = {}) {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -225,16 +232,25 @@ export default function UploadPage() {
     setPackageId(null); setUploadProgress(0); setError(null); setStep("select");
   };
 
+  // Notify parent when upload completes
+  useEffect(() => {
+    if (step === "done" && packageId && onSuccess) {
+      onSuccess(packageId);
+    }
+  }, [step, packageId]);
+
   // Show a loading state while provisioning the default org
   const isProvisioningOrg = orgsLoading || ensureDefault.isPending;
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <button onClick={() => setLocation("/")} className="hover:text-foreground transition-colors">Dashboard</button>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="text-foreground font-medium">Upload Content</span>
-      </div>
+      {!onClose && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <button onClick={() => setLocation("/")} className="hover:text-foreground transition-colors">Dashboard</button>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span className="text-foreground font-medium">Upload Content</span>
+        </div>
+      )}
 
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Upload Content Package</h1>
@@ -478,8 +494,12 @@ export default function UploadPage() {
               )}
             </div>
             <div className="flex gap-3 justify-center flex-wrap">
-              <Button variant="outline" onClick={() => setLocation("/files")}>View All Files</Button>
-              <Button onClick={() => setLocation(`/files/${packageId}`)}>Manage Package</Button>
+              {onClose ? (
+                <Button variant="outline" onClick={onClose}>Back to Library</Button>
+              ) : (
+                <Button variant="outline" onClick={() => setLocation("/files")}>View All Files</Button>
+              )}
+              <Button onClick={() => onClose ? onClose() : setLocation(`/files/${packageId}`)}>Manage Package</Button>
               <Button variant="outline" onClick={() => setLocation(`/play/${packageId}`)}>
                 <Play className="h-4 w-4 mr-1.5" />Preview
               </Button>

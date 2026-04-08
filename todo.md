@@ -2534,3 +2534,10 @@
 - [ ] Checkbox selection mode with bulk delete and bulk move to folder
 - [ ] Remove separate My Files, Upload Content, and Media Library tabs from MediaLibraryPage
 - [ ] New tab order: Content Library, Teachific Studio, Quizzes, Flashcards
+- [x] Rename sidebar Products > "Teachific Studio™" to "Teachific Studio™ - Lite" to distinguish from desktop app
+- [x] Fix Upload Content button — dialog not opening (modal not rendering) [VERIFIED WORKING]
+- [x] Fix "Free Member" plan badge — site_owner should show Enterprise Plan [VERIFIED WORKING]
+- [x] Add desktop app download prompts/CTAs inside Teachific Studio™ - Lite tab
+- [x] Studio Lite Record Video: add camera device selector, microphone selector, video quality selector (720p/1080p/4K), frame rate selector
+- [x] Studio Lite Record Video: add speaker/output device selector for monitoring
+- [x] Studio Lite Audio: add microphone device selector, speaker/output device selector, sample rate and quality settings

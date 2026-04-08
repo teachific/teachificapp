@@ -160,7 +160,7 @@ const navGroups: NavGroup[] = [
           { label: "Community", path: "/products/community" },
           { label: "Categories", path: "/products/categories" },
           { label: "Media Library", path: "/media-library" },
-          { label: "Teachific Studio™", path: "/media-library#record-edit" },
+          { label: "Teachific Studio™ - Lite", path: "/media-library#record-edit" },
         ],
       },
     ],

@@ -1,5 +1,6 @@
 import { trpc } from "@/lib/trpc";
 import MediaFilesPage from "./MediaFilesPage";
+import UploadPage from "./UploadPage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -351,6 +352,7 @@ export default function FilesPage() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [sectionView, setSectionView] = useState<SectionView>("packages");
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<ContentType>("all");
   const [sortKey, setSortKey] = useState<SortKey>("date");
@@ -633,7 +635,7 @@ export default function FilesPage() {
             </div>
             <div className="flex items-center gap-2">
               {sectionView === "packages" && (
-                <Button onClick={() => setLocation("/upload")} className="gap-2">
+                <Button onClick={() => setShowUploadDialog(true)} className="gap-2">
                   <Plus className="h-4 w-4" />Upload Content
                 </Button>
               )}
@@ -849,6 +851,20 @@ export default function FilesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* ── Upload Content Dialog ── */}
+      <Dialog open={showUploadDialog} onOpenChange={(o) => { if (!o) setShowUploadDialog(false); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+          <UploadPage
+            onClose={() => {
+              setShowUploadDialog(false);
+              refetchPkgs();
+            }}
+            onSuccess={() => {
+              refetchPkgs();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </DndContext>
   );
 }
