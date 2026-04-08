@@ -2445,6 +2445,18 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
         await db.delete(orgMediaLibrary).where(eq(orgMediaLibrary.id, input.id));
         return { ok: true };
       }),
+    renameOrgMedia: protectedProcedure
+      .input(z.object({ orgId: z.number(), id: z.number(), filename: z.string().min(1).max(255) }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { orgMediaLibrary } = await import("../drizzle/schema");
+        await db.update(orgMediaLibrary)
+          .set({ filename: input.filename })
+          .where(eq(orgMediaLibrary.id, input.id));
+        return { ok: true };
+      }),
     getUploadUrl: protectedProcedure
       .input(
         z.object({

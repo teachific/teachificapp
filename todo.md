@@ -2496,3 +2496,14 @@
 - [x] Push icon-quizcreator.png to TeachificQuizCreator repo (assets/icon.png)
 - [x] Add Copy URL button to each media file card in MediaFilesPage
 - [x] Show toast confirmation on copy
+
+## Desktop App Release Bump & Media Library Enhancements (Apr 8)
+- [x] Bump version in package.json and tag v1.0.5 release for teachific-creator-desktop
+- [x] Bump version in package.json and tag v1.0.5 release for teachific-studio-desktop
+- [x] Bump version in package.json and tag v1.0.5 release for teachific-quizcreator-desktop
+- [x] Add inline file rename to media file cards (double-click filename to edit)
+- [x] Add updateOrgMediaFilename tRPC procedure to lmsRouter
+- [x] Add "Insert into Lesson" action to media card dropdown
+- [x] Build MediaLibraryPickerModal for selecting a file to insert
+- [x] Wire insert action into lesson/block editor
+- [x] Reorder My Apps in ProductSwitcher: QuizCreator first, then Studio, then Creator

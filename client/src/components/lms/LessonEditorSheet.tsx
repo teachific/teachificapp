@@ -44,8 +44,11 @@ import {
   Trash2,
   X,
   Sparkles,
+  FolderOpen,
+  Search,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -197,6 +200,114 @@ function FlashcardEditor({
   );
 }
 
+// ─── Media Library Picker Modal ─────────────────────────────────────────────
+
+function MediaLibraryPickerModal({
+  open,
+  onClose,
+  onSelect,
+  orgId,
+  accept,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (url: string, filename: string) => void;
+  orgId: number;
+  accept: string; // e.g. "audio/*", "video/*", ".pdf", "*"
+}) {
+  const [search, setSearch] = useState("");
+
+  // Derive type filter from accept string
+  const typeFilter: string = (() => {
+    if (accept.startsWith("audio")) return "audio";
+    if (accept.startsWith("video")) return "video";
+    if (accept.includes("pdf")) return "document";
+    if (accept.startsWith("image")) return "image";
+    return "all";
+  })();
+
+  const { data, isLoading } = trpc.lms.media.listOrgMedia.useQuery(
+    { orgId, typeFilter: typeFilter as any, search: search || undefined },
+    { enabled: open && orgId > 0 }
+  );
+
+  const items = data?.items ?? [];
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Pick from Media Library</DialogTitle>
+        </DialogHeader>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search files..."
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-md bg-background outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+        </div>
+        <ScrollArea className="h-80">
+          {isLoading && (
+            <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+              Loading media...
+            </div>
+          )}
+          {!isLoading && items.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-32 gap-2 text-muted-foreground">
+              <FolderOpen className="h-8 w-8 opacity-40" />
+              <p className="text-sm">
+                {search ? "No files match your search" : "No media files uploaded yet"}
+              </p>
+            </div>
+          )}
+          {!isLoading && items.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pr-2">
+              {items.map((item) => {
+                const isImg = item.mimeType.startsWith("image/");
+                const isVid = item.mimeType.startsWith("video/");
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => { onSelect(item.url, item.filename); onClose(); }}
+                    className="group flex flex-col border border-border rounded-lg overflow-hidden hover:border-primary/60 hover:shadow-sm transition-all text-left"
+                  >
+                    <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
+                      {isImg ? (
+                        <img src={item.url} alt={item.filename} className="w-full h-full object-cover" loading="lazy" />
+                      ) : isVid ? (
+                        <video src={item.url} className="w-full h-full object-cover" muted preload="metadata" />
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 p-2">
+                          <FileText className="h-8 w-8 text-muted-foreground/60" />
+                          <span className="text-[9px] text-muted-foreground uppercase">
+                            {item.mimeType.split("/").pop()?.split(".").pop() ?? "file"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-1.5">
+                      <p className="text-[10px] font-medium truncate" title={item.filename}>
+                        {item.filename}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── File upload helper ───────────────────────────────────────────────────────
 
 function FileUploadField({
@@ -216,6 +327,7 @@ function FileUploadField({
 }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -293,6 +405,16 @@ function FileUploadField({
             </span>
           </Button>
         </label>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setPickerOpen(true)}
+          title="Pick from Media Library"
+        >
+          <FolderOpen className="h-3.5 w-3.5 mr-1.5" />
+          Library
+        </Button>
       </div>
       {uploading && progress > 0 && (
         <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
@@ -302,6 +424,13 @@ function FileUploadField({
           />
         </div>
       )}
+      <MediaLibraryPickerModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={(url) => { onChange(url); toast.success("File inserted from media library"); }}
+        orgId={orgId}
+        accept={accept}
+      />
     </div>
   );
 }

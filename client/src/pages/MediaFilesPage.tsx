@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   File, FileArchive, FileText, Film, Image, Link2, Loader2, MoreVertical,
-  Music, Search, Trash2, Upload, X,
+  Music, Pencil, Search, Trash2, Upload, X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -346,6 +346,7 @@ export default function MediaFilesPage() {
                 <MediaFileCard
                   key={item.id}
                   item={item}
+                  orgId={orgId}
                   onDelete={() => setDeleteTarget(item.id)}
                 />
               ))}
@@ -382,6 +383,7 @@ export default function MediaFilesPage() {
 
 function MediaFileCard({
   item,
+  orgId,
   onDelete,
 }: {
   item: {
@@ -392,10 +394,39 @@ function MediaFileCard({
     url: string;
     createdAt: Date;
   };
+  orgId: number;
   onDelete: () => void;
 }) {
+  const utils = trpc.useUtils();
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(item.filename);
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const isImage = item.mimeType.startsWith("image/");
   const isVideo = item.mimeType.startsWith("video/");
+
+  const renameMutation = trpc.lms.media.renameOrgMedia.useMutation({
+    onSuccess: () => {
+      utils.lms.media.listOrgMedia.invalidate();
+      setIsRenaming(false);
+      toast.success("File renamed");
+    },
+    onError: (e) => {
+      toast.error(e.message);
+      setIsRenaming(false);
+    },
+  });
+
+  function startRename() {
+    setRenameValue(item.filename);
+    setIsRenaming(true);
+    setTimeout(() => renameInputRef.current?.select(), 30);
+  }
+
+  function commitRename() {
+    const trimmed = renameValue.trim();
+    if (!trimmed || trimmed === item.filename) { setIsRenaming(false); return; }
+    renameMutation.mutate({ orgId, id: item.id, filename: trimmed });
+  }
 
   return (
     <div className="group relative border border-border rounded-lg overflow-hidden bg-card hover:border-primary/40 transition-all hover:shadow-sm">
@@ -467,6 +498,10 @@ function MediaFileCard({
                 Download
               </a>
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={startRename}>
+              <Pencil className="h-3.5 w-3.5 mr-1.5" />
+              Rename
+            </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={onDelete}
@@ -480,9 +515,28 @@ function MediaFileCard({
 
       {/* Info */}
       <div className="p-2.5">
-        <p className="text-xs font-medium truncate leading-tight" title={item.filename}>
-          {item.filename}
-        </p>
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") setIsRenaming(false);
+            }}
+            className="w-full text-xs font-medium bg-background border border-primary rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-primary"
+            autoFocus
+          />
+        ) : (
+          <p
+            className="text-xs font-medium truncate leading-tight cursor-pointer hover:text-primary transition-colors"
+            title={`${item.filename} — double-click to rename`}
+            onDoubleClick={startRename}
+          >
+            {item.filename}
+          </p>
+        )}
         <p className="text-[10px] text-muted-foreground mt-0.5">{formatBytes(item.fileSize)}</p>
       </div>
     </div>

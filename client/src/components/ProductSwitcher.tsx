@@ -34,6 +34,16 @@ const PRODUCTS = [
     border: "border-[#15a4b7]/30",
   },
   {
+    key: "quizCreator" as const,
+    label: "QuizCreator™",
+    shortLabel: "Quiz",
+    path: "/quiz-creator",
+    iconUrl: PRODUCT_ICON_URLS.quizCreator,
+    color: "text-[#0e8a96]",
+    bg: "bg-[#0e8a96]/10 hover:bg-[#0e8a96]/20",
+    border: "border-[#0e8a96]/30",
+  },
+  {
     key: "studio" as const,
     label: "Teachific Studio™",
     shortLabel: "Studio",
@@ -52,16 +62,6 @@ const PRODUCTS = [
     color: "text-[#4ad9e0]",
     bg: "bg-[#189aa1]/10 hover:bg-[#189aa1]/20",
     border: "border-[#189aa1]/30",
-  },
-  {
-    key: "quizCreator" as const,
-    label: "QuizCreator™",
-    shortLabel: "Quiz",
-    path: "/quiz-creator",
-    iconUrl: PRODUCT_ICON_URLS.quizCreator,
-    color: "text-[#0e8a96]",
-    bg: "bg-[#0e8a96]/10 hover:bg-[#0e8a96]/20",
-    border: "border-[#0e8a96]/30",
   },
 ];
 
