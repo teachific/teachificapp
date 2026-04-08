@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `org_media_folders` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`orgId` int NOT NULL,\n\t`name` varchar(255) NOT NULL,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `org_media_folders_id` PRIMARY KEY(`id`)\n);\nALTER TABLE `org_media_library` ADD `folderId` int;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2mhhtxpXA9Esras.7d3251b537d6 --database fJXMsdmk8vcb8V4GDt37f6 --execute CREATE TABLE `org_media_folders` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`orgId` int NOT NULL,\n\t`name` varchar(255) NOT NULL,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `org_media_folders_id` PRIMARY KEY(`id`)\n);\nALTER TABLE `org_media_library` ADD `folderId` int;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2046
+}

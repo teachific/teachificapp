@@ -1525,6 +1525,18 @@ export const formIntegrations = mysqlTable("form_integrations", {
 export type FormIntegration = typeof formIntegrations.$inferSelect;
 export type InsertFormIntegration = typeof formIntegrations.$inferInsert;
 
+// ─── Organization Media Folders ─────────────────────────────────────────────
+// Virtual folders for organizing media assets within an org.
+export const orgMediaFolders = mysqlTable("org_media_folders", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type OrgMediaFolder = typeof orgMediaFolders.$inferSelect;
+export type InsertOrgMediaFolder = typeof orgMediaFolders.$inferInsert;
+
 // ─── Organization Media Library ───────────────────────────────────────────────
 // Central store for all media assets uploaded by an org (images, videos, docs).
 // All uploads across courses, forms, and other org contexts register here.
@@ -1556,6 +1568,8 @@ export const orgMediaLibrary = mysqlTable("org_media_library", {
   captionsUrl: text("captionsUrl"),
   // Whisper transcript JSON (serialized array of {id, start, end, text} segments)
   transcriptJson: text("transcriptJson"),
+  // Optional folder assignment (null = root / uncategorized)
+  folderId: int("folderId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

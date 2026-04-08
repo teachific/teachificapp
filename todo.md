@@ -2507,3 +2507,30 @@
 - [x] Build MediaLibraryPickerModal for selecting a file to insert
 - [x] Wire insert action into lesson/block editor
 - [x] Reorder My Apps in ProductSwitcher: QuizCreator first, then Studio, then Creator
+
+## Media Library Bulk Operations & Folders (Apr 8)
+- [ ] Add folder support to orgMediaLibrary: new orgMediaFolders table + folderId FK on orgMediaLibrary
+- [ ] Run DB migration for folders
+- [ ] Add tRPC procedures: createFolder, listFolders, deleteFolder, bulkDelete, bulkMoveToFolder
+- [ ] Add folder sidebar to MediaFilesPage (list folders, create, rename, delete)
+- [ ] Add checkbox selection mode toggle to MediaFilesPage
+- [ ] Add select-all checkbox in the grid header
+- [ ] Show bulk action toolbar when items are selected (count, Delete Selected, Move to Folder)
+- [ ] Build Move to Folder modal (folder picker dropdown + confirm)
+- [ ] Confirm bulk delete with count in dialog
+
+## Upload Page Unification & 404 Fix (Apr 8)
+- [ ] Fix 404 on Dashboard page
+- [ ] Merge Upload Content and Media Library into one unified upload experience
+- [ ] Upload Content page shows tabs: SCORM/HTML Packages + Media Files (images, video, audio, PDF, Word, ZIP)
+- [ ] Remove the separate Media Library tab from MediaLibraryPage (consolidate into Upload Content)
+
+## Unified Content Library (Apr 8)
+- [ ] Fix Vite parse error in MediaFilesPage (duplicate useRef or syntax issue)
+- [ ] Build unified ContentLibraryPage: single browser for SCORM packages + all media files
+- [ ] Single Upload button that auto-detects SCORM vs media
+- [ ] File type filter tabs: All, SCORM/HTML, Images, Video, Audio, Documents, Archives
+- [ ] Folder sidebar with create/rename/delete folder support
+- [ ] Checkbox selection mode with bulk delete and bulk move to folder
+- [ ] Remove separate My Files, Upload Content, and Media Library tabs from MediaLibraryPage
+- [ ] New tab order: Content Library, Teachific Studio, Quizzes, Flashcards

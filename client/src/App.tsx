@@ -288,8 +288,8 @@ function AdminRouter() {
         <Route path="/platform-admin" component={PlatformAdminPage} />
 
         {/* ── Misc / Legacy ── */}
-        <Route path="/upload">{() => { window.location.replace("/media-library#upload"); return null; }}</Route>
-        <Route path="/files">{() => { window.location.replace("/media-library#files"); return null; }}</Route>
+        <Route path="/upload">{() => { window.location.replace("/media-library#library"); return null; }}</Route>
+        <Route path="/files">{() => { window.location.replace("/media-library#library"); return null; }}</Route>
         <Route path="/files/:id" component={FileDetailPage} />
         <Route path="/quizzes">{() => { window.location.replace("/media-library#quizzes"); return null; }}</Route>
         <Route path="/play/:id" component={PlayerPage} />

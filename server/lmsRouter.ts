@@ -2394,6 +2394,7 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
         search: z.string().optional(),
         page: z.number().default(1),
         pageSize: z.number().default(50),
+        folderId: z.number().nullable().optional(), // null = root, undefined = all folders
       }))
       .query(async ({ input, ctx }) => {
         await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
@@ -2404,6 +2405,14 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
           .where(eq(orgMediaLibrary.orgId, input.orgId))
           .orderBy(desc(orgMediaLibrary.createdAt));
         let filtered = rows;
+        // Folder filter: null = root (no folder), number = specific folder, undefined = all
+        if (input.folderId !== undefined) {
+          if (input.folderId === null) {
+            filtered = filtered.filter(r => r.folderId === null);
+          } else {
+            filtered = filtered.filter(r => r.folderId === input.folderId);
+          }
+        }
         if (input.typeFilter !== "all") {
           filtered = filtered.filter(r => {
             const m = r.mimeType;
@@ -2433,6 +2442,84 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
           })),
           total,
         };
+      }),
+    // Folder CRUD
+    listFolders: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) return [];
+        const { orgMediaFolders, orgMediaLibrary: oml } = await import("../drizzle/schema");
+        const folders = await db.select().from(orgMediaFolders)
+          .where(eq(orgMediaFolders.orgId, input.orgId))
+          .orderBy(orgMediaFolders.name);
+        // Count items per folder
+        const allItems = await db.select({ id: oml.id, folderId: oml.folderId })
+          .from(oml).where(eq(oml.orgId, input.orgId));
+        const countMap: Record<number, number> = {};
+        for (const item of allItems) {
+          if (item.folderId != null) countMap[item.folderId] = (countMap[item.folderId] ?? 0) + 1;
+        }
+        const rootCount = allItems.filter(i => i.folderId === null).length;
+        return { folders: folders.map(f => ({ ...f, count: countMap[f.id] ?? 0 })), rootCount };
+      }),
+    createFolder: protectedProcedure
+      .input(z.object({ orgId: z.number(), name: z.string().min(1).max(255) }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { orgMediaFolders } = await import("../drizzle/schema");
+        const [result] = await db.insert(orgMediaFolders).values({ orgId: input.orgId, name: input.name });
+        return { id: (result as any).insertId, name: input.name };
+      }),
+    renameFolder: protectedProcedure
+      .input(z.object({ orgId: z.number(), id: z.number(), name: z.string().min(1).max(255) }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { orgMediaFolders } = await import("../drizzle/schema");
+        await db.update(orgMediaFolders).set({ name: input.name }).where(eq(orgMediaFolders.id, input.id));
+        return { ok: true };
+      }),
+    deleteFolder: protectedProcedure
+      .input(z.object({ orgId: z.number(), id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { orgMediaFolders, orgMediaLibrary: oml } = await import("../drizzle/schema");
+        // Move all items in this folder back to root
+        await db.update(oml).set({ folderId: null }).where(eq(oml.folderId, input.id));
+        await db.delete(orgMediaFolders).where(eq(orgMediaFolders.id, input.id));
+        return { ok: true };
+      }),
+    // Bulk operations
+    bulkDelete: protectedProcedure
+      .input(z.object({ orgId: z.number(), ids: z.array(z.number()).min(1) }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { orgMediaLibrary } = await import("../drizzle/schema");
+        const { inArray } = await import("drizzle-orm");
+        await db.delete(orgMediaLibrary).where(inArray(orgMediaLibrary.id, input.ids));
+        return { deleted: input.ids.length };
+      }),
+    bulkMoveToFolder: protectedProcedure
+      .input(z.object({ orgId: z.number(), ids: z.array(z.number()).min(1), folderId: z.number().nullable() }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { orgMediaLibrary } = await import("../drizzle/schema");
+        const { inArray } = await import("drizzle-orm");
+        await db.update(orgMediaLibrary)
+          .set({ folderId: input.folderId })
+          .where(inArray(orgMediaLibrary.id, input.ids));
+        return { moved: input.ids.length };
       }),
     // Delete a media item by ID
     deleteOrgMedia: protectedProcedure
@@ -2540,6 +2627,7 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
         tags: z.array(z.string()).optional(),
         source: z.enum(["form", "course", "direct", "other"]).default("direct"),
         sourceId: z.number().optional(),
+        folderId: z.number().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
@@ -2558,6 +2646,7 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
           source: input.source,
           sourceId: input.sourceId ?? null,
           tags: input.tags ? JSON.stringify(input.tags) : null,
+          folderId: input.folderId ?? null,
         });
         const id = (result as any).insertId as number;
         const rows = await db.select().from(orgMediaLibrary).where(eq(orgMediaLibrary.id, id)).limit(1);

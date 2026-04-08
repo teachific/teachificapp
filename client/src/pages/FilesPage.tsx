@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import MediaFilesPage from "./MediaFilesPage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import {
   Settings, Trash2, Upload, FolderInput,
 } from "lucide-react";
 import { useState, useMemo, useCallback, useRef } from "react";
+type SectionView = "packages" | "media";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -348,6 +350,7 @@ function DraggablePackageRow({
 export default function FilesPage() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const [sectionView, setSectionView] = useState<SectionView>("packages");
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<ContentType>("all");
   const [sortKey, setSortKey] = useState<SortKey>("date");
@@ -622,13 +625,55 @@ export default function FilesPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight">{selectedFolderName}</h1>
-              <p className="text-muted-foreground text-sm mt-0.5">{filtered.length} package{filtered.length !== 1 ? "s" : ""}</p>
+              <p className="text-muted-foreground text-sm mt-0.5">
+                {sectionView === "packages"
+                  ? `${filtered.length} package${filtered.length !== 1 ? "s" : ""}`
+                  : "Media files"}
+              </p>
             </div>
-            <Button onClick={() => setLocation("/upload")} className="gap-2">
-              <Plus className="h-4 w-4" />Upload Content
-            </Button>
+            <div className="flex items-center gap-2">
+              {sectionView === "packages" && (
+                <Button onClick={() => setLocation("/upload")} className="gap-2">
+                  <Plus className="h-4 w-4" />Upload Content
+                </Button>
+              )}
+            </div>
           </div>
 
+          {/* Section toggle */}
+          <div className="flex gap-1 p-1 bg-muted/40 rounded-lg w-fit border border-border/50">
+            <button
+              type="button"
+              onClick={() => setSectionView("packages")}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                sectionView === "packages"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              SCORM / HTML Packages
+            </button>
+            <button
+              type="button"
+              onClick={() => setSectionView("media")}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                sectionView === "media"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Media Files
+            </button>
+          </div>
+
+          {sectionView === "media" && (
+            <div className="-mx-6 -mt-2">
+              <MediaFilesPage />
+            </div>
+          )}
+
+          {sectionView === "packages" && (
+          <div className="space-y-5">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -704,6 +749,8 @@ export default function FilesPage() {
                 </SortableContext>
               </div>
             </Card>
+          )}
+          </div>
           )}
         </div>
       </div>
