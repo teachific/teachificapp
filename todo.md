@@ -2565,3 +2565,40 @@
 - [x] Remove duplicate folder sidebar from MediaFilesPage when embedded
 - [x] Media items show file type icon/badge; packages show SCORM/HTML badge
 - [x] Unified search across both packages and media items
+
+## Replace File Feature (Apr 2026)
+- [ ] Add "Replace File" option to media item context menu in unified Media Library
+- [ ] Server: replaceMediaItem procedure — upload new file to S3 at same key, update DB record (url, fileSize, mimeType), keep same ID so all links remain intact
+- [ ] Client: hidden file input per row, progress indicator during replace, success toast
+
+## TeachificPay Full Charge Management (Apr 2026)
+- [x] Fix fee: Free=2%, Starter=1%, Builder=0.5%, Pro/Enterprise=0% (own gateway allowed)
+- [x] Add disputes table to DB schema (disputeId, chargeId, orgId, userId, amount, currency, reason, status, dueBy, evidenceSubmitted, resolvedAt)
+- [x] Add charge_transactions table (chargeId, orgId, userId, amount, currency, status, courseId, createdAt)
+- [x] Webhook: charge.dispute.created — log dispute, suspend learner access, notify school owner
+- [x] Webhook: charge.dispute.updated — update dispute status in DB
+- [x] Webhook: charge.dispute.closed — restore/confirm access based on outcome (won/lost)
+- [x] Webhook: charge.refunded — log refund, revoke access if full refund
+- [x] tRPC: listDisputes — list open/closed disputes for an org
+- [x] tRPC: submitDisputeEvidence — submit evidence to Stripe for a dispute
+- [x] tRPC: listCharges — paginated charge history for an org
+- [x] tRPC: issueRefund — refund a charge (already exists in admin, expose to org owner too)
+- [x] tRPC: getPayoutStatus — explain how payouts work (automatic via Stripe Connect)
+- [x] UI: TeachificPay page — Disputes tab (open disputes, evidence submission, deadline countdown)
+- [x] UI: TeachificPay page — Charge History tab (all transactions, filter by status)
+- [x] UI: TeachificPay page — Payouts tab (balance, payout schedule, payout history)
+- [x] UI: TeachificPay page — Refunds tab (issue refund from charge history)
+- [ ] Admin panel: dispute overview across all schools
+
+## Media Library File Management Fixes (Apr 2026)
+- [ ] Media files: add drag-to-folder support (DnD onto sidebar folder nodes)
+- [x] Media files: add "Move to Folder" option in context menu (same as packages have)
+- [ ] Media files: add sort controls (Newest First, Title A-Z, Largest, Oldest)
+- [x] Media files: add moveMediaItem tRPC procedure (update folderId on orgMediaLibrary row) — uses bulkMoveToFolder
+- [ ] Media files: folder item counts should include both packages and media items
+
+## Marketing Pages: Fee/Gateway Update (Apr 2026)
+- [x] LandingPage.tsx: update pricing cards to show correct fees (Free 2%, Starter 1%, Builder 0.5%, Pro/Enterprise 0%)
+- [x] LandingPage.tsx: update gateway feature copy (only Pro/Enterprise can use own gateway)
+- [x] OrgSettingsPage.tsx: update TeachificPay section fee display and gateway toggle visibility
+- [x] teachificPayRouter.ts: remove group registration TeachificPay override (follow org gateway setting)

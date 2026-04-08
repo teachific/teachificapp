@@ -1975,3 +1975,71 @@ export const appVersions = mysqlTable("app_versions", {
 });
 export type AppVersion = typeof appVersions.$inferSelect;
 export type InsertAppVersion = typeof appVersions.$inferInsert;
+
+// ─── TeachificPay Disputes ────────────────────────────────────────────────────
+// Tracks Stripe disputes (chargebacks) for TeachificPay transactions.
+export const teachificPayDisputes = mysqlTable("teachific_pay_disputes", {
+  id: bigint("id", { mode: "number" }).primaryKey().autoincrement(),
+  orgId: bigint("orgId", { mode: "number" }).notNull(),
+  stripeDisputeId: varchar("stripeDisputeId", { length: 128 }).notNull().unique(),
+  stripeChargeId: varchar("stripeChargeId", { length: 128 }).notNull(),
+  stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 128 }),
+  // Amount disputed in cents
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  currency: varchar("currency", { length: 8 }).notNull().default("usd"),
+  // Dispute status from Stripe
+  status: mysqlEnum("status", [
+    "warning_needs_response",
+    "warning_under_review",
+    "warning_closed",
+    "needs_response",
+    "under_review",
+    "charge_refunded",
+    "won",
+    "lost",
+  ]).notNull().default("needs_response"),
+  reason: varchar("reason", { length: 128 }),
+  // Evidence submission deadline (Unix timestamp ms)
+  evidenceDueBy: bigint("evidenceDueBy", { mode: "number" }),
+  // Whether evidence has been submitted
+  evidenceSubmitted: boolean("evidenceSubmitted").default(false).notNull(),
+  // Metadata from the original charge
+  courseId: bigint("courseId", { mode: "number" }),
+  learnerId: bigint("learnerId", { mode: "number" }),
+  learnerEmail: varchar("learnerEmail", { length: 256 }),
+  // Access revoked when dispute was opened
+  accessRevoked: boolean("accessRevoked").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type TeachificPayDispute = typeof teachificPayDisputes.$inferSelect;
+export type InsertTeachificPayDispute = typeof teachificPayDisputes.$inferInsert;
+
+// ─── TeachificPay Charges ─────────────────────────────────────────────────────
+// Logs completed charges processed through TeachificPay for reporting.
+export const teachificPayCharges = mysqlTable("teachific_pay_charges", {
+  id: bigint("id", { mode: "number" }).primaryKey().autoincrement(),
+  orgId: bigint("orgId", { mode: "number" }).notNull(),
+  stripeChargeId: varchar("stripeChargeId", { length: 128 }).notNull().unique(),
+  stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 128 }),
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 128 }),
+  // Amounts in cents
+  amount: bigint("amount", { mode: "number" }).notNull(),
+  platformFee: bigint("platformFee", { mode: "number" }).notNull().default(0),
+  netAmount: bigint("netAmount", { mode: "number" }).notNull(),
+  currency: varchar("currency", { length: 8 }).notNull().default("usd"),
+  status: mysqlEnum("chargeStatus", ["succeeded", "pending", "failed", "refunded", "partially_refunded"]).notNull().default("succeeded"),
+  // Refund tracking
+  amountRefunded: bigint("amountRefunded", { mode: "number" }).notNull().default(0),
+  // Metadata
+  courseId: bigint("courseId", { mode: "number" }),
+  learnerId: bigint("learnerId", { mode: "number" }),
+  learnerEmail: varchar("learnerEmail", { length: 256 }),
+  isGroupRegistration: boolean("isGroupRegistration").default(false).notNull(),
+  groupSize: bigint("groupSize", { mode: "number" }).default(1).notNull(),
+  chargedAt: timestamp("chargedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type TeachificPayCharge = typeof teachificPayCharges.$inferSelect;
+export type InsertTeachificPayCharge = typeof teachificPayCharges.$inferInsert;

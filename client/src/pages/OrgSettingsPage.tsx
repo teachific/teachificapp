@@ -18,6 +18,7 @@ import {
   Check, AlertCircle, Crown, Zap, Rocket, Bell, Upload, ImageIcon, X, FileText, Video,
   UserCircle, Plus, Trash2, Edit2, Link as LinkIcon, Link2,
   Wand2, Sparkles, Loader2, ExternalLink, Copy,
+  AlertTriangle, RefreshCw, DollarSign, ArrowDownCircle, History, ShieldAlert, ReceiptText,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -1115,6 +1116,14 @@ function SitePoliciesTab({ orgId }: { orgId?: number }) {
 // ─── TeachificPayConnectSection ──────────────────────────────────────────────
 function TeachificPayConnectSection({ orgId }: { orgId?: number }) {
   const utils = trpc.useUtils();
+  const [payTab, setPayTab] = useState<"overview" | "charges" | "disputes" | "payouts">("overview");
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refundChargeId, setRefundChargeId] = useState("");
+  const [refundAmount, setRefundAmount] = useState("");
+  const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
+  const [evidenceDisputeId, setEvidenceDisputeId] = useState("");
+  const [evidenceText, setEvidenceText] = useState("");
+
   const syncStatus = trpc.teachificPay.syncConnectStatus.useMutation({
     onSuccess: () => {
       utils.teachificPay.getStatus.invalidate({ orgId: orgId! });
@@ -1122,19 +1131,19 @@ function TeachificPayConnectSection({ orgId }: { orgId?: number }) {
       toast.success("Connect account status refreshed");
     },
   });
-  // Auto-sync when returning from Stripe Connect onboarding
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const connectParam = params.get("connect");
     if (connectParam === "success" || connectParam === "refresh") {
       if (orgId !== undefined) syncStatus.mutate({ orgId });
-      // Clean up the URL param without a full reload
       const url = new URL(window.location.href);
       url.searchParams.delete("connect");
       window.history.replaceState({}, "", url.toString());
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
+
   const connectMutation = trpc.teachificPay.startConnectOnboarding.useMutation({
     onSuccess: (data: { url: string; accountId: string }) => {
       if (data.url) window.open(data.url, "_blank");
@@ -1146,18 +1155,41 @@ function TeachificPayConnectSection({ orgId }: { orgId?: number }) {
     { orgId: orgId! },
     { enabled: !!orgId }
   );
-
   const { data: earnings, isLoading: earningsLoading } = trpc.teachificPay.getEarnings.useQuery(
     { orgId: orgId! },
     { enabled: !!orgId && status?.stripeConnectStatus === "active" }
   );
+  const { data: charges, isLoading: chargesLoading } = trpc.teachificPay.listCharges.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId && payTab === "charges" }
+  );
+  const { data: disputes, isLoading: disputesLoading } = trpc.teachificPay.listDisputes.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId && payTab === "disputes" }
+  );
+
+  const refundMutation = trpc.teachificPay.refundCharge.useMutation({
+    onSuccess: () => {
+      toast.success("Refund issued successfully");
+      setRefundDialogOpen(false);
+      utils.teachificPay.listCharges.invalidate({ orgId: orgId! });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const evidenceMutation = trpc.teachificPay.submitDisputeEvidence.useMutation({
+    onSuccess: () => {
+      toast.success("Evidence submitted to Stripe");
+      setEvidenceDialogOpen(false);
+      utils.teachificPay.listDisputes.invalidate({ orgId: orgId! });
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   if (statusLoading) return <Skeleton className="h-20 w-full" />;
 
   const isConnected = !!status?.stripeConnectAccountId;
   const isActive = status?.stripeConnectStatus === "active";
 
-  // Compute balances from the nested balance shape returned by getEarnings
   const availableBalance = earnings?.connected && earnings.balance
     ? (earnings.balance as { available: { amount: number }[] }).available?.reduce((s, b) => s + b.amount, 0) ?? 0
     : 0;
@@ -1168,8 +1200,23 @@ function TeachificPayConnectSection({ orgId }: { orgId?: number }) {
     ? (earnings.payouts as { amount: number }[]).reduce((s, p) => s + p.amount, 0)
     : 0;
 
+  const disputeStatusColor = (s: string) => {
+    if (s === "won") return "text-green-600 bg-green-50 border-green-200";
+    if (s === "lost") return "text-red-600 bg-red-50 border-red-200";
+    if (s === "needs_response") return "text-orange-600 bg-orange-50 border-orange-200";
+    return "text-muted-foreground bg-muted border-border";
+  };
+
+  const chargeStatusColor = (s: string) => {
+    if (s === "succeeded") return "text-green-600 bg-green-50 border-green-200";
+    if (s === "refunded" || s === "partially_refunded") return "text-amber-600 bg-amber-50 border-amber-200";
+    if (s === "failed") return "text-red-600 bg-red-50 border-red-200";
+    return "text-muted-foreground bg-muted border-border";
+  };
+
   return (
     <div className="space-y-4">
+      {/* Connect header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isConnected && isActive ? (
@@ -1186,53 +1233,221 @@ function TeachificPayConnectSection({ orgId }: { orgId?: number }) {
             </Badge>
           )}
         </div>
-        <Button
-          size="sm"
-          variant={isConnected ? "outline" : "default"}
-          className="gap-2"
-          style={!isConnected ? { background: "#189aa1", color: "white" } : {}}
-          disabled={connectMutation.isPending}
-          onClick={() =>
-            orgId &&
-            connectMutation.mutate({
-              orgId,
-              returnUrl: `${window.location.origin}/settings/payment?connect=success`,
-              refreshUrl: `${window.location.origin}/settings/payment?connect=refresh`,
-            })
-          }
-        >
-          {connectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-          {isConnected ? "Manage TeachificPay Account" : "Connect to TeachificPay"}
-        </Button>
-      </div>
-
-      {isConnected && isActive && !earningsLoading && earnings?.connected && (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "Available Balance", value: `$${(availableBalance / 100).toFixed(2)}` },
-            { label: "Pending Balance", value: `$${(pendingBalance / 100).toFixed(2)}` },
-            { label: "Total Paid Out", value: `$${(totalPayouts / 100).toFixed(2)}` },
-          ].map(({ label, value }) => (
-            <div key={label} className="rounded-lg p-3 text-center" style={{ background: "#189aa108", border: "1px solid #189aa120" }}>
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="text-lg font-bold" style={{ color: "#189aa1" }}>{value}</p>
-            </div>
-          ))}
+        <div className="flex gap-2">
+          {isConnected && (
+            <Button size="sm" variant="ghost" className="gap-1.5 h-8" disabled={syncStatus.isPending} onClick={() => orgId && syncStatus.mutate({ orgId })}>
+              <RefreshCw className={`h-3.5 w-3.5 ${syncStatus.isPending ? "animate-spin" : ""}`} /> Sync
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant={isConnected ? "outline" : "default"}
+            className="gap-2"
+            style={!isConnected ? { background: "#189aa1", color: "white" } : {}}
+            disabled={connectMutation.isPending}
+            onClick={() =>
+              orgId &&
+              connectMutation.mutate({
+                orgId,
+                returnUrl: `${window.location.origin}/settings/payment?connect=success`,
+                refreshUrl: `${window.location.origin}/settings/payment?connect=refresh`,
+              })
+            }
+          >
+            {connectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+            {isConnected ? "Manage Account" : "Connect to TeachificPay"}
+          </Button>
         </div>
-      )}
+      </div>
 
       {!isConnected && (
         <p className="text-xs text-muted-foreground">
           Connect your bank account to receive payouts from TeachificPay. Stripe handles identity verification securely.
         </p>
       )}
+
+      {isConnected && (
+        <Tabs value={payTab} onValueChange={(v) => setPayTab(v as typeof payTab)}>
+          <TabsList className="h-8 gap-0.5">
+            <TabsTrigger value="overview" className="h-7 text-xs gap-1"><DollarSign className="h-3 w-3" />Overview</TabsTrigger>
+            <TabsTrigger value="charges" className="h-7 text-xs gap-1"><ReceiptText className="h-3 w-3" />Charges</TabsTrigger>
+            <TabsTrigger value="disputes" className="h-7 text-xs gap-1"><ShieldAlert className="h-3 w-3" />Disputes</TabsTrigger>
+            <TabsTrigger value="payouts" className="h-7 text-xs gap-1"><ArrowDownCircle className="h-3 w-3" />Payouts</TabsTrigger>
+          </TabsList>
+
+          {/* Overview */}
+          <TabsContent value="overview" className="mt-3">
+            {isActive && !earningsLoading && earnings?.connected ? (
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "Available Balance", value: `$${(availableBalance / 100).toFixed(2)}` },
+                  { label: "Pending Balance", value: `$${(pendingBalance / 100).toFixed(2)}` },
+                  { label: "Total Paid Out", value: `$${(totalPayouts / 100).toFixed(2)}` },
+                ].map(({ label, value }) => (
+                  <div key={label} className="rounded-lg p-3 text-center" style={{ background: "#189aa108", border: "1px solid #189aa120" }}>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="text-lg font-bold" style={{ color: "#189aa1" }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Complete Stripe onboarding to view your earnings dashboard.</p>
+            )}
+          </TabsContent>
+
+          {/* Charges */}
+          <TabsContent value="charges" className="mt-3">
+            {chargesLoading ? <Skeleton className="h-32 w-full" /> : !charges?.length ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <History className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No charges recorded yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {charges.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium">${(c.amount / 100).toFixed(2)} {c.currency.toUpperCase()}</span>
+                      <span className="text-xs text-muted-foreground">{c.learnerEmail ?? "—"} · {new Date(c.chargedAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={`text-xs ${chargeStatusColor(c.status)}`}>{c.status.replace("_", " ")}</Badge>
+                      {(c.status === "succeeded" || c.status === "partially_refunded") && (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => { setRefundChargeId(c.stripeChargeId); setRefundAmount(""); setRefundDialogOpen(true); }}>
+                          <ReceiptText className="h-3 w-3" /> Refund
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Disputes */}
+          <TabsContent value="disputes" className="mt-3">
+            {disputesLoading ? <Skeleton className="h-32 w-full" /> : !disputes?.length ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <ShieldAlert className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No disputes on record. Great!</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {disputes.map((d) => (
+                  <div key={d.id} className="rounded-lg border p-3 space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium">${(d.amount / 100).toFixed(2)} · {d.reason ?? "unknown reason"}</span>
+                        <span className="text-xs text-muted-foreground">{d.learnerEmail ?? "—"} · {new Date(d.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <Badge variant="outline" className={`text-xs ${disputeStatusColor(d.status)}`}>{d.status.replace(/_/g, " ")}</Badge>
+                    </div>
+                    {d.evidenceDueBy && d.status === "needs_response" && (
+                      <p className="text-xs text-orange-600">
+                        <AlertTriangle className="h-3 w-3 inline mr-1" />
+                        Evidence due by {new Date(d.evidenceDueBy).toLocaleDateString()}
+                      </p>
+                    )}
+                    {!d.evidenceSubmitted && (d.status === "needs_response" || d.status === "under_review") && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => { setEvidenceDisputeId(d.stripeDisputeId); setEvidenceText(""); setEvidenceDialogOpen(true); }}>
+                        <ShieldAlert className="h-3 w-3" /> Submit Evidence
+                      </Button>
+                    )}
+                    {d.evidenceSubmitted && <span className="text-xs text-green-600"><Check className="h-3 w-3 inline mr-1" />Evidence submitted</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Payouts */}
+          <TabsContent value="payouts" className="mt-3">
+            {earningsLoading ? <Skeleton className="h-32 w-full" /> : !earnings?.connected ? (
+              <p className="text-sm text-muted-foreground">Complete Stripe onboarding to view payout history.</p>
+            ) : !(earnings.payouts as any[]).length ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <ArrowDownCircle className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No payouts yet. Payouts are sent automatically by Stripe on your configured schedule.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {(earnings.payouts as { id: string; amount: number; currency: string; arrival_date: number; status: string }[]).map((p) => (
+                  <div key={p.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium">${(p.amount / 100).toFixed(2)} {p.currency.toUpperCase()}</span>
+                      <span className="text-xs text-muted-foreground">Arrival: {new Date(p.arrival_date * 1000).toLocaleDateString()}</span>
+                    </div>
+                    <Badge variant="outline" className={`text-xs ${p.status === "paid" ? "text-green-600 bg-green-50 border-green-200" : "text-muted-foreground"}`}>{p.status}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
+
+      {/* Refund Dialog */}
+      <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Issue Refund</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Leave amount blank for a full refund.</p>
+            <div className="space-y-1">
+              <Label className="text-xs">Amount (USD, optional)</Label>
+              <Input placeholder="e.g. 29.99" value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundDialogOpen(false)}>Cancel</Button>
+            <Button
+              disabled={refundMutation.isPending}
+              onClick={() => orgId && refundMutation.mutate({
+                orgId,
+                chargeId: refundChargeId,
+                amountCents: refundAmount ? Math.round(parseFloat(refundAmount) * 100) : undefined,
+              })}
+            >
+              {refundMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Issue Refund"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Evidence Dialog */}
+      <Dialog open={evidenceDialogOpen} onOpenChange={setEvidenceDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Submit Dispute Evidence</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Describe why this charge is legitimate. Include course access logs, completion records, or any other relevant information.</p>
+            <Textarea
+              placeholder="Describe the service provided, when access was granted, completion status, etc."
+              value={evidenceText}
+              onChange={(e) => setEvidenceText(e.target.value)}
+              rows={5}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEvidenceDialogOpen(false)}>Cancel</Button>
+            <Button
+              disabled={evidenceMutation.isPending || !evidenceText.trim()}
+              onClick={() => orgId && evidenceMutation.mutate({
+                orgId,
+                disputeId: evidenceDisputeId,
+                uncategorizedText: evidenceText,
+              })}
+            >
+              {evidenceMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit Evidence"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function OrgPaymentSettingsTab({ orgId, plan = "free" }: { orgId?: number; plan?: string }) {
-  const canUseCustomGateway = ["builder", "pro", "enterprise"].includes(plan);
-  const teachificPayFee = ["builder", "pro", "enterprise"].includes(plan) ? "0.5%" : "2%";
+  const canUseCustomGateway = ["pro", "enterprise"].includes(plan);
+  const teachificPayFee = plan === "free" ? "2%" : plan === "starter" ? "1%" : plan === "builder" ? "0.5%" : "0%";
   const utils = trpc.useUtils();
   const [stripePublishableKey, setStripePublishableKey] = useState("");
   const [stripeSecretKey, setStripeSecretKey] = useState("");
@@ -1325,14 +1540,16 @@ function OrgPaymentSettingsTab({ orgId, plan = "free" }: { orgId?: number; plan?
               <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#189aa1" }} />
               <p className="text-sm">
                 {canUseCustomGateway
-                  ? `Your ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan supports TeachificPay or your own payment gateway. TeachificPay charges a ${teachificPayFee} platform fee on transactions.`
-                  : `Your ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan uses TeachificPay exclusively for all payment processing. A ${teachificPayFee} platform fee applies to each transaction. Upgrade to Builder or higher to use your own payment gateway.`
+                  ? `Your ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan supports TeachificPay or your own Stripe gateway with no platform fee.`
+                  : teachificPayFee === "0%"
+                  ? `Your ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan uses TeachificPay with no platform fee.`
+                  : `Your ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan uses TeachificPay exclusively. A ${teachificPayFee} platform fee applies to each transaction. Upgrade to Pro or higher to use your own payment gateway.`
                 }
               </p>
             </div>
             <div className="flex items-start gap-2">
               <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#189aa1" }} />
-              <p className="text-sm">Group registrations always process through TeachificPay regardless of plan.</p>
+              <p className="text-sm">Group registrations follow your plan's payment gateway setting.</p>
             </div>
           </div>
           <TeachificPayConnectSection orgId={orgId} />
@@ -1345,7 +1562,7 @@ function OrgPaymentSettingsTab({ orgId, plan = "free" }: { orgId?: number; plan?
         <CardHeader>
           <CardTitle>Custom Payment Gateway</CardTitle>
           <CardDescription>
-            Configure your own Stripe or PayPal accounts to collect payments directly. Available on Builder plan and above.
+            Configure your own Stripe or PayPal accounts to collect payments directly. Available on Pro plan and above.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

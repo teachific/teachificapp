@@ -84,7 +84,7 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     whiteLabel: false,
     emailMarketing: false,
     transactionFeePercent: 3,
-    teachificPayFeePercent: 2, // 2% TeachificPay fee
+    teachificPayFeePercent: 1, // 1% TeachificPay fee
     customGateway: false, // must use TeachificPay
     groupRegistrations: false,
     deepAnalytics: false,
@@ -111,8 +111,8 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     whiteLabel: true,
     emailMarketing: false,
     transactionFeePercent: 1,
-    teachificPayFeePercent: 0.5, // 0.5% TeachificPay fee if they choose TeachificPay
-    customGateway: true, // can use own gateway or TeachificPay
+    teachificPayFeePercent: 0.5, // 0.5% TeachificPay fee (required — no own gateway on Builder)
+    customGateway: false, // Builder must use TeachificPay
     groupRegistrations: false,
     deepAnalytics: false, // basic analytics only
     affiliatePlatform: false,
@@ -138,8 +138,8 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     whiteLabel: true,
     emailMarketing: true,
     transactionFeePercent: 0,
-    teachificPayFeePercent: 0.5, // 0.5% TeachificPay fee if they choose TeachificPay
-    customGateway: true, // can use own gateway or TeachificPay
+    teachificPayFeePercent: 0, // 0% fee on Pro — revenue from subscription
+    customGateway: true, // Pro can use own gateway or TeachificPay
     groupRegistrations: true,
     deepAnalytics: true,
     affiliatePlatform: true,
@@ -165,8 +165,8 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     whiteLabel: true,
     emailMarketing: true,
     transactionFeePercent: 0,
-    teachificPayFeePercent: 0.5, // 0.5% TeachificPay fee if they choose TeachificPay
-    customGateway: true, // can use own gateway or TeachificPay
+    teachificPayFeePercent: 0, // 0% fee on Enterprise — revenue from subscription
+    customGateway: true, // Enterprise can use own gateway or TeachificPay
     groupRegistrations: true,
     deepAnalytics: true,
     affiliatePlatform: true,

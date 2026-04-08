@@ -275,7 +275,7 @@ function PackageRow({ pkg, folders, onNavigate, onDelete, onMove }: {
 }
 
 // ─── Media Item Row ───────────────────────────────────────────────────────────
-function MediaRow({ item, orgId, onDelete }: { item: any; orgId: number; onDelete: (id: number) => void }) {
+function MediaRow({ item, folders, onDelete, onMove }: { item: any; folders: FolderItem[]; onDelete: (id: number) => void; onMove: (mediaId: number, folderId: number | null) => void }) {
   return (
     <div className="flex sm:grid sm:grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 px-5 py-4 hover:bg-accent/20 transition-colors">
       <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
@@ -292,6 +292,9 @@ function MediaRow({ item, orgId, onDelete }: { item: any; orgId: number; onDelet
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-xs text-muted-foreground">{formatBytes(item.fileSize)}</span>
           <span className="text-xs text-muted-foreground">&bull; {new Date(item.createdAt).toLocaleDateString()}</span>
+          {item.folderId && folders.find((f) => f.id === item.folderId) && (
+            <span className="text-xs text-muted-foreground">&bull; <Folder className="h-3 w-3 inline mr-0.5" />{folders.find((f) => f.id === item.folderId)?.name}</span>
+          )}
         </div>
       </div>
       <div className="hidden sm:flex justify-center"><MediaTypeBadge mimeType={item.mimeType} /></div>
@@ -313,6 +316,21 @@ function MediaRow({ item, orgId, onDelete }: { item: any; orgId: number; onDelet
             <DropdownMenuItem onClick={() => navigator.clipboard.writeText(item.url).then(() => toast.success("URL copied")).catch(() => {})}><Link2 className="mr-2 h-4 w-4" />Copy URL</DropdownMenuItem>
             <DropdownMenuItem asChild><a href={item.url} target="_blank" rel="noopener noreferrer">Open in new tab</a></DropdownMenuItem>
             <DropdownMenuItem asChild><a href={item.url} download={item.filename}>Download</a></DropdownMenuItem>
+            {folders.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger><FolderInput className="mr-2 h-4 w-4" />Move to Folder</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-44 max-h-64 overflow-y-auto">
+                    <DropdownMenuItem onClick={() => onMove(item.id, null)}><Folder className="mr-2 h-4 w-4 opacity-50" />Uncategorized</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {folders.map((f) => (
+                      <DropdownMenuItem key={f.id} onClick={() => onMove(item.id, f.id)}><Folder className="mr-2 h-4 w-4 text-primary/70" /><span className="truncate">{f.name}</span></DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(item.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
           </DropdownMenuContent>
@@ -413,6 +431,10 @@ export default function FilesPage() {
   const reorderFoldersMut = trpc.folders.reorder.useMutation({
     onError: (e) => { toast.error("Failed to save folder order: " + e.message); setLocalFolderOrder(null); refetchFolders(); },
   });
+  const moveMediaToFolderMut = trpc.lms.media.bulkMoveToFolder.useMutation({
+    onSuccess: () => { toast.success("File moved"); refetchMedia(); },
+    onError: (e) => toast.error("Failed to move file: " + e.message),
+  });
 
   // ── Folder dialog ──────────────────────────────────────────────────────────
   const openCreateFolder = useCallback((parentId: number | null = null) => {
@@ -512,7 +534,6 @@ export default function FilesPage() {
     if (search) list = list.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()));
     return list;
   }, [packages, typeFilter, selectedFolderId, search]);
-
   const filteredMedia = useMemo(() => {
     let list = mediaItems;
     // Type filter
@@ -525,10 +546,12 @@ export default function FilesPage() {
     });
     else if (typeFilter === "zip") list = list.filter((m) => m.mimeType.includes("zip"));
     else if (typeFilter === "scorm" || typeFilter === "html") list = []; // packages only
+    // Folder filter — media items use folderId stored in the DB
+    if (typeof selectedFolderId === "number") list = list.filter((m) => (m as any).folderId === selectedFolderId);
     // Search
     if (search) list = list.filter((m) => m.filename.toLowerCase().includes(search.toLowerCase()));
     return list;
-  }, [mediaItems, typeFilter, search]);
+  }, [mediaItems, typeFilter, selectedFolderId, search]);;
 
   // Combined sorted list for display
   type UnifiedItem = { kind: "package"; data: any } | { kind: "media"; data: any };
@@ -758,8 +781,9 @@ export default function FilesPage() {
                       <MediaRow
                         key={`media-${item.data.id}`}
                         item={item.data}
-                        orgId={orgId}
+                        folders={folders}
                         onDelete={(id) => setDeleteMediaId(id)}
+                        onMove={(mediaId, folderId) => moveMediaToFolderMut.mutate({ orgId, ids: [mediaId], folderId })}
                       />
                     )
                   )}

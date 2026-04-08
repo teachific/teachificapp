@@ -5,14 +5,16 @@
  * gateway enforcement, and payout data for school owners/admins.
  *
  * Rules:
- *  - Free / Starter: MUST use TeachificPay (2% platform fee)
- *  - Builder / Pro / Enterprise: can choose TeachificPay (0.5%) or own gateway
- *  - Group registrations: ALWAYS use TeachificPay regardless of plan
+ *  - Free: MUST use TeachificPay (2% platform fee)
+ *  - Starter: MUST use TeachificPay (1% platform fee)
+ *  - Builder: MUST use TeachificPay (0.5% platform fee)
+ *  - Pro / Enterprise: can choose TeachificPay (0% fee) or own gateway
+ *  - Group registrations: follow the org's gateway setting
  */
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq, desc, and, sql } from "drizzle-orm";
-import { organizations } from "../drizzle/schema";
+import { organizations, teachificPayDisputes, teachificPayCharges } from "../drizzle/schema";
 import { protectedProcedure, router } from "./_core/trpc";
 import { getStripe, PLAN_LIMITS, PlanTier } from "./stripePlans";
 import { getOrgSubscription } from "./lmsDb";
@@ -181,7 +183,7 @@ export const teachificPayRouter = router({
       if (input.gateway === "own_gateway" && !limits.customGateway) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Your plan does not support custom payment gateways. Upgrade to Builder or higher.",
+          message: "Your plan does not support custom payment gateways. Upgrade to Pro or higher.",
         });
       }
 
@@ -208,8 +210,8 @@ export const teachificPayRouter = router({
 
   /**
    * Create a TeachificPay checkout session for a course purchase.
-   * Enforces gateway rules: Free/Starter always use TeachificPay.
-   * Group registrations always use TeachificPay.
+   * Enforces gateway rules: Free/Starter/Builder must use TeachificPay.
+   * Pro/Enterprise can use their own gateway or TeachificPay.
    */
   createCheckout: protectedProcedure
     .input(
@@ -229,9 +231,8 @@ export const teachificPayRouter = router({
 
       const stripe = getStripe();
       const useTeachificPay =
-        input.isGroupRegistration || // Group registrations always use TeachificPay
-        !limits.customGateway || // Free/Starter must use TeachificPay
-        org.paymentGateway === "teachific_pay"; // Builder+ opted into TeachificPay
+        !limits.customGateway || // Free/Starter/Builder must use TeachificPay
+        org.paymentGateway === "teachific_pay"; // Pro/Enterprise opted into TeachificPay
 
       if (!useTeachificPay && !org.stripeConnectAccountId) {
         throw new TRPCError({
@@ -429,6 +430,142 @@ export const teachificPayRouter = router({
       await dbUpd2.update(organizations).set(updates).where(eq(organizations.id, input.orgId));
 
       return { success: true };
+    }),
+
+  // ─── Dispute Management (Org Owner) ─────────────────────────────────────────
+  /**
+   * List disputes for an org (school owner view).
+   */
+  listDisputes: protectedProcedure
+    .input(z.object({ orgId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const { org } = await getOrgWithPlan(input.orgId);
+      requireOrgAccess(ctx, org.ownerId);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const rows = await db.select()
+        .from(teachificPayDisputes)
+        .where(eq(teachificPayDisputes.orgId, input.orgId))
+        .orderBy(desc(teachificPayDisputes.createdAt))
+        .limit(100);
+      return rows;
+    }),
+
+  /**
+   * Submit dispute evidence for a specific dispute.
+   */
+  submitDisputeEvidence: protectedProcedure
+    .input(z.object({
+      orgId: z.number(),
+      disputeId: z.string(),
+      productDescription: z.string().optional(),
+      customerEmailAddress: z.string().optional(),
+      serviceDate: z.string().optional(),
+      uncategorizedText: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { org } = await getOrgWithPlan(input.orgId);
+      requireOrgAccess(ctx, org.ownerId);
+      const stripe = getStripe();
+      const evidence: Record<string, string> = {};
+      if (input.productDescription) evidence.product_description = input.productDescription;
+      if (input.customerEmailAddress) evidence.customer_email_address = input.customerEmailAddress;
+      if (input.serviceDate) evidence.service_date = input.serviceDate;
+      if (input.uncategorizedText) evidence.uncategorized_text = input.uncategorizedText;
+      await stripe.disputes.update(input.disputeId, { evidence: evidence as any, submit: true });
+      const db = await getDb();
+      if (db) {
+        await db.update(teachificPayDisputes)
+          .set({ evidenceSubmitted: true })
+          .where(eq(teachificPayDisputes.stripeDisputeId, input.disputeId));
+      }
+      return { success: true };
+    }),
+
+  // ─── Charge History (Org Owner) ───────────────────────────────────────────
+  /**
+   * List charge history for an org.
+   */
+  listCharges: protectedProcedure
+    .input(z.object({ orgId: z.number(), limit: z.number().min(1).max(200).default(50) }))
+    .query(async ({ ctx, input }) => {
+      const { org } = await getOrgWithPlan(input.orgId);
+      requireOrgAccess(ctx, org.ownerId);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const rows = await db.select()
+        .from(teachificPayCharges)
+        .where(eq(teachificPayCharges.orgId, input.orgId))
+        .orderBy(desc(teachificPayCharges.chargedAt))
+        .limit(input.limit);
+      return rows;
+    }),
+
+  /**
+   * Issue a refund on a charge (org owner can refund their own charges).
+   */
+  refundCharge: protectedProcedure
+    .input(z.object({
+      orgId: z.number(),
+      chargeId: z.string(),
+      amountCents: z.number().optional(),
+      reason: z.enum(["duplicate", "fraudulent", "requested_by_customer"]).default("requested_by_customer"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { org } = await getOrgWithPlan(input.orgId);
+      requireOrgAccess(ctx, org.ownerId);
+      // Verify the charge belongs to this org
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const [chargeRow] = await db.select()
+        .from(teachificPayCharges)
+        .where(and(eq(teachificPayCharges.orgId, input.orgId), eq(teachificPayCharges.stripeChargeId, input.chargeId)))
+        .limit(1);
+      if (!chargeRow) throw new TRPCError({ code: "NOT_FOUND", message: "Charge not found for this org" });
+      const stripe = getStripe();
+      const refund = await stripe.refunds.create({
+        charge: input.chargeId,
+        amount: input.amountCents,
+        reason: input.reason,
+      });
+      return { refundId: refund.id, status: refund.status, amount: refund.amount, currency: refund.currency };
+    }),
+
+  // ─── Platform Admin: Disputes ─────────────────────────────────────────────
+  /**
+   * [Platform Admin] List all disputes across all orgs.
+   */
+  adminListDisputes: protectedProcedure
+    .input(z.object({ limit: z.number().default(100) }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const rows = await db.select()
+        .from(teachificPayDisputes)
+        .orderBy(desc(teachificPayDisputes.createdAt))
+        .limit(input.limit);
+      return rows;
+    }),
+
+  /**
+   * [Platform Admin] List all charges across all orgs.
+   */
+  adminListCharges: protectedProcedure
+    .input(z.object({ limit: z.number().default(100) }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const rows = await db.select()
+        .from(teachificPayCharges)
+        .orderBy(desc(teachificPayCharges.chargedAt))
+        .limit(input.limit);
+      return rows;
     }),
 
   /**

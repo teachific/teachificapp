@@ -12,6 +12,9 @@ import { getUserByEmail, getDb } from "./db";
 import { sendEmail } from "./sendgrid";
 import { courseEnrollmentHtml } from "./emailTemplates";
 import { getCourseById } from "./lmsDb";
+import { teachificPayDisputes, teachificPayCharges, organizations } from "../drizzle/schema";
+import { eq, and } from "drizzle-orm";
+import { notifyOwner } from "./_core/notification";
 
 const router = express.Router();
 
@@ -211,6 +214,128 @@ router.post(
 
           await upsertOrgSubscription(orgId, { status: "past_due" });
           console.log(`[Stripe Webhook] Org ${orgId} payment failed, status: past_due`);
+          break;
+        }
+
+        // ── TeachificPay: log completed charges ──────────────────────────────
+        case "charge.succeeded": {
+          const charge = event.data.object as Stripe.Charge;
+          if (!charge.transfer_data?.destination) break; // Only log TeachificPay charges
+          const db = await getDb();
+          if (!db) break;
+          // Find org by Connect account ID
+          const [org] = await db.select({ id: organizations.id })
+            .from(organizations)
+            .where(eq(organizations.stripeConnectAccountId as any, charge.transfer_data.destination as string))
+            .limit(1);
+          if (!org) break;
+          const netAmount = charge.amount - (charge.application_fee_amount ?? 0);
+          await db.insert(teachificPayCharges).values({
+            orgId: org.id,
+            stripeChargeId: charge.id,
+            stripePaymentIntentId: charge.payment_intent as string ?? null,
+            amount: charge.amount,
+            platformFee: charge.application_fee_amount ?? 0,
+            netAmount,
+            currency: charge.currency,
+            status: "succeeded",
+            amountRefunded: 0,
+            learnerEmail: charge.billing_details?.email ?? null,
+          }).onDuplicateKeyUpdate({ set: { status: "succeeded" } });
+          console.log(`[Stripe Webhook] Charge ${charge.id} logged for org ${org.id}`);
+          break;
+        }
+
+        // ── TeachificPay: dispute opened ──────────────────────────────────────
+        case "charge.dispute.created": {
+          const dispute = event.data.object as Stripe.Dispute;
+          const db = await getDb();
+          if (!db) break;
+          // Find org by charge
+          const [chargeRow] = await db.select()
+            .from(teachificPayCharges)
+            .where(eq(teachificPayCharges.stripeChargeId, dispute.charge as string))
+            .limit(1);
+          const orgId = chargeRow?.orgId ?? 0;
+          if (!orgId) {
+            console.warn(`[Stripe Webhook] Dispute ${dispute.id} — no matching charge row, skipping`);
+            break;
+          }
+          await db.insert(teachificPayDisputes).values({
+            orgId,
+            stripeDisputeId: dispute.id,
+            stripeChargeId: dispute.charge as string,
+            stripePaymentIntentId: dispute.payment_intent as string ?? null,
+            amount: dispute.amount,
+            currency: dispute.currency,
+            status: dispute.status as any,
+            reason: dispute.reason,
+            evidenceDueBy: dispute.evidence_details?.due_by ? dispute.evidence_details.due_by * 1000 : null,
+            courseId: chargeRow?.courseId ?? null,
+            learnerId: chargeRow?.learnerId ?? null,
+            learnerEmail: chargeRow?.learnerEmail ?? null,
+            accessRevoked: false,
+          }).onDuplicateKeyUpdate({ set: { status: dispute.status as any } });
+          // Update charge status
+          await db.update(teachificPayCharges)
+            .set({ status: "refunded" })
+            .where(eq(teachificPayCharges.stripeChargeId, dispute.charge as string));
+          console.log(`[Stripe Webhook] Dispute ${dispute.id} opened for org ${orgId}`);
+          await notifyOwner({
+            title: "New Chargeback Dispute",
+            content: `A dispute of $${(dispute.amount / 100).toFixed(2)} has been opened. Evidence due: ${dispute.evidence_details?.due_by ? new Date(dispute.evidence_details.due_by * 1000).toLocaleDateString() : 'unknown'}. Review in TeachificPay → Disputes.`,
+          }).catch(() => {});
+          break;
+        }
+
+        // ── TeachificPay: dispute updated ─────────────────────────────────────
+        case "charge.dispute.updated": {
+          const dispute = event.data.object as Stripe.Dispute;
+          const db = await getDb();
+          if (!db) break;
+          await db.update(teachificPayDisputes)
+            .set({
+              status: dispute.status as any,
+              evidenceDueBy: dispute.evidence_details?.due_by ? dispute.evidence_details.due_by * 1000 : null,
+            })
+            .where(eq(teachificPayDisputes.stripeDisputeId, dispute.id));
+          console.log(`[Stripe Webhook] Dispute ${dispute.id} updated: ${dispute.status}`);
+          break;
+        }
+
+        // ── TeachificPay: dispute closed (won or lost) ────────────────────────
+        case "charge.dispute.closed": {
+          const dispute = event.data.object as Stripe.Dispute;
+          const db = await getDb();
+          if (!db) break;
+          await db.update(teachificPayDisputes)
+            .set({ status: dispute.status as any })
+            .where(eq(teachificPayDisputes.stripeDisputeId, dispute.id));
+          console.log(`[Stripe Webhook] Dispute ${dispute.id} closed: ${dispute.status}`);
+          if (dispute.status === "won") {
+            await notifyOwner({
+              title: "Dispute Won",
+              content: `Your dispute for $${(dispute.amount / 100).toFixed(2)} was resolved in your favor.`,
+            }).catch(() => {});
+          } else if (dispute.status === "lost") {
+            await notifyOwner({
+              title: "Dispute Lost",
+              content: `Your dispute for $${(dispute.amount / 100).toFixed(2)} was resolved against you. The funds have been returned to the cardholder.`,
+            }).catch(() => {});
+          }
+          break;
+        }
+
+        // ── TeachificPay: charge refunded ─────────────────────────────────────
+        case "charge.refunded": {
+          const charge = event.data.object as Stripe.Charge;
+          const db = await getDb();
+          if (!db) break;
+          const newStatus = charge.amount_refunded >= charge.amount ? "refunded" : "partially_refunded";
+          await db.update(teachificPayCharges)
+            .set({ status: newStatus, amountRefunded: charge.amount_refunded })
+            .where(eq(teachificPayCharges.stripeChargeId, charge.id));
+          console.log(`[Stripe Webhook] Charge ${charge.id} refunded: ${charge.amount_refunded} cents`);
           break;
         }
 
