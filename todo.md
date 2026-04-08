@@ -2627,3 +2627,10 @@
 - [x] TeachificPay admin tab now has 3 sub-tabs: Schools & Revenue, Disputes, Charge History
 - [x] Disputes panel: stats header (open/won/lost/total), searchable/filterable table, deadline countdown, escalate button, evidence submission form, inline admin notes
 - [x] Charge History panel: searchable/filterable table, refund action per charge
+
+## Dispute Email Notifications (Apr 8, 2026)
+- [x] Send email to platform owner on charge.dispute.created webhook
+- [x] Email includes: school name, learner email, dispute amount, reason, evidence deadline
+- [x] Use SendGrid helper (already configured) for email delivery
+- [x] Fallback to notifyOwner() in-app notification if email fails
+- [x] TypeScript check and checkpoint

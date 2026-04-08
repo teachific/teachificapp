@@ -12,7 +12,7 @@ import { getUserByEmail, getDb } from "./db";
 import { sendEmail } from "./sendgrid";
 import { courseEnrollmentHtml } from "./emailTemplates";
 import { getCourseById } from "./lmsDb";
-import { teachificPayDisputes, teachificPayCharges, organizations } from "../drizzle/schema";
+import { teachificPayDisputes, teachificPayCharges, organizations, users } from "../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 
@@ -281,10 +281,72 @@ router.post(
             .set({ status: "refunded" })
             .where(eq(teachificPayCharges.stripeChargeId, dispute.charge as string));
           console.log(`[Stripe Webhook] Dispute ${dispute.id} opened for org ${orgId}`);
+
+          // ── Fetch school name and platform owner email for rich notification ──
+          const [disputeOrg] = await db.select({ name: organizations.name })
+            .from(organizations).where(eq(organizations.id, orgId)).limit(1);
+          const schoolName = disputeOrg?.name ?? `Org #${orgId}`;
+          const [ownerRow] = await db.select({ email: users.email, name: users.name })
+            .from(users).where(eq(users.openId, ENV.ownerOpenId)).limit(1);
+          const ownerEmail = ownerRow?.email ?? null;
+
+          const amountStr = `$${(dispute.amount / 100).toFixed(2)} ${dispute.currency.toUpperCase()}`;
+          const reasonLabel = (dispute.reason ?? "unknown").replace(/_/g, " ");
+          const dueDateStr = dispute.evidence_details?.due_by
+            ? new Date(dispute.evidence_details.due_by * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+            : "Unknown";
+          const adminDisputeUrl = `https://teachific.app/admin?tab=teachificpay&subtab=disputes`;
+
+          // In-app notification (always fires)
           await notifyOwner({
-            title: "New Chargeback Dispute",
-            content: `A dispute of $${(dispute.amount / 100).toFixed(2)} has been opened. Evidence due: ${dispute.evidence_details?.due_by ? new Date(dispute.evidence_details.due_by * 1000).toLocaleDateString() : 'unknown'}. Review in TeachificPay → Disputes.`,
+            title: "⚠️ New Chargeback Dispute",
+            content: `${schoolName} has a new ${amountStr} dispute (${reasonLabel}). Evidence due: ${dueDateStr}. Review at ${adminDisputeUrl}`,
           }).catch(() => {});
+
+          // Rich HTML email to platform owner
+          if (ownerEmail) {
+            const disputeEmailHtml = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;margin:0;padding:0}
+  .wrap{max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+  .hdr{background:#dc2626;padding:24px 32px}.hdr h1{color:#fff;margin:0;font-size:20px;font-weight:700}
+  .hdr p{color:#fecaca;margin:4px 0 0;font-size:14px}
+  .body{padding:32px}
+  .alert{background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:16px 20px;margin-bottom:24px}
+  .alert .amt{font-size:28px;font-weight:700;color:#dc2626}
+  .alert .rsn{font-size:14px;color:#7f1d1d;margin-top:4px;text-transform:capitalize}
+  table.det{width:100%;border-collapse:collapse;margin-bottom:24px}
+  table.det td{padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151}
+  table.det td:first-child{font-weight:600;color:#111827;width:40%}
+  .dl{background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:14px 20px;margin-bottom:24px}
+  .dl strong{color:#92400e}
+  .cta{display:inline-block;background:#0d9488;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-weight:600;font-size:15px}
+  .ftr{background:#f9fafb;padding:20px 32px;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb}
+</style></head>
+<body><div class="wrap">
+  <div class="hdr"><h1>⚠️ New Chargeback Dispute</h1><p>Action required — evidence submission deadline approaching</p></div>
+  <div class="body">
+    <div class="alert"><div class="amt">${amountStr}</div><div class="rsn">Reason: ${reasonLabel}</div></div>
+    <table class="det">
+      <tr><td>School</td><td>${schoolName}</td></tr>
+      <tr><td>Learner</td><td>${chargeRow?.learnerEmail ?? "Unknown"}</td></tr>
+      <tr><td>Dispute ID</td><td style="font-family:monospace;font-size:12px">${dispute.id}</td></tr>
+      <tr><td>Charge ID</td><td style="font-family:monospace;font-size:12px">${dispute.charge as string}</td></tr>
+      <tr><td>Status</td><td>${dispute.status}</td></tr>
+    </table>
+    <div class="dl"><strong>Evidence deadline: ${dueDateStr}</strong><br>
+      <span style="font-size:13px;color:#78350f">Submit compelling evidence to Stripe before this date to contest the dispute.</span>
+    </div>
+    <a href="${adminDisputeUrl}" class="cta">Review Dispute in Admin Panel →</a>
+  </div>
+  <div class="ftr">Automated notification from Teachific™. You are receiving this as the platform owner.</div>
+</div></body></html>`;
+            await sendEmail({
+              to: ownerEmail,
+              subject: `⚠️ New Dispute: ${amountStr} from ${schoolName} — Evidence Due ${dueDateStr}`,
+              html: disputeEmailHtml,
+            }).catch((err) => console.error("[Dispute Email] Failed to send:", err));
+          }
           break;
         }
 
@@ -312,16 +374,56 @@ router.post(
             .set({ status: dispute.status as any })
             .where(eq(teachificPayDisputes.stripeDisputeId, dispute.id));
           console.log(`[Stripe Webhook] Dispute ${dispute.id} closed: ${dispute.status}`);
+          // Fetch school name and owner email for outcome notification
+          const [closedDisputeRow] = await db.select({ orgId: teachificPayDisputes.orgId, learnerEmail: teachificPayDisputes.learnerEmail })
+            .from(teachificPayDisputes).where(eq(teachificPayDisputes.stripeDisputeId, dispute.id)).limit(1);
+          const closedOrgId = closedDisputeRow?.orgId ?? 0;
+          let closedSchoolName = `Org #${closedOrgId}`;
+          if (closedOrgId) {
+            const [cOrg] = await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, closedOrgId)).limit(1);
+            closedSchoolName = cOrg?.name ?? closedSchoolName;
+          }
+          const [closedOwner] = await db.select({ email: users.email }).from(users).where(eq(users.openId, ENV.ownerOpenId)).limit(1);
+          const closedOwnerEmail = closedOwner?.email ?? null;
+          const closedAmountStr = `$${(dispute.amount / 100).toFixed(2)} ${dispute.currency.toUpperCase()}`;
+          const adminUrl2 = `https://teachific.app/admin?tab=teachificpay&subtab=disputes`;
+
           if (dispute.status === "won") {
             await notifyOwner({
-              title: "Dispute Won",
-              content: `Your dispute for $${(dispute.amount / 100).toFixed(2)} was resolved in your favor.`,
+              title: "✅ Dispute Won",
+              content: `The ${closedAmountStr} dispute from ${closedSchoolName} was resolved in your favor. Review at ${adminUrl2}`,
             }).catch(() => {});
+            if (closedOwnerEmail) {
+              await sendEmail({
+                to: closedOwnerEmail,
+                subject: `✅ Dispute Won: ${closedAmountStr} from ${closedSchoolName}`,
+                html: `<div style="font-family:sans-serif;max-width:600px;margin:32px auto;padding:32px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px">
+  <h2 style="color:#15803d;margin-top:0">✅ Dispute Resolved in Your Favor</h2>
+  <p style="color:#166534">The <strong>${closedAmountStr}</strong> dispute from <strong>${closedSchoolName}</strong> has been <strong>won</strong>. The funds will remain in the connected account.</p>
+  <p style="color:#166534">Learner: ${closedDisputeRow?.learnerEmail ?? "Unknown"}</p>
+  <a href="${adminUrl2}" style="display:inline-block;background:#0d9488;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;margin-top:16px">View in Admin Panel →</a>
+  <p style="font-size:12px;color:#6b7280;margin-top:24px">Teachific™ automated notification</p>
+</div>`,
+              }).catch(() => {});
+            }
           } else if (dispute.status === "lost") {
             await notifyOwner({
-              title: "Dispute Lost",
-              content: `Your dispute for $${(dispute.amount / 100).toFixed(2)} was resolved against you. The funds have been returned to the cardholder.`,
+              title: "❌ Dispute Lost",
+              content: `The ${closedAmountStr} dispute from ${closedSchoolName} was resolved against you. Funds returned to cardholder. Review at ${adminUrl2}`,
             }).catch(() => {});
+            if (closedOwnerEmail) {
+              await sendEmail({
+                to: closedOwnerEmail,
+                subject: `❌ Dispute Lost: ${closedAmountStr} from ${closedSchoolName}`,
+                html: `<div style="font-family:sans-serif;max-width:600px;margin:32px auto;padding:32px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px">
+  <h2 style="color:#dc2626;margin-top:0">❌ Dispute Resolved Against You</h2>
+  <p style="color:#7f1d1d">The <strong>${closedAmountStr}</strong> dispute from <strong>${closedSchoolName}</strong> has been <strong>lost</strong>. The funds have been returned to the cardholder and a $15 dispute fee has been charged by Stripe.</p>
+  <p style="color:#7f1d1d">Learner: ${closedDisputeRow?.learnerEmail ?? "Unknown"}</p>
+  <a href="${adminUrl2}" style="display:inline-block;background:#0d9488;color:#fff;text-decoration:none;padding:10px 24px;border-radius:6px;font-weight:600;margin-top:16px">View in Admin Panel →</a>
+  <p style="font-size:12px;color:#6b7280;margin-top:24px">Teachific™ automated notification</p>
+</div>`,
+              }).catch(() => {});
+            }
           }
           break;
         }
