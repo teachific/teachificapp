@@ -2549,3 +2549,19 @@
 - [x] Fix Stripe webhook handler: was reading studio_tier (wrong key) instead of access_tier from session metadata
 - [x] Extend Stripe webhook to handle creator and quiz_creator product types (previously only handled studio)
 - [x] TypeScript: 0 errors confirmed after all fixes
+
+## Bug Fix: Upload Fails for Non-HTML/SCORM Files
+- [ ] Diagnose upload error for PDF, video, audio, image, Word doc uploads in Media Library
+- [ ] Fix server-side file type validation / multer filter to allow all media types
+- [ ] Fix client-side upload handler to correctly route non-ZIP files
+- [ ] Test PDF, MP4, MP3, image, and Word doc uploads end-to-end
+
+## Unified Media Library (Apr 2026)
+- [x] Remove SCORM/HTML Packages vs Media Files tab split from FilesPage
+- [x] Show all content (packages + media files) in one unified list/grid
+- [x] Single "Upload Content" button that auto-routes by file type (ZIP/HTML → SCORM uploader, else → media uploader)
+- [x] Single type filter bar: All, SCORM, HTML, Image, Video, Audio, Document, ZIP
+- [x] One folder tree (content_folders) for organizing all items
+- [x] Remove duplicate folder sidebar from MediaFilesPage when embedded
+- [x] Media items show file type icon/badge; packages show SCORM/HTML badge
+- [x] Unified search across both packages and media items

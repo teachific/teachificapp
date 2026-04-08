@@ -23,6 +23,8 @@ interface UploadPageProps {
   onClose?: () => void;
   /** Called after a successful upload so the parent can refresh its list. */
   onSuccess?: (packageId: number) => void;
+  /** Pre-seed a ZIP file so the dialog opens directly on the configure step. */
+  initialFile?: File;
 }
 
 const DISPLAY_MODES: Array<{ id: DisplayMode; label: string; desc: string; icon: React.ElementType }> = [
@@ -46,7 +48,7 @@ const DISPLAY_MODES: Array<{ id: DisplayMode; label: string; desc: string; icon:
   },
 ];
 
-export default function UploadPage({ onClose, onSuccess }: UploadPageProps = {}) {
+export default function UploadPage({ onClose, onSuccess, initialFile }: UploadPageProps = {}) {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -69,10 +71,10 @@ export default function UploadPage({ onClose, onSuccess }: UploadPageProps = {})
     }
   }, [orgsLoading, myOrgs]);
 
-  const [step, setStep] = useState<Step>("select");
-  const [file, setFile] = useState<File | null>(null);
+  const [step, setStep] = useState<Step>(initialFile ? "configure" : "select");
+  const [file, setFile] = useState<File | null>(initialFile ?? null);
   const [isDragging, setIsDragging] = useState(false);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialFile ? initialFile.name.replace(/\.zip$/i, "").replace(/[-_]/g, " ") : "");
   const [description, setDescription] = useState("");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("native");
   const [selectedOrgId, setSelectedOrgId] = useState<number>(0);
