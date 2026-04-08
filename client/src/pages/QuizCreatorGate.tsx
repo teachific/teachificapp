@@ -10,8 +10,8 @@ import QuizCreatorPage from "./QuizCreatorPage";
  *
  * Access rules:
  * - Not logged in → redirect to login
- * - Logged in, quizCreatorRole === "none" AND not Enterprise LMS user → show upgrade wall
- * - Logged in, quizCreatorRole === "lite" OR "premium" → show quiz creator
+ * - Logged in, quizCreatorAccess === "none" AND not Enterprise LMS user → show upgrade wall
+ * - Logged in, quizCreatorAccess === "web" OR "premium" → show quiz creator
  * - Logged in, LMS role is "site_owner" | "site_admin" | "org_super_admin" | "org_admin" → always allowed (Enterprise)
  */
 export default function QuizCreatorGate() {
@@ -40,7 +40,7 @@ export default function QuizCreatorGate() {
   const qcRole = roleData?.role ?? "none";
   const lmsRole = user?.role ?? "member";
   const isEnterpriseUser = ["site_owner", "site_admin", "org_super_admin", "org_admin"].includes(lmsRole);
-  const hasQuizCreatorAccess = isEnterpriseUser || qcRole === "lite" || qcRole === "premium";
+  const hasQuizCreatorAccess = isEnterpriseUser || qcRole === "web" || qcRole === "desktop";
 
   if (!hasQuizCreatorAccess) {
     return <QuizCreatorUpgradeWall />;

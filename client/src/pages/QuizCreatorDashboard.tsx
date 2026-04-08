@@ -116,12 +116,12 @@ export default function QuizCreatorDashboard() {
           </span>
           <Badge
             className={
-              qcRole === "premium"
+              qcRole === "desktop"
                 ? "bg-teal-500/20 text-teal-300 border-teal-500/30 text-xs"
                 : "bg-white/10 text-white/60 border-white/20 text-xs"
             }
           >
-            {qcRole === "premium" ? "Premium" : "Lite"}
+            {qcRole === "desktop" ? "Premium" : "Lite"}
           </Badge>
           {qcIsTrialing && qcTrialDaysLeft !== null && (
             <div className="flex items-center gap-1 text-xs bg-[#15a4b7]/20 text-[#4ad9e0] border border-[#15a4b7]/30 rounded-full px-2 py-0.5">
@@ -155,7 +155,7 @@ export default function QuizCreatorDashboard() {
       </header>
 
       {/* Lite tier banner */}
-      {qcRole === "lite" && (
+      {qcRole === "web" && (
         <div className="bg-teal-900/40 border-b border-teal-500/20 px-6 py-2 flex items-center justify-between">
           <p className="text-teal-300 text-xs">
             <strong>Lite plan:</strong> Up to 10 quizzes, 20 questions per quiz. Encrypted export requires Premium.

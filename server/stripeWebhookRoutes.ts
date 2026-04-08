@@ -85,11 +85,12 @@ router.post(
             break;
           }
 
-          // ── Studio subscription checkout ────────────────────────────────────────────
-          if (session.mode === "subscription" && session.metadata?.product_type === "studio") {
-            const studioTier = session.metadata?.studio_tier as string;
+          // ── Studio / Creator / QuizCreator subscription checkout ──────────────────────
+          const appProductType = session.metadata?.product_type;
+          if (session.mode === "subscription" && (appProductType === "studio" || appProductType === "creator" || appProductType === "quiz_creator")) {
+            const accessTier = session.metadata?.access_tier as string;
             const userId = parseInt(session.metadata?.user_id ?? "0");
-            if (studioTier && userId) {
+            if (accessTier && userId) {
               try {
                 const db = await getDb();
                 if (db) {
@@ -102,16 +103,23 @@ router.post(
                     const sub = await stripe.subscriptions.retrieve(session.subscription as string);
                     if (sub.trial_end) trialEndsAt = new Date(sub.trial_end * 1000);
                   }
-                  await db.update(users)
-                    .set({
-                      studioRole: studioTier as any,
-                      ...(trialEndsAt ? { studioTrialEndsAt: trialEndsAt } : {}),
-                    })
-                    .where(eq(users.id, userId));
-                  console.log(`[Stripe Webhook] User ${userId} studio role updated to ${studioTier}${trialEndsAt ? ` (trial until ${trialEndsAt.toISOString()})` : ""}`);
+                  if (appProductType === "studio") {
+                    await db.update(users)
+                      .set({ studioAccess: accessTier as any, ...(trialEndsAt ? { studioTrialEndsAt: trialEndsAt } : {}) })
+                      .where(eq(users.id, userId));
+                  } else if (appProductType === "creator") {
+                    await db.update(users)
+                      .set({ creatorAccess: accessTier as any, ...(trialEndsAt ? { creatorTrialEndsAt: trialEndsAt } : {}) })
+                      .where(eq(users.id, userId));
+                  } else if (appProductType === "quiz_creator") {
+                    await db.update(users)
+                      .set({ quizCreatorAccess: accessTier as any, ...(trialEndsAt ? { quizCreatorTrialEndsAt: trialEndsAt } : {}) })
+                      .where(eq(users.id, userId));
+                  }
+                  console.log(`[Stripe Webhook] User ${userId} ${appProductType} access updated to ${accessTier}${trialEndsAt ? ` (trial until ${trialEndsAt.toISOString()})` : ""}`);
                 }
               } catch (err: any) {
-                console.error("[Stripe Webhook] Studio role update failed:", err.message);
+                console.error(`[Stripe Webhook] ${appProductType} access update failed:`, err.message);
               }
             }
             break;

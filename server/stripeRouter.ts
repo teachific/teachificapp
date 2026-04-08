@@ -388,7 +388,7 @@ export const stripeRouter = router({
   // ── Studio subscription checkout ───────────────────────────────────────
   createStudioCheckout: protectedProcedure
     .input(z.object({
-      tier: z.enum(["creator", "pro", "team"]),
+      tier: z.enum(["web", "desktop", "bundle"]),
       interval: z.enum(["monthly", "annual"]),
       origin: z.string().url(),
     }))
@@ -422,18 +422,18 @@ export const stripeRouter = router({
     const db = await getDb();
     const { users } = await import("../drizzle/schema");
     const rows = await db.select({
-      studioRole: users.studioRole,
+      studioAccess: users.studioAccess,
       studioTrialEndsAt: users.studioTrialEndsAt,
     }).from(users).where(eq(users.id, ctx.user.id)).limit(1);
-    const studioRole = (rows[0]?.studioRole ?? "none") as string;
+    const studioAccess = (rows[0]?.studioAccess ?? "none") as string;
     const trialEndsAt = rows[0]?.studioTrialEndsAt ?? null;
-    const isInTrial = studioRole !== "none" && trialEndsAt && new Date(trialEndsAt) > new Date();
+    const isInTrial = studioAccess !== "none" && trialEndsAt && new Date(trialEndsAt) > new Date();
     return {
-      tier: studioRole as "none" | "creator" | "pro" | "team",
-      isActive: studioRole !== "none",
+      tier: studioAccess as "none" | "web" | "desktop" | "bundle",
+      isActive: studioAccess !== "none",
       trialEndsAt,
       isInTrial: !!isInTrial,
-      isPaid: studioRole !== "none" && !isInTrial,
+      isPaid: studioAccess !== "none" && !isInTrial,
     };
   }),
 
@@ -445,25 +445,25 @@ export const stripeRouter = router({
       id: users.id,
       name: users.name,
       email: users.email,
-      studioRole: users.studioRole,
+      studioAccess: users.studioAccess,
       studioTrialEndsAt: users.studioTrialEndsAt,
       createdAt: users.createdAt,
     }).from(users).orderBy(users.createdAt);
     return allUsers.map((u) => ({
       ...u,
-      studioRole: (u.studioRole ?? "none") as "none" | "creator" | "pro" | "team",
+      studioAccess: (u.studioAccess ?? "none") as "none" | "web" | "desktop" | "bundle",
     }));
   }),
   // ── Admin: set a user's Studio role ──────────────────────────────────────
   adminSetStudioRole: adminProcedure
     .input(z.object({
       userId: z.number(),
-      role: z.enum(["none", "creator", "pro", "team"]),
+      role: z.enum(["none", "web", "desktop", "bundle"]),
     }))
     .mutation(async ({ input }) => {
       const db = await getDb();
       const { users } = await import("../drizzle/schema");
-      await db.update(users).set({ studioRole: input.role }).where(eq(users.id, input.userId));
+      await db.update(users).set({ studioAccess: input.role }).where(eq(users.id, input.userId));
       return { success: true };
     }),
   // ── Admin: list all Creator users ─────────────────────────────────────────
@@ -472,22 +472,22 @@ export const stripeRouter = router({
     const { users } = await import("../drizzle/schema");
     const allUsers = await db.select({
       id: users.id, name: users.name, email: users.email,
-      creatorRole: users.creatorRole, creatorTrialEndsAt: users.creatorTrialEndsAt, createdAt: users.createdAt,
+      creatorAccess: users.creatorAccess, creatorTrialEndsAt: users.creatorTrialEndsAt, createdAt: users.createdAt,
     }).from(users).orderBy(users.createdAt);
-    return allUsers.map((u) => ({ ...u, creatorRole: (u.creatorRole ?? "none") as "none" | "starter" | "pro" | "team" }));
+    return allUsers.map((u) => ({ ...u, creatorAccess: (u.creatorAccess ?? "none") as "none" | "web" | "desktop" | "bundle" }));
   }),
   // ── Admin: set a user's Creator role ─────────────────────────────────────
   adminSetCreatorRole: adminProcedure
     .input(z.object({
       userId: z.number(),
-      role: z.enum(["none", "starter", "pro", "team"]),
+      role: z.enum(["none", "web", "desktop", "bundle"]),
       trialDays: z.number().optional(),
     }))
     .mutation(async ({ input }) => {
       const db = await getDb();
       const { users } = await import("../drizzle/schema");
       const trialEndsAt = input.trialDays ? new Date(Date.now() + input.trialDays * 86400000) : null;
-      await db.update(users).set({ creatorRole: input.role, creatorTrialEndsAt: trialEndsAt }).where(eq(users.id, input.userId));
+      await db.update(users).set({ creatorAccess: input.role, creatorTrialEndsAt: trialEndsAt }).where(eq(users.id, input.userId));
       return { success: true };
     }),
   // ── Admin: list all QuizCreator users ────────────────────────────────────
@@ -496,22 +496,22 @@ export const stripeRouter = router({
     const { users } = await import("../drizzle/schema");
     const allUsers = await db.select({
       id: users.id, name: users.name, email: users.email,
-      quizCreatorRole: users.quizCreatorRole, quizCreatorTrialEndsAt: users.quizCreatorTrialEndsAt, createdAt: users.createdAt,
+      quizCreatorAccess: users.quizCreatorAccess, quizCreatorTrialEndsAt: users.quizCreatorTrialEndsAt, createdAt: users.createdAt,
     }).from(users).orderBy(users.createdAt);
-    return allUsers.map((u) => ({ ...u, quizCreatorRole: (u.quizCreatorRole ?? "none") as "none" | "lite" | "premium" }));
+    return allUsers.map((u) => ({ ...u, quizCreatorAccess: (u.quizCreatorAccess ?? "none") as "none" | "web" | "desktop" | "bundle" }));
   }),
   // ── Admin: set a user's QuizCreator role ─────────────────────────────────
   adminSetQuizCreatorRole: adminProcedure
     .input(z.object({
       userId: z.number(),
-      role: z.enum(["none", "lite", "premium"]),
+      role: z.enum(["none", "web", "desktop", "bundle"]),
       trialDays: z.number().optional(),
     }))
     .mutation(async ({ input }) => {
       const db = await getDb();
       const { users } = await import("../drizzle/schema");
       const trialEndsAt = input.trialDays ? new Date(Date.now() + input.trialDays * 86400000) : null;
-      await db.update(users).set({ quizCreatorRole: input.role, quizCreatorTrialEndsAt: trialEndsAt }).where(eq(users.id, input.userId));
+      await db.update(users).set({ quizCreatorAccess: input.role, quizCreatorTrialEndsAt: trialEndsAt }).where(eq(users.id, input.userId));
       return { success: true };
     }),
   // ── Admin: update Studio trial end date ──────────────────────────────────
@@ -524,55 +524,16 @@ export const stripeRouter = router({
       await db.update(users).set({ studioTrialEndsAt: trialEndsAt }).where(eq(users.id, input.userId));
       return { success: true };
     }),
-  // ── TeachificCreator™ checkout ──────────────────────────────────────────────
-  createCreatorCheckout: protectedProcedure
-    .input(z.object({
-      tier: z.enum(["starter", "pro", "team"]),
-      interval: z.enum(["monthly", "annual"]),
-      origin: z.string().url(),
-    }))
-    .mutation(async ({ input, ctx }) => {
-      const stripe = getStripe();
-      const priceKey = `creator_${input.tier}_${input.interval}`;
-      const priceId = STRIPE_PRICE_IDS[priceKey];
-      if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Creator price not found. Please try again shortly." });
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        payment_method_types: ["card"],
-        line_items: [{ price: priceId, quantity: 1 }],
-        customer_email: ctx.user.email ?? undefined,
-        client_reference_id: String(ctx.user.id),
-        metadata: {
-          user_id: String(ctx.user.id),
-          customer_email: ctx.user.email ?? "",
-          customer_name: ctx.user.name ?? "",
-          creator_tier: input.tier,
-          product_type: "creator",
-        },
-        subscription_data: {
-          trial_period_days: 14,
-          metadata: {
-            user_id: String(ctx.user.id),
-            creator_tier: input.tier,
-            product_type: "creator",
-          },
-        },
-        success_url: `${input.origin}/creator?upgraded=1`,
-        cancel_url: `${input.origin}/creator-pro`,
-        allow_promotion_codes: true,
-      });
-      return { checkoutUrl: session.url };
-    }),
-
-  // ── TeachificCreator™ single-plan checkout ($117/mo or $999/yr) ───────────────
+  // ── TeachificCreator™ checkout (Web / Desktop / Bundle) ───────────────────────────
   createCreatorSingleCheckout: protectedProcedure
     .input(z.object({
       interval: z.enum(["monthly", "annual"]),
+      accessTier: z.enum(["web", "desktop", "bundle"]).default("desktop"),
       origin: z.string().url(),
     }))
     .mutation(async ({ input, ctx }) => {
       const stripe = getStripe();
-      const priceKey = `creator_single_${input.interval}`;
+      const priceKey = `creator_${input.accessTier}_${input.interval}`;
       const priceId = STRIPE_PRICE_IDS[priceKey];
       if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "TeachificCreator price not found. Please try again shortly." });
       const session = await stripe.checkout.sessions.create({
@@ -587,11 +548,11 @@ export const stripeRouter = router({
           customer_email: ctx.user.email ?? "",
           customer_name: ctx.user.name ?? "",
           product_type: "creator",
-          creator_tier: "single",
+          access_tier: input.accessTier,
         },
         subscription_data: {
           trial_period_days: 14,
-          metadata: { user_id: String(ctx.user.id), product_type: "creator" },
+          metadata: { user_id: String(ctx.user.id), product_type: "creator", access_tier: input.accessTier },
         },
         success_url: `${input.origin}/creator?upgraded=1`,
         cancel_url: `${input.origin}/creator-pro`,
@@ -599,15 +560,16 @@ export const stripeRouter = router({
       return { checkoutUrl: session.url };
     }),
 
-  // ── Teachific Studio™ single-plan checkout ($47/mo or $399/yr) ────────────────
+  // ── Teachific Studio™ checkout (Web / Desktop / Bundle) ──────────────────────────────
   createStudioSingleCheckout: protectedProcedure
     .input(z.object({
       interval: z.enum(["monthly", "annual"]),
+      accessTier: z.enum(["web", "desktop", "bundle"]).default("desktop"),
       origin: z.string().url(),
     }))
     .mutation(async ({ input, ctx }) => {
       const stripe = getStripe();
-      const priceKey = `studio_single_${input.interval}`;
+      const priceKey = `studio_${input.accessTier}_${input.interval}`;
       const priceId = STRIPE_PRICE_IDS[priceKey];
       if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Teachific Studio price not found. Please try again shortly." });
       const session = await stripe.checkout.sessions.create({
@@ -622,11 +584,11 @@ export const stripeRouter = router({
           customer_email: ctx.user.email ?? "",
           customer_name: ctx.user.name ?? "",
           product_type: "studio",
-          studio_tier: "single",
+          access_tier: input.accessTier,
         },
         subscription_data: {
           trial_period_days: 14,
-          metadata: { user_id: String(ctx.user.id), product_type: "studio" },
+          metadata: { user_id: String(ctx.user.id), product_type: "studio", access_tier: input.accessTier },
         },
         success_url: `${input.origin}/studio?upgraded=1`,
         cancel_url: `${input.origin}/studio-pro`,
@@ -634,15 +596,16 @@ export const stripeRouter = router({
       return { checkoutUrl: session.url };
     }),
 
-  // ── Teachific QuizCreator™ single-plan checkout ($47/mo or $399/yr) ──────────
+  // ── Teachific QuizCreator™ checkout (Web / Desktop / Bundle) ─────────────────────────
   createQuizCreatorCheckout: protectedProcedure
     .input(z.object({
       interval: z.enum(["monthly", "annual"]),
+      accessTier: z.enum(["web", "desktop", "bundle"]).default("desktop"),
       origin: z.string().url(),
     }))
     .mutation(async ({ input, ctx }) => {
       const stripe = getStripe();
-      const priceKey = `quiz_creator_single_${input.interval}`;
+      const priceKey = `quiz_creator_${input.accessTier}_${input.interval}`;
       const priceId = STRIPE_PRICE_IDS[priceKey];
       if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "QuizCreator price not found. Please try again shortly." });
       const session = await stripe.checkout.sessions.create({
@@ -657,18 +620,19 @@ export const stripeRouter = router({
           customer_email: ctx.user.email ?? "",
           customer_name: ctx.user.name ?? "",
           product_type: "quiz_creator",
+          access_tier: input.accessTier,
         },
         subscription_data: {
           trial_period_days: 14,
-          metadata: { user_id: String(ctx.user.id), product_type: "quiz_creator" },
+          metadata: { user_id: String(ctx.user.id), product_type: "quiz_creator", access_tier: input.accessTier },
         },
         success_url: `${input.origin}/quiz-creator?upgraded=1`,
         cancel_url: `${input.origin}/quiz-creator-pro`,
       });
       return { checkoutUrl: session.url };
-    }),
+     }),
 
-  // ── Enterprise contact-sales inquiry ─────────────────────────────────────
+  // ── Enterprise contact-sales inquiry ─────────────────────────────────────────────
   contactEnterprise: protectedProcedure
     .input(z.object({
       orgId: z.number(),
@@ -705,11 +669,11 @@ export const stripeRouter = router({
     // User-level roles (Studio, Creator, QuizCreator)
     const [userRow] = await db
       .select({
-        studioRole: users.studioRole,
+        studioAccess: users.studioAccess,
         studioTrialEndsAt: users.studioTrialEndsAt,
-        creatorRole: users.creatorRole,
+        creatorAccess: users.creatorAccess,
         creatorTrialEndsAt: users.creatorTrialEndsAt,
-        quizCreatorRole: users.quizCreatorRole,
+        quizCreatorAccess: users.quizCreatorAccess,
         quizCreatorTrialEndsAt: users.quizCreatorTrialEndsAt,
       })
       .from(users)
@@ -737,27 +701,27 @@ export const stripeRouter = router({
     const hasLms = lmsIsActive || lmsPlan !== "free";
 
     // Studio
-    const studioRole = (userRow?.studioRole ?? "none") as string;
+    const studioAccess = (userRow?.studioAccess ?? "none") as string;
     const studioTrialEndsAt = userRow?.studioTrialEndsAt ?? null;
-    const studioInTrial = studioRole !== "none" && studioTrialEndsAt && new Date(studioTrialEndsAt) > new Date();
-    const hasStudio = studioRole !== "none";
+    const studioInTrial = studioAccess !== "none" && studioTrialEndsAt && new Date(studioTrialEndsAt) > new Date();
+    const hasStudio = studioAccess !== "none";
 
     // Creator
-    const creatorRole = (userRow?.creatorRole ?? "none") as string;
+    const creatorAccess = (userRow?.creatorAccess ?? "none") as string;
     const creatorTrialEndsAt = userRow?.creatorTrialEndsAt ?? null;
-    const creatorInTrial = creatorRole !== "none" && creatorTrialEndsAt && new Date(creatorTrialEndsAt) > new Date();
-    const hasCreator = creatorRole !== "none";
+    const creatorInTrial = creatorAccess !== "none" && creatorTrialEndsAt && new Date(creatorTrialEndsAt) > new Date();
+    const hasCreator = creatorAccess !== "none";
 
     // QuizCreator
-    const quizRole = (userRow?.quizCreatorRole ?? "none") as string;
+    const quizRole = (userRow?.quizCreatorAccess ?? "none") as string;
     const quizTrialEndsAt = userRow?.quizCreatorTrialEndsAt ?? null;
     const quizInTrial = quizRole !== "none" && quizTrialEndsAt && new Date(quizTrialEndsAt) > new Date();
     const hasQuizCreator = quizRole !== "none";
 
     return {
       lms: { plan: lmsPlan, isActive: hasLms },
-      studio: { tier: studioRole, isActive: hasStudio, isInTrial: !!studioInTrial },
-      creator: { tier: creatorRole, isActive: hasCreator, isInTrial: !!creatorInTrial },
+      studio: { tier: studioAccess, isActive: hasStudio, isInTrial: !!studioInTrial },
+      creator: { tier: creatorAccess, isActive: hasCreator, isInTrial: !!creatorInTrial },
       quizCreator: { tier: quizRole, isActive: hasQuizCreator, isInTrial: !!quizInTrial },
     };
   }),
@@ -770,18 +734,18 @@ export const stripeRouter = router({
       const { users } = await import("../drizzle/schema");
       const [userRow] = await db
         .select({
-          creatorRole: users.creatorRole,
-          studioRole: users.studioRole,
-          quizCreatorRole: users.quizCreatorRole,
+          creatorAccess: users.creatorAccess,
+          studioAccess: users.studioAccess,
+          quizCreatorAccess: users.quizCreatorAccess,
         })
         .from(users)
         .where(eq(users.id, ctx.user.id))
         .limit(1);
 
       const roleMap: Record<string, string> = {
-        creator: userRow?.creatorRole ?? "none",
-        studio: userRow?.studioRole ?? "none",
-        quizCreator: userRow?.quizCreatorRole ?? "none",
+        creator: userRow?.creatorAccess ?? "none",
+        studio: userRow?.studioAccess ?? "none",
+        quizCreator: userRow?.quizCreatorAccess ?? "none",
       };
       const hasAccess = roleMap[input.app] !== "none";
 

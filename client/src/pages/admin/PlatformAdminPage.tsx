@@ -2561,19 +2561,19 @@ function CreatorAdminTab() {
                   <TableRow key={u.id} className="border-gray-200 hover:bg-gray-50">
                     <TableCell className="font-medium text-slate-900">{u.name ?? "—"}</TableCell>
                     <TableCell className="text-slate-600 text-sm">{u.email}</TableCell>
-                    <TableCell><RoleBadge role={u.creatorRole} /></TableCell>
+                    <TableCell><RoleBadge role={u.creatorAccess} /></TableCell>
                     <TableCell><TrialBadge trialEndsAt={u.creatorTrialEndsAt} /></TableCell>
                     <TableCell className="text-slate-500 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}</TableCell>
                     <TableCell>
                       <Select
-                        value={u.creatorRole}
-                        onValueChange={(role) => setRole.mutate({ userId: u.id, role: role as "none" | "starter" | "pro" | "team" })}
+                        value={u.creatorAccess}
+                        onValueChange={(role) => setRole.mutate({ userId: u.id, role: role as "none" | "web" | "desktop" | "bundle" })}
                       >
                         <SelectTrigger className="w-28 h-7 text-xs bg-white border-gray-300 text-slate-900">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {["none", "starter", "pro", "team"].map((r) => (
+                          {["none", "web", "desktop", "bundle"].map((r) => (
                             <SelectItem key={r} value={r} className="text-slate-900 text-xs">{r === "none" ? "No Access" : r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
                           ))}
                         </SelectContent>
@@ -2647,19 +2647,19 @@ function StudioAdminTab() {
                   <TableRow key={u.id} className="border-gray-200 hover:bg-gray-50">
                     <TableCell className="font-medium text-slate-900">{u.name ?? "—"}</TableCell>
                     <TableCell className="text-slate-600 text-sm">{u.email}</TableCell>
-                    <TableCell><RoleBadge role={u.studioRole} /></TableCell>
+                    <TableCell><RoleBadge role={u.studioAccess} /></TableCell>
                     <TableCell><TrialBadge trialEndsAt={u.studioTrialEndsAt} /></TableCell>
                     <TableCell className="text-slate-500 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}</TableCell>
                     <TableCell>
                       <Select
-                        value={u.studioRole}
-                        onValueChange={(role) => setRole.mutate({ userId: u.id, role: role as "none" | "creator" | "pro" | "team" })}
+                        value={u.studioAccess}
+                        onValueChange={(role) => setRole.mutate({ userId: u.id, role: role as "none" | "web" | "desktop" | "bundle" })}
                       >
                         <SelectTrigger className="w-28 h-7 text-xs bg-white border-gray-300 text-slate-900">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {["none", "creator", "pro", "team"].map((r) => (
+                          {["none", "web", "desktop", "bundle"].map((r) => (
                             <SelectItem key={r} value={r} className="text-slate-900 text-xs">{r === "none" ? "No Access" : r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
                           ))}
                         </SelectContent>
@@ -2733,19 +2733,19 @@ function QuizCreatorAdminTab() {
                   <TableRow key={u.id} className="border-gray-200 hover:bg-gray-50">
                     <TableCell className="font-medium text-slate-900">{u.name ?? "—"}</TableCell>
                     <TableCell className="text-slate-600 text-sm">{u.email}</TableCell>
-                    <TableCell><RoleBadge role={u.quizCreatorRole} /></TableCell>
+                    <TableCell><RoleBadge role={u.quizCreatorAccess} /></TableCell>
                     <TableCell><TrialBadge trialEndsAt={u.quizCreatorTrialEndsAt} /></TableCell>
                     <TableCell className="text-slate-500 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}</TableCell>
                     <TableCell>
                       <Select
-                        value={u.quizCreatorRole}
-                        onValueChange={(role) => setRole.mutate({ userId: u.id, role: role as "none" | "lite" | "premium" })}
+                        value={u.quizCreatorAccess}
+                        onValueChange={(role) => setRole.mutate({ userId: u.id, role: role as "none" | "web" | "desktop" | "bundle" })}
                       >
                         <SelectTrigger className="w-28 h-7 text-xs bg-white border-gray-300 text-slate-900">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {["none", "lite", "premium"].map((r) => (
+                          {["none", "web", "desktop", "bundle"].map((r) => (
                              <SelectItem key={r} value={r} className="text-slate-900 text-xs">{r === "none" ? "No Access" : r.charAt(0).toUpperCase() + r.slice(1)}</SelectItem>
                           ))}
                         </SelectContent>

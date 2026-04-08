@@ -729,13 +729,13 @@ export const authoringRouter = router({
 
       // Check if user is on free/trial — apply watermark if so
       const [userRow] = await db.select({
-        creatorRole: users.creatorRole,
+        creatorAccess: users.creatorAccess,
         creatorTrialEndsAt: users.creatorTrialEndsAt,
       }).from(users).where(eq(users.id, ctx.user.id));
-      const creatorRole = (userRow as any)?.creatorRole ?? "none";
+      const creatorAccess = (userRow as any)?.creatorAccess ?? "none";
       const trialEndsAt = (userRow as any)?.creatorTrialEndsAt ?? null;
-      const isTrialing = creatorRole !== "none" && trialEndsAt && new Date(trialEndsAt) > new Date();
-      const isPaidCreator = creatorRole !== "none" && !isTrialing;
+      const isTrialing = creatorAccess !== "none" && trialEndsAt && new Date(trialEndsAt) > new Date();
+      const isPaidCreator = creatorAccess !== "none" && !isTrialing;
       const showWatermark = !isPaidCreator; // free or trial users get watermark
 
       // Build ZIP
@@ -785,10 +785,10 @@ export const authoringRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
     const [user] = await db.select({
-      creatorRole: users.creatorRole,
+      creatorAccess: users.creatorAccess,
       creatorTrialEndsAt: users.creatorTrialEndsAt,
     }).from(users).where(eq(users.id, ctx.user.id));
-    const role = (user as any)?.creatorRole ?? "none";
+    const role = (user as any)?.creatorAccess ?? "none";
     const trialEndsAt = (user as any)?.creatorTrialEndsAt ?? null;
     const isInTrial = role !== "none" && trialEndsAt && new Date(trialEndsAt) > new Date();
     const isPaid = role !== "none" && !isInTrial;
@@ -796,7 +796,7 @@ export const authoringRouter = router({
   }),
 
   setCreatorRole: protectedProcedure
-    .input(z.object({ userId: z.number(), role: z.enum(["none", "starter", "pro", "team"]) }))
+    .input(z.object({ userId: z.number(), role: z.enum(["none", "web", "desktop", "bundle"]) }))
     .mutation(async ({ ctx, input }) => {
       // Only site_owner / site_admin can set roles
       if (!["site_owner", "site_admin"].includes(ctx.user.role)) {
@@ -806,7 +806,7 @@ export const authoringRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       await db
         .update(users)
-        .set({ creatorRole: input.role } as any)
+        .set({ creatorAccess: input.role })
         .where(eq(users.id, input.userId));
       return { success: true };
     }),
@@ -822,13 +822,13 @@ export const authoringRouter = router({
       id: users.id,
       name: users.name,
       email: users.email,
-      creatorRole: users.creatorRole,
+      creatorAccess: users.creatorAccess,
       creatorTrialEndsAt: users.creatorTrialEndsAt,
       createdAt: users.createdAt,
     }).from(users).orderBy(users.createdAt);
     return allUsers.map((u) => ({
       ...u,
-      creatorRole: ((u as any).creatorRole ?? "none") as "none" | "starter" | "pro" | "team",
+      creatorAccess: (u.creatorAccess ?? "none") as "none" | "web" | "desktop" | "bundle",
     }));
   }),
 
@@ -836,7 +836,7 @@ export const authoringRouter = router({
   adminSetCreatorRole: protectedProcedure
     .input(z.object({
       userId: z.number(),
-      role: z.enum(["none", "starter", "pro", "team"]),
+      role: z.enum(["none", "web", "desktop", "bundle"]),
     }))
     .mutation(async ({ ctx, input }) => {
       if (!["site_owner", "site_admin"].includes(ctx.user.role)) {
@@ -844,7 +844,7 @@ export const authoringRouter = router({
       }
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      await db.update(users).set({ creatorRole: input.role } as any).where(eq(users.id, input.userId));
+      await db.update(users).set({ creatorAccess: input.role }).where(eq(users.id, input.userId));
       return { success: true };
     }),
 });

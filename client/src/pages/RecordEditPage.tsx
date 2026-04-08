@@ -1200,7 +1200,7 @@ function RecordTab({ orgId, onSaved }: { orgId: number; onSaved: (item: MediaIte
     if (cameraVideoRef.current && cameraStreamRef.current) {
       cameraVideoRef.current.srcObject = cameraStreamRef.current;
     }
-  });
+  }, [mode, recordState]);
 
   const startRecording = useCallback(async (preAcquiredScreenStream?: MediaStream) => {
     try {
@@ -2647,7 +2647,8 @@ export default function RecordEditPage() {
   const [activeTab, setActiveTab] = useState<StudioTab>("record");
   const [lastSavedItem, setLastSavedItem] = useState<MediaItem | undefined>(undefined);
   const { user } = useAuth();
-  const orgId = (user as any)?.orgId ?? 1;
+  const { data: myOrgs } = trpc.orgs.myOrgs.useQuery();
+  const orgId = myOrgs?.[0]?.id ?? 0;
   const { isBuilder, isLoading: planLoading } = usePlanLimits();
 
   const handleItemSaved = useCallback((item: MediaItem) => {
@@ -2656,13 +2657,11 @@ export default function RecordEditPage() {
 
   const handleUploadSaved = useCallback((item: MediaItem) => {
     handleItemSaved(item);
-    setActiveTab("edit");
   }, [handleItemSaved]);
 
   const TABS: { id: StudioTab; label: string; icon: React.ElementType }[] = [
     { id: "record", label: "Record Video", icon: Circle },
     { id: "upload", label: "Upload Video", icon: Upload },
-    { id: "edit", label: "Edit Video", icon: Scissors },
     { id: "audio", label: "Audio", icon: Headphones },
   ];
 
@@ -2708,7 +2707,7 @@ export default function RecordEditPage() {
           <Button
             size="sm"
             className="gap-1.5 bg-[#0e8a96] hover:bg-[#0a6e78] text-white text-xs"
-            onClick={() => setLocation("/studio/download")}
+            onClick={() => { window.location.href = "/studio-pro"; }}
           >
             <Download className="h-3.5 w-3.5" />
             Download App
@@ -2771,7 +2770,7 @@ export default function RecordEditPage() {
               <Button
                 variant="outline"
                 className="gap-2"
-                onClick={() => setLocation("/studio/download")}
+                onClick={() => { window.location.href = "/studio-pro"; }}
               >
                 <Download className="h-4 w-4" />
                 Download Desktop App

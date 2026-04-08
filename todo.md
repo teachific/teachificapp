@@ -2541,3 +2541,11 @@
 - [x] Studio Lite Record Video: add camera device selector, microphone selector, video quality selector (720p/1080p/4K), frame rate selector
 - [x] Studio Lite Record Video: add speaker/output device selector for monitoring
 - [x] Studio Lite Audio: add microphone device selector, speaker/output device selector, sample rate and quality settings
+
+## Bug Fixes: Session Continuation (Apr 2026)
+- [x] Fix /studio-pro 404 — Download App button now uses window.location.href for full page navigation instead of SPA setLocation
+- [x] Confirm orgId bug in RecordEditPage.tsx already fixed (uses trpc.orgs.myOrgs, not hardcoded fallback)
+- [x] Confirm StudioDashboard.tsx TypeScript errors already fixed (studioAccess vs "team" was resolved)
+- [x] Fix Stripe webhook handler: was reading studio_tier (wrong key) instead of access_tier from session metadata
+- [x] Extend Stripe webhook to handle creator and quiz_creator product types (previously only handled studio)
+- [x] TypeScript: 0 errors confirmed after all fixes

@@ -113,7 +113,7 @@ export default function StudioDashboard() {
 
   // Site owners and admins always have full access — no subscription required
   const isPrivileged = (user as any)?.role === "site_owner" || (user as any)?.role === "site_admin";
-  const tier = isPrivileged ? "pro" : (studioSub?.tier ?? "none");
+  const tier = isPrivileged ? "desktop" : (studioSub?.tier ?? "none");
 
   // ── No active subscription ──────────────────────────────────────────────
   if (!isPrivileged && !studioSub?.isActive) {
@@ -405,12 +405,12 @@ export default function StudioDashboard() {
                     <p className="text-sm text-white/40">
                       {isPrivileged && "Full access — no limits"}
                       {!isPrivileged && tier === "none" && "Free tier — upgrade to unlock more"}
-                      {!isPrivileged && tier === "creator" && "10 courses · 5 GB storage"}
-                      {!isPrivileged && tier === "pro" && "Unlimited courses · 50 GB storage"}
-                      {!isPrivileged && tier === "team" && "Unlimited courses · 50 GB storage · 5 seats"}
+                      {!isPrivileged && tier === "web" && "Web app access · 5 GB storage"}
+                      {!isPrivileged && tier === "desktop" && "Desktop + Web · 50 GB storage"}
+                      {!isPrivileged && tier === "bundle" && "Desktop + Web · Unlimited storage · 5 seats"}
                     </p>
                   </div>
-                  {!isPrivileged && tier !== "pro" && tier !== "team" && (
+                  {!isPrivileged && tier !== "desktop" && tier !== "bundle" && (
                     <Button
                       size="sm"
                       className="bg-[#0e8a96] hover:bg-[#0a6e78] text-white"
@@ -422,9 +422,9 @@ export default function StudioDashboard() {
                 </div>
                 <div className="grid grid-cols-3 gap-4 text-center">
                   {[
-                    { label: "Courses", value: courses?.length ?? 0, max: isPrivileged || tier === "pro" || tier === "team" ? "∞" : tier === "creator" ? 10 : 1 },
-                    { label: "Storage Used", value: "—", max: isPrivileged ? "∞" : tier === "none" ? "100 MB" : tier === "creator" ? "5 GB" : "50 GB" },
-                    { label: "Team Seats", value: tier === "team" ? "5" : "1", max: tier === "team" ? "5" : "1" },
+                    { label: "Courses", value: courses?.length ?? 0, max: isPrivileged || tier === "desktop" || tier === "bundle" ? "∞" : tier === "web" ? 10 : 1 },
+                    { label: "Storage Used", value: "—", max: isPrivileged ? "∞" : tier === "none" ? "100 MB" : tier === "web" ? "5 GB" : "50 GB" },
+                    { label: "Team Seats", value: tier === "bundle" ? "5" : "1", max: tier === "bundle" ? "5" : "1" },
                   ].map((stat) => (
                     <div key={stat.label} className="bg-white/5 rounded-xl p-3">
                       <p className="text-xl font-bold text-white">{stat.value}</p>

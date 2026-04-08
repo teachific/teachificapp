@@ -1349,10 +1349,10 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         const db = await getDb();
         if (db) {
           const [userRow] = await db.select({
-            quizCreatorRole: users.quizCreatorRole,
+            quizCreatorAccess: users.quizCreatorAccess,
             quizCreatorTrialEndsAt: users.quizCreatorTrialEndsAt,
           }).from(users).where(eq(users.id, ctx.user.id));
-          const qRole = (userRow as any)?.quizCreatorRole ?? "none";
+          const qRole = (userRow as any)?.quizCreatorAccess ?? "none";
           const qTrial = (userRow as any)?.quizCreatorTrialEndsAt ?? null;
           const isTrialing = qRole !== "none" && qTrial && new Date(qTrial) > new Date();
           const isPaid = qRole !== "none" && !isTrialing;
@@ -2175,7 +2175,7 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     /** Get the current user's QuizCreator role */
     getMyRole: protectedProcedure.query(async ({ ctx }) => {
       const user = await getUserById(ctx.user.id);
-      const role = (user?.quizCreatorRole ?? "none") as "none" | "lite" | "premium";
+      const role = (user?.quizCreatorAccess ?? "none") as "none" | "web" | "desktop" | "bundle";
       const trialEndsAt = (user as any)?.quizCreatorTrialEndsAt ?? null;
       const isInTrial = role !== "none" && trialEndsAt && new Date(trialEndsAt) > new Date();
       const isPaid = role !== "none" && !isInTrial;
@@ -2186,10 +2186,10 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     setUserRole: adminProcedure
       .input(z.object({
         userId: z.number(),
-        role: z.enum(["none", "lite", "premium"]),
+        role: z.enum(["none", "web", "desktop", "bundle"]),
       }))
       .mutation(async ({ input }) => {
-        await updateUser(input.userId, { quizCreatorRole: input.role });
+        await updateUser(input.userId, { quizCreatorAccess: input.role });
         return { success: true };
       }),
 
@@ -2201,7 +2201,7 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         name: u.name,
         email: u.email,
         role: u.role,
-        quizCreatorRole: u.quizCreatorRole ?? "none",
+        quizCreatorAccess: u.quizCreatorAccess ?? "none",
       }));
     }),
   }),

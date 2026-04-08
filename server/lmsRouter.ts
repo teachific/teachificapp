@@ -2981,10 +2981,10 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
           if (dbForWm) {
             const { users: usersTable } = await import("../drizzle/schema");
             const [wmUser] = await dbForWm.select({
-              studioRole: usersTable.studioRole,
+              studioAccess: usersTable.studioAccess,
               studioTrialEndsAt: usersTable.studioTrialEndsAt,
             }).from(usersTable).where(eq(usersTable.id, ctx.user.id));
-            const sRole = (wmUser as any)?.studioRole ?? "none";
+            const sRole = (wmUser as any)?.studioAccess ?? "none";
             const sTrial = (wmUser as any)?.studioTrialEndsAt ?? null;
             const isTrialing = sRole !== "none" && sTrial && new Date(sTrial) > new Date();
             showVideoWatermark = !(sRole !== "none" && !isTrialing);
