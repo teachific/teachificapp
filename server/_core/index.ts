@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
+import helmet from "helmet";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
@@ -43,24 +44,101 @@ async function startServer() {
   server.keepAliveTimeout = 30 * 60 * 1000;
   server.headersTimeout = 30 * 60 * 1000 + 5000;
 
+  // ── Security headers (Helmet) ─────────────────────────────────────────────
+  // Applied globally BEFORE all other middleware so every response gets headers.
+  // Embed routes (/embed/*, /api/content/*) override X-Frame-Options below.
+  app.use(helmet({
+    // HSTS: instruct browsers to always use HTTPS for 1 year, include subdomains
+    // Required for HSTS preload submission and enterprise firewall trust
+    hsts: {
+      maxAge: 31536000,        // 1 year in seconds
+      includeSubDomains: true,
+      preload: true,
+    },
+    // Content Security Policy — strict but compatible with SCORM packages
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc:   ["'self'"],
+        scriptSrc:    [
+          "'self'",
+          "'unsafe-inline'",  // Required for SCORM API injection into iframes
+          "'unsafe-eval'",    // Required for some SCORM runtime packages
+          "https://cdn.jsdelivr.net",
+          "https://fonts.googleapis.com",
+          "https://www.googletagmanager.com",
+          "https://js.stripe.com",
+        ],
+        styleSrc:     ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
+        fontSrc:      ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net", "data:"],
+        imgSrc:       ["'self'", "data:", "blob:", "https:"],
+        mediaSrc:     ["'self'", "blob:", "https:"],
+        connectSrc:   ["'self'", "https://api.manus.im", "https://api.stripe.com", "wss:", "https:"],
+        frameSrc:     ["'self'", "https://js.stripe.com", "https:"],
+        // Allow embedding from any HTTPS origin (required for LMS integration)
+        frameAncestors: ["'self'", "https:"],
+        objectSrc:    ["'none'"],
+        baseUri:      ["'self'"],
+        formAction:   ["'self'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+    // Prevent MIME-type sniffing attacks
+    noSniff: true,
+    // Prevent IE from executing downloads in the site's security context
+    ieNoOpen: true,
+    // Referrer policy — send origin only on cross-origin requests
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    // Remove X-Powered-By: Express
+    hidePoweredBy: true,
+    // Default frameguard: sameorigin — overridden for embed routes below
+    frameguard: { action: "sameorigin" },
+    // XSS filter for older browsers
+    xssFilter: true,
+    // Disable DNS prefetching (reduces information leakage)
+    dnsPrefetchControl: { allow: false },
+    // Cross-origin opener policy — allow popups for OAuth flows
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+    // Cross-origin resource policy — allow cross-origin reads (CDN assets)
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    // Disable COEP so SCORM iframes can load external resources without CORP headers
+    crossOriginEmbedderPolicy: false,
+    // Permissions policy — disable unused browser features
+    permittedCrossDomainPolicies: false,
+  }));
+
+  // Permissions-Policy header (not yet in helmet 8 stable, set manually)
+  app.use((_req, res, next) => {
+    res.setHeader(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=(), payment=(self), usb=(), magnetometer=(), accelerometer=(), gyroscope=()"
+    );
+    next();
+  });
+
+  // ── Embed route overrides ─────────────────────────────────────────────────
+  // /embed/* and /api/content/* must be frameable by any external LMS/site.
+  // Override helmet's frameguard and add CORS headers for these routes only.
+  app.use((req, res, next) => {
+    const path = req.path;
+    if (path.startsWith("/embed/") || path.startsWith("/api/content/")) {
+      // Allow framing from any origin (required for LMS embedding)
+      res.removeHeader("X-Frame-Options");
+      res.setHeader("Content-Security-Policy",
+        "frame-ancestors *; default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; img-src * data: blob:; media-src * blob:; connect-src *;"
+      );
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Range");
+    }
+    next();
+  });
+
   // Stripe webhook MUST be before express.json() for raw body signature verification
   app.use("/api/stripe", stripeWebhookRouter);
 
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "3gb" }));
   app.use(express.urlencoded({ limit: "3gb", extended: true }));
-
-  // Allow embed pages and content to be framed by any external site
-  app.use((req, res, next) => {
-    const path = req.path;
-    if (path.startsWith("/embed/") || path.startsWith("/api/content/")) {
-      res.removeHeader("X-Frame-Options");
-      res.setHeader("X-Frame-Options", "ALLOWALL");
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-    }
-    next();
-  });
 
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);

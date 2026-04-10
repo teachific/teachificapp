@@ -2634,3 +2634,32 @@
 - [x] Use SendGrid helper (already configured) for email delivery
 - [x] Fallback to notifyOwner() in-app notification if email fails
 - [x] TypeScript check and checkpoint
+
+## Third-Party Cookie Fix & Firewall Bypass (Apr 10, 2026)
+- [ ] Diagnose why embedded HTML iframes require third-party cookies
+- [ ] Fix: serve HTML/SCORM content from same origin (proxy endpoint or subdomain)
+- [ ] Research why hospital firewalls block teachific.app
+- [ ] Implement firewall-friendly content delivery strategy
+
+## Cookie-Free Embed Token System (Apr 10, 2026)
+- [ ] Create server/embedToken.ts: issue and verify short-lived signed JWT (24h TTL)
+- [ ] Add tRPC publicProcedure: getEmbedToken — issues token from session or anonymous learner params
+- [ ] Add token-based session procedures: startSessionWithToken, updateSessionWithToken, endSessionWithToken
+- [ ] Update EmbedPage to request embed token and pass as ?t= param to iframe src
+- [ ] Update PlayerPage to use embed token for session tracking
+- [ ] Ensure /api/content/* proxy routes accept token auth (no cookie required)
+- [ ] TypeScript check and checkpoint
+
+## Security Hardening for Hospital Firewall Acceptability (Apr 10, 2026)
+- [x] Audit current security headers (HSTS, CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy)
+- [x] Add HSTS header (max-age=31536000; includeSubDomains; preload)
+- [x] Add Content-Security-Policy header (strict, with frame-ancestors for embed support)
+- [x] Add X-Content-Type-Options: nosniff
+- [x] Add Referrer-Policy: strict-origin-when-cross-origin
+- [x] Add Permissions-Policy (disable camera/mic/geolocation by default)
+- [x] Add X-DNS-Prefetch-Control: off
+- [x] Add security.txt at /.well-known/security.txt
+- [x] Add robots.txt with proper crawl rules
+- [ ] Add /privacy and /terms pages (required for enterprise trust)
+- [x] Implement cookie-free embed token (JWT, 24h TTL) for iframe embeds
+- [ ] Submit domain to Cisco Umbrella, Palo Alto, Zscaler, Fortinet, Webroot for Education categorization

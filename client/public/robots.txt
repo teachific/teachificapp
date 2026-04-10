@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /embed/
+Disallow: /dashboard/
+
+# Sitemap
+Sitemap: https://teachific.app/sitemap.xml

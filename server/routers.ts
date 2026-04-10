@@ -115,6 +115,7 @@ import { authoringRouter } from "./authoringRouter";
 import { teachificPayRouter } from "./teachificPayRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { ENV } from "./_core/env";
+import { issueEmbedToken, verifyEmbedToken } from "./embedToken";
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 // site_owner + site_admin have site-wide access
@@ -150,6 +151,135 @@ export const appRouter = router({
   billing: stripeRouter,
   authoring: authoringRouter,
   teachificPay: teachificPayRouter,
+
+  // ── Embed Token (cookie-free iframe auth) ─────────────────────────────────
+  embed: router({
+    /**
+     * Issue a short-lived embed token for a package.
+     * Called from the parent page (where the session cookie IS available),
+     * then passed as ?t=<token> into the iframe src so the iframe can make
+     * tRPC calls without needing a session cookie.
+     */
+    getToken: publicProcedure
+      .input(z.object({
+        packageId: z.number(),
+        orgId: z.number().optional(),
+        learnerName: z.string().max(255).optional(),
+        learnerEmail: z.string().max(320).optional(),
+        learnerId: z.string().max(128).optional(),
+        learnerGroup: z.string().max(128).optional(),
+        customData: z.string().optional(),
+        utmSource: z.string().max(128).optional(),
+        utmMedium: z.string().max(128).optional(),
+        utmCampaign: z.string().max(128).optional(),
+        referrer: z.string().max(512).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const token = await issueEmbedToken({
+          packageId: input.packageId,
+          userId: ctx.user?.id,
+          orgId: input.orgId,
+          learnerName: input.learnerName,
+          learnerEmail: input.learnerEmail,
+          learnerId: input.learnerId,
+          learnerGroup: input.learnerGroup,
+          customData: input.customData,
+          utmSource: input.utmSource,
+          utmMedium: input.utmMedium,
+          utmCampaign: input.utmCampaign,
+          referrer: input.referrer,
+        });
+        return { token };
+      }),
+
+    /**
+     * Start a play session using an embed token instead of a session cookie.
+     * Used by EmbedPage/PlayerPage when running inside an iframe.
+     */
+    startSession: publicProcedure
+      .input(z.object({ embedToken: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const payload = await verifyEmbedToken(input.embedToken);
+        if (!payload) throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid or expired embed token" });
+        const pkg = await getPackageById(payload.packageId);
+        if (!pkg) throw new TRPCError({ code: "NOT_FOUND" });
+        if (!pkg.isPublic && !payload.userId) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "This content is private." });
+        }
+        const perms = await getPermissions(payload.packageId);
+        if (perms?.maxTotalPlays && pkg.totalPlayCount >= perms.maxTotalPlays) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Maximum total plays reached" });
+        }
+        if (perms?.playExpiresAt && new Date() > perms.playExpiresAt) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "This content has expired" });
+        }
+        const token = nanoid(32);
+        await createPlaySession({
+          packageId: payload.packageId,
+          userId: payload.userId,
+          orgId: payload.orgId,
+          sessionToken: token,
+          ipAddress: ctx.req.headers["x-forwarded-for"] as string ?? ctx.req.socket?.remoteAddress,
+          userAgent: ctx.req.headers["user-agent"],
+          referrer: payload.referrer,
+          learnerName: payload.learnerName,
+          learnerEmail: payload.learnerEmail,
+          learnerId: payload.learnerId,
+          learnerGroup: payload.learnerGroup,
+          customData: payload.customData,
+          utmSource: payload.utmSource,
+          utmMedium: payload.utmMedium,
+          utmCampaign: payload.utmCampaign,
+        });
+        await incrementPlayCount(payload.packageId);
+        await logAnalyticsEvent({
+          packageId: payload.packageId,
+          userId: payload.userId,
+          orgId: payload.orgId,
+          eventType: "play_start",
+          eventData: JSON.stringify({}),
+        });
+        return { sessionToken: token };
+      }),
+
+    /**
+     * End a play session (token-based, no cookie required).
+     */
+    endSession: publicProcedure
+      .input(z.object({
+        sessionToken: z.string(),
+        completionStatus: z.enum(["not_attempted", "incomplete", "completed", "passed", "failed", "unknown"]).optional(),
+        scoreRaw: z.number().optional(),
+        scoreMax: z.number().optional(),
+        scoreMin: z.number().optional(),
+        scoreScaled: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const session = await getPlaySession(input.sessionToken);
+        if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+        const isCompleted = input.completionStatus === "completed" || input.completionStatus === "passed";
+        await updatePlaySession(input.sessionToken, {
+          endedAt: new Date(),
+          completionStatus: input.completionStatus,
+          scoreRaw: input.scoreRaw,
+          scoreMax: input.scoreMax,
+          scoreMin: input.scoreMin,
+          scoreScaled: input.scoreScaled,
+          isCompleted,
+        });
+        if (isCompleted) {
+          await logAnalyticsEvent({
+            packageId: session.packageId,
+            sessionId: session.id,
+            userId: session.userId ?? undefined,
+            orgId: session.orgId ?? undefined,
+            eventType: "scorm_complete",
+            eventData: JSON.stringify({ score: input.scoreRaw }),
+          });
+        }
+        return { success: true };
+      }),
+  }),
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   auth: router({
