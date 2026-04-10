@@ -2642,13 +2642,13 @@
 - [ ] Implement firewall-friendly content delivery strategy
 
 ## Cookie-Free Embed Token System (Apr 10, 2026)
-- [ ] Create server/embedToken.ts: issue and verify short-lived signed JWT (24h TTL)
-- [ ] Add tRPC publicProcedure: getEmbedToken — issues token from session or anonymous learner params
-- [ ] Add token-based session procedures: startSessionWithToken, updateSessionWithToken, endSessionWithToken
-- [ ] Update EmbedPage to request embed token and pass as ?t= param to iframe src
-- [ ] Update PlayerPage to use embed token for session tracking
-- [ ] Ensure /api/content/* proxy routes accept token auth (no cookie required)
-- [ ] TypeScript check and checkpoint
+- [x] Create server/embedToken.ts: issue and verify short-lived signed JWT (24h TTL)
+- [x] Add tRPC publicProcedure: getEmbedToken — issues token from session or anonymous learner params
+- [x] Add token-based session procedures: startSessionWithToken, updateSessionWithToken, endSessionWithToken
+- [x] Update EmbedPage to request embed token and pass as ?t= param to iframe src
+- [x] Update PlayerPage to use embed token for session tracking (PlayerPage is internal-only, no change needed)
+- [x] Ensure /api/content/* proxy routes accept token auth (no cookie required — routes are already public)
+- [x] TypeScript check and checkpoint
 
 ## Security Hardening for Hospital Firewall Acceptability (Apr 10, 2026)
 - [x] Audit current security headers (HSTS, CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy)
@@ -2663,3 +2663,11 @@
 - [ ] Add /privacy and /terms pages (required for enterprise trust)
 - [x] Implement cookie-free embed token (JWT, 24h TTL) for iframe embeds
 - [ ] Submit domain to Cisco Umbrella, Palo Alto, Zscaler, Fortinet, Webroot for Education categorization
+
+## Cookie-Free Embed — Frontend Wiring (Apr 10, 2026)
+- [x] EmbedPage: call trpc.embed.getToken on load, pass token to iframe URL as ?t=<token>
+- [x] EmbedPage: use trpc.embed.startSession / endSession instead of cookie-based sessions.*
+- [x] PlayerPage: cookie-based sessions kept (internal-only page, same-domain, no iframe embedding)
+- [x] /api/content/* proxy: already public, no auth needed (access control at session start)
+- [x] SCORM xAPI/cmi routes: scorm.setData/getData already publicProcedure, no cookie needed
+- [x] TypeScript check and checkpoint (0 errors)

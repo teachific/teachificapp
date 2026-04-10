@@ -2,8 +2,12 @@
  * EmbedPage — a bare content player with no admin navigation.
  * Accessible at /embed/:id
  * Used for share links, external embeds, and learner-facing access.
+ *
+ * Cookie-free: uses embed JWT token so this page works inside iframes
+ * on third-party domains (hospital LMS, corporate intranets) without
+ * requiring third-party cookies to be enabled.
  */
-import { trpc } from "@/lib/trpc";
+import { trpcEmbed, embedQueryClient, embedTrpcClient } from "@/lib/trpcEmbed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -11,6 +15,7 @@ import {
   CheckCircle2, Clock, Download,
   Maximize2, Minimize2, Loader2, Lock,
 } from "lucide-react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
 import { getLoginUrl } from "@/const";
@@ -46,12 +51,14 @@ const SCORM_API_SCRIPT = `
 })();
 `;
 
-export default function EmbedPage() {
+/**
+ * Inner component — rendered inside the cookie-free tRPC provider.
+ */
+function EmbedPageInner() {
   const params = useParams<{ id: string }>();
   const packageId = Number(params.id);
 
   // Read dynamic learner identity + UTM params from the URL query string
-  // Supported: ?learner_name=&learner_email=&learner_id=&learner_group=&custom_data=&utm_source=&utm_medium=&utm_campaign=
   const urlParams = new URLSearchParams(window.location.search);
   const learnerName   = urlParams.get("learner_name")   ?? undefined;
   const learnerEmail  = urlParams.get("learner_email")  ?? undefined;
@@ -72,44 +79,58 @@ export default function EmbedPage() {
   const [started, setStarted] = useState(false);
   const startedAt = useRef(Date.now());
   const sessionTokenRef = useRef<string | null>(null);
+  const embedTokenRef = useRef<string | null>(null);
   const scormDataRef = useRef<Record<string, string>>({});
 
-  const { data: pkg, isLoading, error: pkgError } = trpc.packages.get.useQuery(
+  // Fetch package info — publicProcedure, works without cookies for public packages
+  const { data: pkg, isLoading, error: pkgError } = trpcEmbed.packages.get.useQuery(
     { id: packageId },
     { retry: false, staleTime: Infinity }
   );
-  const { data: perms } = trpc.permissions.get.useQuery({ packageId }, { retry: false });
-  const startSession = trpc.sessions.start.useMutation();
-  const endSession = trpc.sessions.end.useMutation();
-  const saveScorm = trpc.scorm.setData.useMutation();
+  const { data: perms } = trpcEmbed.permissions.get.useQuery({ packageId }, { retry: false });
 
-  // Start session — forward all URL learner params so they are stored on the session record
+  // Token-based mutations — no cookies required
+  const getEmbedToken = trpcEmbed.embed.getToken.useMutation();
+  const startSession  = trpcEmbed.embed.startSession.useMutation();
+  const endSession    = trpcEmbed.embed.endSession.useMutation();
+  const saveScorm     = trpcEmbed.scorm.setData.useMutation();
+
+  // Step 1: Get embed token (server-side reads session cookie once, encodes identity into JWT)
+  // Step 2: Use token to start a play session (no cookie needed after this point)
   useEffect(() => {
-    if (pkg?.status === "ready") {
-      startSession.mutateAsync({
-        packageId,
-        learnerName,
-        learnerEmail,
-        learnerId,
-        learnerGroup,
-        customData,
-        utmSource,
-        utmMedium,
-        utmCampaign,
-        referrer,
+    if (pkg?.status !== "ready") return;
+
+    getEmbedToken.mutateAsync({
+      packageId,
+      learnerName,
+      learnerEmail,
+      learnerId,
+      learnerGroup,
+      customData,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      referrer,
+    })
+      .then(({ token }) => {
+        embedTokenRef.current = token;
+        return startSession.mutateAsync({ embedToken: token });
       })
-        .then((r) => {
-          sessionTokenRef.current = r.sessionToken;
-          setStarted(true);
-          startedAt.current = Date.now();
-        })
-        .catch(() => {});
-    }
+      .then((r) => {
+        sessionTokenRef.current = r.sessionToken;
+        setStarted(true);
+        startedAt.current = Date.now();
+      })
+      .catch(() => {
+        // Silently fail — content still displays, just without session tracking
+      });
+
     return () => {
       if (sessionTokenRef.current) {
         endSession.mutate({ sessionToken: sessionTokenRef.current, completionStatus: "incomplete" });
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pkg?.status]);
 
   // Elapsed timer
@@ -190,21 +211,17 @@ export default function EmbedPage() {
     if (!(pkg as any).autoFullscreenMobile) return;
     if (!isMobile) return;
     if (document.fullscreenElement) return;
-    // Small delay so the page is fully rendered before requesting fullscreen
     const timer = setTimeout(() => {
       document.documentElement.requestFullscreen().then(() => {
         setIsFullscreen(true);
-        setMobileBannerDismissed(true); // suppress the manual prompt
-      }).catch(() => {
-        // Browser may block auto-fullscreen without a user gesture; fall back to showing the banner
-      });
+        setMobileBannerDismissed(true);
+      }).catch(() => {});
     }, 600);
     return () => clearTimeout(timer);
   }, [pkg]);
 
   const formatElapsed = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
-  // Include the currentVersionId as a cache-buster so mobile browsers always load the latest version
   const playerUrl = pkg?.status === "ready"
     ? `/api/content/${packageId}/entry?v=${(pkg as any).currentVersionId ?? 0}`
     : null;
@@ -219,7 +236,6 @@ export default function EmbedPage() {
   }
 
   if (!pkg) {
-    // Check if it's an UNAUTHORIZED error (private package, not logged in)
     const isPrivateBlock = (pkgError as any)?.data?.code === "UNAUTHORIZED";
     if (isPrivateBlock) {
       return (
@@ -265,14 +281,14 @@ export default function EmbedPage() {
     <div className="flex flex-col h-screen bg-gray-950">
       {/* Minimal top bar */}
       <div className={`shrink-0 flex items-center px-4 gap-3 ${isLmsShell ? "h-14 bg-gray-900 border-b border-gray-800" : "h-11 bg-gray-900/80 border-b border-gray-800/60"}`}>
-          {isLmsShell && (
+        {isLmsShell && (
           <div className="flex items-center gap-3 shrink-0">
             <span className="text-xl font-bold tracking-tight select-none hidden sm:inline" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
               <span className="text-white">teach</span><span style={{ color: '#189aa1' }}>ific</span><span className="text-white" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
             </span>
             <div className="h-4 w-px bg-gray-700 hidden sm:block" />
           </div>
-          )}
+        )}
 
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white truncate">{pkg.title}</p>
@@ -301,13 +317,19 @@ export default function EmbedPage() {
               </a>
             </Button>
           )}
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white sm:text-gray-400 sm:hover:text-white sm:bg-transparent text-teal-400 bg-teal-500/20 hover:bg-teal-500/30 hover:text-teal-300" onClick={toggleFullscreen} title="Fullscreen">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-gray-400 hover:text-white sm:text-gray-400 sm:hover:text-white sm:bg-transparent text-teal-400 bg-teal-500/20 hover:bg-teal-500/30 hover:text-teal-300"
+            onClick={toggleFullscreen}
+            title="Fullscreen"
+          >
             {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </Button>
         </div>
       </div>
 
-      {/* Mobile fullscreen prompt — only on small screens, dismissed via state */}
+      {/* Mobile fullscreen prompt */}
       {!mobileBannerDismissed && !isFullscreen && (
         <div className="sm:hidden shrink-0 flex items-center gap-3 px-4 py-2.5 bg-primary/15 border-b border-primary/30">
           <Maximize2 className="h-4 w-4 text-primary shrink-0" />
@@ -360,5 +382,19 @@ export default function EmbedPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Outer wrapper — provides the cookie-free tRPC client so all queries
+ * inside use credentials: "omit" and work in third-party iframe contexts.
+ */
+export default function EmbedPage() {
+  return (
+    <trpcEmbed.Provider client={embedTrpcClient} queryClient={embedQueryClient}>
+      <QueryClientProvider client={embedQueryClient}>
+        <EmbedPageInner />
+      </QueryClientProvider>
+    </trpcEmbed.Provider>
   );
 }
