@@ -2671,3 +2671,12 @@
 - [x] /api/content/* proxy: already public, no auth needed (access control at session start)
 - [x] SCORM xAPI/cmi routes: scorm.setData/getData already publicProcedure, no cookie needed
 - [x] TypeScript check and checkpoint (0 errors)
+
+## Replace File Feature — Media Library (Apr 10, 2026)
+- [x] Audit media file storage: confirmed S3 key is stored in fileKey column; overwriting it keeps URL unchanged
+- [x] Add POST /api/media-upload/replace Express route: authenticate, look up item by mediaItemId, overwrite same S3 key, update DB metadata
+- [x] Add Replace File UI: "Replace File" option in ⋯ menu on each media item (MediaRow in FilesPage.tsx)
+- [x] File picker dialog: shows current vs new file info, XHR upload with progress bar, cancel/confirm buttons
+- [x] On success: toast confirms URL unchanged, invalidates media cache, refetches list
+- [x] Write vitest tests for replace route logic (7 tests passing in server/mediaReplace.test.ts)
+- [x] TypeScript check (0 errors) and checkpoint saved

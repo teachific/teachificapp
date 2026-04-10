@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent,
@@ -15,13 +16,13 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   ChevronDown, ChevronRight, Download, File, FileArchive, FileText, Film,
   Folder, FolderInput, FolderOpen, FolderPlus, GripVertical, Image,
-  Link2, Loader2, MoreVertical, Pencil, Play, Plus, Search,
+  Link2, Loader2, MoreVertical, Pencil, Play, Plus, RefreshCw, Search,
   Settings, Trash2, Upload,
 } from "lucide-react";
 import { useState, useMemo, useCallback, useRef } from "react";
@@ -126,7 +127,7 @@ function MediaTypeBadge({ mimeType }: { mimeType: string }) {
     image: { label: "Image", cls: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300" },
     video: { label: "Video", cls: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
     audio: { label: "Audio", cls: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300" },
-    document: { label: "Doc", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
+    document: { label: "Doc", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
     zip: { label: "ZIP", cls: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
   };
   const info = map[cat] ?? { label: "File", cls: "bg-gray-100 text-gray-600" };
@@ -275,7 +276,13 @@ function PackageRow({ pkg, folders, onNavigate, onDelete, onMove }: {
 }
 
 // ─── Media Item Row ───────────────────────────────────────────────────────────
-function MediaRow({ item, folders, onDelete, onMove }: { item: any; folders: FolderItem[]; onDelete: (id: number) => void; onMove: (mediaId: number, folderId: number | null) => void }) {
+function MediaRow({ item, folders, onDelete, onMove, onReplace }: {
+  item: any;
+  folders: FolderItem[];
+  onDelete: (id: number) => void;
+  onMove: (mediaId: number, folderId: number | null) => void;
+  onReplace: (item: any) => void;
+}) {
   return (
     <div className="flex sm:grid sm:grid-cols-[auto_1fr_auto_auto_auto] items-center gap-4 px-5 py-4 hover:bg-accent/20 transition-colors">
       <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
@@ -312,10 +319,14 @@ function MediaRow({ item, folders, onDelete, onMove }: { item: any; folders: Fol
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem onClick={() => navigator.clipboard.writeText(item.url).then(() => toast.success("URL copied")).catch(() => {})}><Link2 className="mr-2 h-4 w-4" />Copy URL</DropdownMenuItem>
             <DropdownMenuItem asChild><a href={item.url} target="_blank" rel="noopener noreferrer">Open in new tab</a></DropdownMenuItem>
             <DropdownMenuItem asChild><a href={item.url} download={item.filename}>Download</a></DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onReplace(item)}>
+              <RefreshCw className="mr-2 h-4 w-4" />Replace File
+            </DropdownMenuItem>
             {folders.length > 0 && (
               <>
                 <DropdownMenuSeparator />
@@ -372,6 +383,12 @@ export default function FilesPage() {
   // Delete
   const [deletePackageId, setDeletePackageId] = useState<number | null>(null);
   const [deleteMediaId, setDeleteMediaId] = useState<number | null>(null);
+  // Replace File state
+  const [replaceTarget, setReplaceTarget] = useState<any | null>(null);
+  const [replaceFile, setReplaceFile] = useState<File | null>(null);
+  const [replaceProgress, setReplaceProgress] = useState(0);
+  const [replaceUploading, setReplaceUploading] = useState(false);
+  const replaceFileInputRef = useRef<HTMLInputElement>(null);
   // DnD
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<number | null>(null);
@@ -499,6 +516,50 @@ export default function FilesPage() {
     }
   }, [orgId, saveMediaItem, utils, refetchMedia]);
 
+  // ── Replace File logic ─────────────────────────────────────────────────────
+  const handleReplaceFileSelected = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setReplaceFile(file);
+    // Reset input so the same file can be re-selected if needed
+    e.target.value = "";
+  }, []);
+
+  const handleReplaceConfirm = useCallback(async () => {
+    if (!replaceTarget || !replaceFile) return;
+    setReplaceUploading(true);
+    setReplaceProgress(0);
+    try {
+      const formData = new FormData();
+      formData.append("file", replaceFile);
+      formData.append("mediaItemId", String(replaceTarget.id));
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setReplaceProgress(Math.round((e.loaded / e.total) * 95));
+        };
+        xhr.onload = () => {
+          if (xhr.status === 200) { setReplaceProgress(100); resolve(); }
+          else {
+            try { reject(new Error(JSON.parse(xhr.responseText)?.error ?? "Replace failed")); }
+            catch { reject(new Error(`Replace failed (HTTP ${xhr.status})`)); }
+          }
+        };
+        xhr.onerror = () => reject(new Error("Network error"));
+        xhr.open("POST", "/api/media-upload/replace");
+        xhr.send(formData);
+      });
+      utils.lms.media.listOrgMedia.invalidate();
+      refetchMedia();
+      toast.success(`"${replaceTarget.filename}" replaced — URL unchanged`);
+      setReplaceTarget(null);
+      setReplaceFile(null);
+    } catch (err: any) {
+      toast.error(`Replace failed: ${err.message}`);
+    } finally {
+      setReplaceUploading(false);
+    }
+  }, [replaceTarget, replaceFile, utils, refetchMedia]);
+
   // ── Unified upload handler ─────────────────────────────────────────────────
   const handleFilesPicked = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -509,13 +570,11 @@ export default function FilesPage() {
       if (name.endsWith(".zip")) zipFiles.push(f);
       else mediaFiles.push(f);
     });
-    // ZIP files → SCORM uploader (one at a time; open dialog with first)
     if (zipFiles.length > 0) {
       setPendingZipFile(zipFiles[0]);
       setShowScormDialog(true);
       if (zipFiles.length > 1) toast.info(`Only one ZIP can be uploaded at a time. Opening the first: ${zipFiles[0].name}`);
     }
-    // All other files → direct media upload
     mediaFiles.forEach((f) => uploadMediaFile(f));
   }, [uploadMediaFile]);
 
@@ -524,19 +583,16 @@ export default function FilesPage() {
 
   const filteredPackages = useMemo(() => {
     let list = packages ?? [];
-    // Type filter
     if (typeFilter === "scorm") list = list.filter((p) => p.contentType === "scorm" || p.contentType === "articulate" || p.contentType === "ispring");
     else if (typeFilter === "html") list = list.filter((p) => p.contentType === "html" || p.contentType === "unknown");
     else if (!["all", "image", "video", "audio", "document", "zip"].includes(typeFilter)) list = [];
-    // Folder filter
     if (typeof selectedFolderId === "number") list = list.filter((p) => (p as any).folderId === selectedFolderId);
-    // Search
     if (search) list = list.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()));
     return list;
   }, [packages, typeFilter, selectedFolderId, search]);
+
   const filteredMedia = useMemo(() => {
     let list = mediaItems;
-    // Type filter
     if (typeFilter === "image") list = list.filter((m) => m.mimeType.startsWith("image/"));
     else if (typeFilter === "video") list = list.filter((m) => m.mimeType.startsWith("video/"));
     else if (typeFilter === "audio") list = list.filter((m) => m.mimeType.startsWith("audio/"));
@@ -545,15 +601,12 @@ export default function FilesPage() {
       return t === "application/pdf" || t === "application/msword" || t.includes("wordprocessingml") || t.includes("officedocument");
     });
     else if (typeFilter === "zip") list = list.filter((m) => m.mimeType.includes("zip"));
-    else if (typeFilter === "scorm" || typeFilter === "html") list = []; // packages only
-    // Folder filter — media items use folderId stored in the DB
+    else if (typeFilter === "scorm" || typeFilter === "html") list = [];
     if (typeof selectedFolderId === "number") list = list.filter((m) => (m as any).folderId === selectedFolderId);
-    // Search
     if (search) list = list.filter((m) => m.filename.toLowerCase().includes(search.toLowerCase()));
     return list;
-  }, [mediaItems, typeFilter, selectedFolderId, search]);;
+  }, [mediaItems, typeFilter, selectedFolderId, search]);
 
-  // Combined sorted list for display
   type UnifiedItem = { kind: "package"; data: any } | { kind: "media"; data: any };
   const unifiedItems: UnifiedItem[] = useMemo(() => {
     const pkgs: UnifiedItem[] = filteredPackages.map((p) => ({ kind: "package", data: p }));
@@ -784,6 +837,13 @@ export default function FilesPage() {
                         folders={folders}
                         onDelete={(id) => setDeleteMediaId(id)}
                         onMove={(mediaId, folderId) => moveMediaToFolderMut.mutate({ orgId, ids: [mediaId], folderId })}
+                        onReplace={(item) => {
+                          setReplaceTarget(item);
+                          setReplaceFile(null);
+                          setReplaceProgress(0);
+                          // Trigger file picker
+                          setTimeout(() => replaceFileInputRef.current?.click(), 50);
+                        }}
                       />
                     )
                   )}
@@ -793,6 +853,15 @@ export default function FilesPage() {
           )}
         </div>
       </div>
+
+      {/* Hidden file input for Replace File */}
+      <input
+        ref={replaceFileInputRef}
+        type="file"
+        accept={ALL_ACCEPTED}
+        className="hidden"
+        onChange={handleReplaceFileSelected}
+      />
 
       {/* DragOverlay */}
       <DragOverlay>
@@ -809,6 +878,79 @@ export default function FilesPage() {
           </div>
         )}
       </DragOverlay>
+
+      {/* ── Replace File Confirmation Dialog ── */}
+      <Dialog
+        open={replaceTarget !== null && replaceFile !== null}
+        onOpenChange={(o) => { if (!o && !replaceUploading) { setReplaceTarget(null); setReplaceFile(null); } }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-primary" />
+              Replace File
+            </DialogTitle>
+            <DialogDescription>
+              The original CDN URL will remain unchanged — all existing embeds and links will continue to work.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Current file */}
+            <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current file</p>
+              <p className="text-sm font-medium truncate">{replaceTarget?.filename}</p>
+              <p className="text-xs text-muted-foreground">{formatBytes(replaceTarget?.fileSize ?? 0)} &bull; {replaceTarget?.mimeType}</p>
+            </div>
+
+            {/* Arrow */}
+            <div className="flex items-center justify-center">
+              <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                <div className="h-px w-24 bg-border" />
+                <span className="text-xs">will be replaced by</span>
+                <div className="h-px w-24 bg-border" />
+              </div>
+            </div>
+
+            {/* New file */}
+            {replaceFile && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-1">
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider">New file</p>
+                <p className="text-sm font-medium truncate">{replaceFile.name}</p>
+                <p className="text-xs text-muted-foreground">{formatBytes(replaceFile.size)} &bull; {replaceFile.type || "unknown type"}</p>
+              </div>
+            )}
+
+            {/* Progress bar */}
+            {replaceUploading && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Uploading…</span>
+                  <span>{replaceProgress}%</span>
+                </div>
+                <Progress value={replaceProgress} className="h-1.5" />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReplaceTarget(null); setReplaceFile(null); }} disabled={replaceUploading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleReplaceConfirm}
+              disabled={!replaceFile || replaceUploading}
+              className="gap-2"
+            >
+              {replaceUploading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" />Uploading…</>
+              ) : (
+                <><RefreshCw className="h-4 w-4" />Replace File</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Folder Create/Rename Dialog ── */}
       <Dialog open={folderDialogOpen} onOpenChange={setFolderDialogOpen}>
