@@ -89,7 +89,15 @@ export const communityRouter = router({
       description: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      // Platform admins and org super admins bypass community count limits
+      // Verify org membership for org_super_admin (they can only manage their own org)
+      if (ctx.user.role === "org_super_admin") {
+        const { orgMembers: orgMembersTable } = await import("../drizzle/schema");
+        const [membership] = await db.select().from(orgMembersTable)
+          .where(and(eq(orgMembersTable.userId, ctx.user.id), eq(orgMembersTable.orgId, input.orgId)))
+          .limit(1);
+        if (!membership) throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this organization" });
+      }
+      // Platform admins and org super admins (of this org) bypass community count limits
       const _isPlatformAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin" || ctx.user.role === "org_super_admin";
       if (!_isPlatformAdmin) {
         const [sub] = await db.select().from(orgSubscriptions).where(eq(orgSubscriptions.orgId, input.orgId)).limit(1);

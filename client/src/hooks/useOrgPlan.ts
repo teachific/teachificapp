@@ -30,22 +30,39 @@ const UNLIMITED_LIMITS: TierLimits = {
 
 /**
  * Returns the current org's subscription plan and limits.
- * Platform admins (site_owner, site_admin) and org super admins always get unlimited access
- * regardless of the org's actual subscription plan.
- * Falls back to "free" if no subscription exists for regular users.
+ *
+ * Bypass rules:
+ * - site_owner / site_admin: bypass plan gates for ANY org (platform-wide admins)
+ * - org_super_admin: bypass plan gates ONLY for their own org (verified via myContext)
+ * - All others: read plan from org_subscriptions table
  */
 export function useOrgPlan(orgId: number | null | undefined) {
   const { user } = useAuth();
-  const isPlatformAdmin = user?.role === "site_owner" || user?.role === "site_admin" || user?.role === "org_super_admin";
 
-  const { data: sub, isLoading } = trpc.lms.subscription.get.useQuery(
+  // Platform admins bypass all plan gates for any org
+  const isPlatformAdmin = user?.role === "site_owner" || user?.role === "site_admin";
+
+  // org_super_admin only bypasses plan gates for their own org — fetch their org context to verify
+  const { data: myContext, isLoading: contextLoading } = trpc.orgs.myContext.useQuery(
+    undefined,
+    { enabled: !!user && user.role === "org_super_admin" && !!orgId }
+  );
+  const isOrgSuperAdminOfThisOrg =
+    user?.role === "org_super_admin" &&
+    !!orgId &&
+    !contextLoading &&
+    myContext?.org?.id === orgId;
+
+  const bypassPlanGate = isPlatformAdmin || isOrgSuperAdminOfThisOrg;
+
+  const { data: sub, isLoading: subLoading } = trpc.lms.subscription.get.useQuery(
     { orgId: orgId! },
-    // Skip the subscription query entirely for platform admins and org super admins — they always have full access
-    { enabled: !!orgId && !isPlatformAdmin }
+    // Skip the subscription query entirely for those who bypass plan gates
+    { enabled: !!orgId && !bypassPlanGate }
   );
 
-  // Platform admins and org super admins bypass every plan gate — treat as unlimited enterprise
-  if (isPlatformAdmin) {
+  // Bypass: treat as unlimited enterprise
+  if (bypassPlanGate) {
     return {
       plan: "enterprise" as PlanTier,
       planLabel: "Enterprise",
@@ -55,6 +72,20 @@ export function useOrgPlan(orgId: number | null | undefined) {
       isLoading: false,
       sub: null,
       isPlatformAdmin: true,
+    };
+  }
+
+  // Still loading org context for org_super_admin (before we know if it's their org)
+  if (user?.role === "org_super_admin" && contextLoading) {
+    return {
+      plan: "free" as PlanTier,
+      planLabel: "Free",
+      limits: getLimits("free"),
+      can: (_feature: keyof TierLimits) => false,
+      meets: (_required: PlanTier) => false,
+      isLoading: true,
+      sub: null,
+      isPlatformAdmin: false,
     };
   }
 
@@ -72,5 +103,5 @@ export function useOrgPlan(orgId: number | null | undefined) {
 
   const meets = (required: PlanTier): boolean => meetsRequirement(plan, required);
 
-  return { plan, planLabel, limits, can, meets, isLoading, sub, isPlatformAdmin: false };
+  return { plan, planLabel, limits, can, meets, isLoading: subLoading, sub, isPlatformAdmin: false };
 }

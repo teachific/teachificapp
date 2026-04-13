@@ -204,11 +204,15 @@ async function requireOrgRole(
     // Return a synthetic member object so callers don't need to handle null
     return { userId, orgId, role: "org_admin" as const, createdAt: new Date() };
   }
-  // org_super_admin always has full access to their org — bypass member lookup
+  // org_super_admin has full access ONLY to their own org(s) — must verify membership
+  const member = await getOrgMember(userId, orgId);
   if (userRole === "org_super_admin") {
+    // Must be a member of this specific org
+    if (!member) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "You do not have access to this organization" });
+    }
     return { userId, orgId, role: "org_admin" as const, createdAt: new Date() };
   }
-  const member = await getOrgMember(userId, orgId);
   // Also accept org_super_admin at the member level (belt-and-suspenders)
   if (!member || !(["org_super_admin", ...allowedRoles]).includes(member.role)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient permissions" });
