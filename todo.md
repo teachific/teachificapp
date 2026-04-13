@@ -2686,3 +2686,21 @@
 - [x] Fix auth guard: updated context.ts to fall back to teachific_session when app_session_id is absent
 - [x] OAuth callback not involved — issue was custom email/password session not populating ctx.user
 - [x] TypeScript check (0 errors), 69 tests passing, checkpoint saved
+
+## Bug Fix: /lms blank page (Round 2 — Apr 13, 2026)
+- [ ] Add debug logging to context.ts to confirm which cookie path is being hit
+- [ ] Check if teachific_session cookie is actually being sent to the server on teachific.app
+- [ ] Verify the deployed server has the updated context.ts (not serving stale build)
+- [ ] Check if the issue is SameSite=Lax blocking the cookie on navigation from external referrer
+- [ ] Investigate whether the issue is the DashboardLayout orgCtx loading state causing infinite skeleton
+- [ ] Fix and checkpoint
+
+## Bug Fix: Blank white page on teachific.app/lms + preview (Apr 13, 2026)
+- [x] Check browser console for JS errors / uncaught exceptions on page load
+- [x] Check if the Vite build is failing or producing broken chunks — no build errors
+- [x] Check for import errors — fixed authCache.ts import, returnPath/returnTo mismatch
+- [x] Fix root cause: LoginPage now seeds auth.me cache after customAuth.login success; preview loads correctly
+- [x] TypeScript check (0 errors), 69 tests passing
+
+## Bug Fix: App links returning 404 (Apr 13, 2026)
+- [x] Fix QuizCreator™, Teachific Studio™, TeachificCreator™ sidebar links to open external URLs in new tab instead of navigating internally

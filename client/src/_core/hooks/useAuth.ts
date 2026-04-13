@@ -2,8 +2,7 @@ import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
-
-const CACHE_KEY = "manus-runtime-user-info";
+import { CACHE_KEY } from "@/lib/authCache";
 
 /** Read the last-known user from localStorage — used as optimistic initial state */
 function getCachedUser() {

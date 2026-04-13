@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Loader2, BookOpen, Users, TrendingUp, Award } from "lucide-react";
+import { CACHE_KEY } from "@/lib/authCache";
 
 const NAVY = "#0b1d35";
 const NAVY_MID = "#0f2847";
@@ -23,7 +24,8 @@ export default function LoginPage() {
   const [, navigate] = useLocation();
   const search = useSearch();
   const params = new URLSearchParams(search);
-  const returnTo = params.get("returnTo") ?? "";
+  // Support both "returnTo" and "returnPath" for backwards compat
+  const returnTo = params.get("returnTo") ?? params.get("returnPath") ?? "";
 
   // Desktop app context: detect via context=desktop param OR returnTo pointing to app routes
   const contextParam = params.get("context") ?? "";
@@ -36,8 +38,15 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
+  const utils = trpc.useUtils();
   const login = trpc.customAuth.login.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Seed the auth.me cache immediately so DashboardLayout doesn't flash
+      // the "Sign in" screen before the background refetch completes.
+      if (data.user) {
+        utils.auth.me.setData(undefined, data.user as never);
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(data.user)); } catch {}
+      }
       navigate(returnTo || "/lms");
     },
     onError: (err) => {

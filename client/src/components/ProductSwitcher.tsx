@@ -3,7 +3,6 @@
  * Shows links to other Teachific products the current user is subscribed to.
  * Renders nothing if the user has no cross-product subscriptions.
  */
-import { Link } from "wouter";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
 import { LayoutDashboard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +26,9 @@ const PRODUCTS = [
     key: "lms" as const,
     label: "Teachific LMS",
     shortLabel: "LMS",
-    path: "/lms",
+    // LMS is the current app — navigates internally
+    href: "/lms",
+    external: false,
     iconUrl: null as string | null,
     color: "text-[#15a4b7]",
     bg: "bg-[#15a4b7]/10 hover:bg-[#15a4b7]/20",
@@ -37,7 +38,8 @@ const PRODUCTS = [
     key: "quizCreator" as const,
     label: "QuizCreator™",
     shortLabel: "Quiz",
-    path: "/quiz-creator",
+    href: "https://quizcreator.teachific.app",
+    external: true,
     iconUrl: PRODUCT_ICON_URLS.quizCreator,
     color: "text-[#0e8a96]",
     bg: "bg-[#0e8a96]/10 hover:bg-[#0e8a96]/20",
@@ -47,7 +49,8 @@ const PRODUCTS = [
     key: "studio" as const,
     label: "Teachific Studio™",
     shortLabel: "Studio",
-    path: "/studio",
+    href: "https://studio.teachific.app",
+    external: true,
     iconUrl: PRODUCT_ICON_URLS.studio,
     color: "text-[#15a4b7]",
     bg: "bg-[#15a4b7]/10 hover:bg-[#15a4b7]/20",
@@ -57,7 +60,8 @@ const PRODUCTS = [
     key: "creator" as const,
     label: "TeachificCreator™",
     shortLabel: "Creator",
-    path: "/creator",
+    href: "https://creator.teachific.app",
+    external: true,
     iconUrl: PRODUCT_ICON_URLS.creator,
     color: "text-[#4ad9e0]",
     bg: "bg-[#189aa1]/10 hover:bg-[#189aa1]/20",
@@ -95,7 +99,12 @@ export function ProductSwitcher({ current, variant = "topbar" }: ProductSwitcher
               product.key !== "lms" &&
               (subs as any)[product.key]?.isInTrial;
             return (
-              <Link key={product.key} href={product.path}>
+              <a
+                key={product.key}
+                href={product.href}
+                target={product.external ? "_blank" : undefined}
+                rel={product.external ? "noopener noreferrer" : undefined}
+              >
                 <button className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${product.bg} ${product.color}`}>
                   {product.iconUrl ? (
                     <img src={product.iconUrl} alt={product.label} className="w-4 h-4 rounded shrink-0" />
@@ -109,7 +118,7 @@ export function ProductSwitcher({ current, variant = "topbar" }: ProductSwitcher
                     </Badge>
                   )}
                 </button>
-              </Link>
+              </a>
             );
           })}
         </div>
@@ -122,7 +131,12 @@ export function ProductSwitcher({ current, variant = "topbar" }: ProductSwitcher
     <div className="flex items-center gap-1.5">
       <span className="text-xs text-white/30 mr-1">Switch to:</span>
       {available.map((product) => (
-        <Link key={product.key} href={product.path}>
+        <a
+          key={product.key}
+          href={product.href}
+          target={product.external ? "_blank" : undefined}
+          rel={product.external ? "noopener noreferrer" : undefined}
+        >
           <button
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${product.bg} ${product.color} ${product.border}`}
           >
@@ -133,7 +147,7 @@ export function ProductSwitcher({ current, variant = "topbar" }: ProductSwitcher
             )}
             {product.shortLabel}
           </button>
-        </Link>
+        </a>
       ))}
     </div>
   );
