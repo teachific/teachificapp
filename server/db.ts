@@ -237,21 +237,46 @@ export async function getOrgsByUserId(userId: number) {
   });
 }
 
-/** Returns the primary orgId for a user — prefers isPrimary org, then falls back to first membership. */
+/** Returns the primary orgId for a user.
+ * Priority order:
+ * 1. Org where user has role = org_super_admin
+ * 2. Org where user has role = org_admin
+ * 3. Org marked as isPrimary
+ * 4. First membership row (fallback)
+ * This ensures org_super_admin users always land in their own org, not a platform org they were accidentally added to as a plain member.
+ */
 export async function getOrgIdForUser(userId: number): Promise<number | null> {
   const db = await getDb();
   if (!db) return null;
-  // First try to find the org marked as primary
-  const primaryOrg = await db
-    .select({ id: organizations.id })
-    .from(organizations)
-    .innerJoin(orgMembers, eq(orgMembers.orgId, organizations.id))
-    .where(and(eq(orgMembers.userId, userId), eq(organizations.isPrimary, true)))
-    .limit(1);
-  if (primaryOrg[0]) return primaryOrg[0].id;
-  // Fall back to first membership row
-  const rows = await db.select({ orgId: orgMembers.orgId }).from(orgMembers).where(eq(orgMembers.userId, userId)).limit(1);
-  return rows[0]?.orgId ?? null;
+  // Get all memberships ordered by role priority
+  const allMemberships = await db
+    .select({ orgId: orgMembers.orgId, role: orgMembers.role, isPrimary: organizations.isPrimary })
+    .from(orgMembers)
+    .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+    .where(eq(orgMembers.userId, userId));
+  if (allMemberships.length === 0) return null;
+  // Role priority: org_super_admin > org_admin > sub_admin > instructor > member/user
+  const ROLE_PRIORITY: Record<string, number> = {
+    org_super_admin: 100,
+    org_admin: 90,
+    sub_admin: 70,
+    instructor: 60,
+    group_manager: 50,
+    group_member: 40,
+    member: 20,
+    user: 10,
+  };
+  // Sort: highest role first, then isPrimary as tiebreaker
+  const sorted = [...allMemberships].sort((a, b) => {
+    const pa = ROLE_PRIORITY[a.role] ?? 0;
+    const pb = ROLE_PRIORITY[b.role] ?? 0;
+    if (pb !== pa) return pb - pa;
+    // Tiebreak: prefer non-primary (personal workspace) orgs for platform members
+    if (a.isPrimary && !b.isPrimary) return 1;
+    if (!a.isPrimary && b.isPrimary) return -1;
+    return 0;
+  });
+  return sorted[0].orgId;
 }
 
 // ─── Org Members ───────────────────────────────────────────────────────────────

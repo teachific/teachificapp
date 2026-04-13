@@ -508,6 +508,7 @@ export const appRouter = router({
     list: adminProcedure.query(() => getAllOrgs()),
     myOrgs: protectedProcedure.query(({ ctx }) => getOrgsByUserId(ctx.user.id)),
     // Returns the user's primary org + their role in it (auto-detected, no manual selection needed)
+    // Priority: highest role first (org_super_admin > org_admin > member), then isPrimary as tiebreaker
     myContext: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return null;
@@ -515,15 +516,27 @@ export const appRouter = router({
         .select({ org: organizations, role: orgMembers.role })
         .from(orgMembers)
         .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
-        .where(eq(orgMembers.userId, ctx.user.id))
-        // Primary org comes first, then alphabetical
-        .orderBy(sql`CASE WHEN ${organizations.isPrimary} = 1 THEN 0 ELSE 1 END`, organizations.name)
-        .limit(1);
-      if (!rows[0]) return null;
-      const subscription = await getOrgSubscription(rows[0].org.id);
+        .where(eq(orgMembers.userId, ctx.user.id));
+      if (rows.length === 0) return null;
+      // Role priority: org_super_admin > org_admin > sub_admin > instructor > member/user
+      const ROLE_PRIORITY: Record<string, number> = {
+        org_super_admin: 100, org_admin: 90, sub_admin: 70,
+        instructor: 60, group_manager: 50, group_member: 40, member: 20, user: 10,
+      };
+      const sorted = [...rows].sort((a, b) => {
+        const pa = ROLE_PRIORITY[a.role] ?? 0;
+        const pb = ROLE_PRIORITY[b.role] ?? 0;
+        if (pb !== pa) return pb - pa;
+        // Tiebreak: non-primary org first (personal workspaces rank lower)
+        const aIsPrimary = a.org.isPrimary ? 1 : 0;
+        const bIsPrimary = b.org.isPrimary ? 1 : 0;
+        return aIsPrimary - bIsPrimary;
+      });
+      const best = sorted[0];
+      const subscription = await getOrgSubscription(best.org.id);
       return {
-        org: rows[0].org,
-        role: rows[0].role as "org_admin" | "user",
+        org: best.org,
+        role: best.role as "org_admin" | "user",
         subscription: subscription ?? null,
       };
     }),
