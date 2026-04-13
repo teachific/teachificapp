@@ -196,7 +196,7 @@ import { getOrgMembers, getUserById } from "./db";
 async function requireOrgRole(
   userId: number,
   orgId: number,
-  allowedRoles: string[] = ["org_admin", "sub_admin", "instructor"],
+  allowedRoles: string[] = ["org_super_admin", "org_admin", "sub_admin", "instructor"],
   userRole?: string
 ) {
   // Platform admins (site_owner, site_admin) can access any org without being a member
@@ -204,15 +204,20 @@ async function requireOrgRole(
     // Return a synthetic member object so callers don't need to handle null
     return { userId, orgId, role: "org_admin" as const, createdAt: new Date() };
   }
+  // org_super_admin always has full access to their org — bypass member lookup
+  if (userRole === "org_super_admin") {
+    return { userId, orgId, role: "org_admin" as const, createdAt: new Date() };
+  }
   const member = await getOrgMember(userId, orgId);
-  if (!member || !allowedRoles.includes(member.role)) {
+  // Also accept org_super_admin at the member level (belt-and-suspenders)
+  if (!member || !(["org_super_admin", ...allowedRoles]).includes(member.role)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient permissions" });
   }
   return member;
 }
 
 async function requireOrgAdmin(userId: number, orgId: number, userRole?: string) {
-  return requireOrgRole(userId, orgId, ["org_admin", "sub_admin"], userRole);
+  return requireOrgRole(userId, orgId, ["org_super_admin", "org_admin", "sub_admin"], userRole);
 }
 
 // ─── Router ──────────────────────────────────────────────────────────────────
@@ -402,9 +407,9 @@ export const lmsRouter = router({
         const course = await getCourseById(input.id);
         if (!course) throw new TRPCError({ code: "NOT_FOUND" });
         const member = await requireOrgRole(ctx.user.id, course.orgId, undefined, ctx.user.role);
-        // Gate hidden/private to Pro and Enterprise tiers (bypassed for platform admins)
+        // Gate hidden/private to Pro and Enterprise tiers (bypassed for platform admins and org super admins)
         if ((input.status === "hidden" || input.status === "private") &&
-            ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+            ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin" && ctx.user.role !== "org_super_admin") {
           const sub = await getOrgSubscription(course.orgId);
           const tier = sub?.plan || "free";
           if (!tier.includes("pro") && !tier.includes("enterprise")) {
@@ -476,7 +481,7 @@ export const lmsRouter = router({
       )
       .mutation(async ({ input, ctx }) => {
         // Tier gate: drip scheduling requires Builder+ (bypassed for platform admins)
-        const _isPlatformAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin";
+        const _isPlatformAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin" || ctx.user.role === "org_super_admin";
         if (!_isPlatformAdmin && (input.drip || input.dripDays) && input.courseId) {
           const course = await getCourseById(input.courseId);
           if (course) {
@@ -729,7 +734,7 @@ export const lmsRouter = router({
           const course = await getCourseById(input.courseId);
           if (course) {
             const member = await getOrgMember(ctx.user.id, course.orgId);
-            if (member && ["org_admin", "sub_admin", "instructor"].includes(member.role)) {
+            if (member && ["org_super_admin", "org_admin", "sub_admin", "instructor"].includes(member.role)) {
               return { enrollment: null, lessonProgress: [], isPreview: true };
             }
           }
@@ -1224,8 +1229,8 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
       )
       .mutation(async ({ input, ctx }) => {
         await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
-        // Tier gate: AI generation requires Starter+ (bypassed for platform admins)
-        if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        // Tier gate: AI generation requires Starter+ (bypassed for platform admins and org super admins)
+        if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin" && ctx.user.role !== "org_super_admin") {
           const sub = await getOrgSubscription(input.orgId);
           if (!getLimits(sub?.plan).aiGeneration) {
             throw new TRPCError({ code: "FORBIDDEN", message: "AI course generation requires a Starter plan or higher. Please upgrade to use this feature." });
@@ -1387,7 +1392,7 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
       )
       .mutation(async ({ input, ctx }) => {
         await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
-        if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin" && ctx.user.role !== "org_super_admin") {
           const sub = await getOrgSubscription(input.orgId);
           if (!getLimits(sub?.plan).aiGeneration) {
             throw new TRPCError({ code: "FORBIDDEN", message: "AI course generation requires a Starter plan or higher." });
@@ -2058,8 +2063,8 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
       }))
       .mutation(async ({ input, ctx }) => {
         await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
-        // Webinars require Builder plan or higher (bypassed for platform admins)
-        if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        // Webinars require Builder plan or higher (bypassed for platform admins and org super admins)
+        if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin" && ctx.user.role !== "org_super_admin") {
           const sub = await getOrgSubscription(input.orgId);
           if (!getLimits(sub?.plan).upsellFunnels) {
             throw new TRPCError({

@@ -89,8 +89,8 @@ export const communityRouter = router({
       description: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      // Platform admins bypass community count limits
-      const _isPlatformAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin";
+      // Platform admins and org super admins bypass community count limits
+      const _isPlatformAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin" || ctx.user.role === "org_super_admin";
       if (!_isPlatformAdmin) {
         const [sub] = await db.select().from(orgSubscriptions).where(eq(orgSubscriptions.orgId, input.orgId)).limit(1);
         const limits = getLimits(sub?.plan);

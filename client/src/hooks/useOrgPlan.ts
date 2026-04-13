@@ -30,21 +30,21 @@ const UNLIMITED_LIMITS: TierLimits = {
 
 /**
  * Returns the current org's subscription plan and limits.
- * Platform admins (site_owner, site_admin) always get unlimited access
+ * Platform admins (site_owner, site_admin) and org super admins always get unlimited access
  * regardless of the org's actual subscription plan.
  * Falls back to "free" if no subscription exists for regular users.
  */
 export function useOrgPlan(orgId: number | null | undefined) {
   const { user } = useAuth();
-  const isPlatformAdmin = user?.role === "site_owner" || user?.role === "site_admin";
+  const isPlatformAdmin = user?.role === "site_owner" || user?.role === "site_admin" || user?.role === "org_super_admin";
 
   const { data: sub, isLoading } = trpc.lms.subscription.get.useQuery(
     { orgId: orgId! },
-    // Skip the subscription query entirely for platform admins — they always have full access
+    // Skip the subscription query entirely for platform admins and org super admins — they always have full access
     { enabled: !!orgId && !isPlatformAdmin }
   );
 
-  // Platform admins bypass every plan gate — treat as unlimited enterprise
+  // Platform admins and org super admins bypass every plan gate — treat as unlimited enterprise
   if (isPlatformAdmin) {
     return {
       plan: "enterprise" as PlanTier,

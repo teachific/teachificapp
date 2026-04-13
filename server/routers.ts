@@ -126,9 +126,9 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 
-// org_admin can manage their own org; site_admin + site_owner can manage any org
+// org_admin / org_super_admin can manage their own org; site_admin + site_owner can manage any org
 const orgAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (!(["site_owner", "site_admin", "org_admin"] as string[]).includes(ctx.user.role)) {
+  if (!(["site_owner", "site_admin", "org_super_admin", "org_admin"] as string[]).includes(ctx.user.role)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Organization admin access required" });
   }
   return next({ ctx });
@@ -547,7 +547,7 @@ export const appRouter = router({
           .where(eq(orgMembers.userId, ctx.user.id))
           .limit(1);
         if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "No organization found" });
-        if (rows[0].role !== "org_admin" && ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        if (rows[0].role !== "org_admin" && rows[0].role !== "org_super_admin" && ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin" && ctx.user.role !== "org_super_admin") {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
         await updateOrg(rows[0].org.id, input);
@@ -581,7 +581,7 @@ export const appRouter = router({
           .where(eq(orgMembers.userId, ctx.user.id))
           .limit(1);
         if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "No organization found" });
-        if (rows[0].role !== "org_admin" && ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+        if (rows[0].role !== "org_admin" && rows[0].role !== "org_super_admin" && ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin" && ctx.user.role !== "org_super_admin") {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
         const ext = input.fileName.split(".").pop() ?? "png";
@@ -654,7 +654,7 @@ export const appRouter = router({
         if (!row && ctx.user.role !== 'site_owner' && ctx.user.role !== 'site_admin') {
           throw new TRPCError({ code: 'FORBIDDEN' });
         }
-        if (row && row.role !== 'org_admin' && ctx.user.role !== 'site_owner' && ctx.user.role !== 'site_admin') {
+        if (row && row.role !== 'org_admin' && row.role !== 'org_super_admin' && ctx.user.role !== 'site_owner' && ctx.user.role !== 'site_admin' && ctx.user.role !== 'org_super_admin') {
           throw new TRPCError({ code: 'FORBIDDEN' });
         }
         const { orgId, ...data } = input;
@@ -723,8 +723,8 @@ export const appRouter = router({
         if (ctx.user.role === "site_owner" || ctx.user.role === "site_admin") {
           return input?.orgId ? getPackagesByOrg(input.orgId) : getAllPackages();
         }
-        // org_admin: always scoped to their assigned org only
-        if (ctx.user.role === "org_admin") {
+        // org_admin / org_super_admin: always scoped to their assigned org only
+        if (ctx.user.role === "org_admin" || ctx.user.role === "org_super_admin") {
           const orgId = await getOrgIdForUser(ctx.user.id);
           if (!orgId) return [];
           return getPackagesByOrg(orgId);
@@ -1152,8 +1152,8 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     listByPackage: protectedProcedure
       .input(z.object({ packageId: z.number(), limit: z.number().optional() }))
       .query(async ({ input, ctx }) => {
-        // org_admin: verify the package belongs to their org
-        if (ctx.user.role === "org_admin") {
+        // org_admin / org_super_admin: verify the package belongs to their org
+        if (ctx.user.role === "org_admin" || ctx.user.role === "org_super_admin") {
           const orgId = await getOrgIdForUser(ctx.user.id);
           const pkg = await getPackageById(input.packageId);
           if (!pkg || pkg.orgId !== orgId) throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
@@ -1198,8 +1198,8 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     summary: protectedProcedure
       .input(z.object({ orgId: z.number().optional() }))
       .query(async ({ input, ctx }) => {
-        // org_admin: always scope to their assigned org
-        if (ctx.user.role === "org_admin") {
+        // org_admin / org_super_admin: always scope to their assigned org
+        if (ctx.user.role === "org_admin" || ctx.user.role === "org_super_admin") {
           const orgId = await getOrgIdForUser(ctx.user.id);
           return getAnalyticsSummary(orgId ?? undefined);
         }
@@ -1209,8 +1209,8 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     byPackage: protectedProcedure
       .input(z.object({ packageId: z.number() }))
       .query(async ({ input, ctx }) => {
-        // org_admin: verify the package belongs to their org before returning data
-        if (ctx.user.role === "org_admin") {
+        // org_admin / org_super_admin: verify the package belongs to their org before returning data
+        if (ctx.user.role === "org_admin" || ctx.user.role === "org_super_admin") {
           const orgId = await getOrgIdForUser(ctx.user.id);
           const pkg = await getPackageById(input.packageId);
           if (!pkg || pkg.orgId !== orgId) throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
@@ -1683,8 +1683,8 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     list: protectedProcedure
       .input(z.object({ orgId: z.number() }))
       .query(async ({ input, ctx }) => {
-        // org_admin: always scope to their assigned org, ignore input.orgId
-        if (ctx.user.role === "org_admin") {
+        // org_admin / org_super_admin: always scope to their assigned org, ignore input.orgId
+        if (ctx.user.role === "org_admin" || ctx.user.role === "org_super_admin") {
           const orgId = await getOrgIdForUser(ctx.user.id);
           if (!orgId) return [];
           return getFoldersByOrg(orgId);
