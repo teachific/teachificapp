@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getOrgSubdomainUrl } from "@/hooks/useSubdomain";
+import { getOrgSubdomainUrl, getSubdomain } from "@/hooks/useSubdomain";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -477,9 +477,11 @@ function MemberDashboard() {
 // ─── Main Home Page ───────────────────────────────────────────────────────────
 export default function Home() {
   const { user } = useAuth();
-  const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(undefined, {
-    enabled: !!user,
-  });
+  const currentSubdomain = getSubdomain() ?? undefined;
+  const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(
+    { subdomain: currentSubdomain },
+    { enabled: !!user }
+  );
   const { data: myOrgs, isLoading: orgsLoading } = trpc.orgs.myOrgs.useQuery(undefined, {
     enabled: !!user,
   });

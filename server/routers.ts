@@ -509,7 +509,9 @@ export const appRouter = router({
     myOrgs: protectedProcedure.query(({ ctx }) => getOrgsByUserId(ctx.user.id)),
     // Returns the user's primary org + their role in it (auto-detected, no manual selection needed)
     // Priority: highest role first (org_super_admin > org_admin > member), then isPrimary as tiebreaker
-    myContext: protectedProcedure.query(async ({ ctx }) => {
+    myContext: protectedProcedure
+      .input(z.object({ subdomain: z.string().optional() }).optional())
+      .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) return null;
       const rows = await db
@@ -518,6 +520,19 @@ export const appRouter = router({
         .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
         .where(eq(orgMembers.userId, ctx.user.id));
       if (rows.length === 0) return null;
+      // If a subdomain is provided (user is on an org subdomain), scope to that org
+      const subdomain = input?.subdomain;
+      if (subdomain) {
+        const match = rows.find(r => r.org.slug?.toLowerCase() === subdomain.toLowerCase());
+        if (match) {
+          const subscription = await getOrgSubscription(match.org.id);
+          return {
+            org: match.org,
+            role: match.role as "org_super_admin" | "org_admin" | "site_owner" | "site_admin" | "sub_admin" | "instructor" | "member" | "user",
+            subscription: subscription ?? null,
+          };
+        }
+      }
       // Role priority: org_super_admin > org_admin > sub_admin > instructor > member/user
       const ROLE_PRIORITY: Record<string, number> = {
         org_super_admin: 100, org_admin: 90, sub_admin: 70,

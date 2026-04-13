@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { getSubdomain } from "@/hooks/useSubdomain";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,9 +78,11 @@ export default function LmsDashboardPage() {
   const [, setLocation] = useLocation();
   const [days] = useState(30);
 
-  const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(undefined, {
-    enabled: !!user,
-  });
+  const currentSubdomain = getSubdomain() ?? undefined;
+  const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(
+    { subdomain: currentSubdomain },
+    { enabled: !!user }
+  );
 
   const orgId = orgCtx?.org?.id;
 

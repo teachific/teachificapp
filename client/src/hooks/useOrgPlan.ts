@@ -1,6 +1,7 @@
 import { trpc } from "@/lib/trpc";
 import { getLimits, meetsRequirement, PLAN_LABELS, type PlanTier, type TierLimits } from "../../../shared/tierLimits";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { getSubdomain } from "@/hooks/useSubdomain";
 
 /** Unlimited limits — every feature enabled, every numeric cap is null (unlimited) */
 const UNLIMITED_LIMITS: TierLimits = {
@@ -43,8 +44,9 @@ export function useOrgPlan(orgId: number | null | undefined) {
   const isPlatformAdmin = user?.role === "site_owner" || user?.role === "site_admin";
 
   // org_super_admin only bypasses plan gates for their own org — fetch their org context to verify
+  const currentSubdomain = getSubdomain() ?? undefined;
   const { data: myContext, isLoading: contextLoading } = trpc.orgs.myContext.useQuery(
-    undefined,
+    { subdomain: currentSubdomain },
     { enabled: !!user && user.role === "org_super_admin" && !!orgId }
   );
   const isOrgSuperAdminOfThisOrg =

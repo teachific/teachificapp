@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
+import { getSubdomain } from "@/hooks/useSubdomain";
 import { usePlanLimits, PLAN_DISPLAY } from "@/hooks/usePlanLimits";
 import {
   Activity,
@@ -262,10 +263,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  // Detect subdomain so myContext scopes to the correct org when on a subdomain
+  const currentSubdomain = getSubdomain() ?? undefined;
   // Fetch org membership role to determine if user is admin or a regular member
-  const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(undefined, {
-    enabled: !!user,
-  });
+  const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(
+    { subdomain: currentSubdomain },
+    { enabled: !!user }
+  );
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());

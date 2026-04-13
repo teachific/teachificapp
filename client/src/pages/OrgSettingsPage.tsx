@@ -21,6 +21,7 @@ import {
   AlertTriangle, RefreshCw, DollarSign, ArrowDownCircle, History, ShieldAlert, ReceiptText,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { getSubdomain } from "@/hooks/useSubdomain";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -30,9 +31,11 @@ export default function OrgSettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const watermarkInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(undefined, {
-    enabled: !!user,
-  });
+  const currentSubdomain = getSubdomain() ?? undefined;
+  const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(
+    { subdomain: currentSubdomain },
+    { enabled: !!user }
+  );
 
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
