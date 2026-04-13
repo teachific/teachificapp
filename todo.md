@@ -2680,3 +2680,9 @@
 - [x] On success: toast confirms URL unchanged, invalidates media cache, refetches list
 - [x] Write vitest tests for replace route logic (7 tests passing in server/mediaReplace.test.ts)
 - [x] TypeScript check (0 errors) and checkpoint saved
+
+## Bug Fix: /lms blank page + auth redirect loop (Apr 13, 2026)
+- [x] Diagnose blank page at teachific.app/lms after login — root cause: two parallel auth systems (app_session_id vs teachific_session); ctx.user was always null for custom-login users
+- [x] Fix auth guard: updated context.ts to fall back to teachific_session when app_session_id is absent
+- [x] OAuth callback not involved — issue was custom email/password session not populating ctx.user
+- [x] TypeScript check (0 errors), 69 tests passing, checkpoint saved
