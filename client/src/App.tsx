@@ -372,7 +372,9 @@ function Router() {
     path.startsWith("/creator") ||
     path.startsWith("/policies") ||
     path === "/terms" ||
-    path === "/privacy";
+    path === "/privacy" ||
+    path === "/help" ||
+    path.startsWith("/community/");
   return isBare ? <BareRouter /> : <AdminRouter />;
 }
 

@@ -200,7 +200,7 @@ export default function QuizCreatorLandingPage() {
               <a href="#features" className="hover:text-white transition-colors">Features</a>
               <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
               <a href="#testimonials" className="hover:text-white transition-colors">Reviews</a>
-              <Link href="/quiz-creator" className="hover:text-white transition-colors">Dashboard</Link>
+              <Link href="/quiz-creator-app" className="hover:text-white transition-colors">Dashboard</Link>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -249,7 +249,7 @@ export default function QuizCreatorLandingPage() {
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
-            <Link href="/quiz-creator">
+            <Link href="/quiz-creator-app">
               <Button
                 variant="outline"
                 className="border-white/20 text-white hover:bg-white/10 text-lg px-10 py-4 rounded-xl h-auto"

@@ -217,7 +217,9 @@ export const customAuthRouter = router({
       if (!db) return { success: true };
 
       const [user] = await db.select().from(users).where(eq(users.email, input.email.toLowerCase())).limit(1);
-      if (!user || !user.passwordHash) return { success: true };
+      // Return success even if user not found (prevents email enumeration)
+      if (!user) return { success: true };
+      // Allow reset even for OAuth accounts (no passwordHash) so they can set a password
 
       const resetToken = generateToken();
       const resetExpiry = new Date(Date.now() + 60 * 60 * 1000);

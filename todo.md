@@ -2704,3 +2704,56 @@
 
 ## Bug Fix: App links returning 404 (Apr 13, 2026)
 - [x] Fix QuizCreator™, Teachific Studio™, TeachificCreator™ sidebar links to open external URLs in new tab instead of navigating internally
+
+## App Links Audit (Apr 13, 2026)
+- [x] Audit all links for QuizCreator™, Teachific Studio™, TeachificCreator™ across codebase
+- [x] ProductSwitcher: fixed to use /quiz-creator-app, /studio, /creator (internal routes, no new tab)
+- [x] QuizCreatorLandingPage: fixed "Dashboard" links from /quiz-creator to /quiz-creator-app
+- [x] All other links confirmed correct: -pro pages for marketing, /creator /studio /quiz-creator-app for dashboards
+- [x] TypeScript check (0 errors) and checkpoint
+
+## Bug Fix: /help returning 404 (Apr 13, 2026)
+- [ ] Diagnose why /help returns 404 — check route registration in App.tsx
+- [ ] Do full broken-route audit across the app
+- [ ] Fix all broken routes
+- [ ] TypeScript check and checkpoint
+
+## Bug Fix: Desktop app downloads require GitHub login (Apr 13, 2026)
+- [ ] Find all download URLs in DesktopDownloadPage and related components
+- [ ] Replace private GitHub release URLs with public download URLs
+- [ ] TypeScript check and checkpoint
+
+## Electron Desktop Apps (Apr 13, 2026)
+- [ ] Scaffold TeachificCreator™ Electron app (wraps /creator route)
+- [ ] Scaffold Teachific Studio™ Electron app (wraps /studio route)
+- [ ] Scaffold Teachific QuizCreator™ Electron app (wraps /quiz-creator-app route)
+- [ ] Configure electron-builder for Windows NSIS (.exe) and macOS DMG (.dmg)
+- [ ] Set up GitHub Actions CI for cross-platform builds (Windows + macOS)
+- [ ] Upload built installers to S3
+- [ ] Wire up signed S3 download endpoint (pre-signed URL, 60s expiry)
+- [ ] Update app_versions table with real S3 download URLs
+- [ ] TypeScript check and checkpoint
+
+## Bug Fix: Password reset email not sending (Apr 13, 2026)
+- [ ] Check forgotPassword procedure in customAuthRouter.ts
+- [ ] Verify SendGrid API key is configured and working
+- [ ] Check email template and from address
+- [ ] Test password reset flow end-to-end
+- [ ] Fix and checkpoint
+
+## Bug Fix Batch (Apr 13, 2026)
+- [ ] Fix forgotPassword: remove passwordHash guard so all accounts (OAuth + email) can reset/set password
+- [ ] Fix authCache import error (stale Vite log from before file was created — verify it's actually resolved)
+- [ ] Fix /help 404 — add to isBare list in App.tsx
+- [ ] Fix app links 404 — ProductSwitcher using correct internal routes
+- [ ] Manually set passwordHash for admin@allaboutultrasound.com via reset flow
+- [ ] Fix feature gate: AI Course Generation upgrade prompt shown even when org has Enterprise plan — check org.plan not user Stripe subscription
+
+## Bug Fix: Platform Admin Data Integrity (Apr 13, 2026)
+- [ ] Fix createOrg in Platform Admin: automatically add owner as org_admin in org_members table
+- [ ] Fix createMember in Platform Admin: link new user to their org with correct role in org_members table
+- [ ] Fix feature gate: check org.plan tier (not Stripe subscription) for plan-gated features
+- [ ] Fix forgotPassword: remove passwordHash guard so all accounts can reset/set password
+- [ ] Fix authCache import error in LoginPage.tsx
+- [ ] Fix admin@allaboutultrasound.com: add as org_admin of All About Ultrasound org in DB
+- [ ] Fix dashboard loading skeleton: ensure org context loads for all admin accounts
