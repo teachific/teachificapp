@@ -536,7 +536,7 @@ export const appRouter = router({
       const subscription = await getOrgSubscription(best.org.id);
       return {
         org: best.org,
-        role: best.role as "org_admin" | "user",
+        role: best.role as "org_super_admin" | "org_admin" | "site_owner" | "site_admin" | "sub_admin" | "instructor" | "member" | "user",
         subscription: subscription ?? null,
       };
     }),
@@ -562,6 +562,11 @@ export const appRouter = router({
         if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "No organization found" });
         if (rows[0].role !== "org_admin" && rows[0].role !== "org_super_admin" && ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin" && ctx.user.role !== "org_super_admin") {
           throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        // Validate slug uniqueness if changing it
+        if (input.slug && input.slug !== rows[0].org.slug) {
+          const slugTaken = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, input.slug)).limit(1);
+          if (slugTaken.length) throw new TRPCError({ code: "CONFLICT", message: "This subdomain is already taken. Please choose another." });
         }
         await updateOrg(rows[0].org.id, input);
         return { success: true };
@@ -2018,7 +2023,7 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
     createOrgWithAdmin: adminProcedure
       .input(z.object({
         orgName: z.string().min(1),
-        orgSlug: z.string().min(1).regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only"),
+        orgSlug: z.string().min(1).regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only").optional(),
         adminName: z.string().min(1),
         adminEmail: z.string().email(),
         plan: z.enum(["free", "starter", "builder", "pro", "enterprise"]).optional().default("free"),
@@ -2028,9 +2033,19 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         if (!db2) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
         const { users: usersTable, organizations: orgsTable, orgMembers: orgMembersTable, orgSubscriptions: orgSubTable } = await import("../drizzle/schema");
         const { eq: eqOp } = await import("drizzle-orm");
-        // Check slug uniqueness
-        const existing = await db2.select({ id: orgsTable.id }).from(orgsTable).where(eqOp(orgsTable.slug, input.orgSlug)).limit(1);
-        if (existing.length) throw new TRPCError({ code: "CONFLICT", message: "An organization with this slug already exists" });
+        // Auto-generate slug from org name if not provided
+        const { generateUniqueOrgSlug } = await import("../shared/slugUtils");
+        const finalSlug = input.orgSlug
+          ? input.orgSlug
+          : await generateUniqueOrgSlug(input.orgName, async (s) => {
+              const rows = await db2.select({ id: orgsTable.id }).from(orgsTable).where(eqOp(orgsTable.slug, s)).limit(1);
+              return rows.length > 0;
+            });
+        // Check slug uniqueness if manually provided
+        if (input.orgSlug) {
+          const existing = await db2.select({ id: orgsTable.id }).from(orgsTable).where(eqOp(orgsTable.slug, finalSlug)).limit(1);
+          if (existing.length) throw new TRPCError({ code: "CONFLICT", message: "An organization with this slug already exists" });
+        }
         // Check if user exists by email, create if not
         const existingUsers = await db2.select().from(usersTable).where(eqOp(usersTable.email, input.adminEmail)).limit(1);
         let adminUserId: number;
@@ -2054,7 +2069,7 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         // Create the org
         const [orgResult] = await db2.insert(orgsTable).values({
           name: input.orgName,
-          slug: input.orgSlug,
+          slug: finalSlug,
           ownerId: adminUserId,
           isActive: true,
         });

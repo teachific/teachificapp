@@ -43,3 +43,37 @@ export function useSubdomain(): string | null {
   // This is a pure synchronous read — no need for useState/useEffect
   return getSubdomain();
 }
+
+/**
+ * Returns true if the current environment supports real subdomains
+ * (i.e. we're on teachific.app, not localhost or a Manus preview URL).
+ */
+export function supportsSubdomains(): boolean {
+  const hostname = window.location.hostname;
+  return !ROOT_DOMAINS.has(hostname) && !MANUS_PREVIEW_PATTERN.test(hostname) && hostname !== "localhost" && hostname !== "127.0.0.1";
+}
+
+/**
+ * Builds the full URL for an org's subdomain.
+ * On teachific.app: returns https://slug.teachific.app/path
+ * On localhost/preview: returns /school/slug/path (fallback, no real subdomain)
+ */
+export function getOrgSubdomainUrl(slug: string, path = ""): string {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  const port = window.location.port;
+
+  // On localhost or Manus preview, can't use real subdomains — use /school/:slug fallback
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    MANUS_PREVIEW_PATTERN.test(hostname)
+  ) {
+    const portSuffix = port ? `:${port}` : "";
+    return `${protocol}//${hostname}${portSuffix}/school/${slug}${path}`;
+  }
+
+  // On root domain (teachific.app or www.teachific.app), build the subdomain URL
+  const rootDomain = hostname.replace(/^www\./, "");
+  return `${protocol}//${slug}.${rootDomain}${path}`;
+}

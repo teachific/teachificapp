@@ -205,7 +205,7 @@ async function requireOrgRole(
     return { userId, orgId, role: "org_admin" as const, createdAt: new Date() };
   }
   // org_super_admin has full access ONLY to their own org(s) — must verify membership
-  const member = await getOrgMember(userId, orgId);
+  const member = await getOrgMember(orgId, userId);
   if (userRole === "org_super_admin") {
     // Must be a member of this specific org
     if (!member) {
@@ -737,7 +737,7 @@ export const lmsRouter = router({
           // Allow org admins/sub-admins/instructors to preview without enrollment
           const course = await getCourseById(input.courseId);
           if (course) {
-            const member = await getOrgMember(ctx.user.id, course.orgId);
+            const member = await getOrgMember(course.orgId, ctx.user.id);
             if (member && ["org_super_admin", "org_admin", "sub_admin", "instructor"].includes(member.role)) {
               return { enrollment: null, lessonProgress: [], isPreview: true };
             }

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Loader2, BookOpen, Users, TrendingUp, Award } from "lucide-react";
 import { CACHE_KEY } from "@/lib/authCache";
+import { getOrgSubdomainUrl, getSubdomain } from "@/hooks/useSubdomain";
 
 const NAVY = "#0b1d35";
 const NAVY_MID = "#0f2847";
@@ -47,6 +48,20 @@ export default function LoginPage() {
         utils.auth.me.setData(undefined, data.user as never);
         try { localStorage.setItem(CACHE_KEY, JSON.stringify(data.user)); } catch {}
       }
+
+      // If we're at the root domain and the user belongs to an org,
+      // redirect immediately to their org subdomain — zero delay.
+      const isAtRoot = !getSubdomain();
+      const orgSlug = (data as any).orgSlug as string | null;
+      if (isAtRoot && orgSlug) {
+        // Cache the orgSlug so Home.tsx can redirect instantly without waiting for API
+        try { localStorage.setItem("teachific_org_slug", orgSlug); } catch {}
+        const dest = getOrgSubdomainUrl(orgSlug, returnTo || "/lms");
+        window.location.href = dest;
+        return;
+      }
+
+      // Platform admins or subdomain logins: stay on current domain
       navigate(returnTo || "/lms");
     },
     onError: (err) => {

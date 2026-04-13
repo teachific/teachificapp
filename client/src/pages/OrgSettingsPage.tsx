@@ -295,16 +295,27 @@ export default function OrgSettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="org-slug">URL Slug</Label>
-                <Input
-                  id="org-slug"
-                  value={orgSlug}
-                  onChange={(e) => setOrgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                  placeholder="acme-learning"
-                />
+                <Label htmlFor="org-slug">Subdomain</Label>
+                <div className="flex items-center">
+                  <Input
+                    id="org-slug"
+                    value={orgSlug}
+                    onChange={(e) => setOrgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                    placeholder="acme-learning"
+                    className="rounded-r-none border-r-0 flex-1"
+                  />
+                  <span className="h-10 px-3 flex items-center bg-muted border border-input rounded-r-md text-sm text-muted-foreground whitespace-nowrap select-none">.teachific.app</span>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Your organization will be accessible at:{" "}
-                  <span className="font-mono">teachific.app/{orgSlug}</span>
+                  Your school will be accessible at:{" "}
+                  <a
+                    href={`https://${orgSlug}.teachific.app`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-teal-600 hover:underline"
+                  >
+                    {orgSlug}.teachific.app
+                  </a>
                 </p>
               </div>
               <Button

@@ -317,7 +317,7 @@ function AdminRouter() {
 /**
  * SubdomainSchoolRouter
  * When the app is accessed via an org subdomain (e.g. allaboutultrasound.teachific.app),
- * render the school portal directly. All paths on that subdomain serve learner pages.
+ * serve both the learner portal AND the admin dashboard for org admins.
  */
 function SubdomainSchoolRouter({ subdomain }: { subdomain: string }) {
   return (
@@ -328,18 +328,87 @@ function SubdomainSchoolRouter({ subdomain }: { subdomain: string }) {
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/verify-email" component={VerifyEmailPage} />
-      {/* Course player */}
+
+      {/* ── Admin dashboard routes (org_admin / org_super_admin) ── */}
+      {/* These are served inside DashboardLayout on the subdomain */}
+      <Route path="/lms">{() => <DashboardLayout><LmsDashboardPage /></DashboardLayout>}</Route>
+      <Route path="/lms/dashboard">{() => <DashboardLayout><LmsDashboardPage /></DashboardLayout>}</Route>
+      <Route path="/lms/courses">{() => <DashboardLayout><CoursesPage /></DashboardLayout>}</Route>
+      <Route path="/lms/courses/new">{() => <DashboardLayout><CourseBuilderPage /></DashboardLayout>}</Route>
+      <Route path="/lms/courses/:id/curriculum">{() => <DashboardLayout><CourseBuilderPage /></DashboardLayout>}</Route>
+      <Route path="/lms/courses/:id/settings">{() => <DashboardLayout><CourseBuilderPage /></DashboardLayout>}</Route>
+      <Route path="/lms/courses/:id/pricing">{() => <DashboardLayout><CourseBuilderPage /></DashboardLayout>}</Route>
+      <Route path="/lms/courses/:id/drip">{() => <DashboardLayout><CourseBuilderPage /></DashboardLayout>}</Route>
+      <Route path="/lms/courses/:id/after_purchase">{() => <DashboardLayout><CourseBuilderPage /></DashboardLayout>}</Route>
+      <Route path="/lms/courses/:id">{() => <DashboardLayout><CourseBuilderPage /></DashboardLayout>}</Route>
+      <Route path="/members/users">{() => <DashboardLayout><MembersPage /></DashboardLayout>}</Route>
+      <Route path="/members/groups">{() => <DashboardLayout><GroupsPage /></DashboardLayout>}</Route>
+      <Route path="/members/certificates">{() => <DashboardLayout><MemberCertificatesPage /></DashboardLayout>}</Route>
+      <Route path="/members/discussions">{() => <DashboardLayout><DiscussionsPage /></DashboardLayout>}</Route>
+      <Route path="/members/assignments">{() => <DashboardLayout><AssignmentsPage /></DashboardLayout>}</Route>
+      <Route path="/members">{() => { window.location.replace("/members/users"); return null; }}</Route>
+      <Route path="/admin/downloads">{() => <DashboardLayout><DigitalProductsPage /></DashboardLayout>}</Route>
+      <Route path="/admin/downloads/new">{() => <DashboardLayout><DigitalProductEditorPage /></DashboardLayout>}</Route>
+      <Route path="/admin/downloads/:id">{() => <DashboardLayout><DigitalProductEditorPage /></DashboardLayout>}</Route>
+      <Route path="/lms/webinars">{() => <DashboardLayout><WebinarsPage /></DashboardLayout>}</Route>
+      <Route path="/lms/webinars/:id/edit">{() => <DashboardLayout><WebinarEditorPage /></DashboardLayout>}</Route>
+      <Route path="/products/memberships">{() => <DashboardLayout><MembershipsPage /></DashboardLayout>}</Route>
+      <Route path="/products/bundles">{() => <DashboardLayout><BundlesPage /></DashboardLayout>}</Route>
+      <Route path="/lms/forms">{() => <DashboardLayout><FormsPage /></DashboardLayout>}</Route>
+      <Route path="/lms/forms/:id/responses">{() => <DashboardLayout><FormResponsesPage /></DashboardLayout>}</Route>
+      <Route path="/lms/forms/:id/analytics">{() => <DashboardLayout><FormAnalyticsPage /></DashboardLayout>}</Route>
+      <Route path="/lms/forms/:id">{() => <DashboardLayout><FormBuilderPage /></DashboardLayout>}</Route>
+      <Route path="/products/community">{() => <DashboardLayout><CommunityPage /></DashboardLayout>}</Route>
+      <Route path="/products/community/:hubId/manage">{() => <DashboardLayout><CommunityManagePage /></DashboardLayout>}</Route>
+      <Route path="/products/categories">{() => <DashboardLayout><CategoriesPage /></DashboardLayout>}</Route>
+      <Route path="/products">{() => { window.location.replace("/lms/courses"); return null; }}</Route>
+      <Route path="/media-library">{() => <DashboardLayout><MediaLibraryPage /></DashboardLayout>}</Route>
+      <Route path="/marketing/website">{() => <DashboardLayout><WebsitePage /></DashboardLayout>}</Route>
+      <Route path="/marketing/email">{() => <DashboardLayout><EmailCampaignsPage /></DashboardLayout>}</Route>
+      <Route path="/marketing/funnels">{() => <DashboardLayout><FunnelsPage /></DashboardLayout>}</Route>
+      <Route path="/marketing/affiliates">{() => <DashboardLayout><AffiliatesPage /></DashboardLayout>}</Route>
+      <Route path="/marketing">{() => { window.location.replace("/marketing/website"); return null; }}</Route>
+      <Route path="/sales/orders">{() => <DashboardLayout><OrdersPage /></DashboardLayout>}</Route>
+      <Route path="/sales/subscriptions">{() => <DashboardLayout><SubscriptionsPage /></DashboardLayout>}</Route>
+      <Route path="/sales/coupons">{() => <DashboardLayout><CouponsPage /></DashboardLayout>}</Route>
+      <Route path="/sales/invoices">{() => <DashboardLayout><InvoicesPage /></DashboardLayout>}</Route>
+      <Route path="/sales">{() => { window.location.replace("/sales/orders"); return null; }}</Route>
+      <Route path="/analytics/revenue">{() => <DashboardLayout><RevenueAnalyticsPage /></DashboardLayout>}</Route>
+      <Route path="/analytics/engagement">{() => <DashboardLayout><EngagementAnalyticsPage /></DashboardLayout>}</Route>
+      <Route path="/analytics">{() => <DashboardLayout><RevenueAnalyticsPage /></DashboardLayout>}</Route>
+      <Route path="/lms/analytics">{() => <DashboardLayout><LmsAnalyticsPage /></DashboardLayout>}</Route>
+      <Route path="/lms/activity">{() => <DashboardLayout><StudentLogReportsPage /></DashboardLayout>}</Route>
+      <Route path="/integrations">{() => <DashboardLayout><IntegrationsPage /></DashboardLayout>}</Route>
+      <Route path="/integrations/api">{() => <DashboardLayout><ApiPage /></DashboardLayout>}</Route>
+      <Route path="/integrations/webhooks">{() => <DashboardLayout><WebhooksPage /></DashboardLayout>}</Route>
+      <Route path="/profile">{() => <DashboardLayout><ProfilePage /></DashboardLayout>}</Route>
+      <Route path="/billing">{() => <DashboardLayout><BillingPage /></DashboardLayout>}</Route>
+      <Route path="/lms/branding">{() => <DashboardLayout><BrandingPage /></DashboardLayout>}</Route>
+      <Route path="/lms/settings">{() => <DashboardLayout><OrgSettingsPage /></DashboardLayout>}</Route>
+      <Route path="/lms/my-courses">{() => <DashboardLayout><MyCoursesPage /></DashboardLayout>}</Route>
+      <Route path="/lms/custom-pages">{() => <DashboardLayout><CustomPagesPage /></DashboardLayout>}</Route>
+      <Route path="/lms/page-builder/:pageId">{() => <DashboardLayout><PageBuilderPage /></DashboardLayout>}</Route>
+      <Route path="/lms/courses/:courseId/page-builder">{() => <DashboardLayout><PageBuilderPage /></DashboardLayout>}</Route>
+
+      {/* ── Learner / public routes ── */}
       <Route path="/learn/:courseId/overview" component={CourseOverviewPage} />
       <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
       <Route path="/learn/:courseId" component={CoursePlayerPage} />
-      {/* Learner portal */}
       <Route path="/my-courses" component={SchoolMyCoursesPage} />
-      {/* Course sales page */}
       <Route path="/courses/:courseId" component={CourseSalesPage} />
-      {/* Community */}
       <Route path="/community/:hubId" component={CommunityLearnerPage} />
-      {/* Embed */}
       <Route path="/embed/:id" component={EmbedPage} />
+      <Route path="/webinar/:slug/register" component={WebinarRegisterPage} />
+      <Route path="/webinar/:slug/watch" component={WebinarWatchPage} />
+      <Route path="/shop/:slug" component={DigitalProductSalesPage} />
+      <Route path="/forms/:orgSlug/:slug" component={FormPlayerPage} />
+      <Route path="/forms/:slug" component={FormPlayerPage} />
+      <Route path="/p/:slug" component={PublicPagePage} />
+      <Route path="/policies" component={OrgPoliciesPage} />
+      <Route path="/terms" component={OrgPoliciesPage} />
+      <Route path="/privacy" component={OrgPoliciesPage} />
+      <Route path="/help" component={HelpPage} />
+
       {/* Default: school homepage for this org, resolved by subdomain */}
       <Route>{() => <SchoolPage subdomainOrg={subdomain} />}</Route>
     </Switch>

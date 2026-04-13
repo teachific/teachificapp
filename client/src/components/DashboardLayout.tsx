@@ -648,7 +648,7 @@ function DashboardLayoutContent({
                   </DropdownMenuItem>
                 </>
               )}
-              <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
+              <DropdownMenuItem onClick={async () => { await logout(); window.location.href = "/"; }} className="cursor-pointer text-destructive focus:text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>

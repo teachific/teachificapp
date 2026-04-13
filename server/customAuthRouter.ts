@@ -9,8 +9,9 @@ import crypto from "crypto";
 import { router, publicProcedure, protectedProcedure } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "./db";
-import { users } from "../drizzle/schema";
+import { users, orgMembers, organizations } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { generateUniqueOrgSlug } from "../shared/slugUtils";
 import { sendEmail } from "./sendgrid";
 import * as dbHelpers from "./db";
 import { verifyEmailHtml, resetPasswordHtml } from "./emailTemplates";
@@ -85,9 +86,9 @@ export const customAuthRouter = router({
 
       if (newUser) {
         try {
-          const base = (input.name || input.email).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
-          const slug = `${base}-workspace-${newUser.id}`;
-          await dbHelpers.createOrg({ name: `${input.name}'s Workspace`, slug, description: "Default workspace", ownerId: newUser.id });
+          const orgName = `${input.name}'s School`;
+          const slug = await generateUniqueOrgSlug(orgName, async (s) => !!(await dbHelpers.getOrgBySlug(s)));
+          await dbHelpers.createOrg({ name: orgName, slug, description: "Default workspace", ownerId: newUser.id });
           const org = await dbHelpers.getOrgBySlug(slug);
           if (org) await dbHelpers.addOrgMember(org.id, newUser.id, "org_admin");
         } catch {}
@@ -135,9 +136,25 @@ export const customAuthRouter = router({
       const sessionToken = Buffer.from(JSON.stringify({ userId: user.id, ts: Date.now() })).toString("base64url");
       ctx.res.setHeader("Set-Cookie", serializeCookie(COOKIE_NAME, sessionToken, COOKIE_MAX_AGE));
 
+      // Resolve the user's primary org slug for immediate subdomain redirect
+      const ROLE_PRIORITY: Record<string, number> = {
+        org_super_admin: 100, org_admin: 90, sub_admin: 70,
+        instructor: 60, group_manager: 50, group_member: 40, member: 20, user: 10,
+      };
+      const memberships = await db
+        .select({ role: orgMembers.role, slug: organizations.slug })
+        .from(orgMembers)
+        .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+        .where(eq(orgMembers.userId, user.id));
+      const bestMembership = memberships.sort((a, b) =>
+        (ROLE_PRIORITY[b.role] ?? 0) - (ROLE_PRIORITY[a.role] ?? 0)
+      )[0];
+
       return {
         success: true,
         user: { id: user.id, name: user.name, email: user.email, role: user.role, emailVerified: user.emailVerified },
+        orgSlug: bestMembership?.slug ?? null,
+        orgRole: bestMembership?.role ?? null,
       };
     }),
 

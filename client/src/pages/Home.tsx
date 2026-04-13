@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { getOrgSubdomainUrl } from "@/hooks/useSubdomain";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -479,8 +480,50 @@ export default function Home() {
   const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(undefined, {
     enabled: !!user,
   });
+  const { data: myOrgs, isLoading: orgsLoading } = trpc.orgs.myOrgs.useQuery(undefined, {
+    enabled: !!user,
+  });
 
-  if (!user || orgLoading) {
+  // ── Instant redirect from cached orgSlug (set by LoginPage on login) ────────
+  // This fires synchronously before any API call completes, eliminating the
+  // loading flash for org users who just logged in.
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const cachedSlug = localStorage.getItem("teachific_org_slug");
+      if (cachedSlug) {
+        localStorage.removeItem("teachific_org_slug"); // consume once
+        window.location.href = getOrgSubdomainUrl(cachedSlug, "/lms");
+        return;
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // ── Subdomain redirect logic (fallback for already-logged-in users) ──────────
+  // We are on the root domain (teachific.app). Redirect based on role:
+  //   - Platform admins (site_owner / site_admin): stay here
+  //   - Org admins / super admins: redirect to their org subdomain
+  //   - Students with exactly 1 org: redirect to that org's subdomain
+  //   - Students with 2+ orgs: show school picker (handled below)
+  useEffect(() => {
+    if (!user || orgLoading || orgsLoading) return;
+    const role = orgCtx?.role;
+    // Platform admins stay on root
+    if (role === "site_owner" || role === "site_admin") return;
+    // Org admins / super admins → redirect to their org subdomain
+    if ((role === "org_admin" || role === "org_super_admin") && orgCtx?.org?.slug) {
+      window.location.href = getOrgSubdomainUrl(orgCtx.org.slug, "/lms");
+      return;
+    }
+    // Students: redirect based on number of orgs
+    if (myOrgs && myOrgs.length === 1 && myOrgs[0].slug) {
+      window.location.href = getOrgSubdomainUrl(myOrgs[0].slug);
+    }
+    // Students with 2+ orgs: fall through to school picker below
+  }, [user, orgCtx, myOrgs, orgLoading, orgsLoading]);
+
+  if (!user || orgLoading || orgsLoading) {
     return (
       <div className="flex flex-col gap-6">
         <Skeleton className="h-10 w-64" />
@@ -494,11 +537,49 @@ export default function Home() {
     );
   }
 
-  // Org admin sees the analytics dashboard
-  if (orgCtx?.role === "org_admin") {
+  // Platform admins: show the full admin dashboard inline
+  if (orgCtx?.role === "site_owner" || orgCtx?.role === "site_admin") {
+    return <OrgAdminDashboard orgId={orgCtx.org?.id ?? 0} orgName={orgCtx.org?.name ?? "Platform"} />;
+  }
+
+  // Org admin (fallback if redirect hasn't fired yet)
+  if (orgCtx?.role === "org_admin" && orgCtx?.org) {
     return <OrgAdminDashboard orgId={orgCtx.org.id} orgName={orgCtx.org.name} />;
   }
 
-  // Regular members see their enrolled courses
+  // Students with 2+ orgs: show school picker
+  if (myOrgs && myOrgs.length > 1) {
+    // Inline school picker — import is lazy to avoid circular deps
+    const SchoolPickerInline = () => (
+      <div className="flex flex-col items-center justify-center py-16 gap-6">
+        <h2 className="text-2xl font-bold text-gray-900">Choose Your School</h2>
+        <p className="text-gray-500">You have access to multiple schools. Select one to continue.</p>
+        <div className="w-full max-w-md space-y-3">
+          {myOrgs.map((org) => (
+            <button
+              key={org.id}
+              onClick={() => { window.location.href = getOrgSubdomainUrl(org.slug); }}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-teal-400 hover:shadow-md transition-all text-left group"
+            >
+              <div className="h-12 w-12 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {(org as any).logoUrl
+                  ? <img src={(org as any).logoUrl} alt={org.name} className="h-full w-full object-contain" />
+                  : <span className="text-teal-700 font-bold text-lg">{org.name.charAt(0)}</span>
+                }
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">{org.name}</p>
+                <p className="text-sm text-gray-400 truncate">{getOrgSubdomainUrl(org.slug).replace(/^https?:\/\//, "")}</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-teal-600" />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+    return <SchoolPickerInline />;
+  }
+
+  // Fallback: regular member dashboard (single org, redirect pending)
   return <MemberDashboard />;
 }
