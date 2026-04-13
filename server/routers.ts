@@ -613,6 +613,23 @@ export const appRouter = router({
     get: protectedProcedure.input(z.object({ id: z.number() })).query(({ input }) => getOrgById(input.id)),
     getBySlug: protectedProcedure.input(z.object({ slug: z.string() })).query(({ input }) => getOrgBySlug(input.slug)),
 
+    // Real-time subdomain availability check (public so it works on registration too)
+    checkSubdomain: publicProcedure
+      .input(z.object({ subdomain: z.string().min(1), currentOrgId: z.number().optional() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { available: false };
+        const existing = await db
+          .select({ id: organizations.id })
+          .from(organizations)
+          .where(eq(organizations.slug, input.subdomain.toLowerCase()))
+          .limit(1);
+        if (!existing.length) return { available: true };
+        // If the match is the current org itself, it's still "available" (no change)
+        if (input.currentOrgId && existing[0].id === input.currentOrgId) return { available: true };
+        return { available: false };
+      }),
+
     create: adminProcedure
       .input(z.object({ name: z.string().min(1), slug: z.string().min(1), description: z.string().optional() }))
       .mutation(async ({ input, ctx }) => {

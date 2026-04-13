@@ -36,6 +36,7 @@ export default function OrgSettingsPage() {
 
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
+  const [debouncedSlug, setDebouncedSlug] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -88,12 +89,19 @@ export default function OrgSettingsPage() {
     if (orgCtx && !initialized) {
       setOrgName(orgCtx.org.name);
       setOrgSlug(orgCtx.org.slug);
+      setDebouncedSlug(orgCtx.org.slug);
       setLogoUrl(orgCtx.org.logoUrl || "");
       setLogoPreview(orgCtx.org.logoUrl || null);
       setCustomDomain(orgCtx.org.customDomain || "");
       setInitialized(true);
     }
   }, [orgCtx, initialized]);
+
+  // Debounce slug input for availability check
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSlug(orgSlug), 500);
+    return () => clearTimeout(timer);
+  }, [orgSlug]);
 
   useEffect(() => {
     if (orgTheme && !themeInitialized) {
@@ -125,6 +133,17 @@ export default function OrgSettingsPage() {
     },
     onError: (error) => toast.error(error.message || "Failed to save settings"),
   });
+
+  // Real-time subdomain availability check
+  const { data: subdomainCheck, isFetching: checkingSubdomain } = trpc.orgs.checkSubdomain.useQuery(
+    { subdomain: debouncedSlug, currentOrgId: orgCtx?.org?.id },
+    {
+      enabled: !!debouncedSlug && debouncedSlug.length >= 2,
+      staleTime: 10_000,
+    }
+  );
+  const subdomainAvailable = subdomainCheck?.available;
+  const subdomainChanged = debouncedSlug !== orgCtx?.org?.slug;
 
   const uploadLogo = trpc.orgs.uploadLogo.useMutation({
     onSuccess: (data) => {
@@ -282,7 +301,7 @@ export default function OrgSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>General Information</CardTitle>
-              <CardDescription>Update your organization name and URL slug</CardDescription>
+              <CardDescription>Update your organization name and subdomain</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -306,6 +325,22 @@ export default function OrgSettingsPage() {
                   />
                   <span className="h-10 px-3 flex items-center bg-muted border border-input rounded-r-md text-sm text-muted-foreground whitespace-nowrap select-none">.teachific.app</span>
                 </div>
+                {/* Availability indicator */}
+                {orgSlug.length >= 2 && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    {checkingSubdomain || debouncedSlug !== orgSlug ? (
+                      <><Loader2 className="h-3 w-3 animate-spin text-muted-foreground" /><span className="text-muted-foreground">Checking availability…</span></>
+                    ) : subdomainChanged ? (
+                      subdomainAvailable ? (
+                        <><Check className="h-3 w-3 text-emerald-600" /><span className="text-emerald-600 font-medium">{orgSlug}.teachific.app is available</span></>
+                      ) : (
+                        <><AlertCircle className="h-3 w-3 text-destructive" /><span className="text-destructive font-medium">{orgSlug}.teachific.app is already taken</span></>
+                      )
+                    ) : (
+                      <><Check className="h-3 w-3 text-muted-foreground" /><span className="text-muted-foreground">Current subdomain</span></>
+                    )}
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Your school will be accessible at:{" "}
                   <a
@@ -320,7 +355,7 @@ export default function OrgSettingsPage() {
               </div>
               <Button
                 onClick={() => updateSettings.mutate({ name: orgName, slug: orgSlug })}
-                disabled={updateSettings.isPending}
+                disabled={updateSettings.isPending || (subdomainChanged && !subdomainAvailable)}
                 className="gap-2"
               >
                 {updateSettings.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Changes</>}
