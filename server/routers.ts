@@ -72,7 +72,7 @@ import {
   getOrgLimitsEnriched,
   getOrgStorageUsage,
 } from "./db";
-import { courseEnrollments, organizations, orgMembers, users } from "../drizzle/schema";
+import { courseEnrollments, organizations, orgMembers, orgLandingPages, users } from "../drizzle/schema";
 import { eq, sql } from "drizzle-orm";
 import {
   getOrgSubscription,
@@ -645,6 +645,60 @@ export const appRouter = router({
         return { available: false };
       }),
 
+    // ── Landing Page procedures ────────────────────────────────────────────────
+    // Get landing page for an org by slug (public)
+    getLandingPage: publicProcedure
+      .input(z.object({ slug: z.string() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return null;
+        const org = await getOrgBySlug(input.slug);
+        if (!org) return null;
+        const rows = await db
+          .select()
+          .from(orgLandingPages)
+          .where(eq(orgLandingPages.orgId, org.id))
+          .limit(1);
+        return rows[0] ? { ...rows[0], org } : null;
+      }),
+
+    // Save / update landing page (org admin only)
+    saveLandingPage: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        heroHeadline: z.string().max(255).optional(),
+        heroSubheadline: z.string().optional(),
+        heroCtaText: z.string().max(100).optional(),
+        heroCtaUrl: z.string().max(512).optional(),
+        heroBgColor: z.string().max(32).optional(),
+        heroTextColor: z.string().max(32).optional(),
+        aboutTitle: z.string().max(255).optional(),
+        aboutBody: z.string().optional(),
+        features: z.string().optional(), // JSON
+        accentColor: z.string().max(32).optional(),
+        showCourses: z.boolean().optional(),
+        isPublished: z.boolean().optional(),
+        footerText: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Verify user is admin of this org
+        const member = await getOrgMember(input.orgId, ctx.user.id);
+        const isOrgAdmin = member && (member.role === "org_admin" || member.role === "org_super_admin");
+        const isSiteAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin";
+        if (!isOrgAdmin && !isSiteAdmin) throw new TRPCError({ code: "FORBIDDEN" });
+        const { orgId, ...fields } = input;
+        // Upsert: insert if not exists, update if exists
+        const existing = await db.select({ id: orgLandingPages.id }).from(orgLandingPages).where(eq(orgLandingPages.orgId, orgId)).limit(1);
+        if (existing.length) {
+          await db.update(orgLandingPages).set({ ...fields, updatedAt: new Date() }).where(eq(orgLandingPages.orgId, orgId));
+        } else {
+          await db.insert(orgLandingPages).values({ orgId, ...fields });
+        }
+        return { success: true };
+      }),
+
     create: adminProcedure
       .input(z.object({ name: z.string().min(1), slug: z.string().min(1), description: z.string().optional() }))
       .mutation(async ({ input, ctx }) => {
@@ -652,7 +706,25 @@ export const appRouter = router({
         if (existing) throw new TRPCError({ code: "CONFLICT", message: "Slug already in use" });
         await createOrg({ ...input, ownerId: ctx.user.id });
         const org = await getOrgBySlug(input.slug);
-        if (org) await addOrgMember(org.id, ctx.user.id, "org_admin");
+        if (org) {
+          await addOrgMember(org.id, ctx.user.id, "org_admin");
+          // Auto-seed landing page on org creation
+          const db = await getDb();
+          if (db) {
+            await db.insert(orgLandingPages).values({
+              orgId: org.id,
+              heroHeadline: `Welcome to ${org.name}`,
+              heroSubheadline: org.description || `Explore our courses and start learning today.`,
+              heroCtaText: "Browse Courses",
+              accentColor: "#0ea5e9",
+              showCourses: true,
+              isPublished: true,
+              aboutTitle: `About ${org.name}`,
+              aboutBody: org.description || `We offer high-quality online courses designed to help you grow.`,
+              footerText: `© ${new Date().getFullYear()} ${org.name}. All rights reserved.`,
+            }).onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
+          }
+        }
         return org;
       }),
 

@@ -2757,3 +2757,13 @@
 - [ ] Fix authCache import error in LoginPage.tsx
 - [ ] Fix admin@allaboutultrasound.com: add as org_admin of All About Ultrasound org in DB
 - [ ] Fix dashboard loading skeleton: ensure org context loads for all admin accounts
+
+## Landing Page & Subdomain DNS Features
+- [x] Add landing page content fields to DB schema and migrate
+- [x] Add getLandingPage (public) and saveLandingPage (admin) procedures
+- [x] Auto-seed landing page on first subdomain assignment only (not on subdomain edits)
+- [x] Seed landing pages for existing orgs (allaboutultrasound, the-recovery-studio)
+- [x] Build public OrgLandingPage (hero, about, course grid, CTA, footer)
+- [x] Build admin landing page editor (OrgLandingPageTab) in OrgSettingsPage
+- [x] Wire subdomain root routing to show OrgLandingPage if published, fall back to SchoolPage
+- [x] Wildcard DNS *.teachific.app already in place via GoDaddy; Cloudflare SSL pending activation

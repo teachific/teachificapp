@@ -35,6 +35,7 @@ import MembersPage from "./pages/lms/MembersPage";
 import LmsAnalyticsPage from "./pages/lms/LmsAnalyticsPage";
 import PageBuilderPage from "./pages/lms/PageBuilderPage";
 import SchoolPage from "./pages/lms/SchoolPage";
+import OrgLandingPage from "./pages/lms/OrgLandingPage";
 import SchoolMyCoursesPage from "./pages/lms/SchoolMyCoursesPage";
 import FormsPage from "./pages/lms/FormsPage";
 import FormBuilderPage from "./pages/lms/FormBuilderPage";
@@ -314,6 +315,7 @@ function AdminRouter() {
   );
 }
 
+
 /**
  * SubdomainSchoolRouter
  * When the app is accessed via an org subdomain (e.g. allaboutultrasound.teachific.app),
@@ -409,8 +411,8 @@ function SubdomainSchoolRouter({ subdomain }: { subdomain: string }) {
       <Route path="/privacy" component={OrgPoliciesPage} />
       <Route path="/help" component={HelpPage} />
 
-      {/* Default: school homepage for this org, resolved by subdomain */}
-      <Route>{() => <SchoolPage subdomainOrg={subdomain} />}</Route>
+      {/* Default: show landing page if published, otherwise fall back to SchoolPage */}
+      <Route>{() => <OrgLandingPage subdomainOrg={subdomain} fallback={<SchoolPage subdomainOrg={subdomain} />} />}</Route>
     </Switch>
   );
 }

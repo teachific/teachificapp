@@ -2047,3 +2047,35 @@ export const teachificPayCharges = mysqlTable("teachific_pay_charges", {
 });
 export type TeachificPayCharge = typeof teachificPayCharges.$inferSelect;
 export type InsertTeachificPayCharge = typeof teachificPayCharges.$inferInsert;
+
+// ─── Org Landing Pages ────────────────────────────────────────────────────────
+// One row per org. Created automatically on first subdomain assignment.
+// Never recreated when the subdomain is changed — only seeded once.
+export const orgLandingPages = mysqlTable("org_landing_pages", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull().unique(),
+  // Hero section
+  heroHeadline: varchar("heroHeadline", { length: 255 }),
+  heroSubheadline: text("heroSubheadline"),
+  heroCtaText: varchar("heroCtaText", { length: 100 }),
+  heroCtaUrl: varchar("heroCtaUrl", { length: 512 }),
+  heroBgColor: varchar("heroBgColor", { length: 32 }).default("#0f172a"),
+  heroTextColor: varchar("heroTextColor", { length: 32 }).default("#ffffff"),
+  // About / body section
+  aboutTitle: varchar("aboutTitle", { length: 255 }),
+  aboutBody: text("aboutBody"),
+  // Feature highlights (JSON array of {icon, title, description})
+  features: text("features"),
+  // Accent / brand color used for buttons and highlights
+  accentColor: varchar("accentColor", { length: 32 }).default("#0ea5e9"),
+  // Whether to show the public course grid on the landing page
+  showCourses: boolean("showCourses").default(true).notNull(),
+  // Whether the landing page is published (visible to visitors)
+  isPublished: boolean("isPublished").default(true).notNull(),
+  // Custom footer text
+  footerText: text("footerText"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type OrgLandingPage = typeof orgLandingPages.$inferSelect;
+export type InsertOrgLandingPage = typeof orgLandingPages.$inferInsert;

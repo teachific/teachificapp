@@ -1,0 +1,21 @@
+CREATE TABLE `org_landing_pages` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`orgId` int NOT NULL,
+	`heroHeadline` varchar(255),
+	`heroSubheadline` text,
+	`heroCtaText` varchar(100),
+	`heroCtaUrl` varchar(512),
+	`heroBgColor` varchar(32) DEFAULT '#0f172a',
+	`heroTextColor` varchar(32) DEFAULT '#ffffff',
+	`aboutTitle` varchar(255),
+	`aboutBody` text,
+	`features` text,
+	`accentColor` varchar(32) DEFAULT '#0ea5e9',
+	`showCourses` boolean NOT NULL DEFAULT true,
+	`isPublished` boolean NOT NULL DEFAULT true,
+	`footerText` text,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `org_landing_pages_id` PRIMARY KEY(`id`),
+	CONSTRAINT `org_landing_pages_orgId_unique` UNIQUE(`orgId`)
+);

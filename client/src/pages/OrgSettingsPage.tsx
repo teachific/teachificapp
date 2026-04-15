@@ -298,6 +298,9 @@ export default function OrgSettingsPage() {
             <TabsTrigger value="homepage" className="gap-1.5 whitespace-nowrap">
               <Globe className="h-4 w-4" /> Homepage
             </TabsTrigger>
+            <TabsTrigger value="landing" className="gap-1.5 whitespace-nowrap">
+              <Rocket className="h-4 w-4" /> Landing Page
+            </TabsTrigger>
            </TabsList>
         {/* General Tab */}
         <TabsContent value="general" className="space-y-4">
@@ -835,6 +838,8 @@ export default function OrgSettingsPage() {
         <SitePoliciesTab orgId={orgCtx?.org?.id} />
         {/* Homepage Tab */}
         <OrgHomepageTab orgId={orgCtx?.org?.id} orgName={orgCtx?.org?.name ?? ""} orgSlug={orgCtx?.org?.slug ?? ""} primaryColor={primaryColor} description={orgCtx?.org?.description ?? ""} />
+        {/* Landing Page Tab */}
+        <OrgLandingPageTab orgId={orgCtx?.org?.id} orgSlug={orgCtx?.org?.slug ?? ""} orgName={orgCtx?.org?.name ?? ""} plan={plan} />
       </Tabs>
     </div>
   );
@@ -1764,6 +1769,196 @@ function OrgPaymentSettingsTab({ orgId, plan = "free" }: { orgId?: number; plan?
         </CardContent>
       </Card>
       )}
+    </TabsContent>
+  );
+}
+
+// ─── OrgLandingPageTab ───────────────────────────────────────────────────────
+function OrgLandingPageTab({ orgId, orgSlug, orgName, plan }: {
+  orgId?: number;
+  orgSlug: string;
+  orgName: string;
+  plan: string;
+}) {
+  const utils = trpc.useUtils();
+  const [initialized, setInitialized] = useState(false);
+
+  // Form state
+  const [heroHeadline, setHeroHeadline] = useState("");
+  const [heroSubheadline, setHeroSubheadline] = useState("");
+  const [heroCtaText, setHeroCtaText] = useState("Browse Courses");
+  const [heroBgColor, setHeroBgColor] = useState("#0f172a");
+  const [heroTextColor, setHeroTextColor] = useState("#ffffff");
+  const [aboutTitle, setAboutTitle] = useState("");
+  const [aboutBody, setAboutBody] = useState("");
+  const [accentColor, setAccentColor] = useState("#0ea5e9");
+  const [showCourses, setShowCourses] = useState(true);
+  const [isPublished, setIsPublished] = useState(true);
+  const [footerText, setFooterText] = useState("");
+
+  const { data: landingPage } = trpc.orgs.getLandingPage.useQuery(
+    { slug: orgSlug },
+    { enabled: !!orgSlug }
+  );
+
+  useEffect(() => {
+    if (landingPage && !initialized) {
+      setHeroHeadline(landingPage.heroHeadline ?? "");
+      setHeroSubheadline(landingPage.heroSubheadline ?? "");
+      setHeroCtaText(landingPage.heroCtaText ?? "Browse Courses");
+      setHeroBgColor(landingPage.heroBgColor ?? "#0f172a");
+      setHeroTextColor(landingPage.heroTextColor ?? "#ffffff");
+      setAboutTitle(landingPage.aboutTitle ?? "");
+      setAboutBody(landingPage.aboutBody ?? "");
+      setAccentColor(landingPage.accentColor ?? "#0ea5e9");
+      setShowCourses(landingPage.showCourses ?? true);
+      setIsPublished(landingPage.isPublished ?? true);
+      setFooterText(landingPage.footerText ?? "");
+      setInitialized(true);
+    }
+  }, [landingPage, initialized]);
+
+  const saveLandingPage = trpc.orgs.saveLandingPage.useMutation({
+    onSuccess: () => {
+      toast.success("Landing page saved");
+      utils.orgs.getLandingPage.invalidate({ slug: orgSlug });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleSave = () => {
+    if (!orgId) return;
+    saveLandingPage.mutate({
+      orgId,
+      heroHeadline,
+      heroSubheadline,
+      heroCtaText,
+      heroBgColor,
+      heroTextColor,
+      aboutTitle,
+      aboutBody,
+      accentColor,
+      showCourses,
+      isPublished,
+      footerText,
+    });
+  };
+
+  const previewUrl = orgSlug ? `https://${orgSlug}.teachific.app` : null;
+
+  return (
+    <TabsContent value="landing" className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Rocket className="h-5 w-5" />
+            Landing Page
+          </CardTitle>
+          <CardDescription>
+            Customize the public landing page visitors see when they visit your subdomain.
+            This page is auto-generated when your school is created and can be edited anytime.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Preview link */}
+          {previewUrl && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border">
+              <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm text-muted-foreground flex-1 truncate font-mono">{previewUrl}</span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { navigator.clipboard.writeText(previewUrl); toast.success("URL copied!"); }}>
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => window.open(previewUrl, "_blank")}>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+
+          {/* Published toggle */}
+          <div className="flex items-center justify-between py-3 border-b">
+            <div>
+              <p className="font-medium text-sm">Published</p>
+              <p className="text-xs text-muted-foreground">When off, visitors see the course catalog instead</p>
+            </div>
+            <Switch checked={isPublished} onCheckedChange={setIsPublished} />
+          </div>
+
+          {/* Hero Section */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Hero Section</h3>
+            <div className="space-y-2">
+              <Label>Headline</Label>
+              <Input value={heroHeadline} onChange={(e) => setHeroHeadline(e.target.value)} placeholder={`Welcome to ${orgName}`} />
+            </div>
+            <div className="space-y-2">
+              <Label>Subheadline</Label>
+              <Textarea value={heroSubheadline} onChange={(e) => setHeroSubheadline(e.target.value)} placeholder="Explore our courses and start learning today." rows={2} />
+            </div>
+            <div className="space-y-2">
+              <Label>CTA Button Text</Label>
+              <Input value={heroCtaText} onChange={(e) => setHeroCtaText(e.target.value)} placeholder="Browse Courses" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Background Color</Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={heroBgColor} onChange={(e) => setHeroBgColor(e.target.value)} className="h-9 w-14 rounded border cursor-pointer" />
+                  <Input value={heroBgColor} onChange={(e) => setHeroBgColor(e.target.value)} className="font-mono text-xs" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Text Color</Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={heroTextColor} onChange={(e) => setHeroTextColor(e.target.value)} className="h-9 w-14 rounded border cursor-pointer" />
+                  <Input value={heroTextColor} onChange={(e) => setHeroTextColor(e.target.value)} className="font-mono text-xs" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Accent Color</Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="h-9 w-14 rounded border cursor-pointer" />
+                  <Input value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="font-mono text-xs" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* About Section */}
+          <div className="space-y-4 pt-2 border-t">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">About Section</h3>
+            <div className="space-y-2">
+              <Label>Section Title</Label>
+              <Input value={aboutTitle} onChange={(e) => setAboutTitle(e.target.value)} placeholder={`About ${orgName}`} />
+            </div>
+            <div className="space-y-2">
+              <Label>Body Text</Label>
+              <Textarea value={aboutBody} onChange={(e) => setAboutBody(e.target.value)} placeholder="Describe your school and what students will learn..." rows={4} />
+            </div>
+          </div>
+
+          {/* Courses & Footer */}
+          <div className="space-y-4 pt-2 border-t">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Courses & Footer</h3>
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="font-medium text-sm">Show Course Grid</p>
+                <p className="text-xs text-muted-foreground">Display published courses on the landing page</p>
+              </div>
+              <Switch checked={showCourses} onCheckedChange={setShowCourses} />
+            </div>
+            <div className="space-y-2">
+              <Label>Footer Text</Label>
+              <Input value={footerText} onChange={(e) => setFooterText(e.target.value)} placeholder={`© ${new Date().getFullYear()} ${orgName}. All rights reserved.`} />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSave} disabled={saveLandingPage.isPending} className="gap-2">
+              {saveLandingPage.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Check className="h-4 w-4" /> Save Landing Page</>}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </TabsContent>
   );
 }

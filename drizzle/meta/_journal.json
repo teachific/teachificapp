@@ -421,6 +421,13 @@
       "when": 1775677159455,
       "tag": "0059_nasty_mole_man",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "5",
+      "when": 1776260141106,
+      "tag": "0060_dear_donald_blake",
+      "breakpoints": true
     }
   ]
 }
