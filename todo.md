@@ -2767,3 +2767,11 @@
 - [x] Build admin landing page editor (OrgLandingPageTab) in OrgSettingsPage
 - [x] Wire subdomain root routing to show OrgLandingPage if published, fall back to SchoolPage
 - [x] Wildcard DNS *.teachific.app already in place via GoDaddy; Cloudflare SSL pending activation
+
+## White-label Student Auth Pages
+- [x] Create useOrgAuthBranding hook (fetches org branding from subdomain)
+- [x] White-label LoginPage with org logo, colors, and name on subdomain
+- [x] White-label RegisterPage with org branding on subdomain
+- [x] White-label ForgotPasswordPage with org branding on subdomain
+- [x] White-label ResetPasswordPage with org branding on subdomain
+- [x] White-label VerifyEmailPage with org branding on subdomain

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, MailCheck, ArrowLeft, KeyRound } from "lucide-react";
+import { useOrgAuthBranding } from "@/hooks/useOrgAuthBranding";
 
 const NAVY = "#0b1d35";
 const NAVY_MID = "#0f2847";
@@ -14,6 +15,9 @@ const TEAL_LIGHT = "#4ad9e0";
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+
+  const { branding, primary, buttonText, displayName } = useOrgAuthBranding();
+  const isOrgSubdomain = !!branding;
 
   const forgot = trpc.customAuth.forgotPassword.useMutation({
     onSuccess: () => setSent(true),
@@ -60,8 +64,8 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* ── Left panel: brand ───────────────────────────────────────── */}
-      <div
+      {/* ── Left panel: brand (hidden on org subdomains) ───────────── */}
+      {!isOrgSubdomain && <div
         className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 relative overflow-hidden"
         style={{ background: `linear-gradient(145deg, ${NAVY} 0%, ${NAVY_MID} 60%, #0d3352 100%)` }}
       >
@@ -110,24 +114,32 @@ export default function ForgotPasswordPage() {
         <p className="relative z-10 text-white/25 text-xs">
           © {new Date().getFullYear()} Teachific™. All rights reserved.
         </p>
-      </div>
+      </div>}
 
       {/* ── Right panel: form ───────────────────────────────────────── */}
       <div className="flex-1 flex flex-col justify-center items-center bg-white px-8 py-12">
-        {/* Mobile logo */}
-        <div className="lg:hidden mb-8 text-center">
-          <div className="flex items-baseline gap-0.5 justify-center">
-            <span className="text-3xl font-bold tracking-tight" style={{ color: NAVY, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>teach</span>
-            <span className="text-3xl font-bold tracking-tight" style={{ color: TEAL, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>ific</span>
-            <span className="text-sm font-bold ml-0.5" style={{ color: TEAL, verticalAlign: "super", fontSize: "0.55em" }}>™</span>
-          </div>
+        {/* Logo */}
+        <div className="mb-8 text-center">
+          {isOrgSubdomain ? (
+            branding?.logoUrl ? (
+              <img src={branding.logoUrl} alt={displayName} className="h-12 max-w-[200px] object-contain mx-auto" />
+            ) : (
+              <h1 className="text-2xl font-bold" style={{ color: primary }}>{displayName}</h1>
+            )
+          ) : (
+            <div className="lg:hidden flex items-baseline gap-0.5 justify-center">
+              <span className="text-3xl font-bold tracking-tight" style={{ color: NAVY, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>teach</span>
+              <span className="text-3xl font-bold tracking-tight" style={{ color: TEAL, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>ific</span>
+              <span className="text-sm font-bold ml-0.5" style={{ color: TEAL, verticalAlign: "super", fontSize: "0.55em" }}>™</span>
+            </div>
+          )}
         </div>
 
         <div className="w-full max-w-sm">
           <Link
             href="/login"
             className="inline-flex items-center gap-1.5 text-sm mb-8 transition-colors hover:opacity-70"
-            style={{ color: TEAL }}
+            style={{ color: isOrgSubdomain ? primary : TEAL }}
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to sign in
           </Link>
@@ -161,8 +173,11 @@ export default function ForgotPasswordPage() {
             <Button
               type="submit"
               disabled={forgot.isPending}
-              className="w-full h-11 font-semibold text-white rounded-lg transition-all shadow-sm"
-              style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #15b8c0 100%)` }}
+              className="w-full h-11 font-semibold rounded-lg transition-all shadow-sm"
+              style={{
+                background: isOrgSubdomain ? primary : `linear-gradient(135deg, ${TEAL} 0%, #15b8c0 100%)`,
+                color: buttonText,
+              }}
             >
               {forgot.isPending
                 ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending...</>

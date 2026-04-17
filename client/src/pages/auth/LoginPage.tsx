@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Loader2, BookOpen, Users, TrendingUp, Award } from "lucide-react";
 import { CACHE_KEY } from "@/lib/authCache";
 import { getOrgSubdomainUrl, getSubdomain } from "@/hooks/useSubdomain";
+import { useOrgAuthBranding } from "@/hooks/useOrgAuthBranding";
 
 const NAVY = "#0b1d35";
 const NAVY_MID = "#0f2847";
@@ -38,6 +39,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+
+  // Org white-labeling
+  const { branding, primary, buttonText, displayName } = useOrgAuthBranding();
+  const isOrgSubdomain = !!branding;
 
   const utils = trpc.useUtils();
   const login = trpc.customAuth.login.useMutation({
@@ -217,8 +222,8 @@ export default function LoginPage() {
   // ── Standard web login ───────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex">
-      {/* ── Left panel: brand ───────────────────────────────────────── */}
-      <div
+      {/* ── Left panel: brand (hidden on org subdomains) ───────────── */}
+      {!isOrgSubdomain && <div
         className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 relative overflow-hidden"
         style={{ background: `linear-gradient(145deg, ${NAVY} 0%, ${NAVY_MID} 60%, #0d3352 100%)` }}
       >
@@ -322,32 +327,25 @@ export default function LoginPage() {
         <p className="relative z-10 text-white/25 text-xs">
           © {new Date().getFullYear()} Teachific™. All rights reserved.
         </p>
-      </div>
+      </div>}
 
       {/* ── Right panel: form ───────────────────────────────────────── */}
       <div className="flex-1 flex flex-col justify-center items-center bg-white px-8 py-12">
-        {/* Mobile logo */}
-        <div className="lg:hidden mb-8 text-center">
-          <div className="flex items-baseline gap-0.5 justify-center">
-            <span
-              className="text-3xl font-bold tracking-tight"
-              style={{ color: NAVY, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            >
-              teach
-            </span>
-            <span
-              className="text-3xl font-bold tracking-tight"
-              style={{ color: TEAL, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            >
-              ific
-            </span>
-            <span
-              className="text-sm font-bold ml-0.5"
-              style={{ color: TEAL, verticalAlign: "super", fontSize: "0.55em" }}
-            >
-              ™
-            </span>
-          </div>
+        {/* Logo: org branding on subdomain, Teachific on root */}
+        <div className="mb-8 text-center">
+          {isOrgSubdomain ? (
+            branding?.logoUrl ? (
+              <img src={branding.logoUrl} alt={displayName} className="h-12 max-w-[200px] object-contain mx-auto mb-2" />
+            ) : (
+              <h1 className="text-2xl font-bold" style={{ color: primary }}>{displayName}</h1>
+            )
+          ) : (
+            <div className="lg:hidden flex items-baseline gap-0.5 justify-center">
+              <span className="text-3xl font-bold tracking-tight" style={{ color: NAVY, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>teach</span>
+              <span className="text-3xl font-bold tracking-tight" style={{ color: TEAL, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>ific</span>
+              <span className="text-sm font-bold ml-0.5" style={{ color: TEAL, verticalAlign: "super", fontSize: "0.55em" }}>™</span>
+            </div>
+          )}
         </div>
 
         <div className="w-full max-w-sm">
@@ -358,7 +356,9 @@ export default function LoginPage() {
             >
               Welcome back
             </h2>
-            <p className="text-sm text-slate-500">Sign in to your Teachific account</p>
+            <p className="text-sm text-slate-500">
+              {isOrgSubdomain ? `Sign in to ${displayName}` : "Sign in to your Teachific account"}
+            </p>
           </div>
 
           {error && (
@@ -421,8 +421,11 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={login.isPending}
-              className="w-full h-11 font-semibold text-white rounded-lg transition-all shadow-sm"
-              style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #15b8c0 100%)` }}
+              className="w-full h-11 font-semibold rounded-lg transition-all shadow-sm"
+              style={{
+                background: isOrgSubdomain ? primary : `linear-gradient(135deg, ${TEAL} 0%, #15b8c0 100%)`,
+                color: buttonText,
+              }}
             >
               {login.isPending ? (
                 <>
@@ -441,9 +444,9 @@ export default function LoginPage() {
               <Link
                 href="/register"
                 className="font-semibold transition-colors hover:opacity-80"
-                style={{ color: TEAL }}
+                style={{ color: isOrgSubdomain ? primary : TEAL }}
               >
-                Start for free
+                {isOrgSubdomain ? "Create account" : "Start for free"}
               </Link>
             </p>
           </div>
