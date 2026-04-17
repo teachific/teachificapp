@@ -2775,3 +2775,10 @@
 - [x] White-label ForgotPasswordPage with org branding on subdomain
 - [x] White-label ResetPasswordPage with org branding on subdomain
 - [x] White-label VerifyEmailPage with org branding on subdomain
+
+## User Management (Fixed)
+- [x] Add lms.members.listWithEnrollments procedure (org admin: members + course progress)
+- [x] Add lms.members.createAndAdd procedure (create email/password user and add to org)
+- [x] Add lms.members.manualEnroll procedure (enroll existing member in a course)
+- [x] Add lms.members.bulkImport procedure (CSV bulk member import)
+- [x] Platform admin AdminUsersPage: users.listWithOrg, users.create, users.update, users.delete, users.assignToOrg, users.enrollInCourse, users.revokeEnrollment all confirmed present

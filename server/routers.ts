@@ -833,6 +833,171 @@ export const appRouter = router({
       updateRole: adminProcedure
         .input(z.object({ orgId: z.number(), userId: z.number(), role: z.enum(["org_admin", "user"]) }))
         .mutation(({ input }) => updateOrgMemberRole(input.orgId, input.userId, input.role)),
+
+      // Returns org members enriched with user data and course enrollments
+      listWithEnrollments: orgAdminProcedure
+        .input(z.object({ orgId: z.number() }))
+        .query(async ({ input, ctx }) => {
+          if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+            const membership = await getOrgMember(input.orgId, ctx.user.id);
+            if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+          }
+          const db2 = await getDb();
+          if (!db2) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+          const { inArray, and: andOp, desc: descOp } = await import("drizzle-orm");
+          const { courses: coursesTable } = await import("../drizzle/schema");
+
+          const members = await db2
+            .select({ member: orgMembers, user: users })
+            .from(orgMembers)
+            .innerJoin(users, eq(orgMembers.userId, users.id))
+            .where(eq(orgMembers.orgId, input.orgId));
+
+          if (!members.length) return [];
+          const userIds = members.map(m => m.user.id);
+
+          const enrollments = await db2
+            .select({ enrollment: courseEnrollments, course: coursesTable })
+            .from(courseEnrollments)
+            .innerJoin(coursesTable, eq(courseEnrollments.courseId, coursesTable.id))
+            .where(andOp(inArray(courseEnrollments.userId, userIds), eq(courseEnrollments.orgId, input.orgId)))
+            .orderBy(descOp(courseEnrollments.enrolledAt));
+
+          return members.map(({ member, user }) => ({
+            id: member.id,
+            userId: user.id,
+            orgId: input.orgId,
+            role: member.role,
+            joinedAt: member.joinedAt,
+            user: {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              loginMethod: user.loginMethod,
+              createdAt: user.createdAt,
+            },
+            enrollments: enrollments
+              .filter(e => e.enrollment.userId === user.id)
+              .map(e => ({
+                id: e.enrollment.id,
+                courseId: e.enrollment.courseId,
+                courseName: e.course.title,
+                progressPct: e.enrollment.progressPct ?? 0,
+                isActive: e.enrollment.isActive,
+                enrolledAt: e.enrollment.enrolledAt,
+                completedAt: e.enrollment.completedAt,
+              })),
+          }));
+        }),
+
+      // Create a new email/password user and add them to the org
+      createAndAdd: orgAdminProcedure
+        .input(z.object({
+          orgId: z.number(),
+          name: z.string().min(1),
+          email: z.string().email(),
+          password: z.string().min(6),
+          role: z.enum(["org_admin", "user"]).default("user"),
+          courseIds: z.array(z.number()).optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+            const membership = await getOrgMember(input.orgId, ctx.user.id);
+            if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+          }
+          const existing = await getUserByEmail(input.email);
+          let userId: number;
+          if (existing) {
+            userId = existing.id;
+            const existingMember = await getOrgMember(input.orgId, existing.id);
+            if (!existingMember) {
+              await addOrgMember(input.orgId, existing.id, input.role === "org_admin" ? "org_admin" : "member", ctx.user.id);
+            }
+          } else {
+            const bcrypt = await import("bcryptjs");
+            const passwordHash = await bcrypt.default.hash(input.password, 10);
+            const openId = `manual_${nanoid(20)}`;
+            await createManualUser({ openId, name: input.name, email: input.email, loginMethod: "email", role: "user", passwordHash });
+            const newUser = await getUserByEmail(input.email);
+            if (!newUser) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+            userId = newUser.id;
+            await addOrgMember(input.orgId, userId, input.role === "org_admin" ? "org_admin" : "member", ctx.user.id);
+          }
+          if (input.courseIds?.length) {
+            const { getEnrollment: getEnr } = await import("./lmsDb");
+            for (const courseId of input.courseIds) {
+              const enr = await getEnr(courseId, userId);
+              if (!enr) await createEnrollment({ userId, courseId, orgId: input.orgId, isActive: true, progressPct: 0, certificateIssued: false });
+            }
+          }
+          return { success: true, userId };
+        }),
+
+      // Manually enroll an existing org member in a course
+      manualEnroll: orgAdminProcedure
+        .input(z.object({
+          orgId: z.number(),
+          userId: z.number(),
+          courseId: z.number(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+            const membership = await getOrgMember(input.orgId, ctx.user.id);
+            if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+          }
+          const { getEnrollment: getEnr } = await import("./lmsDb");
+          const existing = await getEnr(input.courseId, input.userId);
+          if (existing) {
+            const db2 = await getDb();
+            if (db2 && !existing.isActive) {
+              await db2.update(courseEnrollments).set({ isActive: true }).where(eq(courseEnrollments.id, existing.id));
+            }
+            return { success: true, enrollmentId: existing.id };
+          }
+          const enrollment = await createEnrollment({ userId: input.userId, courseId: input.courseId, orgId: input.orgId, isActive: true, progressPct: 0, certificateIssued: false });
+          return { success: true, enrollmentId: enrollment?.id };
+        }),
+
+      // Bulk import members from CSV data
+      bulkImport: orgAdminProcedure
+        .input(z.object({
+          orgId: z.number(),
+          users: z.array(z.object({
+            name: z.string(),
+            email: z.string().email(),
+            password: z.string().optional(),
+            role: z.enum(["org_admin", "user"]).default("user"),
+          })),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+            const membership = await getOrgMember(input.orgId, ctx.user.id);
+            if (!membership) throw new TRPCError({ code: "FORBIDDEN" });
+          }
+          let created = 0, updated = 0, failed = 0;
+          const errors: string[] = [];
+          const bcrypt = await import("bcryptjs");
+          for (const u of input.users) {
+            try {
+              const existing = await getUserByEmail(u.email);
+              if (existing) {
+                const existingMember = await getOrgMember(input.orgId, existing.id);
+                if (!existingMember) await addOrgMember(input.orgId, existing.id, u.role === "org_admin" ? "org_admin" : "member", ctx.user.id);
+                updated++;
+              } else {
+                const password = u.password || nanoid(12);
+                const passwordHash = await bcrypt.default.hash(password, 10);
+                const openId = `manual_${nanoid(20)}`;
+                await createManualUser({ openId, name: u.name, email: u.email, loginMethod: "email", role: "user", passwordHash });
+                const newUser = await getUserByEmail(u.email);
+                if (!newUser) throw new Error("Failed to create user");
+                await addOrgMember(input.orgId, newUser.id, u.role === "org_admin" ? "org_admin" : "member", ctx.user.id);
+                created++;
+              }
+            } catch (e: any) { failed++; errors.push(`${u.email}: ${e.message}`); }
+          }
+          return { total: input.users.length, created, updated, failed, errors };
+        }),
     }),
   }),
 
