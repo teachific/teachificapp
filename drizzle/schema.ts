@@ -1247,6 +1247,16 @@ export const certificateTemplates = mysqlTable("certificate_templates", {
   htmlTemplate: text("htmlTemplate"),
   previewImageUrl: text("previewImageUrl"),
   isDefault: boolean("isDefault").default(false).notNull(),
+  // Branding fields
+  logoUrl: text("logoUrl"),
+  primaryColor: varchar("primaryColor", { length: 32 }),
+  accentColor: varchar("accentColor", { length: 32 }),
+  bgStyle: mysqlEnum("bgStyle", ["white", "light", "gradient", "dark"]).default("white"),
+  signatureName: varchar("signatureName", { length: 255 }),
+  signatureTitle: varchar("signatureTitle", { length: 255 }),
+  signatureImageUrl: text("signatureImageUrl"),
+  footerText: text("footerText"),
+  showTeachificBranding: boolean("showTeachificBranding").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type CertificateTemplate = typeof certificateTemplates.$inferSelect;

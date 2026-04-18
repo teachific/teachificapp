@@ -60,6 +60,7 @@ import OrgSettingsPage from "./pages/OrgSettingsPage";
 import StudentLogReportsPage from "./pages/lms/StudentLogReportsPage";
 import LmsDashboardPage from "./pages/lms/LmsDashboardPage";
 import MyCoursesPage from "./pages/lms/MyCoursesPage";
+import MyCertificatesPage from "./pages/lms/MyCertificatesPage";
 import EmailMarketingPage from "./pages/lms/EmailMarketingPage";
 import PublicPagePage from "./pages/PublicPagePage";
 
@@ -299,6 +300,7 @@ function AdminRouter() {
         <Route path="/quizzes/:id/play" component={QuizPlayerPage} />
         <Route path="/quizzes/:id/results/:attemptId" component={QuizResultsPage} />
         <Route path="/lms/my-courses" component={MyCoursesPage} />
+        <Route path="/lms/my-certificates" component={MyCertificatesPage} />
         <Route path="/lms/branding" component={BrandingPage} />
         <Route path="/lms/page-builder/:pageId" component={PageBuilderPage} />
         <Route path="/lms/courses/:courseId/page-builder" component={PageBuilderPage} />
@@ -388,6 +390,7 @@ function SubdomainSchoolRouter({ subdomain }: { subdomain: string }) {
       <Route path="/lms/branding">{() => <DashboardLayout><BrandingPage /></DashboardLayout>}</Route>
       <Route path="/lms/settings">{() => <DashboardLayout><OrgSettingsPage /></DashboardLayout>}</Route>
       <Route path="/lms/my-courses">{() => <DashboardLayout><MyCoursesPage /></DashboardLayout>}</Route>
+      <Route path="/lms/my-certificates">{() => <DashboardLayout><MyCertificatesPage /></DashboardLayout>}</Route>
       <Route path="/lms/custom-pages">{() => <DashboardLayout><CustomPagesPage /></DashboardLayout>}</Route>
       <Route path="/lms/page-builder/:pageId">{() => <DashboardLayout><PageBuilderPage /></DashboardLayout>}</Route>
       <Route path="/lms/courses/:courseId/page-builder">{() => <DashboardLayout><PageBuilderPage /></DashboardLayout>}</Route>
@@ -397,6 +400,7 @@ function SubdomainSchoolRouter({ subdomain }: { subdomain: string }) {
       <Route path="/learn/:courseId/lesson/:lessonId" component={CoursePlayerPage} />
       <Route path="/learn/:courseId" component={CoursePlayerPage} />
       <Route path="/my-courses" component={SchoolMyCoursesPage} />
+      <Route path="/my-certificates">{() => <DashboardLayout><MyCertificatesPage /></DashboardLayout>}</Route>
       <Route path="/courses/:courseId" component={CourseSalesPage} />
       <Route path="/community/:hubId" component={CommunityLearnerPage} />
       <Route path="/embed/:id" component={EmbedPage} />

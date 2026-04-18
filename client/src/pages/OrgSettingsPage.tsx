@@ -18,7 +18,7 @@ import {
   Check, AlertCircle, Crown, Zap, Rocket, Bell, Upload, ImageIcon, X, FileText, Video,
   UserCircle, Plus, Trash2, Edit2, Link as LinkIcon, Link2,
   Wand2, Sparkles, Loader2, ExternalLink, Copy,
-  AlertTriangle, RefreshCw, DollarSign, ArrowDownCircle, History, ShieldAlert, ReceiptText,
+  AlertTriangle, RefreshCw, DollarSign, ArrowDownCircle, History, ShieldAlert, ReceiptText, Award,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { getSubdomain } from "@/hooks/useSubdomain";
@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { WysiwygPageBuilder } from "@/components/WysiwygPageBuilder";
 import type { Block } from "@/components/WysiwygPageBuilder";
+import { CertificateSettingsTab } from "./lms/CertificateSettingsTab";
 
 export default function OrgSettingsPage() {
   const { user } = useAuth();
@@ -305,6 +306,9 @@ export default function OrgSettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="members" className="gap-1.5 whitespace-nowrap">
               <UserCircle className="h-4 w-4" /> Members
+            </TabsTrigger>
+            <TabsTrigger value="certificates" className="gap-1.5 whitespace-nowrap">
+              <Award className="h-4 w-4" /> Certificates
             </TabsTrigger>
            </TabsList>
         {/* General Tab */}
@@ -847,6 +851,7 @@ export default function OrgSettingsPage() {
         <OrgLandingPageTab orgId={orgCtx?.org?.id} orgSlug={orgCtx?.org?.slug ?? ""} orgName={orgCtx?.org?.name ?? ""} plan={plan} />
         {/* Members Tab */}
         <OrgMembersTab orgId={orgCtx?.org?.id} orgName={orgCtx?.org?.name ?? ""} />
+        <OrgCertificatesTabContent orgId={orgCtx?.org?.id} />
       </Tabs>
     </div>
   );
@@ -2466,6 +2471,22 @@ function OrgMembersTab({ orgId, orgName }: { orgId?: number; orgName: string }) 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </TabsContent>
+  );
+}
+
+// ─── OrgCertificatesTab (wrapper) ────────────────────────────────────────────
+function OrgCertificatesTabContent({ orgId }: { orgId?: number }) {
+  if (!orgId) {
+    return (
+      <TabsContent value="certificates" className="space-y-4">
+        <div className="text-muted-foreground text-sm">Loading organisation...</div>
+      </TabsContent>
+    );
+  }
+  return (
+    <TabsContent value="certificates" className="space-y-4">
+      <CertificateSettingsTab orgId={orgId} />
     </TabsContent>
   );
 }

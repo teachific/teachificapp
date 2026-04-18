@@ -190,6 +190,7 @@ import { getLimits } from "../shared/tierLimits";
 import { sendEmail, resolveMergeTags, buildUnsubscribeToken } from "./sendgrid";
 import { courseEnrollmentHtml, groupManagerAssignmentHtml } from "./emailTemplates";
 import { getOrgMembers, getUserById } from "./db";
+import { generateCertificatePdf, shouldShowTeachificBranding } from "./certificateGenerator";
 
 // ─── Role helpers ────────────────────────────────────────────────────────────
 
@@ -1146,6 +1147,147 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
   certificates: router({
     mine: protectedProcedure.query(async ({ ctx }) => {
       return getCertificatesByUser(ctx.user.id);
+    }),
+
+    /** Generate + upload a branded PDF for a specific enrollment certificate */
+    download: protectedProcedure
+      .input(z.object({ enrollmentId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        // 1. Get the certificate record
+        const cert = await getCertificateByEnrollment(input.enrollmentId);
+        if (!cert) throw new TRPCError({ code: "NOT_FOUND", message: "Certificate not found" });
+        if (cert.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+
+        // 2. Get course + org info
+        const course = await getCourseById(cert.courseId);
+        if (!course) throw new TRPCError({ code: "NOT_FOUND", message: "Course not found" });
+        const org = await getOrgById(course.orgId);
+        if (!org) throw new TRPCError({ code: "NOT_FOUND", message: "Org not found" });
+
+        // 3. Get org theme for branding colors
+        const theme = await getOrgTheme(course.orgId);
+        const sub = await getOrgSubscription(course.orgId);
+        const plan = sub?.plan ?? "free";
+
+        // 4. Get default certificate template for the org (if any)
+        const templates = await getCertificateTemplatesByOrg(course.orgId);
+        const tpl = templates.find((t: any) => t.isDefault) ?? templates[0] ?? null;
+
+        // 5. Determine branding
+        const showTeachificBranding = tpl?.showTeachificBranding ?? shouldShowTeachificBranding(plan);
+        const primaryColor = tpl?.primaryColor ?? theme?.primaryColor ?? "#0ea5e9";
+        const accentColor = tpl?.accentColor ?? theme?.accentColor ?? "#0f2942";
+        const logoUrl = tpl?.logoUrl ?? org.logoUrl ?? theme?.adminLogoUrl ?? null;
+
+        // 6. Generate PDF
+        const pdfBuffer = await generateCertificatePdf({
+          studentName: ctx.user.name ?? "Student",
+          courseName: course.title,
+          issuedAt: cert.issuedAt ? new Date(cert.issuedAt) : new Date(),
+          verificationCode: cert.verificationCode ?? cert.id.toString(),
+          orgName: org.name,
+          orgLogoUrl: logoUrl,
+          primaryColor,
+          accentColor,
+          bgStyle: (tpl?.bgStyle as any) ?? "white",
+          signatureName: tpl?.signatureName ?? null,
+          signatureTitle: tpl?.signatureTitle ?? null,
+          signatureImageUrl: tpl?.signatureImageUrl ?? null,
+          footerText: tpl?.footerText ?? null,
+          showTeachificBranding,
+        });
+
+        // 7. Upload to S3 and return URL
+        const key = `certificates/${course.orgId}/${ctx.user.id}/cert-${cert.id}-${Date.now()}.pdf`;
+        const { url } = await storagePut(key, pdfBuffer, "application/pdf");
+        return { url, filename: `certificate-${course.title.replace(/[^a-z0-9]/gi, "-").toLowerCase()}.pdf` };
+      }),
+
+    // ── Certificate Templates ─────────────────────────────────────────────
+    templates: router({
+      list: protectedProcedure
+        .input(z.object({ orgId: z.number() }))
+        .query(async ({ input, ctx }) => {
+          await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
+          return getCertificateTemplatesByOrg(input.orgId);
+        }),
+
+      create: protectedProcedure
+        .input(z.object({
+          orgId: z.number(),
+          name: z.string().min(1),
+          isDefault: z.boolean().optional(),
+          logoUrl: z.string().optional(),
+          primaryColor: z.string().optional(),
+          accentColor: z.string().optional(),
+          bgStyle: z.enum(["white", "light", "gradient", "dark"]).optional(),
+          signatureName: z.string().optional(),
+          signatureTitle: z.string().optional(),
+          signatureImageUrl: z.string().optional(),
+          footerText: z.string().optional(),
+          showTeachificBranding: z.boolean().optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          await requireOrgAdmin(ctx.user.id, input.orgId, ctx.user.role);
+          const sub = await getOrgSubscription(input.orgId);
+          const plan = sub?.plan ?? "free";
+          // Force showTeachificBranding=true on free/starter/builder plans
+          const showTeachificBranding = shouldShowTeachificBranding(plan)
+            ? true
+            : (input.showTeachificBranding ?? false);
+          return createCertificateTemplate({
+            orgId: input.orgId,
+            name: input.name,
+            isDefault: input.isDefault ?? false,
+            logoUrl: input.logoUrl,
+            primaryColor: input.primaryColor,
+            accentColor: input.accentColor,
+            bgStyle: input.bgStyle ?? "white",
+            signatureName: input.signatureName,
+            signatureTitle: input.signatureTitle,
+            signatureImageUrl: input.signatureImageUrl,
+            footerText: input.footerText,
+            showTeachificBranding,
+          });
+        }),
+
+      update: protectedProcedure
+        .input(z.object({
+          id: z.number(),
+          name: z.string().min(1).optional(),
+          isDefault: z.boolean().optional(),
+          logoUrl: z.string().nullable().optional(),
+          primaryColor: z.string().nullable().optional(),
+          accentColor: z.string().nullable().optional(),
+          bgStyle: z.enum(["white", "light", "gradient", "dark"]).optional(),
+          signatureName: z.string().nullable().optional(),
+          signatureTitle: z.string().nullable().optional(),
+          signatureImageUrl: z.string().nullable().optional(),
+          footerText: z.string().nullable().optional(),
+          showTeachificBranding: z.boolean().optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          const tpl = await getCertificateTemplateById(input.id);
+          if (!tpl) throw new TRPCError({ code: "NOT_FOUND" });
+          await requireOrgAdmin(ctx.user.id, tpl.orgId, ctx.user.role);
+          // Re-enforce Teachific branding on non-white-label plans
+          const sub = await getOrgSubscription(tpl.orgId);
+          const plan = sub?.plan ?? "free";
+          const { id, ...rest } = input;
+          const data: any = { ...rest };
+          if (shouldShowTeachificBranding(plan)) data.showTeachificBranding = true;
+          return updateCertificateTemplate(input.id, data);
+        }),
+
+      delete: protectedProcedure
+        .input(z.object({ id: z.number() }))
+        .mutation(async ({ input, ctx }) => {
+          const tpl = await getCertificateTemplateById(input.id);
+          if (!tpl) throw new TRPCError({ code: "NOT_FOUND" });
+          await requireOrgAdmin(ctx.user.id, tpl.orgId, ctx.user.role);
+          await deleteCertificateTemplate(input.id);
+          return { success: true };
+        }),
     }),
   }),
 

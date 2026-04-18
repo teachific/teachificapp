@@ -2830,3 +2830,19 @@
 - [x] CTA button defaults to teal (#0ea5e9)
 - [x] Accent color defaults to teal (#0ea5e9)
 - [x] Apply to: org creation auto-seed, WYSIWYG default blocks, and any fallback landing page generation
+
+## My Certificates Feature
+- [ ] Add lms.certificates.download tRPC procedure (generates/caches branded PDF to S3)
+- [ ] White-label logic: pro/enterprise use org logo+colors; free/starter show Teachific branding
+- [ ] Student My Certificates page (/dashboard/certificates)
+- [ ] Certificate Settings tab in OrgSettings (logo, colors, signature line, custom text)
+- [ ] Wire PDF generation into auto-issue on course completion
+- [ ] Vitest tests for certificate branding logic
+
+## My Certificates Feature
+- [ ] Add lms.certificates.download tRPC procedure (generates/caches branded PDF to S3)
+- [ ] White-label logic: pro/enterprise use org logo+colors; free/starter show Teachific branding
+- [ ] Student My Certificates page (/dashboard/certificates)
+- [ ] Certificate Settings tab in OrgSettings (logo, colors, signature line, custom text)
+- [ ] Wire PDF generation into auto-issue on course completion
+- [ ] Vitest tests for certificate branding logic
