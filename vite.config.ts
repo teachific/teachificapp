@@ -167,6 +167,87 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // Vendor: React core
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router') || id.includes('node_modules/wouter')) {
+            return 'vendor-react';
+          }
+          // Vendor: Radix UI / shadcn components
+          if (id.includes('node_modules/@radix-ui/')) {
+            return 'vendor-radix';
+          }
+          // Vendor: tRPC + tanstack query
+          if (id.includes('node_modules/@trpc/') || id.includes('node_modules/@tanstack/')) {
+            return 'vendor-trpc';
+          }
+          // Vendor: Charts (recharts is large)
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-') || id.includes('node_modules/victory')) {
+            return 'vendor-charts';
+          }
+          // Vendor: Lucide icons (33MB source, large in bundle)
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons';
+          }
+          // Vendor: date-fns (33MB source)
+          if (id.includes('node_modules/date-fns')) {
+            return 'vendor-dates';
+          }
+          // Vendor: framer-motion animations
+          if (id.includes('node_modules/framer-motion')) {
+            return 'vendor-motion';
+          }
+          // Vendor: zod validation
+          if (id.includes('node_modules/zod')) {
+            return 'vendor-zod';
+          }
+          // Vendor: xlsx / spreadsheet
+          if (id.includes('node_modules/xlsx') || id.includes('node_modules/jszip')) {
+            return 'vendor-xlsx';
+          }
+          // Vendor: form handling
+          if (id.includes('node_modules/react-hook-form') || id.includes('node_modules/@hookform')) {
+            return 'vendor-forms';
+          }
+          // Vendor: Monaco editor or code editors
+          if (id.includes('node_modules/monaco-editor') || id.includes('node_modules/@monaco-editor')) {
+            return 'vendor-monaco';
+          }
+          // Vendor: Stripe frontend
+          if (id.includes('node_modules/@stripe/')) {
+            return 'vendor-stripe';
+          }
+          // Vendor: superjson
+          if (id.includes('node_modules/superjson')) {
+            return 'vendor-superjson';
+          }
+          // Vendor: tiptap rich text editor
+          if (id.includes('node_modules/@tiptap/') || id.includes('node_modules/prosemirror')) {
+            return 'vendor-tiptap';
+          }
+          // Vendor: codemirror code editor
+          if (id.includes('node_modules/@codemirror/') || id.includes('node_modules/@lezer/')) {
+            return 'vendor-codemirror';
+          }
+          // Vendor: dnd-kit drag and drop
+          if (id.includes('node_modules/@dnd-kit/')) {
+            return 'vendor-dnd';
+          }
+          // Vendor: AWS SDK (S3)
+          if (id.includes('node_modules/@aws-sdk/')) {
+            return 'vendor-aws';
+          }
+          // Vendor: Other node_modules (catch-all)
+          if (id.includes('node_modules/')) {
+            return 'vendor-misc';
+          }
+          // Note: app-admin, app-lms, app-org groupings removed — let Vite create
+          // individual per-page chunks for lazy-loaded components (better code splitting)
+        },
+      },
+    },
   },
   server: {
     host: true,

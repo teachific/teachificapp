@@ -2918,3 +2918,12 @@
 - [ ] Build /support page: FAQ accordion + ticket submission form with name, email, subject, category, message fields
 - [ ] Add Support link to main navigation (LandingPage header + DashboardLayout sidebar)
 - [ ] Add Tickets tab in PlatformAdminPage to view and manage submitted tickets
+
+## Bundle Size Optimization & Publish Pipeline Fix (Apr 18, 2026)
+- [x] Convert all 112 static page imports in App.tsx to React.lazy() dynamic imports
+- [x] Add Suspense fallback (PageLoader spinner) wrapping BareRouter, AdminRouter, SubdomainSchoolRouter
+- [x] Remove app-admin/app-lms/app-org manualChunks groupings from vite.config.ts (counterproductive with lazy loading)
+- [x] Add vendor-tiptap, vendor-codemirror, vendor-dnd, vendor-aws chunks to split vendor-misc
+- [x] index chunk reduced from 2.12MB → 190KB (gzip: 272KB → 30KB)
+- [x] No large-chunk warnings in production build
+- [x] 81/81 tests passing, 0 TypeScript errors
