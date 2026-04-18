@@ -116,7 +116,7 @@ export default function AdminOrgsPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Slug</Label>
+                <Label>Subdomain</Label>
                 <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="acme-corp" />
                 <p className="text-xs text-muted-foreground">Used in URLs — lowercase letters, numbers, and hyphens only.</p>
               </div>
@@ -235,7 +235,7 @@ export default function AdminOrgsPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Slug</Label>
+                <Label>Subdomain</Label>
                 <Input
                   value={editTarget.slug}
                   onChange={(e) => setEditTarget({ ...editTarget, slug: e.target.value })}

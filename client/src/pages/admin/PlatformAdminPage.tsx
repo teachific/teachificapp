@@ -624,7 +624,7 @@ function OrgsTab() {
             <TableRow className="border-gray-200 hover:bg-transparent">
               <TableHead className="text-slate-700">Organization</TableHead>
               <TableHead className="text-slate-700">Super Admin</TableHead>
-              <TableHead className="text-slate-700">Slug</TableHead>
+              <TableHead className="text-slate-700">Subdomain</TableHead>
               <TableHead className="text-slate-700">Domain</TableHead>
               <TableHead className="text-slate-700">Members</TableHead>
               <TableHead className="text-slate-700">Plan</TableHead>
@@ -725,7 +725,7 @@ function OrgsTab() {
                   <Input value={editForm.name ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="bg-white border-gray-300 text-slate-900" autoCorrect="off" autoCapitalize="words" spellCheck={false} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-slate-800">Slug</Label>
+                  <Label className="text-slate-800">Subdomain</Label>
                   <Input value={editForm.slug ?? ""} onChange={(e) => setEditForm((f) => ({ ...f, slug: e.target.value }))} className="bg-white border-gray-300 text-slate-900 font-mono" />
                 </div>
                 <div className="space-y-1.5">
@@ -1012,7 +1012,7 @@ function OrgsTab() {
                 <Input value={createOrgForm.orgName} onChange={e => { const v = e.target.value; setCreateOrgForm(f => ({ ...f, orgName: v, orgSlug: v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") })); }} placeholder="Acme Corp" className="bg-white border-gray-300 text-slate-900" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-700 text-sm">Slug *</Label>
+                <Label className="text-slate-700 text-sm">Subdomain *</Label>
                 <Input value={createOrgForm.orgSlug} onChange={e => setCreateOrgForm(f => ({ ...f, orgSlug: e.target.value }))} placeholder="acme-corp" className="bg-white border-gray-300 text-slate-900 font-mono text-sm" />
               </div>
             </div>
