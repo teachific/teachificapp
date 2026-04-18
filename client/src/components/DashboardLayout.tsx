@@ -37,6 +37,7 @@ import {
   FolderOpen,
   Globe,
   GraduationCap,
+  HelpCircle,
   LayoutDashboard,
   Link2,
   LogOut,
@@ -247,6 +248,17 @@ const navGroups: NavGroup[] = [
         label: "Platform Admin",
         path: "/platform-admin",
         adminOnly: true,
+      },
+    ],
+  },
+  // ── Help & Support ──
+  {
+    dividerBefore: true,
+    items: [
+      {
+        icon: HelpCircle,
+        label: "Help & Support",
+        path: "/support",
       },
     ],
   },
