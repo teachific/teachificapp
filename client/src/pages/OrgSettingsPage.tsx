@@ -141,6 +141,23 @@ export default function OrgSettingsPage() {
     onError: (error) => toast.error(error.message || "Failed to save settings"),
   });
 
+  // Domain verification
+  const { data: domainStatus, refetch: refetchDomainStatus } = trpc.orgs.getDomainStatus.useQuery(
+    undefined,
+    { enabled: !!user && !!orgCtx?.org?.id, staleTime: 30_000 }
+  );
+  const verifyDomain = trpc.orgs.verifyDomain.useMutation({
+    onSuccess: (result) => {
+      refetchDomainStatus();
+      if (result.status === "verified") {
+        toast.success("Domain verified successfully! Your custom domain is active.");
+      } else {
+        toast.error(result.error ?? "DNS verification failed. Check the error details below.");
+      }
+    },
+    onError: (e) => toast.error(e.message || "Verification failed"),
+  });
+
   // Real-time subdomain availability check
   const { data: subdomainCheck, isFetching: checkingSubdomain } = trpc.orgs.checkSubdomain.useQuery(
     { subdomain: debouncedSlug, currentOrgId: orgCtx?.org?.id },
@@ -812,7 +829,7 @@ export default function OrgSettingsPage() {
               </div>
 
               {/* Custom domain input */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="custom-domain">Custom Domain</Label>
                 <div className="flex gap-2">
                   <Input
@@ -831,20 +848,89 @@ export default function OrgSettingsPage() {
                     {updateSettings.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save</>}
                   </Button>
                 </div>
+
+                {/* Verification status + Verify DNS button */}
                 {orgCtx?.org?.customDomain && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <Check className="h-3 w-3 text-green-500" />
-                    Currently configured: <span className="font-mono text-foreground">{orgCtx.org.customDomain}</span>
-                    <button
-                      className="ml-1 text-destructive hover:underline text-xs"
-                      onClick={() => {
-                        setCustomDomain("");
-                        updateSettings.mutate({ customDomain: undefined });
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Status badge */}
+                      {(() => {
+                        const status = domainStatus?.domainVerificationStatus ?? "unverified";
+                        if (status === "verified") return (
+                          <Badge className="gap-1.5 bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30 hover:bg-green-500/20">
+                            <Check className="h-3 w-3" /> Verified
+                          </Badge>
+                        );
+                        if (status === "pending") return (
+                          <Badge className="gap-1.5 bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/20">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Checking...
+                          </Badge>
+                        );
+                        if (status === "failed") return (
+                          <Badge className="gap-1.5 bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30 hover:bg-red-500/20">
+                            <AlertCircle className="h-3 w-3" /> Verification Failed
+                          </Badge>
+                        );
+                        return (
+                          <Badge variant="outline" className="gap-1.5 text-muted-foreground">
+                            <AlertCircle className="h-3 w-3" /> Not Verified
+                          </Badge>
+                        );
+                      })()}
+
+                      <span className="text-xs text-muted-foreground font-mono">{orgCtx.org.customDomain}</span>
+
+                      {/* Verify DNS button */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1.5 text-xs ml-auto"
+                        onClick={() => verifyDomain.mutate()}
+                        disabled={verifyDomain.isPending || !isProPlus}
+                      >
+                        {verifyDomain.isPending
+                          ? <><Loader2 className="h-3 w-3 animate-spin" /> Checking DNS...</>
+                          : <><RefreshCw className="h-3 w-3" /> Verify DNS</>}
+                      </Button>
+
+                      {/* Remove button */}
+                      <button
+                        className="text-destructive hover:underline text-xs"
+                        onClick={() => {
+                          setCustomDomain("");
+                          updateSettings.mutate({ customDomain: undefined });
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    {/* Last verified timestamp */}
+                    {domainStatus?.domainVerificationStatus === "verified" && domainStatus.domainVerifiedAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Last verified: {new Date(domainStatus.domainVerifiedAt).toLocaleString()}
+                      </p>
+                    )}
+
+                    {/* Error details */}
+                    {domainStatus?.domainVerificationStatus === "failed" && domainStatus.domainVerificationError && (
+                      <div className="flex items-start gap-2 p-2.5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md">
+                        <AlertCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium text-red-700 dark:text-red-400">DNS Check Failed</p>
+                          <p className="text-xs text-red-600 dark:text-red-300">{domainStatus.domainVerificationError}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Make sure the CNAME record is saved in your DNS provider and wait up to 48 hours for propagation, then click <strong>Verify DNS</strong> again.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Unverified hint */}
+                    {(domainStatus?.domainVerificationStatus === "unverified" || !domainStatus?.domainVerificationStatus) && (
+                      <p className="text-xs text-muted-foreground">
+                        Click <strong>Verify DNS</strong> after adding the CNAME record to confirm your domain is correctly configured.
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </CardContent>

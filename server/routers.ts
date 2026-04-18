@@ -1,4 +1,5 @@
 import { COOKIE_NAME, IMPERSONATION_ORIGINAL_COOKIE } from "@shared/const";
+import dns from "node:dns";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -750,6 +751,84 @@ export const appRouter = router({
         if (input.currentOrgId && existing[0].id === input.currentOrgId) return { available: true };
         return { available: false };
       }),
+
+    // ── Domain Verification ────────────────────────────────────────────────────
+    // Get the current domain verification status for the user's org
+    getDomainStatus: orgAdminProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const rows = await db
+        .select({
+          org: organizations,
+          role: orgMembers.role,
+        })
+        .from(orgMembers)
+        .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+        .where(eq(orgMembers.userId, ctx.user.id))
+        .limit(1);
+      if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND" });
+      const org = rows[0].org;
+      return {
+        customDomain: org.customDomain ?? null,
+        domainVerificationStatus: org.domainVerificationStatus,
+        domainVerifiedAt: org.domainVerifiedAt ?? null,
+        domainVerificationError: org.domainVerificationError ?? null,
+        expectedCname: `${org.slug}.teachific.app`,
+      };
+    }),
+
+    // Perform a live DNS CNAME lookup and update verification status
+    verifyDomain: orgAdminProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const rows = await db
+        .select({ org: organizations, role: orgMembers.role })
+        .from(orgMembers)
+        .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+        .where(eq(orgMembers.userId, ctx.user.id))
+        .limit(1);
+      if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND" });
+      const org = rows[0].org;
+      if (!org.customDomain) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No custom domain configured. Please save a custom domain first." });
+      }
+      const expectedTarget = `${org.slug}.teachific.app`;
+      // Set status to pending while we check
+      await db.update(organizations)
+        .set({ domainVerificationStatus: "pending", domainVerificationError: null })
+        .where(eq(organizations.id, org.id));
+      try {
+        const cnames = await dns.promises.resolveCname(org.customDomain);
+        // Check if any resolved CNAME points to the expected target
+        const matched = cnames.some((c) =>
+          c.toLowerCase().replace(/\.$/, "") === expectedTarget.toLowerCase()
+        );
+        if (matched) {
+          await db.update(organizations)
+            .set({
+              domainVerificationStatus: "verified",
+              domainVerifiedAt: new Date(),
+              domainVerificationError: null,
+            })
+            .where(eq(organizations.id, org.id));
+          return { status: "verified" as const, cnames };
+        } else {
+          const errorMsg = `CNAME resolves to [${cnames.join(", ")}] but expected ${expectedTarget}`;
+          await db.update(organizations)
+            .set({ domainVerificationStatus: "failed", domainVerificationError: errorMsg })
+            .where(eq(organizations.id, org.id));
+          return { status: "failed" as const, cnames, expected: expectedTarget, error: errorMsg };
+        }
+      } catch (err: any) {
+        const errorMsg = err.code === "ENOTFOUND" || err.code === "ENODATA"
+          ? `No CNAME record found for ${org.customDomain}. Make sure you've added the CNAME record and DNS has propagated.`
+          : `DNS lookup failed: ${err.message}`;
+        await db.update(organizations)
+          .set({ domainVerificationStatus: "failed", domainVerificationError: errorMsg })
+          .where(eq(organizations.id, org.id));
+        return { status: "failed" as const, cnames: [], expected: expectedTarget, error: errorMsg };
+      }
+    }),
 
     // ── Landing Page procedures ────────────────────────────────────────────────
     // Get landing page for an org by slug (public)

@@ -82,6 +82,10 @@ export const organizations = mysqlTable("organizations", {
   paymentGateway: mysqlEnum("paymentGateway", ["teachific_pay", "own_gateway"]).default("teachific_pay").notNull(),
   ownStripePublishableKey: varchar("ownStripePublishableKey", { length: 255 }),
   ownStripeSecretKeyEncrypted: text("ownStripeSecretKeyEncrypted"),
+  // Custom domain verification
+  domainVerificationStatus: mysqlEnum("domainVerificationStatus", ["unverified", "pending", "verified", "failed"]).default("unverified").notNull(),
+  domainVerifiedAt: timestamp("domainVerifiedAt"),
+  domainVerificationError: varchar("domainVerificationError", { length: 500 }),
   // Internal platform admin notes (never visible to org admins or members)
   adminNotes: text("adminNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

@@ -2869,3 +2869,13 @@
 - [x] Fix TypeScript error in AdminUsersPage: bulkEnroll call now includes required orgId field
 - [x] Private org notes: adminNotes column in organizations table (migration applied), orgs.update procedure accepts adminNotes, AdminOrgsPage edit dialog shows Private Admin Notes textarea
 - [x] Website/Domain tab in OrgSettings: renamed "Domain" tab to "Website", added subdomain display card with copy/visit buttons, added step-by-step DNS instructions for custom domain setup (CNAME record table, 3-step guide), custom domain input with save/remove
+
+## Domain Verification Status
+- [x] Add domainVerifiedAt (timestamp) and domainVerificationStatus (enum: unverified/pending/verified/failed) columns to organizations table
+- [x] Generate and apply migration SQL
+- [x] Add orgs.verifyDomain tRPC procedure (orgAdminProcedure): performs server-side DNS CNAME lookup via dns.promises.resolveCname, updates verification status and timestamp
+- [x] Add orgs.getDomainStatus tRPC procedure: returns current customDomain, verificationStatus, verifiedAt
+- [x] Website tab: show verification badge (Verified/Pending/Failed/Unverified) next to configured domain
+- [x] Website tab: "Verify DNS" button that calls verifyDomain and refreshes badge
+- [x] Show last verified timestamp when status is verified
+- [x] Show helpful error message when DNS check fails (CNAME not found or points to wrong target)
