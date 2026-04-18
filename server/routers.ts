@@ -2627,44 +2627,50 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
 
     // Platform-wide analytics overview
     platformStats: adminProcedure.query(async () => {
-      const db = await getDb();
-      if (!db) return { totalUsers: 0, totalOrgs: 0, totalCourses: 0, totalEnrollments: 0, totalRevenue: 0, planBreakdown: {}, recentOrgs: [], recentUsers: [], analytics: { totalPlays: 0, totalDownloads: 0, totalCompletions: 0 } };
-      const { sql, count, desc } = await import("drizzle-orm");
-      const { users, organizations: orgsTable, orgSubscriptions } = await import("../drizzle/schema");
-      const { courses: lmsCourses, courseEnrollments: enrollTable, courseOrders } = await import("../drizzle/schema");
+      const empty = { totalUsers: 0, totalOrgs: 0, totalCourses: 0, totalEnrollments: 0, totalRevenue: 0, planBreakdown: {} as Record<string, number>, recentOrgs: [] as any[], recentUsers: [] as any[], analytics: { totalPlays: 0, totalDownloads: 0, totalCompletions: 0 } };
+      try {
+        const db = await getDb();
+        if (!db) return empty;
+        const { sql: sqlFn, count, desc } = await import("drizzle-orm");
+        const { users, organizations: orgsTable, orgSubscriptions } = await import("../drizzle/schema");
+        const { courses: lmsCourses, courseEnrollments: enrollTable, courseOrders } = await import("../drizzle/schema");
 
-      const [userCount] = await db.select({ count: count() }).from(users);
-      const [orgCount] = await db.select({ count: count() }).from(orgsTable);
-      const [courseCount] = await db.select({ count: count() }).from(lmsCourses);
-      const [enrollCount] = await db.select({ count: count() }).from(enrollTable);
+        const [userCount] = await db.select({ count: count() }).from(users);
+        const [orgCount] = await db.select({ count: count() }).from(orgsTable);
+        const [courseCount] = await db.select({ count: count() }).from(lmsCourses);
+        const [enrollCount] = await db.select({ count: count() }).from(enrollTable);
 
-      // Revenue from paid orders
-      const revenueRows = await db.select({ total: sql<number>`COALESCE(SUM(amount_cents), 0)` }).from(courseOrders).where(sql`status = 'completed'`);
-      const totalRevenue = revenueRows[0]?.total ?? 0;
+        // Revenue from paid orders — amount is a float (USD), not cents
+        const revenueRows = await db.select({ total: sqlFn<number>`COALESCE(SUM(amount), 0)` }).from(courseOrders).where(sqlFn`status = 'completed'`);
+        const totalRevenue = revenueRows[0]?.total ?? 0;
 
-      // Plan breakdown
-      const planRows = await db.select({ plan: orgSubscriptions.plan, count: count() }).from(orgSubscriptions).groupBy(orgSubscriptions.plan);
-      const planBreakdown = Object.fromEntries(planRows.map(r => [r.plan, r.count]));
+        // Plan breakdown from org_subscriptions
+        const planRows = await db.select({ plan: orgSubscriptions.plan, count: count() }).from(orgSubscriptions).groupBy(orgSubscriptions.plan);
+        const planBreakdown = Object.fromEntries(planRows.map(r => [r.plan, r.count]));
 
-      // Recent orgs
-      const recentOrgs = await db.select({ id: orgsTable.id, name: orgsTable.name, slug: orgsTable.slug, createdAt: orgsTable.createdAt }).from(orgsTable).orderBy(desc(orgsTable.createdAt)).limit(5);
+        // Recent orgs
+        const recentOrgs = await db.select({ id: orgsTable.id, name: orgsTable.name, slug: orgsTable.slug, createdAt: orgsTable.createdAt }).from(orgsTable).orderBy(desc(orgsTable.createdAt)).limit(5);
 
-      // Recent users
-      const recentUsers = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role, createdAt: users.createdAt }).from(users).orderBy(desc(users.createdAt)).limit(5);
+        // Recent users
+        const recentUsers = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role, createdAt: users.createdAt }).from(users).orderBy(desc(users.createdAt)).limit(5);
 
-      const analytics = await getAnalyticsSummary();
+        const analytics = await getAnalyticsSummary();
 
-      return {
-        totalUsers: userCount.count,
-        totalOrgs: orgCount.count,
-        totalCourses: courseCount.count,
-        totalEnrollments: enrollCount.count,
-        totalRevenue,
-        planBreakdown,
-        recentOrgs,
-        recentUsers,
-        analytics,
-      };
+        return {
+          totalUsers: userCount.count,
+          totalOrgs: orgCount.count,
+          totalCourses: courseCount.count,
+          totalEnrollments: enrollCount.count,
+          totalRevenue,
+          planBreakdown,
+          recentOrgs,
+          recentUsers,
+          analytics,
+        };
+      } catch (err) {
+        console.error("[platformStats] query error:", err);
+        return empty;
+      }
     }),
 
     // ── Impersonation ──────────────────────────────────────────────────────
