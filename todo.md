@@ -2879,3 +2879,15 @@
 - [x] Website tab: "Verify DNS" button that calls verifyDomain and refreshes badge
 - [x] Show last verified timestamp when status is verified
 - [x] Show helpful error message when DNS check fails (CNAME not found or points to wrong target)
+
+## Domain Verification Enhancements
+- [x] Auto-verify on domain save: when a new customDomain is saved via updateSettings, immediately trigger a background DNS check and update domainVerificationStatus
+- [x] SSL/HTTPS status check: add sslStatus field to getDomainStatus response (performs HTTPS HEAD request to custom domain, returns 'active'|'pending'|'error'), show SSL badge in Website tab
+- [x] AdminOrgsPage: add domain verification status badge column to the orgs table (shows customDomain + badge: Verified/Failed/Not Verified/None)
+
+## Website Tab: Favicon & Logo Upload
+- [x] Add orgs.uploadFavicon and orgs.uploadSiteLogo tRPC procedures (S3 upload, save URL to orgThemes)
+- [x] Website tab: favicon upload card (preview, upload button, remove button, format/size hint)
+- [x] Website tab: site logo upload card (preview, upload button, remove button)
+- [x] Create useOrgBranding hook: injects <link rel="icon"> and document.title into <head>
+- [x] Call useOrgBranding in SchoolPage and OrgLandingPage (subdomain/custom domain learner portal)

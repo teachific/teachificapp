@@ -34,6 +34,8 @@ export default function OrgSettingsPage() {
   const utils = trpc.useUtils();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const watermarkInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
+  const siteLogoInputRef = useRef<HTMLInputElement>(null);
 
   const currentSubdomain = getSubdomain() ?? undefined;
   const { data: orgCtx, isLoading: orgLoading } = trpc.orgs.myContext.useQuery(
@@ -47,6 +49,10 @@ export default function OrgSettingsPage() {
   const [logoUrl, setLogoUrl] = useState("");
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
+  const [faviconUploading, setFaviconUploading] = useState(false);
+  const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null);
+  const [siteLogoUploading, setSiteLogoUploading] = useState(false);
   const [customDomain, setCustomDomain] = useState("");
   const [initialized, setInitialized] = useState(false);
 
@@ -118,6 +124,8 @@ export default function OrgSettingsPage() {
       setWatermarkOpacity(orgTheme.watermarkOpacity ?? 30);
       setWatermarkPosition(orgTheme.watermarkPosition || "bottom-left");
       setWatermarkSize(orgTheme.watermarkSize ?? 120);
+      setFaviconUrl(orgTheme.faviconUrl || null);
+      setSiteLogoUrl(orgTheme.adminLogoUrl || null);
       setThemeInitialized(true);
     }
   }, [orgTheme, themeInitialized]);
@@ -134,9 +142,22 @@ export default function OrgSettingsPage() {
   }, [notifSettings]);
 
   const updateSettings = trpc.orgs.updateSettings.useMutation({
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast.success("Settings saved successfully");
       utils.orgs.myContext.invalidate();
+      // If a new custom domain was saved, start polling for the auto-verify result
+      if (variables.customDomain) {
+        // Immediately show pending, then poll every 3s for up to 30s
+        refetchDomainStatus();
+        let attempts = 0;
+        const poll = setInterval(() => {
+          attempts++;
+          refetchDomainStatus();
+          if (attempts >= 10) clearInterval(poll);
+        }, 3000);
+      } else {
+        refetchDomainStatus();
+      }
     },
     onError: (error) => toast.error(error.message || "Failed to save settings"),
   });
@@ -178,6 +199,51 @@ export default function OrgSettingsPage() {
     },
     onError: (e) => toast.error(e.message),
   });
+
+  const uploadFavicon = trpc.orgs.uploadFavicon.useMutation({
+    onError: (e) => toast.error(e.message),
+  });
+  const uploadSiteLogo = trpc.orgs.uploadSiteLogo.useMutation({
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleFaviconFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error("Favicon must be under 2 MB"); return; }
+    setFaviconUploading(true);
+    try {
+      const { uploadUrl, fileUrl } = await uploadFavicon.mutateAsync({ fileName: file.name, contentType: file.type || "image/x-icon" });
+      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/x-icon" } });
+      setFaviconUrl(fileUrl);
+      utils.lms.themes.get.invalidate({ orgId: orgCtx?.org?.id! });
+      toast.success("Favicon uploaded!");
+    } catch (err: any) {
+      toast.error(err?.message || "Upload failed");
+    } finally {
+      setFaviconUploading(false);
+      if (faviconInputRef.current) faviconInputRef.current.value = "";
+    }
+  };
+
+  const handleSiteLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Logo must be under 5 MB"); return; }
+    setSiteLogoUploading(true);
+    try {
+      const { uploadUrl, fileUrl } = await uploadSiteLogo.mutateAsync({ fileName: file.name, contentType: file.type || "image/png" });
+      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/png" } });
+      setSiteLogoUrl(fileUrl);
+      utils.lms.themes.get.invalidate({ orgId: orgCtx?.org?.id! });
+      toast.success("Site logo uploaded!");
+    } catch (err: any) {
+      toast.error(err?.message || "Upload failed");
+    } finally {
+      setSiteLogoUploading(false);
+      if (siteLogoInputRef.current) siteLogoInputRef.current.value = "";
+    }
+  };
 
   const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -725,6 +791,122 @@ export default function OrgSettingsPage() {
 
         {/* Website / Domain Tab */}
         <TabsContent value="domain" className="space-y-4">
+          {/* Site Logo Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="h-5 w-5 text-primary" /> Site Logo
+              </CardTitle>
+              <CardDescription>Displayed in the learner portal header and on your subdomain/custom domain. Recommended: 200×50 px, transparent PNG or SVG.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="w-44 h-20 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/30 overflow-hidden shrink-0">
+                  {siteLogoUrl ? (
+                    <img src={siteLogoUrl} alt="Site logo preview" className="max-h-16 max-w-40 object-contain" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                      <ImageIcon className="h-6 w-6" />
+                      <span className="text-xs">No logo</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    disabled={siteLogoUploading}
+                    onClick={() => siteLogoInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4" />
+                    {siteLogoUploading ? "Uploading..." : "Upload Logo"}
+                  </Button>
+                  {siteLogoUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        setSiteLogoUrl(null);
+                        if (!orgCtx?.org?.id) return;
+                        updateTheme.mutate({ orgId: orgCtx.org.id, adminLogoUrl: "" });
+                      }}
+                    >
+                      <X className="h-3.5 w-3.5" /> Remove
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground">PNG, SVG, or WebP · Max 5 MB</p>
+                </div>
+              </div>
+              <input
+                ref={siteLogoInputRef}
+                type="file"
+                accept="image/png,image/svg+xml,image/webp,image/jpeg"
+                className="hidden"
+                onChange={handleSiteLogoFileChange}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Favicon Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" /> Favicon
+              </CardTitle>
+              <CardDescription>The small icon shown in browser tabs and bookmarks for your subdomain/custom domain. Recommended: 32×32 px or 64×64 px ICO, PNG, or SVG.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="w-20 h-20 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/30 overflow-hidden shrink-0">
+                  {faviconUrl ? (
+                    <img src={faviconUrl} alt="Favicon preview" className="w-10 h-10 object-contain" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                      <Globe className="h-6 w-6" />
+                      <span className="text-xs">No icon</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    disabled={faviconUploading}
+                    onClick={() => faviconInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4" />
+                    {faviconUploading ? "Uploading..." : "Upload Favicon"}
+                  </Button>
+                  {faviconUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        setFaviconUrl(null);
+                        if (!orgCtx?.org?.id) return;
+                        updateTheme.mutate({ orgId: orgCtx.org.id, faviconUrl: "" });
+                      }}
+                    >
+                      <X className="h-3.5 w-3.5" /> Remove
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground">ICO, PNG, or SVG · 32×32 or 64×64 px · Max 2 MB</p>
+                </div>
+              </div>
+              <input
+                ref={faviconInputRef}
+                type="file"
+                accept="image/x-icon,image/png,image/svg+xml"
+                className="hidden"
+                onChange={handleFaviconFileChange}
+              />
+            </CardContent>
+          </Card>
+
           {/* Subdomain Card */}
           <Card>
             <CardHeader>

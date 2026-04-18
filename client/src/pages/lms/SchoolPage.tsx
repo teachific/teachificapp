@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useOrgBranding } from "@/hooks/useOrgBranding";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -154,6 +155,13 @@ export default function SchoolPage({ subdomainOrg }: { subdomainOrg?: string } =
 
   const primaryColor = theme?.studentPrimaryColor || theme?.primaryColor || "#189aa1";
   const schoolName = theme?.schoolName || orgBySlug?.name || orgs?.[0]?.name || "Our School";
+
+  // Inject org favicon and page title into document <head>
+  useOrgBranding({
+    faviconUrl: theme?.faviconUrl,
+    schoolName,
+    logoUrl: theme?.adminLogoUrl,
+  });
 
   const filteredCourses = (courses || []).filter((c: any) => {
     const matchesSearch = !search || c.title.toLowerCase().includes(search.toLowerCase());

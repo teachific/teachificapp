@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useOrgBranding } from "@/hooks/useOrgBranding";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -141,6 +142,19 @@ export default function OrgLandingPage({ subdomainOrg, fallback }: { subdomainOr
     { slug: subdomainOrg },
     { enabled: !!landingData?.org?.id && (landingData?.showCourses ?? true), staleTime: 60_000 }
   );
+
+  // Fetch org theme for favicon/logo injection
+  const { data: orgTheme } = trpc.lms.publicSchool.themeBySlug.useQuery(
+    { slug: subdomainOrg },
+    { staleTime: 60_000 }
+  );
+
+  // Inject org favicon and page title into document <head>
+  useOrgBranding({
+    faviconUrl: orgTheme?.faviconUrl,
+    schoolName: landingData?.org?.name ?? undefined,
+    logoUrl: orgTheme?.adminLogoUrl,
+  });
 
   if (isLoading) {
     return (

@@ -1,5 +1,6 @@
 import { COOKIE_NAME, IMPERSONATION_ORIGINAL_COOKIE } from "@shared/const";
 import dns from "node:dns";
+import https from "node:https";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -117,6 +118,30 @@ import { teachificPayRouter } from "./teachificPayRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { ENV } from "./_core/env";
 import { issueEmbedToken, verifyEmbedToken } from "./embedToken";
+
+// ─── SSL check helper ────────────────────────────────────────────────────────
+// Attempts an HTTPS HEAD request to the custom domain and returns 'active' if
+// the TLS handshake succeeds, 'error' on cert/connection failure, or 'pending'
+// if the domain is not yet reachable.
+function checkSsl(domain: string): Promise<"active" | "pending" | "error"> {
+  return new Promise((resolve) => {
+    const req = https.request(
+      { hostname: domain, port: 443, method: "HEAD", path: "/", timeout: 8000 },
+      () => { req.destroy(); resolve("active"); }
+    );
+    req.on("error", (err: any) => {
+      // ECONNREFUSED / ENOTFOUND = domain not pointing here yet
+      if (err.code === "ECONNREFUSED" || err.code === "ENOTFOUND" || err.code === "ETIMEDOUT") {
+        resolve("pending");
+      } else {
+        // cert errors (DEPTH_ZERO_SELF_SIGNED_CERT, CERT_HAS_EXPIRED, etc.) = reachable but SSL issue
+        resolve("error");
+      }
+    });
+    req.on("timeout", () => { req.destroy(); resolve("pending"); });
+    req.end();
+  });
+}
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 // site_owner + site_admin have site-wide access
@@ -690,7 +715,58 @@ export const appRouter = router({
           const slugTaken = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, input.slug)).limit(1);
           if (slugTaken.length) throw new TRPCError({ code: "CONFLICT", message: "This subdomain is already taken. Please choose another." });
         }
-        await updateOrg(rows[0].org.id, input);
+        const prevDomain = rows[0].org.customDomain;
+        const newDomain = input.customDomain;
+        // Reset verification status when domain changes or is removed
+        const domainChanged = newDomain !== undefined && newDomain !== prevDomain;
+        if (domainChanged) {
+          await updateOrg(rows[0].org.id, {
+            ...input,
+            domainVerificationStatus: newDomain ? "pending" : "unverified",
+            domainVerifiedAt: null,
+            domainVerificationError: null,
+          });
+          // Fire-and-forget background DNS check when a new domain is saved
+          if (newDomain) {
+            const orgId = rows[0].org.id;
+            const slug = rows[0].org.slug;
+            const expectedTarget = `${slug}.teachific.app`;
+            setImmediate(async () => {
+              try {
+                const db2 = await getDb();
+                if (!db2) return;
+                const cnames = await dns.promises.resolveCname(newDomain);
+                const matched = cnames.some((c) =>
+                  c.toLowerCase().replace(/\.$/, "") === expectedTarget.toLowerCase()
+                );
+                if (matched) {
+                  await db2.update(organizations).set({
+                    domainVerificationStatus: "verified",
+                    domainVerifiedAt: new Date(),
+                    domainVerificationError: null,
+                  }).where(eq(organizations.id, orgId));
+                } else {
+                  await db2.update(organizations).set({
+                    domainVerificationStatus: "failed",
+                    domainVerificationError: `CNAME resolves to [${cnames.join(", ")}] but expected ${expectedTarget}`,
+                  }).where(eq(organizations.id, orgId));
+                }
+              } catch (err: any) {
+                const db2 = await getDb();
+                if (!db2) return;
+                const errorMsg = err.code === "ENOTFOUND" || err.code === "ENODATA"
+                  ? `No CNAME record found for ${newDomain}. Make sure you've added the CNAME record and DNS has propagated.`
+                  : `DNS lookup failed: ${err.message}`;
+                await db2.update(organizations).set({
+                  domainVerificationStatus: "failed",
+                  domainVerificationError: errorMsg,
+                }).where(eq(organizations.id, orgId));
+              }
+            });
+          }
+        } else {
+          await updateOrg(rows[0].org.id, input);
+        }
         return { success: true };
       }),
     // Auto-provision a default org for users who have none (e.g. existing users pre-dating auto-creation)
@@ -732,9 +808,62 @@ export const appRouter = router({
         await updateOrg(rows[0].org.id, { logoUrl: fileUrl });
         return { key, fileUrl, uploadUrl: url };
       }),
+     // Upload org favicon to S3 and save URL in orgThemes
+    uploadFavicon: orgAdminProcedure
+      .input(z.object({ fileName: z.string(), contentType: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const rows = await db
+          .select({ org: organizations, role: orgMembers.role })
+          .from(orgMembers)
+          .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+          .where(eq(orgMembers.userId, ctx.user.id))
+          .limit(1);
+        if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND" });
+        const ext = input.fileName.split(".").pop() ?? "ico";
+        const key = `org-favicons/${rows[0].org.id}/${Date.now()}-${nanoid(8)}.${ext}`;
+        const { url } = await storagePut(key, Buffer.alloc(0), input.contentType);
+        const fileUrl = url.split("?")[0];
+        // Upsert orgTheme with faviconUrl
+        const { orgThemes } = await import("../drizzle/schema");
+        const existing = await db.select({ id: orgThemes.id }).from(orgThemes).where(eq(orgThemes.orgId, rows[0].org.id)).limit(1);
+        if (existing.length) {
+          await db.update(orgThemes).set({ faviconUrl: fileUrl }).where(eq(orgThemes.orgId, rows[0].org.id));
+        } else {
+          await db.insert(orgThemes).values({ orgId: rows[0].org.id, faviconUrl: fileUrl });
+        }
+        return { key, fileUrl, uploadUrl: url };
+      }),
+    // Upload site logo (student-facing) to S3 and save URL in orgThemes
+    uploadSiteLogo: orgAdminProcedure
+      .input(z.object({ fileName: z.string(), contentType: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const rows = await db
+          .select({ org: organizations, role: orgMembers.role })
+          .from(orgMembers)
+          .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+          .where(eq(orgMembers.userId, ctx.user.id))
+          .limit(1);
+        if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND" });
+        const ext = input.fileName.split(".").pop() ?? "png";
+        const key = `org-site-logos/${rows[0].org.id}/${Date.now()}-${nanoid(8)}.${ext}`;
+        const { url } = await storagePut(key, Buffer.alloc(0), input.contentType);
+        const fileUrl = url.split("?")[0];
+        // Upsert orgTheme with adminLogoUrl (student-facing logo)
+        const { orgThemes } = await import("../drizzle/schema");
+        const existing = await db.select({ id: orgThemes.id }).from(orgThemes).where(eq(orgThemes.orgId, rows[0].org.id)).limit(1);
+        if (existing.length) {
+          await db.update(orgThemes).set({ adminLogoUrl: fileUrl }).where(eq(orgThemes.orgId, rows[0].org.id));
+        } else {
+          await db.insert(orgThemes).values({ orgId: rows[0].org.id, adminLogoUrl: fileUrl });
+        }
+        return { key, fileUrl, uploadUrl: url };
+      }),
     get: protectedProcedure.input(z.object({ id: z.number() })).query(({ input }) => getOrgById(input.id)),
     getBySlug: protectedProcedure.input(z.object({ slug: z.string() })).query(({ input }) => getOrgBySlug(input.slug)),
-
     // Real-time subdomain availability check (public so it works on registration too)
     checkSubdomain: publicProcedure
       .input(z.object({ subdomain: z.string().min(1), currentOrgId: z.number().optional() }))
@@ -768,15 +897,22 @@ export const appRouter = router({
         .limit(1);
       if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND" });
       const org = rows[0].org;
+       // Check SSL only if domain is verified
+      let sslStatus: "active" | "pending" | "error" = "pending";
+      if (org.customDomain && org.domainVerificationStatus === "verified") {
+        sslStatus = await checkSsl(org.customDomain);
+      } else if (!org.customDomain || org.domainVerificationStatus === "unverified") {
+        sslStatus = "pending";
+      }
       return {
         customDomain: org.customDomain ?? null,
         domainVerificationStatus: org.domainVerificationStatus,
         domainVerifiedAt: org.domainVerifiedAt ?? null,
         domainVerificationError: org.domainVerificationError ?? null,
         expectedCname: `${org.slug}.teachific.app`,
+        sslStatus,
       };
     }),
-
     // Perform a live DNS CNAME lookup and update verification status
     verifyDomain: orgAdminProcedure.mutation(async ({ ctx }) => {
       const db = await getDb();
@@ -811,13 +947,14 @@ export const appRouter = router({
               domainVerificationError: null,
             })
             .where(eq(organizations.id, org.id));
-          return { status: "verified" as const, cnames };
+          const sslStatus = await checkSsl(org.customDomain);
+          return { status: "verified" as const, cnames, sslStatus };
         } else {
           const errorMsg = `CNAME resolves to [${cnames.join(", ")}] but expected ${expectedTarget}`;
           await db.update(organizations)
             .set({ domainVerificationStatus: "failed", domainVerificationError: errorMsg })
             .where(eq(organizations.id, org.id));
-          return { status: "failed" as const, cnames, expected: expectedTarget, error: errorMsg };
+          return { status: "failed" as const, cnames, expected: expectedTarget, error: errorMsg, sslStatus: "pending" as const };
         }
       } catch (err: any) {
         const errorMsg = err.code === "ENOTFOUND" || err.code === "ENODATA"
@@ -826,7 +963,7 @@ export const appRouter = router({
         await db.update(organizations)
           .set({ domainVerificationStatus: "failed", domainVerificationError: errorMsg })
           .where(eq(organizations.id, org.id));
-        return { status: "failed" as const, cnames: [], expected: expectedTarget, error: errorMsg };
+        return { status: "failed" as const, cnames: [], expected: expectedTarget, error: errorMsg, sslStatus: "pending" as const };
       }
     }),
 
