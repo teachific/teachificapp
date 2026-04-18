@@ -2891,3 +2891,21 @@
 - [x] Website tab: site logo upload card (preview, upload button, remove button)
 - [x] Create useOrgBranding hook: injects <link rel="icon"> and document.title into <head>
 - [x] Call useOrgBranding in SchoolPage and OrgLandingPage (subdomain/custom domain learner portal)
+
+## Website Tab: Org SEO Settings
+- [ ] Add seoTitle, seoDescription, seoKeywords, seoOgImage, seoRobotsIndex columns to organizations table
+- [ ] Generate and apply migration SQL
+- [ ] Add orgs.updateSeo tRPC procedure (orgAdminProcedure): save SEO fields
+- [ ] Add seoOgImageUpload tRPC procedure: upload OG image to S3, return URL
+- [ ] Website tab: SEO card with fields: Site Title (meta title), Meta Description, Keywords, OG Image upload, Robots (index/noindex toggle)
+- [ ] Website tab: character count hints on title (max 60) and description (max 160)
+- [ ] useOrgBranding hook: inject seoTitle as document.title, meta description, meta keywords, og:title, og:description, og:image, robots meta tag into <head> on subdomain pages
+- [ ] themeBySlug procedure: include SEO fields in response
+
+## Website Tab: Custom CSS Injection
+- [ ] Add customCss column (longtext) to organizations table
+- [ ] Include customCss in migration SQL
+- [ ] Add orgs.updateCustomCss tRPC procedure (orgAdminProcedure): save custom CSS
+- [ ] Website tab: Custom CSS card with CodeMirror/textarea editor, warning banner about no support
+- [ ] useOrgBranding hook: inject customCss as <style> tag into <head> on subdomain pages
+- [ ] themeBySlug procedure: include customCss in response

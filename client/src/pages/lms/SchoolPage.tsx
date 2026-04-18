@@ -156,11 +156,17 @@ export default function SchoolPage({ subdomainOrg }: { subdomainOrg?: string } =
   const primaryColor = theme?.studentPrimaryColor || theme?.primaryColor || "#189aa1";
   const schoolName = theme?.schoolName || orgBySlug?.name || orgs?.[0]?.name || "Our School";
 
-  // Inject org favicon and page title into document <head>
+  // Inject org favicon, SEO meta tags, and custom CSS into document <head>
   useOrgBranding({
     faviconUrl: theme?.faviconUrl,
     schoolName,
     logoUrl: theme?.adminLogoUrl,
+    seoTitle: (theme as any)?.seoTitle,
+    seoDescription: (theme as any)?.seoDescription,
+    seoKeywords: (theme as any)?.seoKeywords,
+    seoOgImageUrl: (theme as any)?.seoOgImageUrl,
+    seoRobotsIndex: (theme as any)?.seoRobotsIndex,
+    customCss: (theme as any)?.customCss,
   });
 
   const filteredCourses = (courses || []).filter((c: any) => {

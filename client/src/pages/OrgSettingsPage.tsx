@@ -106,6 +106,14 @@ export default function OrgSettingsPage() {
       setLogoUrl(orgCtx.org.logoUrl || "");
       setLogoPreview(orgCtx.org.logoUrl || null);
       setCustomDomain(orgCtx.org.customDomain || "");
+      // SEO fields
+      setSeoTitle((orgCtx.org as any).seoTitle || "");
+      setSeoDescription((orgCtx.org as any).seoDescription || "");
+      setSeoKeywords((orgCtx.org as any).seoKeywords || "");
+      setSeoOgImageUrl((orgCtx.org as any).seoOgImageUrl || null);
+      setSeoRobotsIndex((orgCtx.org as any).seoRobotsIndex ?? true);
+      // Custom CSS
+      setCustomCss((orgCtx.org as any).customCss || "");
       setInitialized(true);
     }
   }, [orgCtx, initialized]);
@@ -242,6 +250,52 @@ export default function OrgSettingsPage() {
     } finally {
       setSiteLogoUploading(false);
       if (siteLogoInputRef.current) siteLogoInputRef.current.value = "";
+    }
+  };
+
+  // ── SEO & Custom CSS state ──────────────────────────────────────────────────
+  const [seoTitle, setSeoTitle] = useState("");
+  const [seoDescription, setSeoDescription] = useState("");
+  const [seoKeywords, setSeoKeywords] = useState("");
+  const [seoOgImageUrl, setSeoOgImageUrl] = useState<string | null>(null);
+  const [seoRobotsIndex, setSeoRobotsIndex] = useState(true);
+  const [seoOgUploading, setSeoOgUploading] = useState(false);
+  const seoOgInputRef = useRef<HTMLInputElement>(null);
+  const [customCss, setCustomCss] = useState("");
+  const [cssUnsaved, setCssUnsaved] = useState(false);
+
+  const updateSeo = trpc.orgs.updateSeo.useMutation({
+    onSuccess: () => toast.success("SEO settings saved"),
+    onError: (e) => toast.error(e.message),
+  });
+  const uploadSeoOgImage = trpc.orgs.uploadSeoOgImage.useMutation({
+    onError: (e) => toast.error(e.message),
+  });
+  const updateCustomCss = trpc.orgs.updateCustomCss.useMutation({
+    onSuccess: () => { toast.success("Custom CSS saved"); setCssUnsaved(false); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleSeoOgFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !orgCtx?.org?.id) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("OG image must be under 5 MB"); return; }
+    setSeoOgUploading(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = (ev) => resolve((ev.target?.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { url } = await uploadSeoOgImage.mutateAsync({ orgId: orgCtx.org.id, base64, mimeType: file.type || "image/jpeg" });
+      setSeoOgImageUrl(url);
+      toast.success("OG image uploaded!");
+    } catch (err: any) {
+      toast.error(err?.message || "Upload failed");
+    } finally {
+      setSeoOgUploading(false);
+      if (seoOgInputRef.current) seoOgInputRef.current.value = "";
     }
   };
 
@@ -1114,6 +1168,176 @@ export default function OrgSettingsPage() {
                     )}
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* SEO Settings Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" /> SEO Settings
+              </CardTitle>
+              <CardDescription>Control how your school appears in search engine results and when shared on social media.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Page Title */}
+              <div className="space-y-1.5">
+                <Label htmlFor="seo-title">Page Title <span className="text-muted-foreground text-xs">(max 60 chars)</span></Label>
+                <Input
+                  id="seo-title"
+                  value={seoTitle}
+                  onChange={(e) => setSeoTitle(e.target.value.slice(0, 60))}
+                  placeholder={orgCtx?.org?.name ? `${orgCtx.org.name} — Online Learning` : "Your School Name — Online Learning"}
+                  maxLength={60}
+                />
+                <p className="text-xs text-muted-foreground">{seoTitle.length}/60 characters · Shown as the browser tab title and in search results.</p>
+              </div>
+
+              {/* Meta Description */}
+              <div className="space-y-1.5">
+                <Label htmlFor="seo-desc">Meta Description <span className="text-muted-foreground text-xs">(max 160 chars)</span></Label>
+                <Textarea
+                  id="seo-desc"
+                  value={seoDescription}
+                  onChange={(e) => setSeoDescription(e.target.value.slice(0, 160))}
+                  placeholder="A short description of your school that appears in Google search results..."
+                  rows={3}
+                  maxLength={160}
+                />
+                <p className="text-xs text-muted-foreground">{seoDescription.length}/160 characters · Shown below the title in search results.</p>
+              </div>
+
+              {/* Keywords */}
+              <div className="space-y-1.5">
+                <Label htmlFor="seo-keywords">Keywords</Label>
+                <Input
+                  id="seo-keywords"
+                  value={seoKeywords}
+                  onChange={(e) => setSeoKeywords(e.target.value.slice(0, 500))}
+                  placeholder="online courses, SCORM, eLearning, certification..."
+                  maxLength={500}
+                />
+                <p className="text-xs text-muted-foreground">Comma-separated keywords. These help search engines understand your content.</p>
+              </div>
+
+              {/* OG Image */}
+              <div className="space-y-2">
+                <Label>Social Share Image (Open Graph)</Label>
+                <p className="text-xs text-muted-foreground">Shown when your school is shared on Facebook, LinkedIn, Slack, etc. Recommended: 1200×630 px JPG or PNG.</p>
+                <div className="flex items-start gap-4">
+                  <div className="w-48 h-24 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/30 overflow-hidden shrink-0">
+                    {seoOgImageUrl ? (
+                      <img src={seoOgImageUrl} alt="OG image preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                        <ImageIcon className="h-6 w-6" />
+                        <span className="text-xs">No image</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button variant="outline" size="sm" className="gap-2" disabled={seoOgUploading} onClick={() => seoOgInputRef.current?.click()}>
+                      <Upload className="h-4 w-4" />
+                      {seoOgUploading ? "Uploading..." : "Upload Image"}
+                    </Button>
+                    {seoOgImageUrl && (
+                      <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-destructive" onClick={() => { setSeoOgImageUrl(null); if (orgCtx?.org?.id) updateSeo.mutate({ orgId: orgCtx.org.id, seoOgImageUrl: null }); }}>
+                        <X className="h-3.5 w-3.5" /> Remove
+                      </Button>
+                    )}
+                    <p className="text-xs text-muted-foreground">JPG, PNG · Max 5 MB</p>
+                  </div>
+                </div>
+                <input ref={seoOgInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleSeoOgFileChange} />
+              </div>
+
+              {/* Robots indexing */}
+              <div className="flex items-center justify-between py-2 border-t border-border">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">Allow Search Engine Indexing</Label>
+                  <p className="text-xs text-muted-foreground">When off, search engines are asked not to index your school pages (noindex, nofollow).</p>
+                </div>
+                <Switch checked={seoRobotsIndex} onCheckedChange={setSeoRobotsIndex} />
+              </div>
+
+              {/* Save button */}
+              <div className="flex justify-end pt-1">
+                <Button
+                  onClick={() => {
+                    if (!orgCtx?.org?.id) return;
+                    updateSeo.mutate({
+                      orgId: orgCtx.org.id,
+                      seoTitle: seoTitle || null,
+                      seoDescription: seoDescription || null,
+                      seoKeywords: seoKeywords || null,
+                      seoOgImageUrl: seoOgImageUrl || null,
+                      seoRobotsIndex,
+                    });
+                  }}
+                  disabled={updateSeo.isPending}
+                  className="gap-2"
+                >
+                  {updateSeo.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Save SEO Settings
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Custom CSS Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" /> Custom CSS
+              </CardTitle>
+              <CardDescription>Inject custom CSS into your school's learner portal. Applied to your subdomain and custom domain pages.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 flex gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  <strong>Custom code disclaimer:</strong> We cannot provide support for issues caused by custom CSS. Incorrect CSS may break your school's appearance. Use at your own risk.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="custom-css">CSS Code</Label>
+                <Textarea
+                  id="custom-css"
+                  value={customCss}
+                  onChange={(e) => { setCustomCss(e.target.value); setCssUnsaved(true); }}
+                  placeholder={`:root {\n  /* Override theme variables here */\n}\n\n.school-header {\n  /* Custom header styles */\n}`}
+                  rows={12}
+                  className="font-mono text-xs"
+                  maxLength={50000}
+                />
+                <p className="text-xs text-muted-foreground">{customCss.length.toLocaleString()}/50,000 characters</p>
+              </div>
+              <div className="flex items-center justify-between">
+                {cssUnsaved && <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Unsaved changes</p>}
+                <div className="flex gap-2 ml-auto">
+                  {customCss && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => { setCustomCss(""); setCssUnsaved(true); }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => {
+                      if (!orgCtx?.org?.id) return;
+                      updateCustomCss.mutate({ orgId: orgCtx.org.id, customCss });
+                    }}
+                    disabled={updateCustomCss.isPending}
+                    className="gap-2"
+                  >
+                    {updateCustomCss.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    Save CSS
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

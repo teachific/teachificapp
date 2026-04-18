@@ -149,11 +149,17 @@ export default function OrgLandingPage({ subdomainOrg, fallback }: { subdomainOr
     { staleTime: 60_000 }
   );
 
-  // Inject org favicon and page title into document <head>
+  // Inject org favicon, SEO meta tags, and custom CSS into document <head>
   useOrgBranding({
     faviconUrl: orgTheme?.faviconUrl,
     schoolName: landingData?.org?.name ?? undefined,
     logoUrl: orgTheme?.adminLogoUrl,
+    seoTitle: (orgTheme as any)?.seoTitle,
+    seoDescription: (orgTheme as any)?.seoDescription,
+    seoKeywords: (orgTheme as any)?.seoKeywords,
+    seoOgImageUrl: (orgTheme as any)?.seoOgImageUrl,
+    seoRobotsIndex: (orgTheme as any)?.seoRobotsIndex,
+    customCss: (orgTheme as any)?.customCss,
   });
 
   if (isLoading) {

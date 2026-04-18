@@ -967,7 +967,76 @@ export const appRouter = router({
       }
     }),
 
-    // ── Landing Page procedures ────────────────────────────────────────────────
+    // ── SEO & Custom CSS procedures ────────────────────────────────────────────
+    updateSeo: orgAdminProcedure
+      .input(z.object({
+        orgId: z.number(),
+        seoTitle: z.string().max(60).optional().nullable(),
+        seoDescription: z.string().max(160).optional().nullable(),
+        seoKeywords: z.string().max(500).optional().nullable(),
+        seoOgImageUrl: z.string().url().optional().nullable(),
+        seoRobotsIndex: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Verify the user has access to this org
+        const member = await db.select().from(orgMembers)
+          .where(eq(orgMembers.orgId, input.orgId))
+          .limit(1);
+        const isSiteAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin";
+        if (!isSiteAdmin && !member.find((m) => m.userId === ctx.user.id)) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        await db.update(organizations)
+          .set({
+            ...(input.seoTitle !== undefined && { seoTitle: input.seoTitle }),
+            ...(input.seoDescription !== undefined && { seoDescription: input.seoDescription }),
+            ...(input.seoKeywords !== undefined && { seoKeywords: input.seoKeywords }),
+            ...(input.seoOgImageUrl !== undefined && { seoOgImageUrl: input.seoOgImageUrl }),
+            ...(input.seoRobotsIndex !== undefined && { seoRobotsIndex: input.seoRobotsIndex }),
+          })
+          .where(eq(organizations.id, input.orgId));
+        return { success: true };
+      }),
+
+    uploadSeoOgImage: orgAdminProcedure
+      .input(z.object({ orgId: z.number(), base64: z.string(), mimeType: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const isSiteAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin";
+        if (!isSiteAdmin) {
+          const member = await db.select().from(orgMembers)
+            .where(eq(orgMembers.orgId, input.orgId)).limit(1);
+          if (!member.find((m) => m.userId === ctx.user.id)) throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const buffer = Buffer.from(input.base64, "base64");
+        const ext = input.mimeType === "image/png" ? "png" : input.mimeType === "image/webp" ? "webp" : "jpg";
+        const key = `org-${input.orgId}/seo-og-${Date.now()}.${ext}`;
+        const { url } = await storagePut(key, buffer, input.mimeType);
+        await db.update(organizations).set({ seoOgImageUrl: url }).where(eq(organizations.id, input.orgId));
+        return { url };
+      }),
+
+    updateCustomCss: orgAdminProcedure
+      .input(z.object({ orgId: z.number(), customCss: z.string().max(50000) }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const isSiteAdmin = ctx.user.role === "site_owner" || ctx.user.role === "site_admin";
+        if (!isSiteAdmin) {
+          const member = await db.select().from(orgMembers)
+            .where(eq(orgMembers.orgId, input.orgId)).limit(1);
+          if (!member.find((m) => m.userId === ctx.user.id)) throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        await db.update(organizations)
+          .set({ customCss: input.customCss || null })
+          .where(eq(organizations.id, input.orgId));
+        return { success: true };
+      }),
+
+    // ── Landing Page procedures ────────────────────────────────────────────
     // Get landing page for an org by slug (public)
     getLandingPage: publicProcedure
       .input(z.object({ slug: z.string() }))

@@ -312,7 +312,20 @@ export const lmsRouter = router({
       .query(async ({ input }) => {
         const org = await getOrgBySlug(input.slug);
         if (!org) return null;
-        return getOrgTheme(org.id);
+        const theme = await getOrgTheme(org.id);
+        return {
+          ...theme,
+          // SEO fields from organizations table
+          seoTitle: org.seoTitle ?? null,
+          seoDescription: org.seoDescription ?? null,
+          seoKeywords: org.seoKeywords ?? null,
+          seoOgImageUrl: org.seoOgImageUrl ?? null,
+          seoRobotsIndex: org.seoRobotsIndex ?? true,
+          // Custom CSS
+          customCss: org.customCss ?? null,
+          // School name for title fallback
+          orgName: org.name,
+        };
       }),
   }),
 

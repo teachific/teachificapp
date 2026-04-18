@@ -5,6 +5,7 @@ import {
   index,
   int,
   json,
+  longtext,
   mysqlEnum,
   mysqlTable,
   text,
@@ -88,6 +89,14 @@ export const organizations = mysqlTable("organizations", {
   domainVerificationError: varchar("domainVerificationError", { length: 500 }),
   // Internal platform admin notes (never visible to org admins or members)
   adminNotes: text("adminNotes"),
+  // SEO settings for subdomain/custom domain pages
+  seoTitle: varchar("seoTitle", { length: 60 }),
+  seoDescription: varchar("seoDescription", { length: 160 }),
+  seoKeywords: varchar("seoKeywords", { length: 500 }),
+  seoOgImageUrl: text("seoOgImageUrl"),
+  seoRobotsIndex: boolean("seoRobotsIndex").default(true).notNull(),
+  // Custom CSS injected into subdomain/custom domain pages (org admin use only)
+  customCss: longtext("customCss"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
