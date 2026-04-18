@@ -97,7 +97,9 @@ export type BlockType =
   | "icon_list"
   | "numbered_steps"
   | "checklist_steps"
-  | "feature_grid";
+  | "feature_grid"
+  | "text_block"
+  | "footer";
 
 export interface Block {
   id: string;
@@ -273,6 +275,20 @@ const BLOCK_DEFAULTS: Record<BlockType, Record<string, any>> = {
     backgroundColor: "#ffffff",
     textColor: "#1e293b",
     columns: 2,
+  },
+  text_block: {
+    headline: "",
+    body: "Enter your text here.",
+    alignment: "left",
+    backgroundColor: "#ffffff",
+    textColor: "#1e293b",
+    maxWidth: 800,
+  },
+  footer: {
+    text: "© 2025 Your School. All rights reserved.",
+    backgroundColor: "#0f172a",
+    textColor: "#94a3b8",
+    links: [],
   },
 };
 
@@ -1171,12 +1187,14 @@ function ElementTile({ type, label, icon: Icon, onAdd }: { type: BlockType; labe
 
 export interface WysiwygPageBuilderProps {
   initialBlocks?: Block[];
-  onChange: (blocks: Block[]) => void;
+  onChange?: (blocks: Block[]) => void;
+  onSave?: (blocks: Block[]) => void;
+  isSaving?: boolean;
+  pageType?: string;
   courses?: { id: number; title: string }[];
   orgId?: number;
 }
-
-export function WysiwygPageBuilder({ initialBlocks = [], onChange, courses = [], orgId = 0 }: WysiwygPageBuilderProps) {
+export function WysiwygPageBuilder({ initialBlocks = [], onChange, onSave, isSaving = false, pageType, courses = [], orgId = 0 }: WysiwygPageBuilderProps) {
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -1196,7 +1214,7 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, courses = [],
 
   const updateBlocks = useCallback((newBlocks: Block[], skipHistory = false) => {
     setBlocks(newBlocks);
-    onChange(newBlocks);
+    onChange?.(newBlocks);
     if (!skipHistory) {
       const newHistory = historyRef.current.slice(0, historyIdxRef.current + 1);
       newHistory.push(newBlocks);
@@ -1212,7 +1230,7 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, courses = [],
     historyIdxRef.current -= 1;
     const prev = historyRef.current[historyIdxRef.current];
     setBlocks(prev);
-    onChange(prev);
+    onChange?.(prev);
     setCanUndo(historyIdxRef.current > 0);
     setCanRedo(true);
   }, [onChange]);
@@ -1222,7 +1240,7 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, courses = [],
     historyIdxRef.current += 1;
     const next = historyRef.current[historyIdxRef.current];
     setBlocks(next);
-    onChange(next);
+    onChange?.(next);
     setCanUndo(true);
     setCanRedo(historyIdxRef.current < historyRef.current.length - 1);
   }, [onChange]);
@@ -1344,6 +1362,18 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, courses = [],
         )}
       </div>
 
+      {/* ── Canvas Toolbar (Save button when onSave is provided) ─────────── */}
+      {onSave && (
+        <div style={{ position: "absolute", top: 8, right: 284, zIndex: 20 }}>
+          <button
+            onClick={() => onSave(blocks)}
+            disabled={isSaving}
+            style={{ background: "#0ea5e9", color: "#fff", border: "none", borderRadius: 6, padding: "6px 18px", fontWeight: 600, fontSize: 13, cursor: isSaving ? "not-allowed" : "pointer", opacity: isSaving ? 0.7 : 1, display: "flex", alignItems: "center", gap: 6 }}
+          >
+            {isSaving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      )}
       {/* ── Center: Canvas ─────────────────────────────────────────────────── */}
       <div
         id="wysiwyg-canvas"
