@@ -2809,3 +2809,24 @@
 - [x] Revoke course enrollments
 - [x] Delete users (owner-only)
 - [x] Backend procedures support all role types: site_owner, site_admin, org_super_admin, org_admin, member
+
+## WYSIWYG Editor — OrgSettings Landing Page
+- [x] Replace OrgLandingPageTab form fields with WysiwygPageBuilder canvas editor
+- [x] Persist landing page blocks as blocksJson on the landing page record
+- [x] Keep existing landing page data (heroHeadline, colors etc.) as default blocks on first open
+- [x] Wire save/publish buttons to update landing page via existing tRPC procedure
+
+## Per-Org Member Management in OrgSettings
+- [x] Add Members tab to OrgSettingsPage for org admins
+- [x] List all org members with role badges (org_super_admin, org_admin, member)
+- [x] Invite/add member by email with role selection
+- [x] Edit member role (promote/demote within org)
+- [x] Remove member from org
+- [x] Backend: ensure org admin can call member management procedures (not just platform admin)
+
+## Auto-Generated Landing Page Teal Branding
+- [x] All auto-created org landing pages use Teachific teal (#0ea5e9 / #0284c7) as primary color
+- [x] Hero background defaults to dark teal (#0f2942 or teal gradient)
+- [x] CTA button defaults to teal (#0ea5e9)
+- [x] Accent color defaults to teal (#0ea5e9)
+- [x] Apply to: org creation auto-seed, WYSIWYG default blocks, and any fallback landing page generation

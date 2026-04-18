@@ -1,0 +1,1 @@
+ALTER TABLE `org_landing_pages` ADD `blocksJson` text;

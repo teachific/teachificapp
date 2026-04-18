@@ -24,6 +24,8 @@ import { useLocation } from "wouter";
 import { getSubdomain } from "@/hooks/useSubdomain";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { WysiwygPageBuilder } from "@/components/WysiwygPageBuilder";
+import type { Block } from "@/components/WysiwygPageBuilder";
 
 export default function OrgSettingsPage() {
   const { user } = useAuth();
@@ -300,6 +302,9 @@ export default function OrgSettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="landing" className="gap-1.5 whitespace-nowrap">
               <Rocket className="h-4 w-4" /> Landing Page
+            </TabsTrigger>
+            <TabsTrigger value="members" className="gap-1.5 whitespace-nowrap">
+              <UserCircle className="h-4 w-4" /> Members
             </TabsTrigger>
            </TabsList>
         {/* General Tab */}
@@ -840,6 +845,8 @@ export default function OrgSettingsPage() {
         <OrgHomepageTab orgId={orgCtx?.org?.id} orgName={orgCtx?.org?.name ?? ""} orgSlug={orgCtx?.org?.slug ?? ""} primaryColor={primaryColor} description={orgCtx?.org?.description ?? ""} />
         {/* Landing Page Tab */}
         <OrgLandingPageTab orgId={orgCtx?.org?.id} orgSlug={orgCtx?.org?.slug ?? ""} orgName={orgCtx?.org?.name ?? ""} plan={plan} />
+        {/* Members Tab */}
+        <OrgMembersTab orgId={orgCtx?.org?.id} orgName={orgCtx?.org?.name ?? ""} />
       </Tabs>
     </div>
   );
@@ -1782,38 +1789,92 @@ function OrgLandingPageTab({ orgId, orgSlug, orgName, plan }: {
 }) {
   const utils = trpc.useUtils();
   const [initialized, setInitialized] = useState(false);
-
-  // Form state
-  const [heroHeadline, setHeroHeadline] = useState("");
-  const [heroSubheadline, setHeroSubheadline] = useState("");
-  const [heroCtaText, setHeroCtaText] = useState("Browse Courses");
-  const [heroBgColor, setHeroBgColor] = useState("#0f172a");
-  const [heroTextColor, setHeroTextColor] = useState("#ffffff");
-  const [aboutTitle, setAboutTitle] = useState("");
-  const [aboutBody, setAboutBody] = useState("");
-  const [accentColor, setAccentColor] = useState("#0ea5e9");
-  const [showCourses, setShowCourses] = useState(true);
   const [isPublished, setIsPublished] = useState(true);
-  const [footerText, setFooterText] = useState("");
+  const [blocks, setBlocks] = useState<Block[]>([]);
 
-  const { data: landingPage } = trpc.orgs.getLandingPage.useQuery(
+  const { data: landingPage, isLoading } = trpc.orgs.getLandingPage.useQuery(
     { slug: orgSlug },
     { enabled: !!orgSlug }
   );
 
+  // Build default teal-branded blocks from legacy fields when no blocksJson exists
+  const buildDefaultBlocks = (lp: typeof landingPage): Block[] => {
+    if (!lp) return [];
+    return [
+      {
+        id: "banner-1",
+        type: "banner" as const,
+        visible: true,
+        data: {
+          headline: lp.heroHeadline ?? `Welcome to ${orgName}`,
+          subheadline: lp.heroSubheadline ?? "Explore our courses and start learning today.",
+          ctaText: lp.heroCtaText ?? "Browse Courses",
+          ctaUrl: "#courses",
+          ctaSecondaryText: "",
+          ctaSecondaryUrl: "",
+          backgroundColor: lp.heroBgColor ?? "#0f2942",
+          textColor: lp.heroTextColor ?? "#ffffff",
+          ctaBgColor: lp.accentColor ?? "#0ea5e9",
+          ctaTextColor: "#ffffff",
+          alignment: "center",
+          backgroundType: "color",
+          backgroundImageUrl: "",
+          overlay: false,
+          overlayOpacity: 0.5,
+          minHeight: 500,
+        },
+      },
+      {
+        id: "about-1",
+        type: "text_block" as const,
+        visible: true,
+        data: {
+          headline: lp.aboutTitle ?? `About ${orgName}`,
+          body: lp.aboutBody ?? "We offer high-quality online courses designed to help you grow.",
+          alignment: "left",
+          backgroundColor: "#ffffff",
+          textColor: "#1e293b",
+          maxWidth: 800,
+        },
+      },
+      {
+        id: "courses-1",
+        type: "course_outline" as const,
+        visible: lp.showCourses ?? true,
+        data: {
+          headline: "Our Courses",
+          subheadline: "Start your learning journey today.",
+          backgroundColor: "#f8fafc",
+          textColor: "#1e293b",
+          accentColor: lp.accentColor ?? "#0ea5e9",
+        },
+      },
+      {
+        id: "footer-1",
+        type: "footer" as const,
+        visible: true,
+        data: {
+          text: lp.footerText ?? `© ${new Date().getFullYear()} ${orgName}. All rights reserved.`,
+          backgroundColor: "#0f172a",
+          textColor: "#94a3b8",
+          links: [],
+        },
+      },
+    ];
+  };
+
   useEffect(() => {
     if (landingPage && !initialized) {
-      setHeroHeadline(landingPage.heroHeadline ?? "");
-      setHeroSubheadline(landingPage.heroSubheadline ?? "");
-      setHeroCtaText(landingPage.heroCtaText ?? "Browse Courses");
-      setHeroBgColor(landingPage.heroBgColor ?? "#0f172a");
-      setHeroTextColor(landingPage.heroTextColor ?? "#ffffff");
-      setAboutTitle(landingPage.aboutTitle ?? "");
-      setAboutBody(landingPage.aboutBody ?? "");
-      setAccentColor(landingPage.accentColor ?? "#0ea5e9");
-      setShowCourses(landingPage.showCourses ?? true);
       setIsPublished(landingPage.isPublished ?? true);
-      setFooterText(landingPage.footerText ?? "");
+      if (landingPage.blocksJson) {
+        try {
+          setBlocks(JSON.parse(landingPage.blocksJson));
+        } catch {
+          setBlocks(buildDefaultBlocks(landingPage));
+        }
+      } else {
+        setBlocks(buildDefaultBlocks(landingPage));
+      }
       setInitialized(true);
     }
   }, [landingPage, initialized]);
@@ -1826,139 +1887,54 @@ function OrgLandingPageTab({ orgId, orgSlug, orgName, plan }: {
     onError: (e) => toast.error(e.message),
   });
 
-  const handleSave = () => {
+  const handleSave = (updatedBlocks: Block[]) => {
     if (!orgId) return;
     saveLandingPage.mutate({
       orgId,
-      heroHeadline,
-      heroSubheadline,
-      heroCtaText,
-      heroBgColor,
-      heroTextColor,
-      aboutTitle,
-      aboutBody,
-      accentColor,
-      showCourses,
       isPublished,
-      footerText,
+      blocksJson: JSON.stringify(updatedBlocks),
     });
   };
 
   const previewUrl = orgSlug ? `https://${orgSlug}.teachific.app` : null;
 
   return (
-    <TabsContent value="landing" className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Rocket className="h-5 w-5" />
-            Landing Page
-          </CardTitle>
-          <CardDescription>
-            Customize the public landing page visitors see when they visit your subdomain.
-            This page is auto-generated when your school is created and can be edited anytime.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Preview link */}
-          {previewUrl && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border">
-              <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-sm text-muted-foreground flex-1 truncate font-mono">{previewUrl}</span>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { navigator.clipboard.writeText(previewUrl); toast.success("URL copied!"); }}>
-                <Copy className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => window.open(previewUrl, "_blank")}>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          )}
-
-          {/* Published toggle */}
-          <div className="flex items-center justify-between py-3 border-b">
-            <div>
-              <p className="font-medium text-sm">Published</p>
-              <p className="text-xs text-muted-foreground">When off, visitors see the course catalog instead</p>
-            </div>
-            <Switch checked={isPublished} onCheckedChange={setIsPublished} />
-          </div>
-
-          {/* Hero Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Hero Section</h3>
-            <div className="space-y-2">
-              <Label>Headline</Label>
-              <Input value={heroHeadline} onChange={(e) => setHeroHeadline(e.target.value)} placeholder={`Welcome to ${orgName}`} />
-            </div>
-            <div className="space-y-2">
-              <Label>Subheadline</Label>
-              <Textarea value={heroSubheadline} onChange={(e) => setHeroSubheadline(e.target.value)} placeholder="Explore our courses and start learning today." rows={2} />
-            </div>
-            <div className="space-y-2">
-              <Label>CTA Button Text</Label>
-              <Input value={heroCtaText} onChange={(e) => setHeroCtaText(e.target.value)} placeholder="Browse Courses" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Background Color</Label>
-                <div className="flex items-center gap-2">
-                  <input type="color" value={heroBgColor} onChange={(e) => setHeroBgColor(e.target.value)} className="h-9 w-14 rounded border cursor-pointer" />
-                  <Input value={heroBgColor} onChange={(e) => setHeroBgColor(e.target.value)} className="font-mono text-xs" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Text Color</Label>
-                <div className="flex items-center gap-2">
-                  <input type="color" value={heroTextColor} onChange={(e) => setHeroTextColor(e.target.value)} className="h-9 w-14 rounded border cursor-pointer" />
-                  <Input value={heroTextColor} onChange={(e) => setHeroTextColor(e.target.value)} className="font-mono text-xs" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Accent Color</Label>
-                <div className="flex items-center gap-2">
-                  <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="h-9 w-14 rounded border cursor-pointer" />
-                  <Input value={accentColor} onChange={(e) => setAccentColor(e.target.value)} className="font-mono text-xs" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* About Section */}
-          <div className="space-y-4 pt-2 border-t">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">About Section</h3>
-            <div className="space-y-2">
-              <Label>Section Title</Label>
-              <Input value={aboutTitle} onChange={(e) => setAboutTitle(e.target.value)} placeholder={`About ${orgName}`} />
-            </div>
-            <div className="space-y-2">
-              <Label>Body Text</Label>
-              <Textarea value={aboutBody} onChange={(e) => setAboutBody(e.target.value)} placeholder="Describe your school and what students will learn..." rows={4} />
-            </div>
-          </div>
-
-          {/* Courses & Footer */}
-          <div className="space-y-4 pt-2 border-t">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Courses & Footer</h3>
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <p className="font-medium text-sm">Show Course Grid</p>
-                <p className="text-xs text-muted-foreground">Display published courses on the landing page</p>
-              </div>
-              <Switch checked={showCourses} onCheckedChange={setShowCourses} />
-            </div>
-            <div className="space-y-2">
-              <Label>Footer Text</Label>
-              <Input value={footerText} onChange={(e) => setFooterText(e.target.value)} placeholder={`© ${new Date().getFullYear()} ${orgName}. All rights reserved.`} />
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-2">
-            <Button onClick={handleSave} disabled={saveLandingPage.isPending} className="gap-2">
-              {saveLandingPage.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Check className="h-4 w-4" /> Save Landing Page</>}
+    <TabsContent value="landing" className="space-y-0 p-0">
+      {/* Top bar: URL + publish toggle */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b bg-muted/30">
+        {previewUrl && (
+          <>
+            <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm text-muted-foreground flex-1 truncate font-mono">{previewUrl}</span>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { navigator.clipboard.writeText(previewUrl); toast.success("URL copied!"); }}>
+              <Copy className="h-3.5 w-3.5" />
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => window.open(previewUrl, "_blank")}>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        )}
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="text-xs text-muted-foreground">Published</span>
+          <Switch checked={isPublished} onCheckedChange={(v) => {
+            setIsPublished(v);
+            if (orgId) saveLandingPage.mutate({ orgId, isPublished: v, blocksJson: JSON.stringify(blocks) });
+          }} />
+        </div>
+      </div>
+      {/* WYSIWYG canvas */}
+      {isLoading ? (
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <WysiwygPageBuilder
+          initialBlocks={blocks}
+          onSave={handleSave}
+          isSaving={saveLandingPage.isPending}
+          pageType="landing"
+        />
+      )}
     </TabsContent>
   );
 }
@@ -2143,6 +2119,353 @@ function OrgHomepageTab({ orgId, orgName, orgSlug, primaryColor, description }: 
           </div>
         </CardContent>
       </Card>
+    </TabsContent>
+  );
+}
+
+// ─── OrgMembersTab ────────────────────────────────────────────────────────────
+function OrgMembersTab({ orgId, orgName }: { orgId?: number; orgName: string }) {
+  const utils = trpc.useUtils();
+  const { user } = useAuth();
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<"org_admin" | "user">("user");
+  const [editMember, setEditMember] = useState<{ userId: number; role: string } | null>(null);
+  const [editRole, setEditRole] = useState<string>("user");
+  const [confirmRemove, setConfirmRemove] = useState<{ userId: number; name: string } | null>(null);
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState<{ userId: number; name: string } | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+
+  const { data: members, isLoading } = trpc.orgs.members.listWithEnrollments.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId }
+  );
+
+  const { data: courses } = trpc.lms.courses.list.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId }
+  );
+
+  const createAndAdd = trpc.orgs.members.createAndAdd.useMutation({
+    onSuccess: () => {
+      toast.success("Member added successfully");
+      utils.orgs.members.listWithEnrollments.invalidate({ orgId: orgId! });
+      setAddDialogOpen(false);
+      setNewName(""); setNewEmail(""); setNewPassword(""); setNewRole("user");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const updateMemberRole = trpc.orgs.members.updateMemberRole.useMutation({
+    onSuccess: () => {
+      toast.success("Role updated");
+      utils.orgs.members.listWithEnrollments.invalidate({ orgId: orgId! });
+      setEditMember(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const removeMember = trpc.orgs.members.removeMember.useMutation({
+    onSuccess: () => {
+      toast.success("Member removed");
+      utils.orgs.members.listWithEnrollments.invalidate({ orgId: orgId! });
+      setConfirmRemove(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const manualEnroll = trpc.orgs.members.manualEnroll.useMutation({
+    onSuccess: () => {
+      toast.success("Enrolled successfully");
+      utils.orgs.members.listWithEnrollments.invalidate({ orgId: orgId! });
+      setEnrollDialogOpen(null);
+      setSelectedCourseId(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const roleBadge = (role: string) => {
+    const map: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+      org_super_admin: { label: "Super Admin", variant: "default" },
+      org_admin: { label: "Admin", variant: "secondary" },
+      member: { label: "Member", variant: "outline" },
+      user: { label: "Student", variant: "outline" },
+    };
+    const r = map[role] ?? { label: role, variant: "outline" as const };
+    return <Badge variant={r.variant}>{r.label}</Badge>;
+  };
+
+  const filtered = (members ?? []).filter((m) => {
+    const matchSearch = !search || m.user.name?.toLowerCase().includes(search.toLowerCase()) || m.user.email?.toLowerCase().includes(search.toLowerCase());
+    const matchRole = roleFilter === "all" || m.role === roleFilter;
+    return matchSearch && matchRole;
+  });
+
+  const isSuperAdmin = user?.role === "site_owner" || user?.role === "site_admin" || (members ?? []).find(m => m.userId === user?.id)?.role === "org_super_admin";
+
+  return (
+    <TabsContent value="members" className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <UserCircle className="h-5 w-5" /> Members
+              </CardTitle>
+              <CardDescription>Manage all members of {orgName}. Add students, admins, and super admins.</CardDescription>
+            </div>
+            <Button onClick={() => setAddDialogOpen(true)} className="gap-2 shrink-0">
+              <Plus className="h-4 w-4" /> Add Member
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              placeholder="Search by name or email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1"
+            />
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder="All roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All roles</SelectItem>
+                <SelectItem value="org_super_admin">Super Admin</SelectItem>
+                <SelectItem value="org_admin">Admin</SelectItem>
+                <SelectItem value="member">Member</SelectItem>
+                <SelectItem value="user">Student</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Stats */}
+          {members && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: "Total", count: members.length, color: "text-foreground" },
+                { label: "Admins", count: members.filter(m => m.role === "org_admin" || m.role === "org_super_admin").length, color: "text-blue-600" },
+                { label: "Students", count: members.filter(m => m.role === "user" || m.role === "member").length, color: "text-green-600" },
+                { label: "Active Enrollments", count: members.reduce((acc, m) => acc + m.enrollments.filter(e => e.isActive).length, 0), color: "text-purple-600" },
+              ].map(s => (
+                <div key={s.label} className="rounded-lg border p-3 text-center">
+                  <p className={`text-2xl font-bold ${s.color}`}>{s.count}</p>
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Member list */}
+          {isLoading ? (
+            <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <UserCircle className="h-10 w-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">{search || roleFilter !== "all" ? "No members match your filters" : "No members yet. Add your first member above."}</p>
+            </div>
+          ) : (
+            <div className="divide-y rounded-lg border overflow-hidden">
+              {filtered.map((m) => (
+                <div key={m.userId} className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
+                    {(m.user.name ?? m.user.email ?? "?")[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm truncate">{m.user.name ?? "—"}</span>
+                      {roleBadge(m.role)}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{m.user.email}</p>
+                    {m.enrollments.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {m.enrollments.length} course{m.enrollments.length !== 1 ? "s" : ""} enrolled
+                        {m.enrollments.filter(e => e.completedAt).length > 0 && ` · ${m.enrollments.filter(e => e.completedAt).length} completed`}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost" size="icon" className="h-8 w-8"
+                      title="Enroll in course"
+                      onClick={() => setEnrollDialogOpen({ userId: m.userId, name: m.user.name ?? m.user.email ?? "Member" })}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost" size="icon" className="h-8 w-8"
+                      title="Change role"
+                      onClick={() => { setEditMember({ userId: m.userId, role: m.role }); setEditRole(m.role); }}
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                      title="Remove member"
+                      onClick={() => setConfirmRemove({ userId: m.userId, name: m.user.name ?? m.user.email ?? "Member" })}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add Member Dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Member</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Full Name</Label>
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Jane Smith" />
+            </div>
+            <div className="space-y-2">
+              <Label>Email Address</Label>
+              <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="jane@example.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>Password</Label>
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min. 6 characters" />
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as "org_admin" | "user")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Student</SelectItem>
+                  <SelectItem value="org_admin">Admin</SelectItem>
+                  {isSuperAdmin && <SelectItem value="org_super_admin">Super Admin</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!orgId || !newEmail || !newName || !newPassword) return toast.error("All fields are required");
+                createAndAdd.mutate({ orgId, name: newName, email: newEmail, password: newPassword, role: newRole });
+              }}
+              disabled={createAndAdd.isPending}
+            >
+              {createAndAdd.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Adding...</> : "Add Member"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Role Dialog */}
+      <Dialog open={!!editMember} onOpenChange={(o) => !o && setEditMember(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Member Role</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>New Role</Label>
+              <Select value={editRole} onValueChange={setEditRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Student</SelectItem>
+                  <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="org_admin">Admin</SelectItem>
+                  {isSuperAdmin && <SelectItem value="org_super_admin">Super Admin</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditMember(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!orgId || !editMember) return;
+                updateMemberRole.mutate({ orgId, userId: editMember.userId, role: editRole as "org_super_admin" | "org_admin" | "member" | "user" });
+              }}
+              disabled={updateMemberRole.isPending}
+            >
+              {updateMemberRole.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving...</> : "Save Role"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Remove Dialog */}
+      <Dialog open={!!confirmRemove} onOpenChange={(o) => !o && setConfirmRemove(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Member</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Are you sure you want to remove <strong>{confirmRemove?.name}</strong> from {orgName}? Their course progress will be preserved but they will lose access.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmRemove(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (!orgId || !confirmRemove) return;
+                removeMember.mutate({ orgId, userId: confirmRemove.userId });
+              }}
+              disabled={removeMember.isPending}
+            >
+              {removeMember.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Removing...</> : "Remove Member"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enroll in Course Dialog */}
+      <Dialog open={!!enrollDialogOpen} onOpenChange={(o) => !o && setEnrollDialogOpen(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enroll {enrollDialogOpen?.name} in a Course</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Select Course</Label>
+              <Select value={selectedCourseId?.toString() ?? ""} onValueChange={(v) => setSelectedCourseId(Number(v))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a course..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {(courses ?? []).map((c) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>{c.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEnrollDialogOpen(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!orgId || !enrollDialogOpen || !selectedCourseId) return toast.error("Please select a course");
+                manualEnroll.mutate({ orgId, userId: enrollDialogOpen.userId, courseId: selectedCourseId });
+              }}
+              disabled={manualEnroll.isPending || !selectedCourseId}
+            >
+              {manualEnroll.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Enrolling...</> : "Enroll"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TabsContent>
   );
 }

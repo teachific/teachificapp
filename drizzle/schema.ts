@@ -2074,6 +2074,8 @@ export const orgLandingPages = mysqlTable("org_landing_pages", {
   isPublished: boolean("isPublished").default(true).notNull(),
   // Custom footer text
   footerText: text("footerText"),
+  // WYSIWYG canvas blocks (JSON array of block objects) — when set, overrides the legacy field-based layout
+  blocksJson: text("blocksJson"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

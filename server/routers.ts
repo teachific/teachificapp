@@ -679,6 +679,7 @@ export const appRouter = router({
         showCourses: z.boolean().optional(),
         isPublished: z.boolean().optional(),
         footerText: z.string().optional(),
+        blocksJson: z.string().optional(), // WYSIWYG canvas blocks JSON
       }))
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
@@ -708,20 +709,95 @@ export const appRouter = router({
         const org = await getOrgBySlug(input.slug);
         if (org) {
           await addOrgMember(org.id, ctx.user.id, "org_admin");
-          // Auto-seed landing page on org creation
+          // Auto-seed landing page on org creation with Teachific teal branding
           const db = await getDb();
           if (db) {
+            const defaultBlocks = JSON.stringify([
+              {
+                id: "banner-1",
+                type: "banner",
+                visible: true,
+                data: {
+                  headline: `Welcome to ${org.name}`,
+                  subheadline: org.description || "Explore our courses and start learning today.",
+                  ctaText: "Browse Courses",
+                  ctaUrl: "#courses",
+                  ctaSecondaryText: "",
+                  ctaSecondaryUrl: "",
+                  backgroundColor: "#0f2942",
+                  textColor: "#ffffff",
+                  ctaBgColor: "#0ea5e9",
+                  ctaTextColor: "#ffffff",
+                  alignment: "center",
+                  backgroundType: "color",
+                  backgroundImageUrl: "",
+                  overlay: false,
+                  overlayOpacity: 0.5,
+                  minHeight: 500,
+                },
+              },
+              {
+                id: "feature-1",
+                type: "feature_grid",
+                visible: true,
+                data: {
+                  headline: `Why Choose ${org.name}`,
+                  subheadline: "Everything you need to learn and grow.",
+                  columns: 3,
+                  features: [
+                    { id: "f1", icon: "BookOpen", title: "Expert Content", description: "Courses created by industry professionals." },
+                    { id: "f2", icon: "Award", title: "Earn Certificates", description: "Get recognized for your achievements." },
+                    { id: "f3", icon: "Users", title: "Community", description: "Learn alongside a supportive community." },
+                  ],
+                  backgroundColor: "#ffffff",
+                  textColor: "#1e293b",
+                  accentColor: "#0ea5e9",
+                },
+              },
+              {
+                id: "courses-1",
+                type: "course_outline",
+                visible: true,
+                data: {
+                  headline: "Our Courses",
+                  subheadline: "Start your learning journey today.",
+                  backgroundColor: "#f8fafc",
+                  textColor: "#1e293b",
+                  accentColor: "#0ea5e9",
+                },
+              },
+              {
+                id: "cta-1",
+                type: "cta",
+                visible: true,
+                data: {
+                  headline: "Ready to get started?",
+                  subtext: "Join thousands of learners already on the platform.",
+                  ctaText: "Enroll Now",
+                  ctaUrl: "#courses",
+                  backgroundType: "color",
+                  backgroundColor: "#0ea5e9",
+                  textColor: "#ffffff",
+                  alignment: "center",
+                  overlay: false,
+                  overlayOpacity: 0.5,
+                },
+              },
+            ]);
             await db.insert(orgLandingPages).values({
               orgId: org.id,
               heroHeadline: `Welcome to ${org.name}`,
               heroSubheadline: org.description || `Explore our courses and start learning today.`,
               heroCtaText: "Browse Courses",
+              heroBgColor: "#0f2942",
+              heroTextColor: "#ffffff",
               accentColor: "#0ea5e9",
               showCourses: true,
               isPublished: true,
               aboutTitle: `About ${org.name}`,
               aboutBody: org.description || `We offer high-quality online courses designed to help you grow.`,
               footerText: `© ${new Date().getFullYear()} ${org.name}. All rights reserved.`,
+              blocksJson: defaultBlocks,
             }).onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
           }
         }
@@ -833,6 +909,44 @@ export const appRouter = router({
       updateRole: adminProcedure
         .input(z.object({ orgId: z.number(), userId: z.number(), role: z.enum(["org_admin", "user"]) }))
         .mutation(({ input }) => updateOrgMemberRole(input.orgId, input.userId, input.role)),
+      // Org-admin accessible updateRole — org admins can change member roles within their org
+      updateMemberRole: orgAdminProcedure
+        .input(z.object({
+          orgId: z.number(),
+          userId: z.number(),
+          role: z.enum(["org_super_admin", "org_admin", "member", "user"]),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+            const membership = await getOrgMember(input.orgId, ctx.user.id);
+            if (!membership || (membership.role !== "org_admin" && membership.role !== "org_super_admin")) {
+              throw new TRPCError({ code: "FORBIDDEN" });
+            }
+            if (input.role === "org_super_admin" && membership.role !== "org_super_admin") {
+              throw new TRPCError({ code: "FORBIDDEN", message: "Only org super admins can assign the org_super_admin role" });
+            }
+          }
+          const db2 = await getDb();
+          if (!db2) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+          const { and: andOp } = await import("drizzle-orm");
+          await db2.update(orgMembers).set({ role: input.role }).where(
+            andOp(eq(orgMembers.orgId, input.orgId), eq(orgMembers.userId, input.userId))
+          );
+          return { success: true };
+        }),
+      // Org-admin accessible remove member
+      removeMember: orgAdminProcedure
+        .input(z.object({ orgId: z.number(), userId: z.number() }))
+        .mutation(async ({ input, ctx }) => {
+          if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin") {
+            const membership = await getOrgMember(input.orgId, ctx.user.id);
+            if (!membership || (membership.role !== "org_admin" && membership.role !== "org_super_admin")) {
+              throw new TRPCError({ code: "FORBIDDEN" });
+            }
+          }
+          await removeOrgMember(input.orgId, input.userId);
+          return { success: true };
+        }),
 
       // Returns org members enriched with user data and course enrollments
       listWithEnrollments: orgAdminProcedure
