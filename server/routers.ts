@@ -1,5 +1,6 @@
 import { COOKIE_NAME, IMPERSONATION_ORIGINAL_COOKIE } from "@shared/const";
 import dns from "node:dns";
+import { sendEmail } from "./sendgrid";
 import https from "node:https";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
@@ -73,6 +74,9 @@ import {
   deleteOrgCascade,
   getOrgLimitsEnriched,
   getOrgStorageUsage,
+  createSupportTicket,
+  getSupportTickets,
+  updateSupportTicketStatus,
 } from "./db";
 import { courseEnrollments, organizations, orgMembers, orgLandingPages, users } from "../drizzle/schema";
 import { eq, sql } from "drizzle-orm";
@@ -3144,6 +3148,80 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         quizCreatorAccess: u.quizCreatorAccess ?? "none",
       }));
     }),
+  }),
+
+  // ── Support ───────────────────────────────────────────────────────────────
+  support: router({
+    /** Public: submit a support ticket — no auth required */
+    submitTicket: publicProcedure
+      .input(
+        z.object({
+          name: z.string().min(1).max(128),
+          email: z.string().email().max(255),
+          subject: z.string().min(1).max(255),
+          category: z.enum(["general", "billing", "technical", "account", "other"]).default("general"),
+          message: z.string().min(10).max(5000),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await createSupportTicket({
+          ...input,
+          userId: ctx.user?.id,
+        });
+        const categoryLabels: Record<string, string> = {
+          general: "General",
+          billing: "Billing",
+          technical: "Technical",
+          account: "Account",
+          other: "Other",
+        };
+        const safeMessage = input.message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const html = `
+          <h2 style="color:#0f172a">New Support Ticket</h2>
+          <table style="border-collapse:collapse;width:100%;max-width:600px;font-family:sans-serif">
+            <tr><td style="padding:8px 12px;font-weight:bold;background:#f3f4f6;width:120px">From</td><td style="padding:8px 12px">${input.name} &lt;${input.email}&gt;</td></tr>
+            <tr><td style="padding:8px 12px;font-weight:bold;background:#f3f4f6">Category</td><td style="padding:8px 12px">${categoryLabels[input.category] ?? input.category}</td></tr>
+            <tr><td style="padding:8px 12px;font-weight:bold;background:#f3f4f6">Subject</td><td style="padding:8px 12px">${input.subject}</td></tr>
+            <tr><td style="padding:8px 12px;font-weight:bold;background:#f3f4f6;vertical-align:top">Message</td><td style="padding:8px 12px;white-space:pre-wrap">${safeMessage}</td></tr>
+            ${ctx.user ? `<tr><td style="padding:8px 12px;font-weight:bold;background:#f3f4f6">User ID</td><td style="padding:8px 12px">${ctx.user.id}</td></tr>` : ""}
+          </table>
+          <p style="color:#6b7280;font-size:12px;margin-top:16px">Submitted via the Teachific support form.</p>
+        `;
+        await sendEmail({
+          to: "support@teachific.net",
+          subject: `[Support] ${input.subject}`,
+          html,
+          replyTo: input.email,
+        });
+        return { success: true };
+      }),
+
+    /** Admin: list all tickets */
+    listTickets: adminProcedure
+      .input(
+        z.object({
+          status: z.enum(["open", "in_progress", "resolved", "closed"]).optional(),
+          limit: z.number().int().min(1).max(200).default(50),
+          offset: z.number().int().min(0).default(0),
+        })
+      )
+      .query(async ({ input }) => {
+        return getSupportTickets(input);
+      }),
+
+    /** Admin: update ticket status */
+    updateTicketStatus: adminProcedure
+      .input(
+        z.object({
+          id: z.number().int(),
+          status: z.enum(["open", "in_progress", "resolved", "closed"]),
+          staffNotes: z.string().max(2000).optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await updateSupportTicketStatus(input.id, input.status, input.staffNotes);
+        return { success: true };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

@@ -1004,9 +1004,13 @@ function LandingFooter() {
                   Contact Us
                 </a>
               </li>
+              <li>
+                <a href="/support" className="hover:text-white transition-colors">
+                  Support Center
+                </a>
+              </li>
             </ul>
           </div>
-
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4">
               Legal

@@ -2909,3 +2909,12 @@
 - [ ] Website tab: Custom CSS card with CodeMirror/textarea editor, warning banner about no support
 - [ ] useOrgBranding hook: inject customCss as <style> tag into <head> on subdomain pages
 - [ ] themeBySlug procedure: include customCss in response
+
+## Support Page & Ticket System
+- [ ] Add support_tickets table (id, name, email, subject, category, message, status, userId, createdAt)
+- [ ] Generate and apply migration SQL
+- [ ] Add support.submitTicket tRPC procedure (publicProcedure): save ticket to DB, send email to support@teachific.net via SendGrid, notify owner
+- [ ] Add support.listTickets tRPC procedure (adminProcedure): list all tickets with pagination and status filter
+- [ ] Build /support page: FAQ accordion + ticket submission form with name, email, subject, category, message fields
+- [ ] Add Support link to main navigation (LandingPage header + DashboardLayout sidebar)
+- [ ] Add Tickets tab in PlatformAdminPage to view and manage submitted tickets

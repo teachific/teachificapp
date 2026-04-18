@@ -2106,3 +2106,25 @@ export const orgLandingPages = mysqlTable("org_landing_pages", {
 });
 export type OrgLandingPage = typeof orgLandingPages.$inferSelect;
 export type InsertOrgLandingPage = typeof orgLandingPages.$inferInsert;
+
+// ─── Support Tickets ──────────────────────────────────────────────────────────
+export const supportTickets = mysqlTable("support_tickets", {
+  id: int("id").autoincrement().primaryKey(),
+  // Submitter info (may be anonymous or logged-in user)
+  name: varchar("name", { length: 128 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  // Optional link to a logged-in user
+  userId: int("userId"),
+  // Ticket content
+  subject: varchar("subject", { length: 255 }).notNull(),
+  category: mysqlEnum("category", ["general", "billing", "technical", "account", "other"]).default("general").notNull(),
+  message: text("message").notNull(),
+  // Status lifecycle
+  status: mysqlEnum("status", ["open", "in_progress", "resolved", "closed"]).default("open").notNull(),
+  // Optional internal notes from support staff
+  staffNotes: text("staffNotes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type InsertSupportTicket = typeof supportTickets.$inferInsert;

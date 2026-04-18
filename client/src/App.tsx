@@ -110,6 +110,7 @@ import ProfilePage from "./pages/profile/ProfilePage";
 import BillingPage from "./pages/profile/BillingPage";
 
 import LandingPage from "./pages/LandingPage";
+import SupportPage from "./pages/SupportPage";
 import PlatformPoliciesPage from "./pages/PlatformPoliciesPage";
 import HelpPage from "./pages/HelpPage";
 import { getSubdomain } from "./hooks/useSubdomain";
@@ -169,6 +170,8 @@ function BareRouter() {
       <Route path="/verify-email" component={VerifyEmailPage} />
       {/* Marketing landing page — shown to logged-out visitors at root */}
       <Route path="/" component={LandingPage} />
+      {/* Support page — publicly accessible */}
+      <Route path="/support" component={SupportPage} />
       {/* Standalone Quiz Creator — gated by role */}
       <Route path="/quiz-creator" component={QuizCreatorGate} />
       {/* QuizCreator standalone app for users without LMS access */}

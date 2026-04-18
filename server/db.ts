@@ -784,3 +784,37 @@ export async function deleteOrgCascade(orgId: number) {
   await db.delete(orgLimitOverrides).where(eq(orgLimitOverrides.orgId, orgId));
   await db.delete(organizations).where(eq(organizations.id, orgId));
 }
+
+// ─── Support Tickets ──────────────────────────────────────────────────────────
+export async function createSupportTicket(data: {
+  name: string;
+  email: string;
+  userId?: number;
+  subject: string;
+  category: "general" | "billing" | "technical" | "account" | "other";
+  message: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const { supportTickets } = await import("../drizzle/schema");
+  const [result] = await db.insert(supportTickets).values(data);
+  return result;
+}
+
+export async function getSupportTickets(opts?: { status?: string; limit?: number; offset?: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const { supportTickets } = await import("../drizzle/schema");
+  const { desc: descOrd, eq: eqOp } = await import("drizzle-orm");
+  let q = db.select().from(supportTickets).$dynamic();
+  if (opts?.status) q = q.where(eqOp(supportTickets.status, opts.status as any));
+  return q.orderBy(descOrd(supportTickets.createdAt)).limit(opts?.limit ?? 50).offset(opts?.offset ?? 0);
+}
+
+export async function updateSupportTicketStatus(id: number, status: "open" | "in_progress" | "resolved" | "closed", staffNotes?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const { supportTickets } = await import("../drizzle/schema");
+  const { eq: eqOp } = await import("drizzle-orm");
+  await db.update(supportTickets).set({ status, ...(staffNotes !== undefined ? { staffNotes } : {}) }).where(eqOp(supportTickets.id, id));
+}
