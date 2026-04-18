@@ -501,6 +501,66 @@ export const appRouter = router({
         await db.update(courseEnrollments).set({ isActive: false }).where(eq(courseEnrollments.id, input.enrollmentId));
         return { success: true };
       }),
+    // Reset a user's password (admin sets a new password on their behalf)
+    resetPassword: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        newPassword: z.string().min(6, "Password must be at least 6 characters"),
+      }))
+      .mutation(async ({ input }) => {
+        const bcrypt = await import("bcryptjs");
+        const passwordHash = await bcrypt.default.hash(input.newPassword, 10);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+        const { users: usersTable } = await import("../drizzle/schema");
+        await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, input.userId));
+        return { success: true };
+      }),
+    // Get the org subscription for a specific user (via their org membership)
+    getUserOrgSubscription: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return null;
+        const { orgMembers: orgMembersTable, orgSubscriptions: orgSubTable } = await import("../drizzle/schema");
+        const row = await db
+          .select({
+            orgId: orgMembersTable.orgId,
+            plan: orgSubTable.plan,
+            status: orgSubTable.status,
+            customPriceUsd: orgSubTable.customPriceUsd,
+            customPriceLabel: orgSubTable.customPriceLabel,
+            adminNotes: orgSubTable.adminNotes,
+            currentPeriodEnd: orgSubTable.currentPeriodEnd,
+            cancelAtPeriodEnd: orgSubTable.cancelAtPeriodEnd,
+          })
+          .from(orgMembersTable)
+          .leftJoin(orgSubTable, eq(orgSubTable.orgId, orgMembersTable.orgId))
+          .where(eq(orgMembersTable.userId, input.userId))
+          .limit(1)
+          .then((r) => r[0] ?? null);
+        return row;
+      }),
+    // Update the org subscription for the org a user belongs to
+    updateUserOrgSubscription: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        plan: z.enum(["free", "starter", "builder", "pro", "enterprise"]),
+        status: z.enum(["active", "trialing", "past_due", "cancelled", "unpaid"]).optional(),
+        customPriceUsd: z.number().optional(),
+        customPriceLabel: z.string().optional(),
+        adminNotes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+        const { orgMembers: orgMembersTable } = await import("../drizzle/schema");
+        const membership = await db.select({ orgId: orgMembersTable.orgId }).from(orgMembersTable).where(eq(orgMembersTable.userId, input.userId)).limit(1).then((r) => r[0] ?? null);
+        if (!membership) throw new TRPCError({ code: "NOT_FOUND", message: "User is not a member of any organization" });
+        const { plan, status, customPriceUsd, customPriceLabel, adminNotes } = input;
+        await upsertOrgSubscription(membership.orgId, { plan, status: status ?? "active", customPriceUsd, customPriceLabel, adminNotes, assignedByUserId: ctx.user.id });
+        return { success: true };
+      }),
   }),
 
   // ── Organizations ─────────────────────────────────────────────────────────

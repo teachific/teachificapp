@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { WysiwygPageBuilder } from "@/components/WysiwygPageBuilder";
 import type { Block } from "@/components/WysiwygPageBuilder";
 import { CertificateSettingsTab } from "./lms/CertificateSettingsTab";
+import { UserDetailPanel, type UserRow as DetailUserRow } from "@/components/UserDetailPanel";
 
 export default function OrgSettingsPage() {
   const { user } = useAuth();
@@ -2139,8 +2140,7 @@ function OrgMembersTab({ orgId, orgName }: { orgId?: number; orgName: string }) 
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<"org_admin" | "user">("user");
-  const [editMember, setEditMember] = useState<{ userId: number; role: string } | null>(null);
-  const [editRole, setEditRole] = useState<string>("user");
+  const [editMember, setEditMember] = useState<DetailUserRow | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<{ userId: number; name: string } | null>(null);
   const [enrollDialogOpen, setEnrollDialogOpen] = useState<{ userId: number; name: string } | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
@@ -2307,7 +2307,7 @@ function OrgMembersTab({ orgId, orgName }: { orgId?: number; orgName: string }) 
                     <Button
                       variant="ghost" size="icon" className="h-8 w-8"
                       title="Change role"
-                      onClick={() => { setEditMember({ userId: m.userId, role: m.role }); setEditRole(m.role); }}
+                      onClick={() => setEditMember({ id: m.userId, name: m.user.name ?? null, email: m.user.email ?? null, role: m.role, orgId: orgId ?? null, orgName: null, loginMethod: null, createdAt: m.user.createdAt ?? Date.now() })}
                     >
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
@@ -2374,42 +2374,15 @@ function OrgMembersTab({ orgId, orgName }: { orgId?: number; orgName: string }) 
         </DialogContent>
       </Dialog>
 
-      {/* Edit Role Dialog */}
-      <Dialog open={!!editMember} onOpenChange={(o) => !o && setEditMember(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Change Member Role</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>New Role</Label>
-              <Select value={editRole} onValueChange={setEditRole}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Student</SelectItem>
-                  <SelectItem value="member">Member</SelectItem>
-                  <SelectItem value="org_admin">Admin</SelectItem>
-                  {isSuperAdmin && <SelectItem value="org_super_admin">Super Admin</SelectItem>}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditMember(null)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                if (!orgId || !editMember) return;
-                updateMemberRole.mutate({ orgId, userId: editMember.userId, role: editRole as "org_super_admin" | "org_admin" | "member" | "user" });
-              }}
-              disabled={updateMemberRole.isPending}
-            >
-              {updateMemberRole.isPending ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving...</> : "Save Role"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* User Detail Panel — full tabbed editor for member */}
+      <UserDetailPanel
+        user={editMember}
+        open={!!editMember}
+        onClose={() => setEditMember(null)}
+        isPlatformAdmin={false}
+        isOwner={isSuperAdmin}
+        onUserUpdated={() => utils.orgs.members.invalidate()}
+      />
 
       {/* Confirm Remove Dialog */}
       <Dialog open={!!confirmRemove} onOpenChange={(o) => !o && setConfirmRemove(null)}>

@@ -4,12 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { UserDetailPanel, type UserRow } from "@/components/UserDetailPanel";
 import {
   Dialog,
   DialogContent,
@@ -41,18 +36,6 @@ import {
 } from "lucide-react";
 import { useState, useMemo } from "react";
 
-type UserRow = {
-  id: number;
-  name: string | null;
-  email: string | null;
-  role: "site_owner" | "site_admin" | "org_super_admin" | "org_admin" | "member" | "user";
-  loginMethod: string | null;
-  createdAt: Date;
-  lastSignedIn: Date;
-  orgName?: string | null;
-  orgId?: number | null;
-};
-
 const ROLE_LABELS: Record<string, string> = {
   site_owner: "Owner",
   site_admin: "Platform Admin",
@@ -76,6 +59,7 @@ export default function AdminUsersPage() {
   const isOwner = currentUser?.role === "site_owner";
   const isPlatformAdmin = currentUser?.role === "site_owner" || currentUser?.role === "site_admin";
 
+  const utils = trpc.useUtils();
   const { data: users, refetch: refetchUsers } = trpc.users.listWithOrg.useQuery();
   const { data: orgs } = trpc.orgs.list.useQuery();
 
@@ -392,219 +376,15 @@ export default function AdminUsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit User Sheet */}
-      <Sheet open={!!editUser} onOpenChange={(o) => { if (!o) setEditUser(null); }}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <UserIcon className="h-5 w-5 text-primary" />
-              {editUser?.name ?? editUser?.email ?? "Edit User"}
-            </SheetTitle>
-          </SheetHeader>
-
-          {editUser && (
-            <div className="mt-6 space-y-6">
-              {/* Basic Info */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                  <UserIcon className="h-3.5 w-3.5" /> Basic Info
-                </h3>
-                <div className="space-y-1.5">
-                  <Label>Display Name</Label>
-                  <Input
-                    value={editForm.name}
-                    onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-                    placeholder="Full name"
-                    autoCorrect="off"
-                    autoCapitalize="words"
-                    spellCheck={false}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5" /> Email Address
-                  </Label>
-                  <Input
-                    type="email"
-                    value={editForm.email}
-                    onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
-                    placeholder="email@example.com"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="flex items-center gap-1.5">
-                    <Shield className="h-3.5 w-3.5" /> Platform Role
-                  </Label>
-                  <Select
-                    value={editForm.role}
-                    onValueChange={(v) => setEditForm((f) => ({ ...f, role: v }))}
-                    disabled={!isOwner && editUser.role === "site_owner"}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isOwner && <SelectItem value="site_owner">Owner</SelectItem>}
-                      <SelectItem value="site_admin">Platform Admin</SelectItem>
-                      <SelectItem value="org_super_admin">Org Super Admin</SelectItem>
-                      <SelectItem value="org_admin">Org Admin</SelectItem>
-                      <SelectItem value="member">Org Member</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={handleSave} disabled={updateUser.isPending} className="w-full">
-                  {updateUser.isPending ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
-
-              {/* Organization Assignment (platform admin only) */}
-              {isPlatformAdmin && (
-                <div className="border-t border-border/40 pt-5 space-y-3">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                    <Building2 className="h-3.5 w-3.5" /> Organization
-                  </h3>
-                  {editUser.orgName && (
-                    <p className="text-sm text-muted-foreground">
-                      Currently in: <span className="font-medium text-foreground">{editUser.orgName}</span>
-                    </p>
-                  )}
-                  <div className="space-y-2">
-                    <Select value={assignOrgId} onValueChange={setAssignOrgId}>
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Select organization..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {orgs?.map((o) => (
-                          <SelectItem key={o.id} value={o.id.toString()}>{o.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={assignOrgRole} onValueChange={(v) => setAssignOrgRole(v as any)}>
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="member">Org Member</SelectItem>
-                        <SelectItem value="org_admin">Org Admin</SelectItem>
-                        <SelectItem value="org_super_admin">Org Super Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {assignOrgRole === "member" && (
-                      <Select value={assignMemberSubRole} onValueChange={(v) => setAssignMemberSubRole(v as any)}>
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="basic_member">Basic Member</SelectItem>
-                          <SelectItem value="instructor">Instructor</SelectItem>
-                          <SelectItem value="group_manager">Group Manager</SelectItem>
-                          <SelectItem value="group_member">Group Member</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {assignOrgId && (
-                      <Button
-                        size="sm"
-                        className="w-full h-8 gap-1.5"
-                        onClick={() => assignToOrg.mutate({ userId: editUser.id, orgId: Number(assignOrgId), orgRole: assignOrgRole, memberSubRole: assignMemberSubRole })}
-                        disabled={assignToOrg.isPending}
-                      >
-                        <Building2 className="h-3.5 w-3.5" />
-                        {assignToOrg.isPending ? "Assigning..." : "Assign to Organization"}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Course Enrollments */}
-              <div className="border-t border-border/40 pt-5 space-y-3">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                  <BookOpen className="h-3.5 w-3.5" /> Course Enrollments
-                </h3>
-                {enrollments && enrollments.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {enrollments.map((e: any) => (
-                      <div key={e.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm">
-                        <div>
-                          <p className="font-medium text-sm">Course #{e.courseId}</p>
-                          <p className="text-xs text-muted-foreground">{e.progressPct?.toFixed(0) ?? 0}% complete · enrolled {new Date(e.enrolledAt).toLocaleDateString()}</p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                          onClick={() => revokeMutation.mutate({ enrollmentId: e.id })}
-                          disabled={revokeMutation.isPending}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No active enrollments.</p>
-                )}
-                <div className="rounded-lg border border-dashed border-border/60 p-3 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">Enroll in a course</p>
-                  <Select value={enrollOrgId?.toString() ?? ""} onValueChange={(v) => { setEnrollOrgId(Number(v)); setEnrollCourseId(null); }}>
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Select organization..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {orgs?.map((o) => (
-                        <SelectItem key={o.id} value={o.id.toString()}>{o.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {enrollOrgId && (
-                    <Select value={enrollCourseId?.toString() ?? ""} onValueChange={(v) => setEnrollCourseId(Number(v))}>
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Select course..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {courses?.map((c: { id: number; title: string }) => (
-                          <SelectItem key={c.id} value={c.id.toString()}>{c.title}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {enrollCourseId && enrollOrgId && (
-                    <Button
-                      size="sm"
-                      className="w-full h-8 gap-1.5"
-                      onClick={() => enrollMutation.mutate({ userId: editUser.id, courseId: enrollCourseId, orgId: enrollOrgId })}
-                      disabled={enrollMutation.isPending}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      {enrollMutation.isPending ? "Enrolling..." : "Enroll"}
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Danger Zone */}
-              {isOwner && editUser.role !== "site_owner" && (
-                <div className="border-t border-destructive/20 pt-5 space-y-3">
-                  <h3 className="text-xs font-semibold text-destructive uppercase tracking-wider flex items-center gap-2">
-                    <Trash2 className="h-3.5 w-3.5" /> Danger Zone
-                  </h3>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="w-full gap-2"
-                    onClick={() => setDeleteTarget(editUser)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Delete Account Permanently
-                  </Button>
-                  <p className="text-xs text-muted-foreground">This will permanently delete the user and all their data. This action cannot be undone.</p>
-                </div>
-              )}
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* User Detail Panel */}
+      <UserDetailPanel
+        user={editUser}
+        open={!!editUser}
+        onClose={() => setEditUser(null)}
+        isPlatformAdmin={isPlatformAdmin}
+        isOwner={isOwner}
+        onUserUpdated={() => { utils.users.invalidate(); refetchUsers(); }}
+      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
