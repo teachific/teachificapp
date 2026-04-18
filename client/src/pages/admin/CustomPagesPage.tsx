@@ -29,7 +29,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PageBuilder, Block } from "@/components/PageBuilder";
+import { WysiwygPageBuilder as PageBuilder } from "@/components/WysiwygPageBuilder";
+import type { Block } from "@/components/WysiwygPageBuilder";
 import { Plus, Edit, Trash2, Eye, EyeOff, Search, Building2, ChevronDown, X, Layout, Copy, Globe, GlobeLock, Save, SquarePen } from "lucide-react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";

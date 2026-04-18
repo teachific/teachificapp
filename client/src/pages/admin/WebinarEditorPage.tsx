@@ -37,7 +37,7 @@ import {
   GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageBuilder } from "@/components/PageBuilder";
+import { WysiwygPageBuilder as PageBuilder } from "@/components/WysiwygPageBuilder";
 
 function slugify(str: string) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

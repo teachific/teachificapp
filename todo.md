@@ -2782,3 +2782,30 @@
 - [x] Add lms.members.manualEnroll procedure (enroll existing member in a course)
 - [x] Add lms.members.bulkImport procedure (CSV bulk member import)
 - [x] Platform admin AdminUsersPage: users.listWithOrg, users.create, users.update, users.delete, users.assignToOrg, users.enrollInCourse, users.revokeEnrollment all confirmed present
+
+## WYSIWYG Page Builder (Weebly-style)
+- [x] Replace old block-panel editor with new WysiwygPageBuilder component
+- [x] Left sidebar with draggable element tiles (18 block types)
+- [x] Canvas: full-width live preview, click to select, drag to reorder sections
+- [x] Right properties panel: context-sensitive editing for selected block
+- [x] Inline text editing directly on canvas (contentEditable)
+- [x] Color pickers, image upload, alignment controls in properties panel
+- [x] Block visibility toggle (show/hide without deleting)
+- [x] Duplicate and delete block actions
+- [x] Wire new editor into PageBuilderPage (course sales pages)
+- [x] Wire new editor into CustomPagesPage (custom org pages)
+- [x] Wire new editor into DigitalProductEditorPage
+- [x] Wire new editor into WebinarEditorPage
+- [x] Write vitest tests for block serialization and drag-drop ordering
+- [x] All 81 tests passing
+
+## Platform Admin — User Management
+- [x] AdminUsersPage: list all users across all orgs with role badges
+- [x] Filter users by organization
+- [x] Create new users with role assignment (site_admin, org_super_admin, org_admin, member)
+- [x] Edit user name, email, and platform role
+- [x] Assign users to organizations with org-level role
+- [x] Enroll users in courses directly from admin panel
+- [x] Revoke course enrollments
+- [x] Delete users (owner-only)
+- [x] Backend procedures support all role types: site_owner, site_admin, org_super_admin, org_admin, member

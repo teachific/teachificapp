@@ -16,7 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PageBuilder, Block } from "@/components/PageBuilder";
+import { WysiwygPageBuilder as PageBuilder } from "@/components/WysiwygPageBuilder";
+import type { Block } from "@/components/WysiwygPageBuilder";
 import {
   ArrowLeft,
   Upload,
