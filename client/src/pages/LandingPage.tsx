@@ -928,8 +928,13 @@ function LandingFooter() {
               <span style={{ color: AQUA }}>ific</span>
               <span className="text-white text-lg">™</span>
             </div>
-            <p className="text-sm leading-relaxed">
+            <p className="text-sm leading-relaxed mb-3">
               The all-in-one platform for online educators, trainers, and course creators.
+            </p>
+            <p className="text-xs leading-relaxed text-gray-500">
+              Host SCORM 1.2 &amp; SCORM 2004 content, build and sell online courses, manage
+              learners, and track completions with a powerful learning management system (LMS).
+              Supports HTML5 eLearning, quiz builder, custom subdomains, and course analytics.
             </p>
           </div>
 
