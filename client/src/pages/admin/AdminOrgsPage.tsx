@@ -40,7 +40,7 @@ export default function AdminOrgsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
-  const [editTarget, setEditTarget] = useState<{ id: number; name: string; slug: string; description?: string | null } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ id: number; name: string; slug: string; description?: string | null; adminNotes?: string | null } | null>(null);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [search, setSearch] = useState("");
@@ -190,7 +190,7 @@ export default function AdminOrgsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit({ id: org.id, name: org.name, slug: org.slug, description: org.description })}>
+                            <DropdownMenuItem onClick={() => openEdit({ id: org.id, name: org.name, slug: org.slug, description: org.description, adminNotes: (org as any).adminNotes })}>
                               <Pencil className="h-4 w-4 mr-2" /> Edit
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -247,6 +247,19 @@ export default function AdminOrgsPage() {
                   value={editTarget.description ?? ""}
                   onChange={(e) => setEditTarget({ ...editTarget, description: e.target.value })}
                   placeholder="Optional description"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  Private Admin Notes
+                  <span className="text-xs text-muted-foreground font-normal">(only visible to platform admins)</span>
+                </Label>
+                <textarea
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                  value={editTarget.adminNotes ?? ""}
+                  onChange={(e) => setEditTarget({ ...editTarget, adminNotes: e.target.value })}
+                  placeholder="Internal notes about this organization (billing, support history, special agreements)..."
+                  rows={3}
                 />
               </div>
             </div>

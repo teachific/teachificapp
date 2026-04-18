@@ -82,6 +82,8 @@ export const organizations = mysqlTable("organizations", {
   paymentGateway: mysqlEnum("paymentGateway", ["teachific_pay", "own_gateway"]).default("teachific_pay").notNull(),
   ownStripePublishableKey: varchar("ownStripePublishableKey", { length: 255 }),
   ownStripeSecretKeyEncrypted: text("ownStripeSecretKeyEncrypted"),
+  // Internal platform admin notes (never visible to org admins or members)
+  adminNotes: text("adminNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

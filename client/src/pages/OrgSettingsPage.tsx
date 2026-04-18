@@ -282,7 +282,7 @@ export default function OrgSettingsPage() {
               <Palette className="h-4 w-4" /> Branding
             </TabsTrigger>
             <TabsTrigger value="domain" className="gap-1.5 whitespace-nowrap">
-              <Globe className="h-4 w-4" /> Domain
+              <Globe className="h-4 w-4" /> Website
             </TabsTrigger>
             <TabsTrigger value="notifications" className="gap-1.5 whitespace-nowrap">
               <Bell className="h-4 w-4" /> Notifications
@@ -706,43 +706,147 @@ export default function OrgSettingsPage() {
           </div>
         </TabsContent>
 
-        {/* Domain Tab */}
+        {/* Website / Domain Tab */}
         <TabsContent value="domain" className="space-y-4">
+          {/* Subdomain Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Custom Domain</CardTitle>
-              <CardDescription>Connect your own domain to your organization (Pro+ required)</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" /> Your Teachific Subdomain
+              </CardTitle>
+              <CardDescription>Your school is live at this address. Share it with your students.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="custom-domain">Custom Domain</Label>
-                <Input
-                  id="custom-domain"
-                  value={customDomain}
-                  onChange={(e) => setCustomDomain(e.target.value)}
-                  placeholder="learn.acme.com"
-                  disabled={!isProPlus}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Point your domain's CNAME record to:{" "}
-                  <span className="font-mono">teachific.app</span>
-                </p>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-border/60">
+                <span className="font-mono text-sm font-semibold text-primary flex-1 truncate">
+                  {orgCtx?.org?.slug ? `${orgCtx.org.slug}.teachific.app` : "(subdomain not set)"}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 shrink-0"
+                  onClick={() => {
+                    const url = `https://${orgCtx?.org?.slug}.teachific.app`;
+                    navigator.clipboard.writeText(url);
+                    toast.success("Subdomain URL copied!");
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" /> Copy
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 shrink-0"
+                  asChild
+                >
+                  <a href={`https://${orgCtx?.org?.slug}.teachific.app`} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5" /> Visit
+                  </a>
+                </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                To change your subdomain, go to the <strong>General</strong> tab and update the Subdomain field.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Custom Domain Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LinkIcon className="h-5 w-5 text-primary" /> Custom Domain
+                {isProPlus ? (
+                  <Badge variant="outline" className="text-xs text-green-600 border-green-500/40 bg-green-500/10 ml-auto">Available on your plan</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs text-amber-600 border-amber-500/40 bg-amber-500/10 ml-auto">Pro+ required</Badge>
+                )}
+              </CardTitle>
+              <CardDescription>Point your own domain (e.g. learn.acme.com) to your Teachific school.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
               {!isProPlus && (
                 <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                   <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                   <p className="text-xs text-amber-900 dark:text-amber-200">
-                    Custom domains require a Pro plan or higher. Upgrade your subscription to enable this feature.
+                    Custom domains require a <strong>Pro plan</strong> or higher. Upgrade your subscription to enable this feature.
                   </p>
                 </div>
               )}
-              <Button
-                onClick={() => updateSettings.mutate({ customDomain })}
-                disabled={updateSettings.isPending || !isProPlus}
-                className="gap-2"
-              >
-                {updateSettings.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save Domain</>}
-              </Button>
+
+              {/* Step-by-step DNS instructions */}
+              <div className="space-y-3">
+                <p className="text-sm font-medium">How to connect your custom domain:</p>
+                <ol className="space-y-4">
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">1</span>
+                    <div className="space-y-2 flex-1">
+                      <p className="text-sm font-medium">Add a CNAME record in your DNS provider</p>
+                      <p className="text-xs text-muted-foreground">Log in to your domain registrar (e.g. GoDaddy, Namecheap, Cloudflare) and add a DNS record:</p>
+                      <div className="rounded-md border border-border/60 overflow-hidden text-xs font-mono">
+                        <div className="grid grid-cols-3 bg-muted/50 px-3 py-1.5 text-muted-foreground font-sans font-medium text-xs">
+                          <span>Type</span><span>Name / Host</span><span>Value / Target</span>
+                        </div>
+                        <div className="grid grid-cols-3 px-3 py-2 gap-2 text-xs">
+                          <span className="text-blue-500">CNAME</span>
+                          <span>learn <span className="text-muted-foreground">(or @)</span></span>
+                          <span className="text-green-500 truncate">{orgCtx?.org?.slug ? `${orgCtx.org.slug}.teachific.app` : "yourschool.teachific.app"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">2</span>
+                    <div>
+                      <p className="text-sm font-medium">Enter your custom domain below and save</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Once DNS is configured, enter your domain here so Teachific knows to route traffic to your school.</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex-shrink-0 h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">3</span>
+                    <div>
+                      <p className="text-sm font-medium">Wait for DNS propagation (up to 24–48 hours)</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">DNS changes can take time to propagate globally. SSL is automatically provisioned via Cloudflare once your domain is verified.</p>
+                    </div>
+                  </li>
+                </ol>
+              </div>
+
+              {/* Custom domain input */}
+              <div className="space-y-2">
+                <Label htmlFor="custom-domain">Custom Domain</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="custom-domain"
+                    value={customDomain}
+                    onChange={(e) => setCustomDomain(e.target.value)}
+                    placeholder="learn.acme.com"
+                    disabled={!isProPlus}
+                    className="font-mono"
+                  />
+                  <Button
+                    onClick={() => updateSettings.mutate({ customDomain: customDomain || undefined })}
+                    disabled={updateSettings.isPending || !isProPlus}
+                    className="gap-2 shrink-0"
+                  >
+                    {updateSettings.isPending ? "Saving..." : <><Check className="h-4 w-4" /> Save</>}
+                  </Button>
+                </div>
+                {orgCtx?.org?.customDomain && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Check className="h-3 w-3 text-green-500" />
+                    Currently configured: <span className="font-mono text-foreground">{orgCtx.org.customDomain}</span>
+                    <button
+                      className="ml-1 text-destructive hover:underline text-xs"
+                      onClick={() => {
+                        setCustomDomain("");
+                        updateSettings.mutate({ customDomain: undefined });
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

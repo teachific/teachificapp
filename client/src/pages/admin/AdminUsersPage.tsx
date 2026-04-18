@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { UserDetailPanel, type UserRow } from "@/components/UserDetailPanel";
 import {
   Dialog,
@@ -32,9 +33,17 @@ import {
 import { toast } from "sonner";
 import {
   Users, Search, Edit, Trash2, Plus, X, BookOpen,
-  User as UserIcon, Shield, Building2, Eye, EyeOff, Mail,
+  User as UserIcon, Shield, Building2, Eye, EyeOff,
+  CheckSquare, Square, ChevronDown,
 } from "lucide-react";
 import { useState, useMemo } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const ROLE_LABELS: Record<string, string> = {
   site_owner: "Owner",
@@ -67,14 +76,6 @@ export default function AdminUsersPage() {
   const [orgFilter, setOrgFilter] = useState<string>("all");
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", email: "", role: "member" as string });
-  const [enrollOrgId, setEnrollOrgId] = useState<number | null>(null);
-  const [enrollCourseId, setEnrollCourseId] = useState<number | null>(null);
-  const [assignOrgId, setAssignOrgId] = useState<string>("");
-  const [assignOrgRole, setAssignOrgRole] = useState<"org_super_admin" | "org_admin" | "member">("member");
-  const [assignMemberSubRole, setAssignMemberSubRole] = useState<"basic_member" | "instructor" | "group_manager" | "group_member">("basic_member");
-
-  // Add User dialog state
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({
     name: "", email: "", password: "",
@@ -84,14 +85,37 @@ export default function AdminUsersPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
 
-  const { data: enrollments, refetch: refetchEnrollments } = trpc.users.getEnrollments.useQuery(
-    { userId: editUser?.id ?? 0 },
-    { enabled: !!editUser }
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkOrgId, setBulkOrgId] = useState<string>("");
+  const [bulkRole, setBulkRole] = useState<string>("member");
+  const [bulkCourseOrgId, setBulkCourseOrgId] = useState<string>("");
+  const [bulkCourseId, setBulkCourseId] = useState<string>("");
+  const [bulkActionOpen, setBulkActionOpen] = useState<"assign_org" | "change_role" | "enroll" | null>(null);
+
+  const { data: bulkCourses } = trpc.lms.courses.list.useQuery(
+    { orgId: Number(bulkCourseOrgId) },
+    { enabled: !!bulkCourseOrgId }
   );
-  const { data: courses } = trpc.lms.courses.list.useQuery(
-    { orgId: enrollOrgId ?? 0 },
-    { enabled: !!enrollOrgId }
-  );
+
+  const bulkUpdate = trpc.users.bulkUpdate.useMutation({
+    onSuccess: (res) => {
+      toast.success(`Updated ${res.updated} users`);
+      setSelectedIds(new Set());
+      setBulkActionOpen(null);
+      refetchUsers();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const bulkEnroll = trpc.users.bulkEnroll.useMutation({
+    onSuccess: (res) => {
+      toast.success(`Enrolled ${res.enrolled} users`);
+      setSelectedIds(new Set());
+      setBulkActionOpen(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const createUser = trpc.users.create.useMutation({
     onSuccess: () => {
@@ -103,28 +127,8 @@ export default function AdminUsersPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  const updateUser = trpc.users.update.useMutation({
-    onSuccess: () => { toast.success("User updated"); refetchUsers(); },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const assignToOrg = trpc.users.assignToOrg.useMutation({
-    onSuccess: () => { toast.success("Organization assigned"); setAssignOrgId(""); refetchUsers(); },
-    onError: (e) => toast.error(e.message),
-  });
-
   const deleteUserMutation = trpc.users.delete.useMutation({
     onSuccess: () => { toast.success("User deleted"); setDeleteTarget(null); setEditUser(null); refetchUsers(); },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const enrollMutation = trpc.users.enrollInCourse.useMutation({
-    onSuccess: () => { toast.success("Enrolled successfully"); refetchEnrollments(); setEnrollCourseId(null); },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const revokeMutation = trpc.users.revokeEnrollment.useMutation({
-    onSuccess: () => { toast.success("Enrollment revoked"); refetchEnrollments(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -148,22 +152,22 @@ export default function AdminUsersPage() {
     );
   }, [users, search, orgFilter]);
 
-  function openEdit(u: UserRow) {
-    setEditUser(u);
-    setEditForm({ name: u.name ?? "", email: u.email ?? "", role: u.role });
-    setEnrollOrgId(null);
-    setEnrollCourseId(null);
-    setAssignOrgId(u.orgId?.toString() ?? "");
-    setAssignOrgRole("member");
+  const allSelected = filtered.length > 0 && filtered.every((u) => selectedIds.has(u.id));
+  const someSelected = filtered.some((u) => selectedIds.has(u.id));
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((u) => u.id)));
+    }
   }
 
-  function handleSave() {
-    if (!editUser) return;
-    updateUser.mutate({
-      userId: editUser.id,
-      name: editForm.name || undefined,
-      email: editForm.email || undefined,
-      role: editForm.role as any,
+  function toggleOne(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
     });
   }
 
@@ -180,6 +184,34 @@ export default function AdminUsersPage() {
       orgId: addForm.orgId ? Number(addForm.orgId) : undefined,
     });
   }
+
+  function handleBulkAssignOrg() {
+    if (!bulkOrgId) { toast.error("Select an organization"); return; }
+    bulkUpdate.mutate({
+      userIds: Array.from(selectedIds),
+      orgId: Number(bulkOrgId),
+      orgRole: bulkRole as any,
+    });
+  }
+
+  function handleBulkChangeRole() {
+    bulkUpdate.mutate({
+      userIds: Array.from(selectedIds),
+      role: bulkRole as any,
+    });
+  }
+
+  function handleBulkEnroll() {
+    if (!bulkCourseId) { toast.error("Select a course"); return; }
+    if (!bulkCourseOrgId) { toast.error("Select an organization"); return; }
+    bulkEnroll.mutate({
+      userIds: Array.from(selectedIds),
+      courseId: Number(bulkCourseId),
+      orgId: Number(bulkCourseOrgId),
+    });
+  }
+
+  const selectedCount = selectedIds.size;
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-5">
@@ -223,9 +255,46 @@ export default function AdminUsersPage() {
         )}
       </div>
 
+      {/* Bulk Action Toolbar */}
+      {selectedCount > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/10 border border-primary/30 rounded-lg">
+          <span className="text-sm font-medium text-primary">{selectedCount} selected</span>
+          <div className="flex-1" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="gap-1.5 bg-background">
+                Bulk Actions <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => setBulkActionOpen("assign_org")}>
+                <Building2 className="h-4 w-4 mr-2" /> Assign to Organization
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBulkActionOpen("change_role")}>
+                <Shield className="h-4 w-4 mr-2" /> Change Platform Role
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setBulkActionOpen("enroll")}>
+                <BookOpen className="h-4 w-4 mr-2" /> Enroll in Course
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setSelectedIds(new Set())}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       {/* Users Table */}
       <div className="rounded-xl border border-border/60 overflow-hidden shadow-sm">
-        <div className={`hidden sm:grid gap-4 px-5 py-2.5 bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider ${isPlatformAdmin ? "grid-cols-[1fr_160px_auto_auto_auto_auto]" : "grid-cols-[1fr_auto_auto_auto_auto]"}`}>
+        {/* Header row */}
+        <div className={`hidden sm:grid gap-4 px-5 py-2.5 bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider ${isPlatformAdmin ? "grid-cols-[32px_1fr_160px_auto_auto_auto_auto]" : "grid-cols-[32px_1fr_auto_auto_auto_auto]"}`}>
+          <Checkbox
+            checked={allSelected}
+            onCheckedChange={toggleAll}
+            aria-label="Select all"
+            className="mt-0.5"
+          />
           <span>User</span>
           {isPlatformAdmin && <span>Organization</span>}
           <span>Role</span>
@@ -233,6 +302,7 @@ export default function AdminUsersPage() {
           <span>Joined</span>
           <span></span>
         </div>
+
         {filtered.length === 0 ? (
           <div className="px-5 py-10 text-center text-muted-foreground text-sm">
             <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
@@ -240,50 +310,187 @@ export default function AdminUsersPage() {
           </div>
         ) : (
           <div className="divide-y divide-border/50">
-            {filtered.map((u) => (
-              <div key={u.id} className="hover:bg-muted/20 transition-colors">
-                {/* Desktop row */}
-                <div className={`hidden sm:grid gap-4 px-5 py-3 items-center ${isPlatformAdmin ? "grid-cols-[1fr_160px_auto_auto_auto_auto]" : "grid-cols-[1fr_auto_auto_auto_auto]"}`}>
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{u.name ?? <span className="text-muted-foreground italic">No name</span>}</p>
-                    <p className="text-xs text-muted-foreground truncate">{u.email ?? "—"}</p>
-                  </div>
-                  {isPlatformAdmin && (
-                    <span className="text-xs text-muted-foreground truncate">
-                      {u.orgName ?? <span className="italic opacity-50">—</span>}
-                    </span>
-                  )}
-                  <Badge className={`text-xs border ${ROLE_COLORS[u.role] ?? ROLE_COLORS.user}`}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
-                  <span className="text-xs text-muted-foreground capitalize">{u.loginMethod ?? "—"}</span>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">{new Date(u.createdAt).toLocaleDateString()}</span>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(u as UserRow)}>
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                {/* Mobile card */}
-                <div className="sm:hidden flex items-center justify-between px-4 py-3 gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm truncate">{u.name ?? <span className="text-muted-foreground italic">No name</span>}</p>
-                    <p className="text-xs text-muted-foreground truncate">{u.email ?? "—"}</p>
-                    {isPlatformAdmin && u.orgName && (
-                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                        <Building2 className="h-3 w-3" />{u.orgName}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      <Badge className={`text-xs border ${ROLE_COLORS[u.role] ?? ROLE_COLORS.user}`}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
-                      <span className="text-xs text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</span>
+            {filtered.map((u) => {
+              const isSelected = selectedIds.has(u.id);
+              return (
+                <div key={u.id} className={`transition-colors ${isSelected ? "bg-primary/5" : "hover:bg-muted/20"}`}>
+                  {/* Desktop row */}
+                  <div className={`hidden sm:grid gap-4 px-5 py-3 items-center ${isPlatformAdmin ? "grid-cols-[32px_1fr_160px_auto_auto_auto_auto]" : "grid-cols-[32px_1fr_auto_auto_auto_auto]"}`}>
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleOne(u.id)}
+                      aria-label={`Select ${u.name ?? u.email}`}
+                    />
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{u.name ?? <span className="text-muted-foreground italic">No name</span>}</p>
+                      <p className="text-xs text-muted-foreground truncate">{u.email ?? "—"}</p>
                     </div>
+                    {isPlatformAdmin && (
+                      <span className="text-xs text-muted-foreground truncate">
+                        {u.orgName ?? <span className="italic opacity-50">—</span>}
+                      </span>
+                    )}
+                    <Badge className={`text-xs border ${ROLE_COLORS[u.role] ?? ROLE_COLORS.user}`}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
+                    <span className="text-xs text-muted-foreground capitalize">{u.loginMethod ?? "—"}</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{new Date(u.createdAt).toLocaleDateString()}</span>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setEditUser(u as UserRow)}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" onClick={() => openEdit(u as UserRow)}>
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
+                  {/* Mobile card */}
+                  <div className="sm:hidden flex items-center gap-3 px-4 py-3">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleOne(u.id)}
+                      aria-label={`Select ${u.name ?? u.email}`}
+                      className="shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{u.name ?? <span className="text-muted-foreground italic">No name</span>}</p>
+                      <p className="text-xs text-muted-foreground truncate">{u.email ?? "—"}</p>
+                      {isPlatformAdmin && u.orgName && (
+                        <p className="text-xs text-muted-foreground truncate">{u.orgName}</p>
+                      )}
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <Badge className={`text-xs border ${ROLE_COLORS[u.role] ?? ROLE_COLORS.user}`}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
+                        <span className="text-xs text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" onClick={() => setEditUser(u as UserRow)}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
+
+      {/* Bulk Action — Assign to Org */}
+      <Dialog open={bulkActionOpen === "assign_org"} onOpenChange={(o) => { if (!o) setBulkActionOpen(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" /> Assign {selectedCount} Users to Organization
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Organization</Label>
+              <Select value={bulkOrgId} onValueChange={setBulkOrgId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select organization..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgs?.map((o) => (
+                    <SelectItem key={o.id} value={o.id.toString()}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Org Role</Label>
+              <Select value={bulkRole} onValueChange={setBulkRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Org Member</SelectItem>
+                  <SelectItem value="org_admin">Org Admin</SelectItem>
+                  <SelectItem value="org_super_admin">Org Super Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkActionOpen(null)}>Cancel</Button>
+            <Button onClick={handleBulkAssignOrg} disabled={bulkUpdate.isPending}>
+              {bulkUpdate.isPending ? "Assigning..." : `Assign ${selectedCount} Users`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Action — Change Platform Role */}
+      <Dialog open={bulkActionOpen === "change_role"} onOpenChange={(o) => { if (!o) setBulkActionOpen(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" /> Change Role for {selectedCount} Users
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>New Platform Role</Label>
+              <Select value={bulkRole} onValueChange={setBulkRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Org Member</SelectItem>
+                  <SelectItem value="org_admin">Org Admin</SelectItem>
+                  <SelectItem value="org_super_admin">Org Super Admin</SelectItem>
+                  {isOwner && <SelectItem value="site_admin">Platform Admin</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkActionOpen(null)}>Cancel</Button>
+            <Button onClick={handleBulkChangeRole} disabled={bulkUpdate.isPending}>
+              {bulkUpdate.isPending ? "Updating..." : `Update ${selectedCount} Users`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Action — Enroll in Course */}
+      <Dialog open={bulkActionOpen === "enroll"} onOpenChange={(o) => { if (!o) setBulkActionOpen(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" /> Enroll {selectedCount} Users in Course
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Organization</Label>
+              <Select value={bulkCourseOrgId} onValueChange={(v) => { setBulkCourseOrgId(v); setBulkCourseId(""); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select organization..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgs?.map((o) => (
+                    <SelectItem key={o.id} value={o.id.toString()}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {bulkCourseOrgId && (
+              <div className="space-y-1.5">
+                <Label>Course</Label>
+                <Select value={bulkCourseId} onValueChange={setBulkCourseId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select course..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bulkCourses?.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id.toString()}>{c.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkActionOpen(null)}>Cancel</Button>
+            <Button onClick={handleBulkEnroll} disabled={bulkEnroll.isPending || !bulkCourseId}>
+              {bulkEnroll.isPending ? "Enrolling..." : `Enroll ${selectedCount} Users`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add User Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

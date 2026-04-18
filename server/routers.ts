@@ -561,9 +561,55 @@ export const appRouter = router({
         await upsertOrgSubscription(membership.orgId, { plan, status: status ?? "active", customPriceUsd, customPriceLabel, adminNotes, assignedByUserId: ctx.user.id });
         return { success: true };
       }),
+    // Bulk update role and/or org assignment for multiple users
+    bulkUpdate: adminProcedure
+      .input(z.object({
+        userIds: z.array(z.number()).min(1).max(200),
+        role: z.enum(["site_admin", "org_super_admin", "org_admin", "member", "user"]).optional(),
+        orgId: z.number().optional(),
+        orgRole: z.enum(["org_super_admin", "org_admin", "member"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+        const { users: usersTable } = await import("../drizzle/schema");
+        let updated = 0;
+        for (const userId of input.userIds) {
+          if (input.role) {
+            await db.update(usersTable).set({ role: input.role }).where(eq(usersTable.id, userId));
+          }
+          if (input.orgId) {
+            const orgRole = input.orgRole ?? "member";
+            const existing = await getOrgMember(input.orgId, userId);
+            if (existing) {
+              await updateOrgMemberRole(input.orgId, userId, orgRole);
+            } else {
+              await addOrgMember(input.orgId, userId, orgRole);
+            }
+          }
+          updated++;
+        }
+        return { updated };
+      }),
+    // Bulk enroll multiple users in a course
+    bulkEnroll: adminProcedure
+      .input(z.object({
+        userIds: z.array(z.number()).min(1).max(200),
+        courseId: z.number(),
+        orgId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        let enrolled = 0;
+        for (const userId of input.userIds) {
+          try {
+            await createEnrollment({ userId, courseId: input.courseId, orgId: input.orgId, isActive: true, progressPct: 0, certificateIssued: false });
+            enrolled++;
+          } catch { /* skip already enrolled */ }
+        }
+        return { enrolled };
+      }),
   }),
-
-  // ── Organizations ─────────────────────────────────────────────────────────
+  // ── Organizationss ─────────────────────────────────────────────────────────
   orgs: router({
     list: adminProcedure.query(() => getAllOrgs()),
     myOrgs: protectedProcedure.query(({ ctx }) => getOrgsByUserId(ctx.user.id)),
@@ -870,6 +916,7 @@ export const appRouter = router({
         name: z.string().min(1).optional(),
         slug: z.string().min(1).optional(),
         description: z.string().optional(),
+        adminNotes: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
@@ -2337,6 +2384,7 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         description: z.string().optional(),
         domain: z.string().optional().nullable(),
         logoUrl: z.string().optional().nullable(),
+        adminNotes: z.string().optional().nullable(),
       }))
       .mutation(({ input }) => {
         const { orgId, ...data } = input;

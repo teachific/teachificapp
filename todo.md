@@ -2846,3 +2846,26 @@
 - [ ] Certificate Settings tab in OrgSettings (logo, colors, signature line, custom text)
 - [ ] Wire PDF generation into auto-issue on course completion
 - [ ] Vitest tests for certificate branding logic
+
+## Bulk User Actions (Platform Admin)
+- [ ] Add row checkboxes to AdminUsersPage user table
+- [ ] Add bulk action toolbar (bulk role-change, bulk org-assign, bulk enroll, bulk delete)
+- [ ] Add bulkUpdateUsers backend procedure (role, orgId)
+- [ ] Add bulkEnrollUsers backend procedure
+
+## Private Org Notes (Platform Admin)
+- [ ] Add adminNotes column to organizations table (if not exists)
+- [ ] Add getOrgNotes / updateOrgNotes backend procedures
+- [ ] Surface private notes field in AdminOrgsPage and platform admin org detail view
+
+## Website Tab in OrgSettings (Domain Setup)
+- [ ] Move subdomain slug field into new Website tab in OrgSettings
+- [ ] Move custom domain field into Website tab
+- [ ] Add step-by-step DNS instructions for pointing custom domain to teachific subdomain
+- [ ] Show current subdomain URL and copy button in Website tab
+- [ ] Add domain verification status indicator
+
+## Session: Bulk User Actions, Org Notes, Website/Domain Tab
+- [x] Fix TypeScript error in AdminUsersPage: bulkEnroll call now includes required orgId field
+- [x] Private org notes: adminNotes column in organizations table (migration applied), orgs.update procedure accepts adminNotes, AdminOrgsPage edit dialog shows Private Admin Notes textarea
+- [x] Website/Domain tab in OrgSettings: renamed "Domain" tab to "Website", added subdomain display card with copy/visit buttons, added step-by-step DNS instructions for custom domain setup (CNAME record table, 3-step guide), custom domain input with save/remove
