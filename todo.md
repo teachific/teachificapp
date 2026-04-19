@@ -2927,3 +2927,11 @@
 - [x] index chunk reduced from 2.12MB → 190KB (gzip: 272KB → 30KB)
 - [x] No large-chunk warnings in production build
 - [x] 81/81 tests passing, 0 TypeScript errors
+
+## Railway Deployment Preparation
+- [x] Add railway.toml and Dockerfile for Railway deployment
+- [x] Add /api/health endpoint for Railway health checks
+- [x] Replace Manus S3 storage with dual-backend (AWS S3 + Manus fallback)
+- [x] Replace Manus LLM with dual-backend (OpenAI + Manus fallback)
+- [x] Install @aws-sdk/client-s3, @aws-sdk/s3-request-presigner, openai packages
+- [x] Write DEPLOYMENT.md with full Railway setup guide

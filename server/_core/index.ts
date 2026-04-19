@@ -133,6 +133,11 @@ async function startServer() {
     next();
   });
 
+  // Health check endpoint for Railway / load balancers (no auth required)
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   // Stripe webhook MUST be before express.json() for raw body signature verification
   app.use("/api/stripe", stripeWebhookRouter);
 
