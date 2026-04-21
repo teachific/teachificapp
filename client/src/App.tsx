@@ -1,4 +1,3 @@
-import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -10,154 +9,132 @@ import { UploadQueueProvider } from "./contexts/UploadQueueContext";
 import { UploadQueuePanel } from "./components/UploadQueuePanel";
 import { getSubdomain } from "./hooks/useSubdomain";
 
-// ─── Lazy-loaded page components ───────────────────────────────────────────
 
-// Core pages
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const FilesPage = lazy(() => import("./pages/FilesPage"));
-const UploadPage = lazy(() => import("./pages/UploadPage"));
-const MediaLibraryPage = lazy(() => import("./pages/MediaLibraryPage"));
-const FileDetailPage = lazy(() => import("./pages/FileDetailPage"));
-const PlayerPage = lazy(() => import("./pages/PlayerPage"));
-const EmbedPage = lazy(() => import("./pages/EmbedPage"));
-const QuizzesPage = lazy(() => import("./pages/QuizzesPage"));
-const QuizBuilderPage = lazy(() => import("./pages/QuizBuilderPage"));
-const QuizPlayerPage = lazy(() => import("./pages/QuizPlayerPage"));
-const QuizResultsPage = lazy(() => import("./pages/QuizResultsPage"));
-const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
-const AdminOrgsPage = lazy(() => import("./pages/admin/AdminOrgsPage"));
-const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
-const AdminPermissionsPage = lazy(() => import("./pages/admin/AdminPermissionsPage"));
-const AdminSettingsPage = lazy(() => import("./pages/admin/AdminSettingsPage"));
-const PlatformAdminPage = lazy(() => import("./pages/admin/PlatformAdminPage"));
+import Dashboard from "./pages/Dashboard";
+import FilesPage from "./pages/FilesPage";
+import UploadPage from "./pages/UploadPage";
+import MediaLibraryPage from "./pages/MediaLibraryPage";
+import FileDetailPage from "./pages/FileDetailPage";
+import PlayerPage from "./pages/PlayerPage";
+import EmbedPage from "./pages/EmbedPage";
+import QuizzesPage from "./pages/QuizzesPage";
+import QuizBuilderPage from "./pages/QuizBuilderPage";
+import QuizPlayerPage from "./pages/QuizPlayerPage";
+import QuizResultsPage from "./pages/QuizResultsPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import AdminOrgsPage from "./pages/admin/AdminOrgsPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminPermissionsPage from "./pages/admin/AdminPermissionsPage";
+import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
+import PlatformAdminPage from "./pages/admin/PlatformAdminPage";
 
-// LMS pages
-const CoursesPage = lazy(() => import("./pages/lms/CoursesPage"));
-const CourseBuilderPage = lazy(() => import("./pages/lms/CourseBuilderPage"));
-const BrandingPage = lazy(() => import("./pages/lms/BrandingPage"));
-const MembersPage = lazy(() => import("./pages/lms/MembersPage"));
-const LmsAnalyticsPage = lazy(() => import("./pages/lms/LmsAnalyticsPage"));
-const PageBuilderPage = lazy(() => import("./pages/lms/PageBuilderPage"));
-const SchoolPage = lazy(() => import("./pages/lms/SchoolPage"));
-const OrgLandingPage = lazy(() => import("./pages/lms/OrgLandingPage"));
-const SchoolMyCoursesPage = lazy(() => import("./pages/lms/SchoolMyCoursesPage"));
-const FormsPage = lazy(() => import("./pages/lms/FormsPage"));
-const FormBuilderPage = lazy(() => import("./pages/lms/FormBuilderPage"));
-const FormResponsesPage = lazy(() => import("./pages/lms/FormResponsesPage"));
-const FormAnalyticsPage = lazy(() => import("./pages/lms/FormAnalyticsPage"));
-const FormPlayerPage = lazy(() => import("./pages/FormPlayerPage"));
-const CourseSalesPage = lazy(() => import("./pages/lms/CourseSalesPage"));
-const CoursePlayerPage = lazy(() => import("./pages/lms/CoursePlayerPage"));
-const CourseOverviewPage = lazy(() => import("./pages/lms/CourseOverviewPage"));
-const OrgPoliciesPage = lazy(() => import("./pages/OrgPoliciesPage"));
-const CustomPagesPage = lazy(() => import("./pages/admin/CustomPagesPage"));
-const DigitalProductsPage = lazy(() => import("./pages/admin/DigitalProductsPage"));
-const DigitalProductEditorPage = lazy(() => import("./pages/admin/DigitalProductEditorPage"));
-const DigitalProductSalesPage = lazy(() => import("./pages/DigitalProductSalesPage"));
-const DigitalDownloadsReportsPage = lazy(() => import("./pages/admin/DigitalDownloadsReportsPage"));
-const WebinarsPage = lazy(() => import("./pages/admin/WebinarsPage"));
-const WebinarEditorPage = lazy(() => import("./pages/admin/WebinarEditorPage"));
-const WebinarReportsPage = lazy(() => import("./pages/admin/WebinarReportsPage"));
-const WebinarRegisterPage = lazy(() => import("./pages/WebinarRegisterPage"));
-const WebinarWatchPage = lazy(() => import("./pages/WebinarWatchPage"));
-const OrgSettingsPage = lazy(() => import("./pages/OrgSettingsPage"));
-const StudentLogReportsPage = lazy(() => import("./pages/lms/StudentLogReportsPage"));
-const LmsDashboardPage = lazy(() => import("./pages/lms/LmsDashboardPage"));
-const MyCoursesPage = lazy(() => import("./pages/lms/MyCoursesPage"));
-const MyCertificatesPage = lazy(() => import("./pages/lms/MyCertificatesPage"));
-const EmailMarketingPage = lazy(() => import("./pages/lms/EmailMarketingPage"));
-const PublicPagePage = lazy(() => import("./pages/PublicPagePage"));
+import CoursesPage from "./pages/lms/CoursesPage";
+import CourseBuilderPage from "./pages/lms/CourseBuilderPage";
+import BrandingPage from "./pages/lms/BrandingPage";
+import MembersPage from "./pages/lms/MembersPage";
+import LmsAnalyticsPage from "./pages/lms/LmsAnalyticsPage";
+import PageBuilderPage from "./pages/lms/PageBuilderPage";
+import SchoolPage from "./pages/lms/SchoolPage";
+import OrgLandingPage from "./pages/lms/OrgLandingPage";
+import SchoolMyCoursesPage from "./pages/lms/SchoolMyCoursesPage";
+import FormsPage from "./pages/lms/FormsPage";
+import FormBuilderPage from "./pages/lms/FormBuilderPage";
+import FormResponsesPage from "./pages/lms/FormResponsesPage";
+import FormAnalyticsPage from "./pages/lms/FormAnalyticsPage";
+import FormPlayerPage from "./pages/FormPlayerPage";
+import CourseSalesPage from "./pages/lms/CourseSalesPage";
+import CoursePlayerPage from "./pages/lms/CoursePlayerPage";
+import CourseOverviewPage from "./pages/lms/CourseOverviewPage";
+import OrgPoliciesPage from "./pages/OrgPoliciesPage";
+import CustomPagesPage from "./pages/admin/CustomPagesPage";
+import DigitalProductsPage from "./pages/admin/DigitalProductsPage";
+import DigitalProductEditorPage from "./pages/admin/DigitalProductEditorPage";
+import DigitalProductSalesPage from "./pages/DigitalProductSalesPage";
+import DigitalDownloadsReportsPage from "./pages/admin/DigitalDownloadsReportsPage";
+import WebinarsPage from "./pages/admin/WebinarsPage";
+import WebinarEditorPage from "./pages/admin/WebinarEditorPage";
+import WebinarReportsPage from "./pages/admin/WebinarReportsPage";
+import WebinarRegisterPage from "./pages/WebinarRegisterPage";
+import WebinarWatchPage from "./pages/WebinarWatchPage";
+import OrgSettingsPage from "./pages/OrgSettingsPage";
+import StudentLogReportsPage from "./pages/lms/StudentLogReportsPage";
+import LmsDashboardPage from "./pages/lms/LmsDashboardPage";
+import MyCoursesPage from "./pages/lms/MyCoursesPage";
+import MyCertificatesPage from "./pages/lms/MyCertificatesPage";
+import EmailMarketingPage from "./pages/lms/EmailMarketingPage";
+import PublicPagePage from "./pages/PublicPagePage";
 
-// Members section
-const GroupsPage = lazy(() => import("./pages/members/GroupsPage"));
-const GroupManagerPortalPage = lazy(() => import("./pages/members/GroupManagerPortalPage"));
-const MemberCertificatesPage = lazy(() => import("./pages/members/MemberCertificatesPage"));
-const DiscussionsPage = lazy(() => import("./pages/members/DiscussionsPage"));
-const AssignmentsPage = lazy(() => import("./pages/members/AssignmentsPage"));
+import GroupsPage from "./pages/members/GroupsPage";
+import GroupManagerPortalPage from "./pages/members/GroupManagerPortalPage";
+import MemberCertificatesPage from "./pages/members/MemberCertificatesPage";
+import DiscussionsPage from "./pages/members/DiscussionsPage";
+import AssignmentsPage from "./pages/members/AssignmentsPage";
 
-// Products section
-const MembershipsPage = lazy(() => import("./pages/products/MembershipsPage"));
-const BundlesPage = lazy(() => import("./pages/products/BundlesPage"));
-const CommunityPage = lazy(() => import("./pages/products/CommunityPage"));
-const CommunityLearnerPage = lazy(() => import("./pages/lms/CommunityLearnerPage"));
-const CommunityManagePage = lazy(() => import("./pages/products/CommunityManagePage"));
-const CategoriesPage = lazy(() => import("./pages/products/CategoriesPage"));
-const RecordPage = lazy(() => import("./pages/RecordPage"));
+import MembershipsPage from "./pages/products/MembershipsPage";
+import BundlesPage from "./pages/products/BundlesPage";
+import CommunityPage from "./pages/products/CommunityPage";
+import CommunityLearnerPage from "./pages/lms/CommunityLearnerPage";
+import CommunityManagePage from "./pages/products/CommunityManagePage";
+import CategoriesPage from "./pages/products/CategoriesPage";
+import RecordPage from "./pages/RecordPage";
 
-// Marketing section
-const WebsitePage = lazy(() => import("./pages/marketing/WebsitePage"));
-const EmailCampaignsPage = lazy(() => import("./pages/marketing/EmailCampaignsPage"));
-const FunnelsPage = lazy(() => import("./pages/marketing/FunnelsPage"));
-const AffiliatesPage = lazy(() => import("./pages/marketing/AffiliatesPage"));
+import WebsitePage from "./pages/marketing/WebsitePage";
+import EmailCampaignsPage from "./pages/marketing/EmailCampaignsPage";
+import FunnelsPage from "./pages/marketing/FunnelsPage";
+import AffiliatesPage from "./pages/marketing/AffiliatesPage";
 
 // Sales section
-const OrdersPage = lazy(() => import("./pages/sales/OrdersPage"));
-const SubscriptionsPage = lazy(() => import("./pages/sales/SubscriptionsPage"));
-const GroupOrdersPage = lazy(() => import("./pages/sales/GroupOrdersPage"));
-const CouponsPage = lazy(() => import("./pages/sales/CouponsPage"));
-const InvoicesPage = lazy(() => import("./pages/sales/InvoicesPage"));
-const RevenuePartnersPage = lazy(() => import("./pages/sales/RevenuePartnersPage"));
+import OrdersPage from "./pages/sales/OrdersPage";
+import SubscriptionsPage from "./pages/sales/SubscriptionsPage";
+import GroupOrdersPage from "./pages/sales/GroupOrdersPage";
+import CouponsPage from "./pages/sales/CouponsPage";
+import InvoicesPage from "./pages/sales/InvoicesPage";
+import RevenuePartnersPage from "./pages/sales/RevenuePartnersPage";
 
 // Analytics section
-const RevenueAnalyticsPage = lazy(() => import("./pages/analytics/RevenueAnalyticsPage"));
-const EngagementAnalyticsPage = lazy(() => import("./pages/analytics/EngagementAnalyticsPage"));
-const MarketingAnalyticsPage = lazy(() => import("./pages/analytics/MarketingAnalyticsPage"));
-const CustomReportsPage = lazy(() => import("./pages/analytics/CustomReportsPage"));
+import RevenueAnalyticsPage from "./pages/analytics/RevenueAnalyticsPage";
+import EngagementAnalyticsPage from "./pages/analytics/EngagementAnalyticsPage";
+import MarketingAnalyticsPage from "./pages/analytics/MarketingAnalyticsPage";
+import CustomReportsPage from "./pages/analytics/CustomReportsPage";
 
 // Integrations section
-const IntegrationsPage = lazy(() => import("./pages/integrations/IntegrationsPage"));
-const ApiPage = lazy(() => import("./pages/integrations/ApiPage"));
-const WebhooksPage = lazy(() => import("./pages/integrations/WebhooksPage"));
+import IntegrationsPage from "./pages/integrations/IntegrationsPage";
+import ApiPage from "./pages/integrations/ApiPage";
+import WebhooksPage from "./pages/integrations/WebhooksPage";
 
 // Profile section
-const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
-const BillingPage = lazy(() => import("./pages/profile/BillingPage"));
+import ProfilePage from "./pages/profile/ProfilePage";
+import BillingPage from "./pages/profile/BillingPage";
 
-// Public / marketing pages
-const LandingPage = lazy(() => import("./pages/LandingPage"));
-const SupportPage = lazy(() => import("./pages/SupportPage"));
-const PlatformPoliciesPage = lazy(() => import("./pages/PlatformPoliciesPage"));
-const HelpPage = lazy(() => import("./pages/HelpPage"));
+import LandingPage from "./pages/LandingPage";
+import SupportPage from "./pages/SupportPage";
+import PlatformPoliciesPage from "./pages/PlatformPoliciesPage";
+import HelpPage from "./pages/HelpPage";
 
-// Standalone tools
-const QuizCreatorPage = lazy(() => import("./pages/QuizCreatorPage"));
-const QuizCreatorGate = lazy(() => import("./pages/QuizCreatorGate"));
-const QuizCreatorDashboard = lazy(() => import("./pages/QuizCreatorDashboard"));
-const QuizCreatorLandingPage = lazy(() => import("./pages/QuizCreatorLandingPage"));
-const StudioDashboard = lazy(() => import("./pages/StudioDashboard"));
-const StudioLandingPage = lazy(() => import("./pages/StudioLandingPage"));
-const CreatorDashboardPage = lazy(() => import("./pages/CreatorDashboardPage"));
-const CreatorEditorPage = lazy(() => import("./pages/CreatorEditorPage"));
-const CreatorLandingPage = lazy(() => import("./pages/CreatorLandingPage"));
-const DesktopDownloadPage = lazy(() => import("./pages/DesktopDownloadPage"));
+import QuizCreatorPage from "./pages/QuizCreatorPage";
+import QuizCreatorGate from "./pages/QuizCreatorGate";
+import QuizCreatorDashboard from "./pages/QuizCreatorDashboard";
+import QuizCreatorLandingPage from "./pages/QuizCreatorLandingPage";
+import StudioDashboard from "./pages/StudioDashboard";
+import StudioLandingPage from "./pages/StudioLandingPage";
+import CreatorDashboardPage from "./pages/CreatorDashboardPage";
+import CreatorEditorPage from "./pages/CreatorEditorPage";
+import CreatorLandingPage from "./pages/CreatorLandingPage";
+import DesktopDownloadPage from "./pages/DesktopDownloadPage";
 
-// Auth pages (no sidebar)
-const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
-const RegisterPage = lazy(() => import("./pages/auth/RegisterPage"));
-const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage"));
-const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
-const VerifyEmailPage = lazy(() => import("./pages/auth/VerifyEmailPage"));
+import LoginPage from "./pages/auth/LoginPage";
+import RegisterPage from "./pages/auth/RegisterPage";
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+import VerifyEmailPage from "./pages/auth/VerifyEmailPage";
 
-// ─── Suspense fallback ──────────────────────────────────────────────────────
 
-function PageLoader() {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
-    </div>
-  );
-}
 
-// Auth paths that render without the dashboard shell
 const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
 
 // Bare routes — no admin sidebar (share links, embeds, auth pages, student player)
 function BareRouter() {
   return (
-    <Suspense fallback={<PageLoader />}>
       <Switch>
         <Route path="/embed/:id" component={EmbedPage} />
         <Route path="/learn/:courseId/overview" component={CourseOverviewPage} />
@@ -211,7 +188,6 @@ function BareRouter() {
         <Route path="/creator" component={CreatorDashboardPage} />
         <Route path="/creator/:projectId" component={CreatorEditorPage} />
       </Switch>
-    </Suspense>
   );
 }
 
@@ -219,7 +195,6 @@ function BareRouter() {
 function AdminRouter() {
   return (
     <DashboardLayout>
-      <Suspense fallback={<PageLoader />}>
         <Switch>
           {/* Root → Dashboard */}
           {/* Root is handled by BareRouter (LandingPage redirects logged-in users to /lms) */}
@@ -340,7 +315,6 @@ function AdminRouter() {
           <Route path="/404" component={NotFound} />
           <Route component={NotFound} />
         </Switch>
-      </Suspense>
     </DashboardLayout>
   );
 }
@@ -353,7 +327,6 @@ function AdminRouter() {
  */
 function SubdomainSchoolRouter({ subdomain }: { subdomain: string }) {
   return (
-    <Suspense fallback={<PageLoader />}>
       <Switch>
         {/* Auth works on subdomains */}
         <Route path="/login" component={LoginPage} />
@@ -446,7 +419,6 @@ function SubdomainSchoolRouter({ subdomain }: { subdomain: string }) {
         {/* Default: show landing page if published, otherwise fall back to SchoolPage */}
         <Route>{() => <OrgLandingPage subdomainOrg={subdomain} fallback={<SchoolPage subdomainOrg={subdomain} />} />}</Route>
       </Switch>
-    </Suspense>
   );
 }
 
