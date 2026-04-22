@@ -16,6 +16,7 @@ import contentRouter from "../contentRoutes";
 import digitalDownloadRouter from "../digitalDownloadRoutes";
 import mediaUploadRouter from "../mediaUploadRoutes";
 import stripeWebhookRouter from "../stripeWebhookRoutes";
+import emergencyResetRouter from "../emergencyReset";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -167,6 +168,9 @@ async function startServer() {
 
   // Media upload — server-side proxy for browser file uploads (digital downloads, forms, media library)
   app.use("/api/media-upload", mediaUploadRouter);
+
+  // TEMPORARY: Emergency admin reset (remove after use)
+  app.use("/api/emergency-reset", emergencyResetRouter);
 
   // tRPC API
   app.use(
