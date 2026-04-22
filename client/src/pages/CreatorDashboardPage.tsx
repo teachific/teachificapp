@@ -144,7 +144,7 @@ export default function CreatorDashboardPage() {
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-white">
       {showWatermarkBanner && (
-        <div className="bg-[#189aa1] text-white text-sm font-medium flex items-center justify-center gap-3 px-4 py-2">
+        <div className="bg-[#24abbc] text-white text-sm font-medium flex items-center justify-center gap-3 px-4 py-2">
           {isInTrial && trialDaysLeft !== null && (
             <span className="flex items-center gap-1.5">
               <Timer className="w-3.5 h-3.5" />
@@ -195,7 +195,7 @@ export default function CreatorDashboardPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="hidden md:flex text-xs border-[#189aa1]/50 text-[#4ad9e0] hover:bg-[#189aa1]/10"
+                className="hidden md:flex text-xs border-[#24abbc]/50 text-[#4ad9e0] hover:bg-[#24abbc]/10"
                 onClick={() => setShowUpgradeModal(true)}
               >
                 <Crown className="w-3 h-3 mr-1.5" />
@@ -205,7 +205,7 @@ export default function CreatorDashboardPage() {
             <ProductSwitcher current="creator" variant="topbar" />
             <Button
               size="sm"
-              className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold"
+              className="bg-[#24abbc] hover:bg-[#4ad9e0] text-white font-semibold"
               onClick={() => setShowNewDialog(true)}
             >
               <Plus className="w-4 h-4 mr-1.5" />
@@ -233,7 +233,7 @@ export default function CreatorDashboardPage() {
               placeholder="Search projects..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#189aa1]"
+              className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#24abbc]"
             />
           </div>
         </div>
@@ -241,7 +241,7 @@ export default function CreatorDashboardPage() {
         {/* ── Empty state ─────────────────────────────────────────────────────── */}
         {!isLoading && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-20 h-20 rounded-2xl bg-[#189aa1]/20 flex items-center justify-center mb-6">
+            <div className="w-20 h-20 rounded-2xl bg-[#24abbc]/20 flex items-center justify-center mb-6">
               <Layers className="w-10 h-10 text-[#4ad9e0]" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">
@@ -254,7 +254,7 @@ export default function CreatorDashboardPage() {
             </p>
             {!search && (
               <Button
-                className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold"
+                className="bg-[#24abbc] hover:bg-[#4ad9e0] text-white font-semibold"
                 onClick={() => setShowNewDialog(true)}
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -279,9 +279,9 @@ export default function CreatorDashboardPage() {
             {/* New project card */}
             <button
               onClick={() => setShowNewDialog(true)}
-              className="group h-48 rounded-2xl border-2 border-dashed border-white/15 hover:border-[#189aa1]/60 bg-white/3 hover:bg-[#189aa1]/5 transition-all flex flex-col items-center justify-center gap-3 text-white/40 hover:text-[#4ad9e0]"
+              className="group h-48 rounded-2xl border-2 border-dashed border-white/15 hover:border-[#24abbc]/60 bg-white/3 hover:bg-[#24abbc]/5 transition-all flex flex-col items-center justify-center gap-3 text-white/40 hover:text-[#4ad9e0]"
             >
-              <div className="w-12 h-12 rounded-xl bg-white/5 group-hover:bg-[#189aa1]/20 flex items-center justify-center transition-colors">
+              <div className="w-12 h-12 rounded-xl bg-white/5 group-hover:bg-[#24abbc]/20 flex items-center justify-center transition-colors">
                 <Plus className="w-6 h-6" />
               </div>
               <span className="text-sm font-medium">New Project</span>
@@ -316,7 +316,7 @@ export default function CreatorDashboardPage() {
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#189aa1]"
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-[#24abbc]"
                 autoFocus
               />
             </div>
@@ -330,7 +330,7 @@ export default function CreatorDashboardPage() {
                     onClick={() => setSelectedTemplate(t.id)}
                     className={`rounded-xl border p-3 text-left transition-all ${
                       selectedTemplate === t.id
-                        ? "border-[#189aa1] bg-[#189aa1]/10"
+                        ? "border-[#24abbc] bg-[#24abbc]/10"
                         : "border-white/10 bg-white/5 hover:border-white/20"
                     }`}
                   >
@@ -354,7 +354,7 @@ export default function CreatorDashboardPage() {
             <Button
               onClick={handleCreate}
               disabled={!newTitle.trim() || createProject.isPending}
-              className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold"
+              className="bg-[#24abbc] hover:bg-[#4ad9e0] text-white font-semibold"
             >
               {createProject.isPending ? "Creating..." : "Create Project"}
               <ChevronRight className="ml-1 w-4 h-4" />
@@ -378,13 +378,13 @@ export default function CreatorDashboardPage() {
             <button
               onClick={() => setUpgradeInterval("monthly")}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                upgradeInterval === "monthly" ? "bg-[#189aa1] text-white" : "text-white/50 hover:text-white"
+                upgradeInterval === "monthly" ? "bg-[#24abbc] text-white" : "text-white/50 hover:text-white"
               }`}
             >Monthly</button>
             <button
               onClick={() => setUpgradeInterval("annual")}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                upgradeInterval === "annual" ? "bg-[#189aa1] text-white" : "text-white/50 hover:text-white"
+                upgradeInterval === "annual" ? "bg-[#24abbc] text-white" : "text-white/50 hover:text-white"
               }`}
             >
               Annual
@@ -392,7 +392,7 @@ export default function CreatorDashboardPage() {
             </button>
           </div>
           {/* Single plan card */}
-          <div className="rounded-xl border border-[#189aa1] bg-[#189aa1]/10 p-6 mt-2">
+          <div className="rounded-xl border border-[#24abbc] bg-[#24abbc]/10 p-6 mt-2">
             <div className="flex items-start justify-between">
               <div>
                 <p className="font-bold text-white text-xl">TeachificCreator™</p>
@@ -431,7 +431,7 @@ export default function CreatorDashboardPage() {
                 origin: window.location.origin,
               })}
               disabled={createCreatorSingleCheckout.isPending}
-              className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold"
+              className="bg-[#24abbc] hover:bg-[#4ad9e0] text-white font-semibold"
             >
               {createCreatorSingleCheckout.isPending ? "Redirecting..." : "Start Free Trial"}
               <ChevronRight className="ml-1 w-4 h-4" />
@@ -495,7 +495,7 @@ function ProjectCard({
   };
 
   return (
-    <div className="group relative rounded-2xl border border-white/10 bg-white/5 hover:border-[#189aa1]/40 hover:bg-white/8 transition-all overflow-hidden">
+    <div className="group relative rounded-2xl border border-white/10 bg-white/5 hover:border-[#24abbc]/40 hover:bg-white/8 transition-all overflow-hidden">
       {/* Thumbnail area */}
       <div
         className="h-28 bg-gradient-to-br from-[#0d2a3a] to-[#0a1628] flex items-center justify-center cursor-pointer"
@@ -504,8 +504,8 @@ function ProjectCard({
         <div className="w-16 h-10 bg-white/10 rounded-lg flex items-center justify-center">
           <Layers className="w-6 h-6 text-[#4ad9e0]/60" />
         </div>
-        <div className="absolute inset-0 bg-[#189aa1]/0 group-hover:bg-[#189aa1]/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-          <div className="bg-[#189aa1] rounded-full p-2">
+        <div className="absolute inset-0 bg-[#24abbc]/0 group-hover:bg-[#24abbc]/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+          <div className="bg-[#24abbc] rounded-full p-2">
             <Play className="w-4 h-4 text-white fill-white" />
           </div>
         </div>
@@ -536,7 +536,7 @@ function ProjectCard({
                 )}
               </Badge>
               {project.lastPublishedFormat && (
-                <Badge className="text-[10px] px-1.5 py-0 bg-[#189aa1]/20 text-[#4ad9e0] border-[#189aa1]/30">
+                <Badge className="text-[10px] px-1.5 py-0 bg-[#24abbc]/20 text-[#4ad9e0] border-[#24abbc]/30">
                   {formatLabel[project.lastPublishedFormat]}
                 </Badge>
               )}

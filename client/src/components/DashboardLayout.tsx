@@ -310,7 +310,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex flex-col items-center gap-4">
             <span className="text-4xl font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.03em" }}>
               <span className="text-white">teach</span>
-              <span style={{ color: "#15a4b7" }}>ific</span>
+              <span style={{ color: "#24abbc" }}>ific</span>
               <span className="text-white" style={{ fontSize: "0.45em", verticalAlign: "super", marginLeft: "2px" }}>™</span>
             </span>
             {errorCode === "registration_closed" ? (
@@ -449,12 +449,12 @@ function DashboardLayoutContent({
               {!isCollapsed && (
                 <span className="text-[21px] font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.02em" }}>
                   <span className="text-sidebar-foreground">teach</span>
-                  <span style={{ color: "#15a4b7" }}>ific</span>
+                  <span style={{ color: "#24abbc" }}>ific</span>
                   <span className="text-sidebar-foreground" style={{ fontSize: "0.45em", verticalAlign: "super", marginLeft: "1px" }}>™</span>
                 </span>
               )}
               {isCollapsed && (
-                <span className="text-[21px] font-bold select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#15a4b7" }}>t</span>
+                <span className="text-[21px] font-bold select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: "#24abbc" }}>t</span>
               )}
             </div>
           </SidebarHeader>

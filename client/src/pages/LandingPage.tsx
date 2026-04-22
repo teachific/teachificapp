@@ -28,7 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 // ─── Brand colors ─────────────────────────────────────────────────────────────
-const TEAL = "#189aa1";
+const TEAL = "#24abbc";
 const AQUA = "#4ad9e0";
 
 // ─── Navigation ───────────────────────────────────────────────────────────────

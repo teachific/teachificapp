@@ -25,7 +25,7 @@ export interface PlanLimits {
 export const PLAN_DISPLAY: Record<PlanTier, { label: string; color: string }> = {
   free: { label: "Free", color: "text-muted-foreground" },
   starter: { label: "Starter", color: "text-[#4ad9e0]" },
-  builder: { label: "Builder", color: "text-[#15a4b7]" },
+  builder: { label: "Builder", color: "text-[#24abbc]" },
   pro: { label: "Pro", color: "text-[#0e8a96]" },
   enterprise: { label: "Enterprise", color: "text-[#0a6e78]" },
 };

@@ -30,9 +30,9 @@ const PRODUCTS = [
     href: "/lms",
     external: false,
     iconUrl: null as string | null,
-    color: "text-[#15a4b7]",
-    bg: "bg-[#15a4b7]/10 hover:bg-[#15a4b7]/20",
-    border: "border-[#15a4b7]/30",
+    color: "text-[#24abbc]",
+    bg: "bg-[#24abbc]/10 hover:bg-[#24abbc]/20",
+    border: "border-[#24abbc]/30",
   },
   {
     key: "quizCreator" as const,
@@ -52,9 +52,9 @@ const PRODUCTS = [
     href: "/studio",
     external: false,
     iconUrl: PRODUCT_ICON_URLS.studio,
-    color: "text-[#15a4b7]",
-    bg: "bg-[#15a4b7]/10 hover:bg-[#15a4b7]/20",
-    border: "border-[#15a4b7]/30",
+    color: "text-[#24abbc]",
+    bg: "bg-[#24abbc]/10 hover:bg-[#24abbc]/20",
+    border: "border-[#24abbc]/30",
   },
   {
     key: "creator" as const,
@@ -64,8 +64,8 @@ const PRODUCTS = [
     external: false,
     iconUrl: PRODUCT_ICON_URLS.creator,
     color: "text-[#4ad9e0]",
-    bg: "bg-[#189aa1]/10 hover:bg-[#189aa1]/20",
-    border: "border-[#189aa1]/30",
+    bg: "bg-[#24abbc]/10 hover:bg-[#24abbc]/20",
+    border: "border-[#24abbc]/30",
   },
 ];
 
@@ -113,7 +113,7 @@ export function ProductSwitcher({ current, variant = "topbar" }: ProductSwitcher
                   )}
                   <span className="truncate">{product.label}</span>
                   {isInTrial && (
-                    <Badge className="ml-auto text-[9px] px-1 py-0 h-4 bg-[#15a4b7]/20 text-[#15a4b7] border-[#15a4b7]/30">
+                    <Badge className="ml-auto text-[9px] px-1 py-0 h-4 bg-[#24abbc]/20 text-[#24abbc] border-[#24abbc]/30">
                       Trial
                     </Badge>
                   )}

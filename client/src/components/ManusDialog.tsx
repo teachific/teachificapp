@@ -56,7 +56,7 @@ export function ManusDialog({
           {/* Teachific™ logo */}
           <div className="mb-2">
             <span className="text-2xl font-bold tracking-tight select-none" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
-              <span style={{ color: '#1a1a19' }}>teach</span><span style={{ color: '#15a4b7' }}>ific</span><span style={{ color: '#1a1a19', fontSize: '0.5em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
+              <span style={{ color: '#1a1a19' }}>teach</span><span style={{ color: '#24abbc' }}>ific</span><span style={{ color: '#1a1a19', fontSize: '0.5em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
             </span>
           </div>
 
@@ -76,7 +76,7 @@ export function ManusDialog({
           <Button
             onClick={onLogin}
             className="w-full h-10 rounded-[10px] text-sm font-medium leading-5 tracking-[-0.154px]"
-            style={{ backgroundColor: '#15a4b7' }}
+            style={{ backgroundColor: '#24abbc' }}
           >
             Sign In
           </Button>

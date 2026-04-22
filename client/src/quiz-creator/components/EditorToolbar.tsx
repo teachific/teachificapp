@@ -67,12 +67,12 @@ export function EditorToolbar({ onPreview, onSettings, onLicense }: Props) {
     >
       {/* Logo */}
       <div className="flex items-center gap-2 mr-2">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#15a4b7" }}>
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#24abbc" }}>
           <FileText className="w-4 h-4 text-white" />
         </div>
         <div>
           <span className="text-white font-bold text-sm">Teach</span>
-          <span className="font-bold text-sm" style={{ color: "#15a4b7" }}>ific</span>
+          <span className="font-bold text-sm" style={{ color: "#24abbc" }}>ific</span>
           <span className="text-white/60 text-xs ml-1">Quiz Creator</span>
         </div>
       </div>
@@ -139,7 +139,7 @@ export function EditorToolbar({ onPreview, onSettings, onLicense }: Props) {
         <button
           onClick={onPreview}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white transition-all"
-          style={{ background: "#15a4b7" }}
+          style={{ background: "#24abbc" }}
         >
           <Play className="w-3.5 h-3.5" />
           Preview

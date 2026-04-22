@@ -27,7 +27,7 @@ function renderBlock(block: any, idx: number) {
           style={{
             background: d.backgroundType === "image" && d.backgroundImage
               ? `url(${d.backgroundImage}) center/cover no-repeat`
-              : (d.backgroundColor || "#15a4b7"),
+              : (d.backgroundColor || "#24abbc"),
           }}
         >
           {d.backgroundType === "image" && (

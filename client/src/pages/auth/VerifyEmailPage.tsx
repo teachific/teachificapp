@@ -7,7 +7,7 @@ import { useOrgAuthBranding } from "@/hooks/useOrgAuthBranding";
 
 const NAVY = "#0b1d35";
 const NAVY_MID = "#0f2847";
-const TEAL = "#189aa1";
+const TEAL = "#24abbc";
 const TEAL_LIGHT = "#4ad9e0";
 
 export default function VerifyEmailPage() {

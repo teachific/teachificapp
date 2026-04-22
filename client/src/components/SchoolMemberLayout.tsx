@@ -52,7 +52,7 @@ export default function SchoolMemberLayout({ children, orgSlug }: SchoolMemberLa
     { enabled: !!orgBySlug?.id }
   );
 
-  const primaryColor = theme?.primaryColor ?? "#15a4b7";
+  const primaryColor = theme?.primaryColor ?? "#24abbc";
   const schoolName = orgBySlug?.name ?? "Learning Portal";
 
   // If not logged in, redirect to login

@@ -271,7 +271,7 @@ export function QuizPreview({ onClose }: Props) {
             <button
               onClick={onClose}
               className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
-              style={{ background: "linear-gradient(135deg, #15a4b7, #0d8a9a)" }}
+              style={{ background: "linear-gradient(135deg, #24abbc, #0d8a9a)" }}
             >
               Close Preview
             </button>
@@ -304,7 +304,7 @@ export function QuizPreview({ onClose }: Props) {
         <div className="h-1 bg-gray-100">
           <div
             className="h-full transition-all"
-            style={{ width: `${((currentIdx + 1) / questions.length) * 100}%`, background: "#15a4b7" }}
+            style={{ width: `${((currentIdx + 1) / questions.length) * 100}%`, background: "#24abbc" }}
           />
         </div>
 
@@ -312,7 +312,7 @@ export function QuizPreview({ onClose }: Props) {
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-bold text-white px-2 py-0.5 rounded-full" style={{ background: "#15a4b7" }}>
+              <span className="text-xs font-bold text-white px-2 py-0.5 rounded-full" style={{ background: "#24abbc" }}>
                 Q{q.order}
               </span>
               <span className="text-xs text-gray-400">{q.points} point{q.points !== 1 ? "s" : ""}</span>
@@ -344,7 +344,7 @@ export function QuizPreview({ onClose }: Props) {
             <button
               onClick={() => setCurrentIdx((i) => i + 1)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
-              style={{ background: "linear-gradient(135deg, #15a4b7, #0d8a9a)" }}
+              style={{ background: "linear-gradient(135deg, #24abbc, #0d8a9a)" }}
             >
               Next <ChevronRight className="w-4 h-4" />
             </button>
@@ -352,7 +352,7 @@ export function QuizPreview({ onClose }: Props) {
             <button
               onClick={() => setSubmitted(true)}
               className="px-5 py-2 rounded-xl text-sm font-semibold text-white transition-all"
-              style={{ background: "linear-gradient(135deg, #15a4b7, #0d8a9a)" }}
+              style={{ background: "linear-gradient(135deg, #24abbc, #0d8a9a)" }}
             >
               Submit Quiz
             </button>

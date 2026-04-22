@@ -956,7 +956,7 @@ export const lmsRouter = router({
         orgName: z.string(),
         tagline: z.string().optional(),
         description: z.string().optional(),
-        primaryColor: z.string().optional().default("#189aa1"),
+        primaryColor: z.string().optional().default("#24abbc"),
         courseCount: z.number().optional().default(0),
       }))
       .mutation(async ({ input, ctx }) => {

@@ -154,7 +154,7 @@ export default function SchoolPage({ subdomainOrg }: { subdomainOrg?: string } =
   // Use whichever source is available
   const legalDocs = orgSlug ? legalDocsBySlug : legalDocsByOrgId;
 
-  const primaryColor = theme?.studentPrimaryColor || theme?.primaryColor || "#15a4b7";
+  const primaryColor = theme?.studentPrimaryColor || theme?.primaryColor || "#24abbc";
   const schoolName = theme?.schoolName || orgBySlug?.name || orgs?.[0]?.name || "Our School";
 
   // Inject org favicon, SEO meta tags, and custom CSS into document <head>

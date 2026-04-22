@@ -144,7 +144,7 @@ export function QuestionList() {
         <button
           onClick={() => setShowTypePicker((v) => !v)}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95"
-          style={{ background: "linear-gradient(135deg, #15a4b7, #0d8a9a)" }}
+          style={{ background: "linear-gradient(135deg, #24abbc, #0d8a9a)" }}
         >
           <Plus className="w-4 h-4" />
           Add Question

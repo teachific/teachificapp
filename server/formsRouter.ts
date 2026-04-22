@@ -99,7 +99,7 @@ async function sendFormNotification(opts: {
 
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-      <h2 style="color:#189aa1">New Form Submission</h2>
+      <h2 style="color:#24abbc">New Form Submission</h2>
       <p style="color:#6b7280">A new response was submitted to <strong>${opts.formTitle}</strong>.</p>
       <table style="width:100%;border-collapse:collapse;margin-top:16px">${rows}</table>
       ${opts.respondentEmail ? `<p style="margin-top:16px;color:#6b7280;font-size:13px">Respondent email: ${opts.respondentEmail}</p>` : ""}
@@ -561,7 +561,7 @@ export const formsRouter = router({
         const rows = await db.select().from(orgThemes).where(eq(orgThemes.orgId, input.orgId)).limit(1);
         const theme = rows[0];
         return {
-          primaryColor: theme?.primaryColor ?? "#189aa1",
+          primaryColor: theme?.primaryColor ?? "#24abbc",
           accentColor: theme?.accentColor ?? "#4ad9e0",
           fontFamily: theme?.fontFamily ?? "Inter",
           logoUrl: theme?.adminLogoUrl ?? null,

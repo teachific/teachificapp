@@ -2081,8 +2081,8 @@ function BrandingTab() {
             <div className="space-y-1.5">
               <Label className="text-slate-700 text-sm">Primary Color</Label>
               <div className="flex items-center gap-2">
-                <input type="color" value={merged.primaryColor ?? "#189aa1"} onChange={e => setForm(f => ({ ...f, primaryColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
-                <Input value={merged.primaryColor ?? "#189aa1"} onChange={e => setForm(f => ({ ...f, primaryColor: e.target.value }))} className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
+                <input type="color" value={merged.primaryColor ?? "#24abbc"} onChange={e => setForm(f => ({ ...f, primaryColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
+                <Input value={merged.primaryColor ?? "#24abbc"} onChange={e => setForm(f => ({ ...f, primaryColor: e.target.value }))} className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -2100,7 +2100,7 @@ function BrandingTab() {
               <div className="space-y-1.5">
                 <Label className="text-slate-700 text-sm">Button Color <span className="text-xs text-slate-400">(default: primary)</span></Label>
                 <div className="flex items-center gap-2">
-                  <input type="color" value={merged.buttonColor ?? merged.primaryColor ?? "#189aa1"} onChange={e => setForm(f => ({ ...f, buttonColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
+                  <input type="color" value={merged.buttonColor ?? merged.primaryColor ?? "#24abbc"} onChange={e => setForm(f => ({ ...f, buttonColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
                   <Input value={merged.buttonColor ?? ""} onChange={e => setForm(f => ({ ...f, buttonColor: e.target.value || null }))} placeholder="inherit from primary" className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
                   {merged.buttonColor && <button type="button" onClick={() => setForm(f => ({ ...f, buttonColor: null }))} className="text-xs text-slate-400 hover:text-red-500">✕</button>}
                 </div>
@@ -2132,7 +2132,7 @@ function BrandingTab() {
               <div className="space-y-1.5">
                 <Label className="text-slate-700 text-sm">Sidebar Active Item Color <span className="text-xs text-slate-400">(default: primary)</span></Label>
                 <div className="flex items-center gap-2">
-                  <input type="color" value={merged.sidebarActiveColor ?? merged.primaryColor ?? "#189aa1"} onChange={e => setForm(f => ({ ...f, sidebarActiveColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
+                  <input type="color" value={merged.sidebarActiveColor ?? merged.primaryColor ?? "#24abbc"} onChange={e => setForm(f => ({ ...f, sidebarActiveColor: e.target.value }))} className="h-9 w-14 rounded border border-gray-300 cursor-pointer" />
                   <Input value={merged.sidebarActiveColor ?? ""} onChange={e => setForm(f => ({ ...f, sidebarActiveColor: e.target.value || null }))} placeholder="inherit from primary" className="bg-white border-gray-300 text-slate-900 font-mono text-sm flex-1" />
                   {merged.sidebarActiveColor && <button type="button" onClick={() => setForm(f => ({ ...f, sidebarActiveColor: null }))} className="text-xs text-slate-400 hover:text-red-500">✕</button>}
                 </div>

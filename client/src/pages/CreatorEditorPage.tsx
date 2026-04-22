@@ -103,9 +103,9 @@ function newBlock(type: Block["type"]): Block {
     case "image":
       return { id, type, x: 200, y: 150, width: 300, height: 200, src: "", style: {} };
     case "shape":
-      return { id, type, x: 300, y: 200, width: 200, height: 120, content: "", style: { backgroundColor: "#189aa1", borderRadius: 8 } };
+      return { id, type, x: 300, y: 200, width: 200, height: 120, content: "", style: { backgroundColor: "#24abbc", borderRadius: 8 } };
     case "button":
-      return { id, type, x: 350, y: 250, width: 200, height: 50, content: "Click Me", style: { backgroundColor: "#189aa1", color: "#ffffff", fontSize: 16, borderRadius: 8, textAlign: "center" } };
+      return { id, type, x: 350, y: 250, width: 200, height: 50, content: "Click Me", style: { backgroundColor: "#24abbc", color: "#ffffff", fontSize: 16, borderRadius: 8, textAlign: "center" } };
     default:
       return { id, type: "text", x: 100, y: 100, width: 400, height: 60, content: "Text", style: {} };
   }
@@ -411,7 +411,7 @@ export default function CreatorEditorPage() {
                   }
                 }
               }}
-              className="h-7 w-48 bg-white/10 border-[#189aa1] text-white text-sm"
+              className="h-7 w-48 bg-white/10 border-[#24abbc] text-white text-sm"
               autoFocus
             />
           ) : (
@@ -447,7 +447,7 @@ export default function CreatorEditorPage() {
 
           <Button
             size="sm"
-            className="h-8 bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold"
+            className="h-8 bg-[#24abbc] hover:bg-[#4ad9e0] text-white font-semibold"
             onClick={() => setShowExportDialog(true)}
           >
             <Download className="w-4 h-4 mr-1.5" />
@@ -488,7 +488,7 @@ export default function CreatorEditorPage() {
                   onClick={() => switchSlide(slide)}
                   className={`group relative rounded-lg cursor-pointer border transition-all ${
                     Number(slide.id) === activeSlideId
-                      ? "border-[#189aa1] bg-[#189aa1]/10"
+                      ? "border-[#24abbc] bg-[#24abbc]/10"
                       : "border-white/10 bg-white/5 hover:border-white/20"
                   }`}
                 >
@@ -607,7 +607,7 @@ export default function CreatorEditorPage() {
                   onChange={(e) => setSlideTitle(e.target.value)}
                   onBlur={() => setEditingSlideTitle(false)}
                   onKeyDown={(e) => e.key === "Enter" && setEditingSlideTitle(false)}
-                  className="h-7 w-40 bg-white/10 border-[#189aa1] text-white text-xs"
+                  className="h-7 w-40 bg-white/10 border-[#24abbc] text-white text-xs"
                   autoFocus
                 />
               ) : (
@@ -836,15 +836,15 @@ export default function CreatorEditorPage() {
                     <label className="flex items-center gap-2 cursor-pointer">
                       <div
                         className="w-8 h-8 rounded border border-white/20"
-                        style={{ background: selectedBlock.style?.backgroundColor || "#189aa1" }}
+                        style={{ background: selectedBlock.style?.backgroundColor || "#24abbc" }}
                       />
                       <input
                         type="color"
-                        value={selectedBlock.style?.backgroundColor || "#189aa1"}
+                        value={selectedBlock.style?.backgroundColor || "#24abbc"}
                         onChange={(e) => updateBlockStyle(selectedBlock.id, { backgroundColor: e.target.value })}
                         className="sr-only"
                       />
-                      <span className="text-xs text-white/50">{selectedBlock.style?.backgroundColor || "#189aa1"}</span>
+                      <span className="text-xs text-white/50">{selectedBlock.style?.backgroundColor || "#24abbc"}</span>
                     </label>
                   </div>
                 )}
@@ -871,7 +871,7 @@ export default function CreatorEditorPage() {
                     max={100}
                     value={Math.round((selectedBlock.style?.opacity ?? 1) * 100)}
                     onChange={(e) => updateBlockStyle(selectedBlock.id, { opacity: parseInt(e.target.value) / 100 })}
-                    className="w-full accent-[#189aa1]"
+                    className="w-full accent-[#24abbc]"
                   />
                   <span className="text-xs text-white/40">{Math.round((selectedBlock.style?.opacity ?? 1) * 100)}%</span>
                 </div>
@@ -918,7 +918,7 @@ export default function CreatorEditorPage() {
                   onClick={() => setExportFormat(value)}
                   className={`w-full rounded-xl border p-3 text-left flex items-start gap-3 transition-all ${
                     exportFormat === value
-                      ? "border-[#189aa1] bg-[#189aa1]/10"
+                      ? "border-[#24abbc] bg-[#24abbc]/10"
                       : "border-white/10 bg-white/5 hover:border-white/20"
                   }`}
                 >
@@ -946,7 +946,7 @@ export default function CreatorEditorPage() {
                   exportMutation.mutate({ projectId, format: exportFormat });
                 }}
                 disabled={isExporting}
-                className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold"
+                className="bg-[#24abbc] hover:bg-[#4ad9e0] text-white font-semibold"
               >
                 {isExporting ? "Exporting..." : "Export Package"}
                 <Download className="ml-2 w-4 h-4" />
@@ -988,7 +988,7 @@ function BlockElement({
     cursor: isEditing ? "text" : "move",
     userSelect: isEditing ? "text" : "none",
     opacity: block.style?.opacity ?? 1,
-    outline: isSelected ? "2px solid #189aa1" : "none",
+    outline: isSelected ? "2px solid #24abbc" : "none",
     outlineOffset: "1px",
   };
 
@@ -1025,7 +1025,7 @@ function BlockElement({
         )}
         {isSelected && (
           <div
-            style={{ position: "absolute", bottom: -4, right: -4, width: 10, height: 10, background: "#189aa1", cursor: "se-resize", borderRadius: 2 }}
+            style={{ position: "absolute", bottom: -4, right: -4, width: 10, height: 10, background: "#24abbc", cursor: "se-resize", borderRadius: 2 }}
             onMouseDown={onResizeMouseDown}
           />
         )}
@@ -1038,14 +1038,14 @@ function BlockElement({
       <div
         style={{
           ...baseStyle,
-          background: block.style?.backgroundColor || "#189aa1",
+          background: block.style?.backgroundColor || "#24abbc",
           borderRadius: block.style?.borderRadius || 0,
         }}
         onMouseDown={onMouseDown}
       >
         {isSelected && (
           <div
-            style={{ position: "absolute", bottom: -4, right: -4, width: 10, height: 10, background: "#189aa1", cursor: "se-resize", borderRadius: 2 }}
+            style={{ position: "absolute", bottom: -4, right: -4, width: 10, height: 10, background: "#24abbc", cursor: "se-resize", borderRadius: 2 }}
             onMouseDown={onResizeMouseDown}
           />
         )}
@@ -1058,7 +1058,7 @@ function BlockElement({
       <div
         style={{
           ...baseStyle,
-          background: block.style?.backgroundColor || "#189aa1",
+          background: block.style?.backgroundColor || "#24abbc",
           borderRadius: block.style?.borderRadius || 8,
           display: "flex",
           alignItems: "center",
@@ -1086,7 +1086,7 @@ function BlockElement({
         )}
         {isSelected && (
           <div
-            style={{ position: "absolute", bottom: -4, right: -4, width: 10, height: 10, background: "#189aa1", cursor: "se-resize", borderRadius: 2 }}
+            style={{ position: "absolute", bottom: -4, right: -4, width: 10, height: 10, background: "#24abbc", cursor: "se-resize", borderRadius: 2 }}
             onMouseDown={onResizeMouseDown}
           />
         )}
@@ -1104,7 +1104,7 @@ function BlockElement({
         <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Image placeholder</span>
         {isSelected && (
           <div
-            style={{ position: "absolute", bottom: -4, right: -4, width: 10, height: 10, background: "#189aa1", cursor: "se-resize", borderRadius: 2 }}
+            style={{ position: "absolute", bottom: -4, right: -4, width: 10, height: 10, background: "#24abbc", cursor: "se-resize", borderRadius: 2 }}
             onMouseDown={onResizeMouseDown}
           />
         )}

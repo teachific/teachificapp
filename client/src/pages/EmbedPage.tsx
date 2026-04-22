@@ -284,7 +284,7 @@ function EmbedPageInner() {
         {isLmsShell && (
           <div className="flex items-center gap-3 shrink-0">
             <span className="text-xl font-bold tracking-tight select-none hidden sm:inline" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.02em' }}>
-              <span className="text-white">teach</span><span style={{ color: '#189aa1' }}>ific</span><span className="text-white" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
+              <span className="text-white">teach</span><span style={{ color: '#24abbc' }}>ific</span><span className="text-white" style={{ fontSize: '0.45em', verticalAlign: 'super', marginLeft: '1px' }}>&#8482;</span>
             </span>
             <div className="h-4 w-px bg-gray-700 hidden sm:block" />
           </div>

@@ -911,7 +911,7 @@ function SharePanel({ form, activeTab = "links", orgSlug, onSlugSaved }: { form:
           <p className="text-xs text-muted-foreground">Add a button that opens the form in a popup overlay.</p>
           <div className="relative">
             <Textarea
-              value={`<button onclick="document.getElementById('tf-popup').style.display='flex'" style="padding:10px 20px;background:#189aa1;color:#fff;border:none;border-radius:6px;cursor:pointer">Open Form</button>\n<div id="tf-popup" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">\n  <div style="background:#fff;border-radius:12px;width:90%;max-width:640px;height:80vh;overflow:hidden">\n    <iframe src="${formUrl}?embed=1" style="width:100%;height:100%;border:none"></iframe>\n  </div>\n</div>`}
+              value={`<button onclick="document.getElementById('tf-popup').style.display='flex'" style="padding:10px 20px;background:#24abbc;color:#fff;border:none;border-radius:6px;cursor:pointer">Open Form</button>\n<div id="tf-popup" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">\n  <div style="background:#fff;border-radius:12px;width:90%;max-width:640px;height:80vh;overflow:hidden">\n    <iframe src="${formUrl}?embed=1" style="width:100%;height:100%;border:none"></iframe>\n  </div>\n</div>`}
               readOnly
               className="text-xs font-mono bg-muted min-h-[120px] resize-none"
             />
@@ -1081,14 +1081,14 @@ function BrandingPanel({
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      value={formSettings[key] ?? (orgDefaults?.primaryColor ?? "#189aa1")}
+                      value={formSettings[key] ?? (orgDefaults?.primaryColor ?? "#24abbc")}
                       onChange={(e) => onUpdate({ [key]: e.target.value })}
                       className="h-8 w-8 rounded border border-border cursor-pointer"
                     />
                     <Input
                       value={formSettings[key] ?? ""}
                       onChange={(e) => onUpdate({ [key]: e.target.value })}
-                      placeholder={orgDefaults?.primaryColor ?? "#189aa1"}
+                      placeholder={orgDefaults?.primaryColor ?? "#24abbc"}
                       className="text-xs h-8 font-mono"
                     />
                   </div>

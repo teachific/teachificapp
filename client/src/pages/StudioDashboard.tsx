@@ -19,7 +19,7 @@ import RecordEditPage from "./RecordEditPage";
 // ── Tier badge colours ─────────────────────────────────────────────────────
 const TIER_STYLES: Record<string, string> = {
   none: "bg-gray-500/20 text-gray-400 border-gray-500/30",
-  creator: "bg-[#15a4b7]/20 text-[#4ad9e0] border-[#15a4b7]/30",
+  creator: "bg-[#24abbc]/20 text-[#4ad9e0] border-[#24abbc]/30",
   pro: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
   team: "bg-blue-500/20 text-blue-300 border-blue-500/30",
 };
@@ -38,8 +38,8 @@ const QUICK_ACTIONS = [
     label: "New Recording",
     desc: "Record screen, camera, or audio",
     href: "/media-library#record-edit",
-    color: "text-[#15a4b7]",
-    bg: "bg-[#15a4b7]/10",
+    color: "text-[#24abbc]",
+    bg: "bg-[#24abbc]/10",
   },
   {
     icon: BookOpen,
@@ -104,7 +104,7 @@ export default function StudioDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-[#15a4b7] border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-[#24abbc] border-t-transparent rounded-full animate-spin" />
           <p className="text-white/60 text-sm">Loading Studio…</p>
         </div>
       </div>
@@ -123,11 +123,11 @@ export default function StudioDashboard() {
           <div className="mb-8">
             <span className="text-3xl font-black tracking-tight">
               <span className="text-white">Teachific</span>
-              <span className="text-[#15a4b7]"> Studio</span>
+              <span className="text-[#24abbc]"> Studio</span>
             </span>
           </div>
           <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
-            <Zap className="w-9 h-9 text-[#15a4b7]" />
+            <Zap className="w-9 h-9 text-[#24abbc]" />
           </div>
           <h1 className="text-2xl font-bold text-white mb-3">Activate Your Studio</h1>
           <p className="text-white/50 mb-8 leading-relaxed">
@@ -184,7 +184,7 @@ export default function StudioDashboard() {
         <div className="h-16 flex items-center px-6 border-b border-white/10">
           <span className="text-lg font-black tracking-tight">
             <span className="text-white">Teachific</span>
-            <span className="text-[#15a4b7]"> Studio</span>
+            <span className="text-[#24abbc]"> Studio</span>
           </span>
         </div>
 
@@ -194,7 +194,7 @@ export default function StudioDashboard() {
             {isPrivileged ? "Owner" : TIER_LABELS[tier]} Plan
           </Badge>
           {studioIsInTrial && studioTrialDaysLeft !== null && (
-            <div className="flex items-center gap-1.5 text-xs bg-[#15a4b7]/20 text-[#4ad9e0] border border-[#15a4b7]/30 rounded-full px-2 py-0.5 w-fit">
+            <div className="flex items-center gap-1.5 text-xs bg-[#24abbc]/20 text-[#4ad9e0] border border-[#24abbc]/30 rounded-full px-2 py-0.5 w-fit">
               <span className="text-[10px]">⏱</span>
               <span>{studioTrialDaysLeft}d trial left</span>
             </div>
@@ -307,7 +307,7 @@ export default function StudioDashboard() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {QUICK_ACTIONS.map((action) => (
                 <Link key={action.label} href={action.href}>
-                  <Card className="bg-white/5 border-white/10 hover:border-[#15a4b7]/40 hover:bg-white/[0.07] transition-all cursor-pointer h-full">
+                  <Card className="bg-white/5 border-white/10 hover:border-[#24abbc]/40 hover:bg-white/[0.07] transition-all cursor-pointer h-full">
                     <CardContent className="p-4">
                       <div className={`w-9 h-9 rounded-xl ${action.bg} flex items-center justify-center mb-3`}>
                         <action.icon className={`w-4 h-4 ${action.color}`} />
@@ -326,7 +326,7 @@ export default function StudioDashboard() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider">Recent Courses</h2>
               <Link href="/lms/courses">
-                <span className="text-xs text-[#15a4b7] hover:text-[#4ad9e0] cursor-pointer transition-colors">
+                <span className="text-xs text-[#24abbc] hover:text-[#4ad9e0] cursor-pointer transition-colors">
                   View all →
                 </span>
               </Link>
@@ -357,11 +357,11 @@ export default function StudioDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {(courses as any[]).slice(0, 6).map((course: any) => (
                   <Link key={course.id} href={`/lms/courses/${course.id}`}>
-                    <Card className="bg-white/5 border-white/10 hover:border-[#15a4b7]/40 transition-all cursor-pointer h-full">
+                    <Card className="bg-white/5 border-white/10 hover:border-[#24abbc]/40 transition-all cursor-pointer h-full">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
-                          <div className="w-9 h-9 rounded-lg bg-[#15a4b7]/20 flex items-center justify-center shrink-0">
-                            <BookOpen className="w-4 h-4 text-[#15a4b7]" />
+                          <div className="w-9 h-9 rounded-lg bg-[#24abbc]/20 flex items-center justify-center shrink-0">
+                            <BookOpen className="w-4 h-4 text-[#24abbc]" />
                           </div>
                           <Badge className={`text-xs ${
                             course.status === "published"

@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Check, Upload, X, Loader2, Image as ImageIcon } from "lucide-react";
 
 const PRESET_COLORS = [
-  { name: "Teal", value: "#15a4b7" },
+  { name: "Teal", value: "#24abbc" },
   { name: "Aqua", value: "#4ad9e0" },
   { name: "Blue", value: "#3b82f6" },
   { name: "Indigo", value: "#6366f1" },
@@ -170,13 +170,13 @@ export default function BrandingPage() {
   );
 
   const [form, setForm] = useState({
-    primaryColor: "#15a4b7",
+    primaryColor: "#24abbc",
     accentColor: "#4ad9e0",
     fontFamily: "Inter",
     schoolName: "",
     adminLogoUrl: "",
     customCss: "",
-    studentPrimaryColor: "#15a4b7",
+    studentPrimaryColor: "#24abbc",
     studentAccentColor: "#4ad9e0",
     studentTheme: "light" as "light" | "dark",
   });
@@ -184,13 +184,13 @@ export default function BrandingPage() {
   useEffect(() => {
     if (theme) {
       setForm({
-        primaryColor: theme.primaryColor ?? "#189aa1",
+        primaryColor: theme.primaryColor ?? "#24abbc",
         accentColor: theme.accentColor ?? "#4ad9e0",
         fontFamily: theme.fontFamily ?? "Inter",
         schoolName: theme.schoolName ?? "",
         adminLogoUrl: theme.adminLogoUrl ?? "",
         customCss: theme.customCss ?? "",
-        studentPrimaryColor: theme.studentPrimaryColor ?? "#15a4b7",
+        studentPrimaryColor: theme.studentPrimaryColor ?? "#24abbc",
         studentAccentColor: theme.studentAccentColor ?? "#4ad9e0",
         studentTheme: (theme.studentTheme ?? "light") as "light" | "dark",
       });
@@ -359,7 +359,7 @@ export default function BrandingPage() {
                       set("studentPrimaryColor", e.target.value);
                       set("primaryColor", e.target.value);
                     }}
-                    placeholder="#15a4b7"
+                    placeholder="#24abbc"
                     className="h-8 font-mono text-sm"
                   />
                 </div>

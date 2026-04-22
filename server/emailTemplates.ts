@@ -2,7 +2,7 @@
  * Teachific™ Branded Email Templates
  *
  * All transactional emails use a consistent branded layout:
- * - Teal (#189aa1) header with Teachific™ wordmark
+ * - Teal (#24abbc) header with Teachific™ wordmark
  * - Clean white body with readable typography
  * - Teal CTA buttons
  * - Footer with copyright and contact info
@@ -40,7 +40,7 @@ function emailLayout(opts: {
 
           <!-- Header -->
           <tr>
-            <td style="background:linear-gradient(135deg,#189aa1 0%,#0e8a96 100%);border-radius:12px 12px 0 0;padding:28px 40px;">
+            <td style="background:linear-gradient(135deg,#24abbc 0%,#0e8a96 100%);border-radius:12px 12px 0 0;padding:28px 40px;">
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td>
@@ -65,7 +65,7 @@ function emailLayout(opts: {
                 <tr>
                   <td style="font-size:12px;color:#94a3b8;line-height:1.6;">
                     ${opts.footerNote ? `<p style="margin:0 0 8px;">${opts.footerNote}</p>` : ""}
-                    <p style="margin:0;">© ${YEAR} Teachific™ · <a href="${SITE_URL}" style="color:#189aa1;text-decoration:none;">${SITE_URL.replace("https://", "")}</a> · <a href="mailto:hello@teachific.net" style="color:#189aa1;text-decoration:none;">hello@teachific.net</a></p>
+                    <p style="margin:0;">© ${YEAR} Teachific™ · <a href="${SITE_URL}" style="color:#24abbc;text-decoration:none;">${SITE_URL.replace("https://", "")}</a> · <a href="mailto:hello@teachific.net" style="color:#24abbc;text-decoration:none;">hello@teachific.net</a></p>
                   </td>
                 </tr>
               </table>
@@ -85,8 +85,8 @@ function emailLayout(opts: {
 function ctaButton(text: string, url: string): string {
   return `<table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0;">
     <tr>
-      <td style="border-radius:8px;background:#189aa1;">
-        <a href="${url}" style="display:inline-block;padding:14px 32px;background:#189aa1;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;border-radius:8px;letter-spacing:0.1px;">${text}</a>
+      <td style="border-radius:8px;background:#24abbc;">
+        <a href="${url}" style="display:inline-block;padding:14px 32px;background:#24abbc;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;border-radius:8px;letter-spacing:0.1px;">${text}</a>
       </td>
     </tr>
   </table>`;
@@ -110,7 +110,7 @@ export function verifyEmailHtml(name: string, verifyUrl: string): string {
     ${ctaButton("Verify Email Address", verifyUrl)}
     ${infoBox("This link expires in <strong>24 hours</strong>. If you didn't create a Teachific account, you can safely ignore this email.")}
     ${divider()}
-    <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">Can't click the button? Copy and paste this link into your browser:<br/><a href="${verifyUrl}" style="color:#189aa1;word-break:break-all;">${verifyUrl}</a></p>
+    <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">Can't click the button? Copy and paste this link into your browser:<br/><a href="${verifyUrl}" style="color:#24abbc;word-break:break-all;">${verifyUrl}</a></p>
   `;
   return emailLayout({
     preheader: "Verify your email to activate your Teachific account.",
@@ -130,7 +130,7 @@ export function resetPasswordHtml(name: string, resetUrl: string): string {
     ${ctaButton("Reset Password", resetUrl)}
     ${infoBox("This link expires in <strong>1 hour</strong>. If you didn't request a password reset, you can safely ignore this email — your password will not be changed.")}
     ${divider()}
-    <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">Can't click the button? Copy and paste this link into your browser:<br/><a href="${resetUrl}" style="color:#189aa1;word-break:break-all;">${resetUrl}</a></p>
+    <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">Can't click the button? Copy and paste this link into your browser:<br/><a href="${resetUrl}" style="color:#24abbc;word-break:break-all;">${resetUrl}</a></p>
   `;
   return emailLayout({
     preheader: "Reset your Teachific password — link expires in 1 hour.",
@@ -157,7 +157,7 @@ export function welcomeEmailHtml(name: string, dashboardUrl: string = `${SITE_UR
       </tr>
     </table>
     ${ctaButton("Go to Your Dashboard", dashboardUrl)}
-    <p style="margin:0;font-size:14px;color:#64748b;line-height:1.7;">Need help getting started? Visit our <a href="${SITE_URL}/help" style="color:#189aa1;text-decoration:none;">Help Center</a> or reply to this email and we'll get back to you.</p>
+    <p style="margin:0;font-size:14px;color:#64748b;line-height:1.7;">Need help getting started? Visit our <a href="${SITE_URL}/help" style="color:#24abbc;text-decoration:none;">Help Center</a> or reply to this email and we'll get back to you.</p>
   `;
   return emailLayout({
     preheader: "Your Teachific account is ready — start building your school today.",
@@ -222,7 +222,7 @@ export function purchaseConfirmationHtml(opts: {
       </tr>
     </table>
     ${ctaButton("Start Learning Now", loginUrl)}
-    <p style="margin:0;font-size:14px;color:#64748b;line-height:1.7;">Questions about your purchase? Reply to this email or visit our <a href="${SITE_URL}/help" style="color:#189aa1;text-decoration:none;">Help Center</a>.</p>
+    <p style="margin:0;font-size:14px;color:#64748b;line-height:1.7;">Questions about your purchase? Reply to this email or visit our <a href="${SITE_URL}/help" style="color:#24abbc;text-decoration:none;">Help Center</a>.</p>
   `;
   return emailLayout({
     preheader: `Payment confirmed — you now have access to ${courseTitle}.`,
@@ -277,7 +277,7 @@ export function campaignEmailHtml(opts: {
 }): string {
   const { orgName, bodyHtml, unsubscribeUrl } = opts;
   const footerNote = unsubscribeUrl
-    ? `This email was sent by <strong>${orgName}</strong> via Teachific™. <a href="${unsubscribeUrl}" style="color:#189aa1;">Unsubscribe</a>`
+    ? `This email was sent by <strong>${orgName}</strong> via Teachific™. <a href="${unsubscribeUrl}" style="color:#24abbc;">Unsubscribe</a>`
     : `This email was sent by <strong>${orgName}</strong> via Teachific™.`;
   return emailLayout({
     title: `Message from ${orgName}`,

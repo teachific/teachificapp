@@ -54,7 +54,7 @@ export function QuestionEditor() {
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-3">
-            <span className="px-2.5 py-1 rounded-full text-xs font-bold text-white" style={{ background: "#15a4b7" }}>
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold text-white" style={{ background: "#24abbc" }}>
               Q{question.order}
             </span>
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">

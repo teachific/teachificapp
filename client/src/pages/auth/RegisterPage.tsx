@@ -10,7 +10,7 @@ import { useOrgAuthBranding } from "@/hooks/useOrgAuthBranding";
 
 const NAVY = "#0b1d35";
 const NAVY_MID = "#0f2847";
-const TEAL = "#189aa1";
+const TEAL = "#24abbc";
 const TEAL_LIGHT = "#4ad9e0";
 
 const perks = [
@@ -182,7 +182,7 @@ export default function RegisterPage() {
                 placeholder="Jane Smith"
                 required
                 autoComplete="name"
-                className="h-11 border-slate-200 focus:border-[#189aa1] focus:ring-[#189aa1]/20 text-slate-800 placeholder:text-slate-400"
+                className="h-11 border-slate-200 focus:border-[#24abbc] focus:ring-[#24abbc]/20 text-slate-800 placeholder:text-slate-400"
               />
             </div>
             <div className="space-y-1.5">
@@ -195,7 +195,7 @@ export default function RegisterPage() {
                 placeholder="you@example.com"
                 required
                 autoComplete="email"
-                className="h-11 border-slate-200 focus:border-[#189aa1] focus:ring-[#189aa1]/20 text-slate-800 placeholder:text-slate-400"
+                className="h-11 border-slate-200 focus:border-[#24abbc] focus:ring-[#24abbc]/20 text-slate-800 placeholder:text-slate-400"
               />
             </div>
             <div className="space-y-1.5">
@@ -210,7 +210,7 @@ export default function RegisterPage() {
                   required
                   minLength={8}
                   autoComplete="new-password"
-                  className="h-11 border-slate-200 focus:border-[#189aa1] focus:ring-[#189aa1]/20 text-slate-800 placeholder:text-slate-400 pr-10"
+                  className="h-11 border-slate-200 focus:border-[#24abbc] focus:ring-[#24abbc]/20 text-slate-800 placeholder:text-slate-400 pr-10"
                 />
                 <button
                   type="button"

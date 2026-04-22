@@ -163,7 +163,7 @@ export function DownloadPage({ product }: DownloadPageProps) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-[#15a4b7]" />
+              <CheckCircle className="w-4 h-4 text-[#24abbc]" />
               What's Included
             </CardTitle>
           </CardHeader>
@@ -171,7 +171,7 @@ export function DownloadPage({ product }: DownloadPageProps) {
             <ul className="space-y-2">
               {info.features.map(f => (
                 <li key={f} className="flex items-start gap-2 text-sm text-slate-700">
-                  <CheckCircle className="w-3.5 h-3.5 text-[#15a4b7] mt-0.5 shrink-0" />
+                  <CheckCircle className="w-3.5 h-3.5 text-[#24abbc] mt-0.5 shrink-0" />
                   {f}
                 </li>
               ))}
@@ -232,7 +232,7 @@ export function DownloadPage({ product }: DownloadPageProps) {
       <Card className="bg-slate-50 border-slate-200">
         <CardContent className="pt-5">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-[#15a4b7] shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-[#24abbc] shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-slate-800">Installation Notes</p>
               <p className="text-sm text-slate-600">
@@ -245,7 +245,7 @@ export function DownloadPage({ product }: DownloadPageProps) {
                 href="https://teachific.app/help"
                 target="_blank"
                 rel="noreferrer"
-                className="text-sm text-[#15a4b7] hover:underline flex items-center gap-1 mt-2"
+                className="text-sm text-[#24abbc] hover:underline flex items-center gap-1 mt-2"
               >
                 <ExternalLink className="w-3.5 h-3.5" /> View full installation guide
               </a>

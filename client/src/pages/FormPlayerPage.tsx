@@ -346,9 +346,9 @@ export default function FormPlayerPage() {
 
   // Resolve branding: per-form overrides > org defaults > system defaults
   const branding = useMemo(() => {
-    if (!form) return { primary: "#15a4b7", button: "#15a4b7", buttonText: "#ffffff", headerBg: "", headerText: "#ffffff", font: "Inter", headerImage: null };
+    if (!form) return { primary: "#24abbc", button: "#24abbc", buttonText: "#ffffff", headerBg: "", headerText: "#ffffff", font: "Inter", headerImage: null };
     const useOrg = form.useOrgBranding !== false;
-    const primary = (!useOrg && form.primaryColor) || form.orgPrimaryColor || "#15a4b7";
+    const primary = (!useOrg && form.primaryColor) || form.orgPrimaryColor || "#24abbc";
     const button = (!useOrg && form.buttonColor) || primary;
     const buttonText = (!useOrg && form.buttonTextColor) || "#ffffff";
     const headerBg = (!useOrg && form.headerBgColor) || primary;

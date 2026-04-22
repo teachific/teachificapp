@@ -48,7 +48,7 @@ export function HotspotEditor({ data, onChange }: Props) {
     // Draw regions
     data.regions.forEach((r) => {
       const isSelected = r.id === selectedRegionId;
-      ctx.strokeStyle = r.correct ? "#15a4b7" : "#ef4444";
+      ctx.strokeStyle = r.correct ? "#24abbc" : "#ef4444";
       ctx.fillStyle = r.correct ? "rgba(21,164,183,0.18)" : "rgba(239,68,68,0.18)";
       ctx.lineWidth = isSelected ? 3 : 2;
       ctx.setLineDash(isSelected ? [6, 3] : []);
@@ -81,7 +81,7 @@ export function HotspotEditor({ data, onChange }: Props) {
     // Draw in-progress region
     if (drag.active) {
       const x1 = drag.startX, y1 = drag.startY, x2 = drag.currentX, y2 = drag.currentY;
-      ctx.strokeStyle = "#15a4b7";
+      ctx.strokeStyle = "#24abbc";
       ctx.fillStyle = "rgba(21,164,183,0.15)";
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 3]);

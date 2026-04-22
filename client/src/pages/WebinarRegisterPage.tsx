@@ -270,7 +270,7 @@ export default function WebinarRegisterPage() {
       {!hasBlocks && (
         <div
           className="py-20 px-6 text-center text-white"
-          style={{ background: "linear-gradient(135deg, #15a4b7 0%, #0d7a8a 100%)" }}
+          style={{ background: "linear-gradient(135deg, #24abbc 0%, #0d7a8a 100%)" }}
         >
           <div className="max-w-3xl mx-auto">
             <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1.5 text-sm mb-6">

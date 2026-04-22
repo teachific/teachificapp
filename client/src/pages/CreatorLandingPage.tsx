@@ -244,7 +244,7 @@ export default function CreatorLandingPage() {
                 </Link>
                 <Button
                   size="sm"
-                  className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold"
+                  className="bg-[#24abbc] hover:bg-[#4ad9e0] text-white font-semibold"
                   onClick={() => checkout.mutate({ interval: billing, origin: window.location.origin })}
                   disabled={checkout.isPending}
                 >
@@ -257,7 +257,7 @@ export default function CreatorLandingPage() {
                   <Button variant="ghost" size="sm" className="text-white/70 hover:text-white">Sign In</Button>
                 </Link>
                 <Link href="/register">
-                  <Button size="sm" className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-semibold">
+                  <Button size="sm" className="bg-[#24abbc] hover:bg-[#4ad9e0] text-white font-semibold">
                     Start Free Trial
                   </Button>
                 </Link>
@@ -271,18 +271,18 @@ export default function CreatorLandingPage() {
       <section className="relative overflow-hidden pt-24 pb-32 px-6">
         {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-[#189aa1]/20 rounded-full blur-[120px]" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-[#24abbc]/20 rounded-full blur-[120px]" />
         </div>
 
         <div className="relative max-w-4xl mx-auto text-center">
-          <Badge className="mb-6 bg-[#189aa1]/20 text-[#4ad9e0] border-[#189aa1]/40 text-sm px-4 py-1">
+          <Badge className="mb-6 bg-[#24abbc]/20 text-[#4ad9e0] border-[#24abbc]/40 text-sm px-4 py-1">
             <Sparkles className="w-3.5 h-3.5 mr-1.5" />
             The web-based iSpring alternative
           </Badge>
 
           <h1 className="text-5xl md:text-7xl font-extrabold leading-tight tracking-tight mb-6">
             Author{" "}
-            <span className="bg-gradient-to-r from-[#189aa1] to-[#4ad9e0] bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#24abbc] to-[#4ad9e0] bg-clip-text text-transparent">
               SCORM Courses
             </span>
             <br />
@@ -297,7 +297,7 @@ export default function CreatorLandingPage() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/creator">
-              <Button size="lg" className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-bold px-8 h-14 text-base">
+              <Button size="lg" className="bg-[#24abbc] hover:bg-[#4ad9e0] text-white font-bold px-8 h-14 text-base">
                 Start Building for Free
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
@@ -319,7 +319,7 @@ export default function CreatorLandingPage() {
 
         {/* Mock editor preview */}
         <div className="relative max-w-5xl mx-auto mt-16">
-          <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-[#189aa1]/10 bg-[#111827]">
+          <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-[#24abbc]/10 bg-[#111827]">
             {/* Toolbar bar */}
             <div className="h-10 bg-[#0d1424] border-b border-white/10 flex items-center px-4 gap-2">
               <div className="w-3 h-3 rounded-full bg-red-500/60" />
@@ -338,7 +338,7 @@ export default function CreatorLandingPage() {
                     key={n}
                     className={`rounded-lg h-20 border flex items-center justify-center text-xs font-medium ${
                       n === 1
-                        ? "border-[#189aa1] bg-[#189aa1]/10 text-[#4ad9e0]"
+                        ? "border-[#24abbc] bg-[#24abbc]/10 text-[#4ad9e0]"
                         : "border-white/10 bg-white/5 text-white/30"
                     }`}
                   >
@@ -353,7 +353,7 @@ export default function CreatorLandingPage() {
                   <div className="w-3/4 h-4 bg-white/6 rounded-full" />
                   <div className="w-1/2 h-4 bg-white/6 rounded-full" />
                   <div className="mt-4 flex gap-3">
-                    <div className="w-24 h-8 bg-[#189aa1]/40 rounded-lg" />
+                    <div className="w-24 h-8 bg-[#24abbc]/40 rounded-lg" />
                     <div className="w-24 h-8 bg-white/10 rounded-lg" />
                   </div>
                 </div>
@@ -394,7 +394,7 @@ export default function CreatorLandingPage() {
       <section id="features" className="py-24 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <Badge className="mb-4 bg-[#189aa1]/20 text-[#4ad9e0] border-[#189aa1]/40">
+            <Badge className="mb-4 bg-[#24abbc]/20 text-[#4ad9e0] border-[#24abbc]/40">
               Everything You Need
             </Badge>
             <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
@@ -407,9 +407,9 @@ export default function CreatorLandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((f) => (
-              <Card key={f.title} className="bg-white/5 border-white/10 hover:border-[#189aa1]/40 transition-colors">
+              <Card key={f.title} className="bg-white/5 border-white/10 hover:border-[#24abbc]/40 transition-colors">
                 <CardContent className="p-6">
-                  <div className="w-10 h-10 rounded-lg bg-[#189aa1]/20 flex items-center justify-center mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-[#24abbc]/20 flex items-center justify-center mb-4">
                     <f.icon className="w-5 h-5 text-[#4ad9e0]" />
                   </div>
                   <h3 className="font-bold text-white mb-2">{f.title}</h3>
@@ -477,7 +477,7 @@ export default function CreatorLandingPage() {
       <section id="pricing" className="py-24 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <Badge className="mb-4 bg-[#189aa1]/20 text-[#4ad9e0] border-[#189aa1]/40">
+            <Badge className="mb-4 bg-[#24abbc]/20 text-[#4ad9e0] border-[#24abbc]/40">
               Simple Pricing
             </Badge>
             <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
@@ -491,7 +491,7 @@ export default function CreatorLandingPage() {
               <button
                 onClick={() => setBilling("monthly")}
                 className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
-                  billing === "monthly" ? "bg-[#189aa1] text-white" : "text-white/60 hover:text-white"
+                  billing === "monthly" ? "bg-[#24abbc] text-white" : "text-white/60 hover:text-white"
                 }`}
               >
                 Monthly
@@ -499,7 +499,7 @@ export default function CreatorLandingPage() {
               <button
                 onClick={() => setBilling("annual")}
                 className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
-                  billing === "annual" ? "bg-[#189aa1] text-white" : "text-white/60 hover:text-white"
+                  billing === "annual" ? "bg-[#24abbc] text-white" : "text-white/60 hover:text-white"
                 }`}
               >
                 Annual
@@ -516,13 +516,13 @@ export default function CreatorLandingPage() {
                 key={tier.id}
                 className={`relative rounded-2xl border p-6 flex flex-col ${
                   tier.highlight
-                    ? "border-[#189aa1] bg-gradient-to-b from-[#189aa1]/20 to-[#189aa1]/5 shadow-xl shadow-[#189aa1]/20"
+                    ? "border-[#24abbc] bg-gradient-to-b from-[#24abbc]/20 to-[#24abbc]/5 shadow-xl shadow-[#24abbc]/20"
                     : "border-white/10 bg-white/5"
                 }`}
               >
                 {tier.badge && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-[#189aa1] text-white border-0 text-xs px-3 py-1">
+                    <Badge className="bg-[#24abbc] text-white border-0 text-xs px-3 py-1">
                       {tier.badge}
                     </Badge>
                   </div>
@@ -561,7 +561,7 @@ export default function CreatorLandingPage() {
                   disabled={checkout.isPending && tier.id !== "enterprise"}
                   className={`w-full font-semibold ${
                     tier.highlight
-                      ? "bg-[#189aa1] hover:bg-[#4ad9e0] text-white"
+                      ? "bg-[#24abbc] hover:bg-[#4ad9e0] text-white"
                       : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
                   }`}
                 >
@@ -606,8 +606,8 @@ export default function CreatorLandingPage() {
       {/* ── CTA ─────────────────────────────────────────────────────────────── */}
       <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto text-center">
-          <div className="relative rounded-3xl border border-[#189aa1]/30 bg-gradient-to-b from-[#189aa1]/15 to-transparent p-12">
-            <div className="absolute inset-0 rounded-3xl bg-[#189aa1]/5 blur-xl" />
+          <div className="relative rounded-3xl border border-[#24abbc]/30 bg-gradient-to-b from-[#24abbc]/15 to-transparent p-12">
+            <div className="absolute inset-0 rounded-3xl bg-[#24abbc]/5 blur-xl" />
             <div className="relative">
               <BookOpen className="w-12 h-12 text-[#4ad9e0] mx-auto mb-6" />
               <h2 className="text-4xl font-extrabold mb-4">
@@ -620,7 +620,7 @@ export default function CreatorLandingPage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   size="lg"
-                  className="bg-[#189aa1] hover:bg-[#4ad9e0] text-white font-bold px-10 h-14 text-base"
+                  className="bg-[#24abbc] hover:bg-[#4ad9e0] text-white font-bold px-10 h-14 text-base"
                   onClick={() => handleCTA("pro")}
                   disabled={checkout.isPending}
                 >

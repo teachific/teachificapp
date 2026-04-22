@@ -39,7 +39,7 @@ export interface UseOrgAuthBrandingResult {
   displayName: string;
 }
 
-const DEFAULT_PRIMARY = "#15a4b7";
+const DEFAULT_PRIMARY = "#24abbc";
 const DEFAULT_BUTTON_TEXT = "#ffffff";
 const DEFAULT_PAGE_BG = "#ffffff";
 

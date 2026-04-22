@@ -186,7 +186,7 @@ function LinkDialog({ editor }: { editor: any }) {
 const COLORS = [
   "#000000", "#374151", "#6b7280", "#9ca3af", "#ffffff",
   "#dc2626", "#ea580c", "#d97706", "#16a34a", "#0891b2",
-  "#2563eb", "#7c3aed", "#db2777", "#189aa1", "#4ad9e0",
+  "#2563eb", "#7c3aed", "#db2777", "#24abbc", "#4ad9e0",
 ];
 
 function ColorPicker({ editor }: { editor: any }) {

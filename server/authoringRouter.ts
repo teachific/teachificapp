@@ -286,14 +286,14 @@ function buildCourseHtml(
     .block-text { font-size: 18px; line-height: 1.5; }
     #nav { height: 60px; background: rgba(0,0,0,0.4); border-top: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-between; padding: 0 24px; gap: 16px; }
     #progress-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
-    #progress-fill { height: 100%; background: #189aa1; transition: width 0.3s; }
+    #progress-fill { height: 100%; background: #24abbc; transition: width 0.3s; }
     button.nav-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: background 0.2s; }
     button.nav-btn:hover { background: rgba(255,255,255,0.2); }
     button.nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
     #slide-counter { font-size: 13px; color: rgba(255,255,255,0.5); min-width: 80px; text-align: center; }
     #title-bar { height: 48px; background: rgba(0,0,0,0.6); border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; padding: 0 24px; }
     #course-title { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.8); }
-    #slide-title { font-size: 13px; color: #189aa1; margin-left: auto; }
+    #slide-title { font-size: 13px; color: #24abbc; margin-left: auto; }
   </style>
 </head>
 <body>

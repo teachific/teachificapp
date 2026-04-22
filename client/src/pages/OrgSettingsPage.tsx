@@ -58,7 +58,7 @@ export default function OrgSettingsPage() {
   const [initialized, setInitialized] = useState(false);
 
   // Branding / theme state
-  const [primaryColor, setPrimaryColor] = useState("#189aa1");
+  const [primaryColor, setPrimaryColor] = useState("#24abbc");
   const [accentColor, setAccentColor] = useState("#4ad9e0");
   const [themeInitialized, setThemeInitialized] = useState(false);
 
@@ -127,7 +127,7 @@ export default function OrgSettingsPage() {
 
   useEffect(() => {
     if (orgTheme && !themeInitialized) {
-      setPrimaryColor(orgTheme.primaryColor || "#189aa1");
+      setPrimaryColor(orgTheme.primaryColor || "#24abbc");
       setAccentColor(orgTheme.accentColor || "#4ad9e0");
       setWatermarkImageUrl(orgTheme.watermarkImageUrl || null);
       setWatermarkOpacity(orgTheme.watermarkOpacity ?? 30);
@@ -627,7 +627,7 @@ export default function OrgSettingsPage() {
                       id="primary-color"
                       value={primaryColor}
                       onChange={(e) => setPrimaryColor(e.target.value)}
-                      placeholder="#189aa1"
+                      placeholder="#24abbc"
                       className="font-mono"
                     />
                   </div>
@@ -1884,7 +1884,7 @@ function TeachificPayConnectSection({ orgId }: { orgId?: number }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isConnected && isActive ? (
-            <Badge className="gap-1" style={{ background: "#189aa120", color: "#189aa1" }}>
+            <Badge className="gap-1" style={{ background: "#24abbc20", color: "#24abbc" }}>
               <Check className="h-3 w-3" /> Connected
             </Badge>
           ) : isConnected ? (
@@ -1907,7 +1907,7 @@ function TeachificPayConnectSection({ orgId }: { orgId?: number }) {
             size="sm"
             variant={isConnected ? "outline" : "default"}
             className="gap-2"
-            style={!isConnected ? { background: "#189aa1", color: "white" } : {}}
+            style={!isConnected ? { background: "#24abbc", color: "white" } : {}}
             disabled={connectMutation.isPending}
             onClick={() =>
               orgId &&
@@ -1948,9 +1948,9 @@ function TeachificPayConnectSection({ orgId }: { orgId?: number }) {
                   { label: "Pending Balance", value: `$${(pendingBalance / 100).toFixed(2)}` },
                   { label: "Total Paid Out", value: `$${(totalPayouts / 100).toFixed(2)}` },
                 ].map(({ label, value }) => (
-                  <div key={label} className="rounded-lg p-3 text-center" style={{ background: "#189aa108", border: "1px solid #189aa120" }}>
+                  <div key={label} className="rounded-lg p-3 text-center" style={{ background: "#24abbc08", border: "1px solid #24abbc20" }}>
                     <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="text-lg font-bold" style={{ color: "#189aa1" }}>{value}</p>
+                    <p className="text-lg font-bold" style={{ color: "#24abbc" }}>{value}</p>
                   </div>
                 ))}
               </div>
@@ -2180,17 +2180,17 @@ function OrgPaymentSettingsTab({ orgId, plan = "free" }: { orgId?: number; plan?
   return (
     <TabsContent value="payment" className="space-y-4">
       {/* TeachificPay Section */}
-      <Card className="border-2" style={{ borderColor: "#189aa120" }}>
+      <Card className="border-2" style={{ borderColor: "#24abbc20" }}>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "#189aa115" }}>
-                <CreditCard className="h-5 w-5" style={{ color: "#189aa1" }} />
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "#24abbc15" }}>
+                <CreditCard className="h-5 w-5" style={{ color: "#24abbc" }} />
               </div>
               <div>
                 <CardTitle className="flex items-center gap-2">
                   TeachificPay
-                  <Badge className="text-xs" style={{ background: "#189aa120", color: "#189aa1" }}>Powered by Stripe</Badge>
+                  <Badge className="text-xs" style={{ background: "#24abbc20", color: "#24abbc" }}>Powered by Stripe</Badge>
                 </CardTitle>
                 <CardDescription>Teachific's built-in payment processor — no setup required</CardDescription>
               </div>
@@ -2199,9 +2199,9 @@ function OrgPaymentSettingsTab({ orgId, plan = "free" }: { orgId?: number; plan?
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-lg p-4 space-y-3" style={{ background: "#189aa108", border: "1px solid #189aa120" }}>
+          <div className="rounded-lg p-4 space-y-3" style={{ background: "#24abbc08", border: "1px solid #24abbc20" }}>
             <div className="flex items-start gap-2">
-              <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#189aa1" }} />
+              <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#24abbc" }} />
               <p className="text-sm">
                 {canUseCustomGateway
                   ? `Your ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan supports TeachificPay or your own Stripe gateway with no platform fee.`
@@ -2212,7 +2212,7 @@ function OrgPaymentSettingsTab({ orgId, plan = "free" }: { orgId?: number; plan?
               </p>
             </div>
             <div className="flex items-start gap-2">
-              <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#189aa1" }} />
+              <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#24abbc" }} />
               <p className="text-sm">Group registrations follow your plan's payment gateway setting.</p>
             </div>
           </div>
