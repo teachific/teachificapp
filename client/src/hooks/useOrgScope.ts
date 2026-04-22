@@ -7,7 +7,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
  *
  * Platform admins (site_owner / site_admin):
  *   - Fetches ALL orgs via platformAdmin.listOrgs
- *   - Auto-selects the org named "Teachific" (or the first one)
+ *   - Auto-selects the org with isPrimary = true (platform school org)
+ *   - Falls back to allOrgs[0] if no primary org is found
  *   - showOrgSelector is false (selector removed per design)
  *
  * Regular users (org_admin / user):
@@ -30,12 +31,12 @@ export function useOrgScope() {
     enabled: !!user && !isPlatformAdmin,
   });
 
-  // Auto-select org for platform admins
+  // Auto-select org for platform admins — prefer isPrimary org
   useEffect(() => {
     if (!isPlatformAdmin || !allOrgs || allOrgs.length === 0) return;
     if (selectedOrgId !== null) return; // already selected
-    const teachific = allOrgs.find((o: any) => o.name?.toLowerCase() === "teachific");
-    setSelectedOrgId(teachific ? teachific.id : allOrgs[0].id);
+    const primary = allOrgs.find((o: any) => o.isPrimary);
+    setSelectedOrgId(primary ? primary.id : allOrgs[0].id);
   }, [isPlatformAdmin, allOrgs, selectedOrgId]);
 
   // Compute the active orgId

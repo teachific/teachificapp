@@ -198,6 +198,7 @@ export async function getAllOrgs() {
       subStatus: orgSubscriptions.status,
       ownerName: users.name,
       ownerEmail: users.email,
+      isPrimary: organizations.isPrimary,
       memberCount: sql<number>`(SELECT COUNT(*) FROM org_members WHERE org_members.orgId = ${organizations.id})`,
     })
     .from(organizations)
