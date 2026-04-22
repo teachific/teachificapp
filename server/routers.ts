@@ -1104,6 +1104,13 @@ export const appRouter = router({
         const org = await getOrgBySlug(input.slug);
         if (org) {
           await addOrgMember(org.id, ctx.user.id, "org_admin");
+          // Auto-enroll the org admin in the Teachific school (slug='teach')
+          try {
+            const teachOrg = await getOrgBySlug("teach");
+            if (teachOrg && teachOrg.id !== org.id) {
+              await addOrgMember(teachOrg.id, ctx.user.id, "member");
+            }
+          } catch (_e) { /* non-fatal */ }
           // Auto-seed landing page on org creation with Teachific teal branding
           const db = await getDb();
           if (db) {
@@ -2864,6 +2871,13 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         await db2.insert(orgMembersTable).values({ orgId, userId: adminUserId, role: "org_admin" }).onDuplicateKeyUpdate({ set: { role: "org_admin" } });
         // Set subscription plan
         await db2.insert(orgSubTable).values({ orgId, plan: input.plan, status: "active" }).onDuplicateKeyUpdate({ set: { plan: input.plan, status: "active" } });
+        // Auto-enroll the new org admin in the Teachific school (slug='teach')
+        try {
+          const teachOrg = await getOrgBySlug("teach");
+          if (teachOrg && teachOrg.id !== orgId) {
+            await addOrgMember(teachOrg.id, adminUserId, "member");
+          }
+        } catch (_e) { /* non-fatal */ }
         return { orgId, adminUserId };
       }),
     uploadPlatformLogo: adminProcedure
