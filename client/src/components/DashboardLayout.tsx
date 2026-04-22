@@ -69,6 +69,7 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { trpc } from "@/lib/trpc";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
 import { ProductSwitcher } from "./ProductSwitcher";
 
 // ─── Impersonation Banner ────────────────────────────────────────────────────
@@ -361,7 +362,7 @@ function DashboardLayoutContent({
   const { data: orgs } = trpc.orgs.myOrgs.useQuery();
   const orgSlug = orgs?.[0]?.slug;
   const previewUrl = orgSlug
-    ? `${window.location.origin}/school/${orgSlug}?preview=1`
+    ? `${getOrgBaseUrl(orgSlug)}?preview=1`
     : null;
 
   // Determine which accordion groups are open

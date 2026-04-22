@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
+import { getSubdomain } from "@/hooks/useSubdomain";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -395,7 +397,7 @@ export default function CommunityLearnerPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-2">Community not found</h2>
-          <Button variant="outline" onClick={() => setLocation("/school")}>
+          <Button variant="outline" onClick={() => { const sub = getSubdomain(); window.location.href = sub ? getOrgBaseUrl(sub) : "/school"; }}>
             <Home className="h-4 w-4 mr-2" /> Back to School
           </Button>
         </div>
@@ -415,7 +417,7 @@ export default function CommunityLearnerPage() {
             <Hash className="h-4 w-4" />
           </button>
           <button
-            onClick={() => setLocation("/school")}
+            onClick={() => { const sub = getSubdomain(); window.location.href = sub ? getOrgBaseUrl(sub) : "/school"; }}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <Home className="h-4 w-4" />

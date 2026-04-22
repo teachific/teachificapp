@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
+import { getSubdomain } from "@/hooks/useSubdomain";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -450,7 +452,7 @@ export default function CourseSalesPage() {
       <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <button
-            onClick={() => setLocation("/school")}
+            onClick={() => { const sub = getSubdomain(); window.location.href = sub ? getOrgBaseUrl(sub) : "/school"; }}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ChevronLeft className="h-4 w-4" />

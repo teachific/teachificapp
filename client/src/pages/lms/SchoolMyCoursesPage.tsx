@@ -1,4 +1,6 @@
 import { useParams, useLocation } from "wouter";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
+import { getSubdomain } from "@/hooks/useSubdomain";
 import SchoolMemberLayout from "@/components/SchoolMemberLayout";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -16,7 +18,8 @@ import {
 
 export default function SchoolMyCoursesPage() {
   const params = useParams<{ orgSlug?: string }>();
-  const orgSlug = params?.orgSlug;
+  // On subdomain routes (/my-courses), orgSlug param is absent — fall back to current subdomain
+  const orgSlug = params?.orgSlug ?? getSubdomain() ?? undefined;
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
@@ -135,7 +138,7 @@ export default function SchoolMyCoursesPage() {
               </p>
             </div>
             {enrollments?.length === 0 && (
-              <Button onClick={() => setLocation(orgSlug ? `/school/${orgSlug}` : "/school")} variant="outline" size="sm">
+              <Button onClick={() => { window.location.href = orgSlug ? getOrgBaseUrl(orgSlug) : "/school"; }} variant="outline" size="sm">
                 Browse Courses
               </Button>
             )}

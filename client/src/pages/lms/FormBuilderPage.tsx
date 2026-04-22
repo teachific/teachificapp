@@ -89,6 +89,7 @@ import {
   Code,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
 import { useEffect as useEffectCM, useRef as useRefCM } from "react";
 import { EditorView } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
@@ -772,7 +773,7 @@ function SharePanel({ form, activeTab = "links", orgSlug, onSlugSaved }: { form:
 
   const formSlug = form.slug ?? "";
   const formUrl = orgSlug
-    ? `${window.location.origin}/forms/${orgSlug}/${formSlug}`
+    ? `${getOrgBaseUrl(orgSlug)}/forms/${formSlug}`
     : `${window.location.origin}/forms/${formSlug}`;
   const embedCode = `<iframe src="${formUrl}?embed=1" width="100%" height="600" frameborder="0" style="border:none;border-radius:8px"></iframe>`;
 
@@ -787,7 +788,7 @@ function SharePanel({ form, activeTab = "links", orgSlug, onSlugSaved }: { form:
   };
 
   const draftFormUrl = orgSlug
-    ? `${window.location.origin}/forms/${orgSlug}/${slugDraft}`
+    ? `${getOrgBaseUrl(orgSlug)}/forms/${slugDraft}`
     : `${window.location.origin}/forms/${slugDraft}`;
 
   const statusBanner = form.status !== "published" ? (
@@ -832,7 +833,7 @@ function SharePanel({ form, activeTab = "links", orgSlug, onSlugSaved }: { form:
           {editingSlug ? (
             <div className="space-y-2">
               <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono bg-muted px-3 py-2 rounded-md">
-                <span className="text-muted-foreground/60">{window.location.origin}/forms/{orgSlug ? orgSlug + "/" : ""}</span>
+                <span className="text-muted-foreground/60">{orgSlug ? getOrgBaseUrl(orgSlug) + "/forms/" : window.location.origin + "/forms/"}</span>
                 <Input
                   value={slugDraft}
                   onChange={e => { setSlugDraft(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setSlugError(""); }}
@@ -2341,7 +2342,7 @@ export default function FormBuilderPage() {
             size="sm"
             onClick={() => {
               const orgSlug = orgCtx?.org?.slug;
-              const url = orgSlug ? `/forms/${orgSlug}/${formData.slug}` : `/forms/${formData.slug}`;
+              const url = orgSlug ? `${getOrgBaseUrl(orgSlug)}/forms/${formData.slug}` : `/forms/${formData.slug}`;
               window.open(url, "_blank");
             }}
             className="gap-1.5 h-7 text-xs"

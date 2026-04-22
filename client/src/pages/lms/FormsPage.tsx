@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +55,7 @@ export default function FormsPage() {
 
   const { data: orgCtx } = trpc.orgs.myContext.useQuery();
   const orgId = orgCtx?.org?.id;
+  const orgSlug = orgCtx?.org?.slug;
 
   const { data: forms, isLoading, refetch } = trpc.forms.list.useQuery(
     { orgId: orgId! },
@@ -181,7 +183,7 @@ export default function FormsPage() {
                         <Copy className="h-4 w-4 mr-2" /> Duplicate
                       </DropdownMenuItem>
                       {form.status === "published" && (
-                        <DropdownMenuItem onClick={() => window.open(`/forms/${form.slug}`, "_blank")}>
+                        <DropdownMenuItem onClick={() => window.open(orgSlug ? `${getOrgBaseUrl(orgSlug)}/forms/${form.slug}` : `/forms/${form.slug}`, "_blank")}>
                           <ExternalLink className="h-4 w-4 mr-2" /> View Live
                         </DropdownMenuItem>
                       )}

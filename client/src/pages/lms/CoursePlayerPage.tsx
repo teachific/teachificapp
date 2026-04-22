@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
+import { getSubdomain } from "@/hooks/useSubdomain";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -771,7 +773,7 @@ export default function CoursePlayerPage() {
             <Menu className="h-4 w-4" />
           </button>
           <button
-            onClick={() => setLocation("/school")}
+            onClick={() => { const sub = getSubdomain(); window.location.href = sub ? getOrgBaseUrl(sub) : "/school"; }}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <Home className="h-4 w-4" />
@@ -850,7 +852,7 @@ export default function CoursePlayerPage() {
             )}
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setShowCompletion(false)}>Review Course</Button>
-              <Button variant="outline" onClick={() => setLocation("/school")}>Back to School</Button>
+              <Button variant="outline" onClick={() => { const sub = getSubdomain(); window.location.href = sub ? getOrgBaseUrl(sub) : "/school"; }}>Back to School</Button>
             </div>
           </div>
         </div>

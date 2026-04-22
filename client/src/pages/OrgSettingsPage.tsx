@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { getSubdomain } from "@/hooks/useSubdomain";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { WysiwygPageBuilder } from "@/components/WysiwygPageBuilder";
@@ -2572,7 +2573,7 @@ function OrgHomepageTab({ orgId, orgName, orgSlug, primaryColor, description }: 
   });
 
   const previewUrl = orgSlug
-    ? `${window.location.origin}/school/${orgSlug}`
+    ? getOrgBaseUrl(orgSlug)
     : null;
 
   const pageBuilderUrl = generatedPageId

@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Globe, Save, ExternalLink, Code, Eye } from "lucide-react";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
 
 export default function WebsitePage() {
   const utils = trpc.useUtils();
@@ -19,7 +20,7 @@ export default function WebsitePage() {
 
   // Build preview URL using the org slug
   const previewUrl = orgSlug
-    ? `${window.location.origin}/school/${orgSlug}?preview=1`
+    ? `${getOrgBaseUrl(orgSlug)}?preview=1`
     : null;
 
   // Load org theme (schoolName lives here)

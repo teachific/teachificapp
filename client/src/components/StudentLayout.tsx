@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
 import { Award, BookOpen, GraduationCap, LayoutDashboard, LogOut, User } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "./ui/button";
@@ -27,7 +28,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const navItems = [
     { label: "My Courses", path: "/lms/my-courses", icon: BookOpen },
     { label: "My Certificates", path: "/lms/my-certificates", icon: Award },
-    { label: "Browse", path: orgSlug ? `/school/${orgSlug}` : "/school", icon: GraduationCap },
+    { label: "Browse", path: orgSlug ? getOrgBaseUrl(orgSlug) : "/school", icon: GraduationCap },
   ];
 
   const initials = user?.name

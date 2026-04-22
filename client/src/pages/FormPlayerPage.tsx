@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams } from "wouter";
+import { getSubdomain } from "@/hooks/useSubdomain";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -256,6 +257,8 @@ function generateSessionToken(): string {
 export default function FormPlayerPage() {
   const params = useParams<{ slug: string; orgSlug?: string }>();
   const slug = params?.slug ?? "";
+  // On subdomain routes (/forms/:slug), orgSlug param is absent — use current subdomain for scoping
+  const resolvedOrgSlug = params?.orgSlug ?? getSubdomain() ?? undefined;
   const isEmbed = new URLSearchParams(window.location.search).get("embed") === "1";
 
   const [answers, setAnswers] = useState<Record<number, any>>({});
@@ -268,7 +271,7 @@ export default function FormPlayerPage() {
   const startTimeRef = useRef(Date.now());
 
   const { data: form, isLoading, error } = trpc.forms.publicGet.useQuery(
-    { slug, orgSlug: params?.orgSlug },
+    { slug, orgSlug: resolvedOrgSlug },
     { enabled: !!slug }
   );
 

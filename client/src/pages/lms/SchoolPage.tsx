@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Search, Clock, BookOpen, GraduationCap, ChevronRight, Play, FileText } from "lucide-react";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
 
 function CourseCard({
   course,
@@ -177,10 +178,11 @@ export default function SchoolPage({ subdomainOrg }: { subdomainOrg?: string } =
 
   const categories = Array.from(new Set((courses || []).filter((c: any) => c.category).map((c: any) => c.category)));
 
-  // Course click: navigate to the org-slug-aware course URL when slug is present
+  // Course click: navigate to the org's subdomain course URL
   const handleCourseClick = (courseId: number) => {
     if (orgSlug) {
-      setLocation(`/school/${orgSlug}/courses/${courseId}`);
+      // Navigate to the course sales page on the org's subdomain
+      window.location.href = `${getOrgBaseUrl(orgSlug)}/courses/${courseId}`;
     } else {
       setLocation(`/school/courses/${courseId}`);
     }
@@ -209,7 +211,7 @@ export default function SchoolPage({ subdomainOrg }: { subdomainOrg?: string } =
             <a href="#courses" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Courses</a>
             {user ? (
               <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={() => setLocation(orgSlug ? `/school/${orgSlug}/my-courses` : "/school/my-courses")}>
+                <Button variant="outline" size="sm" onClick={() => { window.location.href = orgSlug ? `${getOrgBaseUrl(orgSlug)}/my-courses` : "/school/my-courses"; }}>
                   My Courses
                 </Button>
                 <Button size="sm" style={{ backgroundColor: primaryColor }} onClick={() => setLocation("/")}>

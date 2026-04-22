@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { getOrgBaseUrl } from "@/lib/orgUrl";
 
 interface SchoolMemberLayoutProps {
   children: React.ReactNode;
@@ -32,8 +33,13 @@ export default function SchoolMemberLayout({ children, orgSlug }: SchoolMemberLa
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // When on an org subdomain, the base URL is the org's subdomain URL.
+  // On localhost/preview, it falls back to /school/:slug.
+  const baseUrl = orgSlug ? getOrgBaseUrl(orgSlug) : "/school";
+
   const logout = trpc.auth.logout.useMutation({
-    onSuccess: () => { window.location.href = orgSlug ? `/school/${orgSlug}` : "/school"; },
+    onSuccess: () => { window.location.href = baseUrl; },
   });
 
   // Resolve the org theme for branding
@@ -48,7 +54,6 @@ export default function SchoolMemberLayout({ children, orgSlug }: SchoolMemberLa
 
   const primaryColor = theme?.primaryColor ?? "#189aa1";
   const schoolName = orgBySlug?.name ?? "Learning Portal";
-  const baseUrl = orgSlug ? `/school/${orgSlug}` : "/school";
 
   // If not logged in, redirect to login
   if (!user) {
@@ -63,7 +68,7 @@ export default function SchoolMemberLayout({ children, orgSlug }: SchoolMemberLa
       {/* School branding */}
       <div className="px-4 py-5 border-b border-border/60">
         <button
-          onClick={() => setLocation(baseUrl)}
+          onClick={() => { window.location.href = baseUrl; }}
           className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
         >
           {theme?.adminLogoUrl ? (
@@ -83,7 +88,7 @@ export default function SchoolMemberLayout({ children, orgSlug }: SchoolMemberLa
       {/* Nav items */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         <button
-          onClick={() => setLocation(baseUrl)}
+          onClick={() => { window.location.href = baseUrl; }}
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           <LayoutGrid className="h-4 w-4" />
@@ -93,7 +98,8 @@ export default function SchoolMemberLayout({ children, orgSlug }: SchoolMemberLa
           <p className="px-3 text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">My Learning</p>
         </div>
         {NAV_ITEMS.map((item) => {
-          const href = `${baseUrl}/${item.path}`;
+          // Nav items are relative paths within the org's subdomain
+          const href = `/${item.path}`;
           const isActive = currentPath === href || currentPath.startsWith(href + "/");
           return (
             <button
