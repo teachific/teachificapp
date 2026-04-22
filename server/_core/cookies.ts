@@ -32,17 +32,19 @@ export function getSessionCookieOptions(
   //   hostname !== "127.0.0.1" &&
   //   hostname !== "::1";
 
-  // const domain =
-  //   shouldSetDomain && !hostname.startsWith(".")
-  //     ? `.${hostname}`
-  //     : shouldSetDomain
-  //       ? hostname
-  //       : undefined;
+  // In production, set Domain=.teachific.app so the Manus OAuth session cookie
+  // is also shared across all subdomains (allaboutultrasound.teachific.app, etc.)
+  const hostname = req.hostname ?? "";
+  const isTeachificProd =
+    hostname === "teachific.app" ||
+    hostname === "www.teachific.app" ||
+    hostname.endsWith(".teachific.app");
 
   return {
     httpOnly: true,
     path: "/",
     sameSite: "none",
     secure: isSecureRequest(req),
+    ...(isTeachificProd ? { domain: ".teachific.app" } : {}),
   };
 }
