@@ -2800,10 +2800,14 @@ function TeachificPayAdminTab() {
 }
 
 function TeachificPaySchoolsPanel() {
+  const utils = trpc.useUtils();
   const { data: accounts = [] } = trpc.teachificPay.adminListAccounts.useQuery();
   const { data: revenue } = trpc.teachificPay.adminGetPlatformRevenue.useQuery();
   const setGateway = trpc.teachificPay.adminSetOrgGateway.useMutation({
-    onSuccess: () => { toast.success("Gateway updated"); },
+    onSuccess: () => {
+      toast.success("Gateway updated");
+      utils.teachificPay.adminListAccounts.invalidate();
+    },
     onError: (e) => toast.error(e.message),
   });
   const [search, setSearch] = useState("");
