@@ -150,7 +150,14 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+// Only include dev-only plugins (manus-runtime, jsx-loc) in development mode
+// In production, these plugins create circular module dependencies that break the app
+const isDev = process.env.NODE_ENV !== 'production';
+const plugins = [
+  react(),
+  tailwindcss(),
+  ...(isDev ? [jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()] : []),
+];
 
 export default defineConfig({
   plugins,
@@ -171,80 +178,40 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // Vendor: React core
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router') || id.includes('node_modules/wouter')) {
-            return 'vendor-react';
-          }
-          // Vendor: Radix UI / shadcn components
-          if (id.includes('node_modules/@radix-ui/')) {
-            return 'vendor-radix';
-          }
-          // Vendor: tRPC + tanstack query
-          if (id.includes('node_modules/@trpc/') || id.includes('node_modules/@tanstack/')) {
-            return 'vendor-trpc';
-          }
-          // Vendor: Charts (recharts is large)
+          // IMPORTANT: Do NOT put react/react-dom in a separate chunk from the rest of node_modules
+          // Doing so creates circular dependencies (vendor-react <-> vendor-misc) that deadlock the app
+          // All react-dependent libs (tanstack, radix, etc.) call React.createContext() at init time
+          // which fails if React is in a separate chunk that hasn't finished evaluating yet
+
+          // Vendor: Charts (recharts is large, no circular deps with react)
           if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-') || id.includes('node_modules/victory')) {
             return 'vendor-charts';
           }
-          // Vendor: Lucide icons (33MB source, large in bundle)
+          // Vendor: Lucide icons (large, no circular deps)
           if (id.includes('node_modules/lucide-react')) {
             return 'vendor-icons';
           }
-          // Vendor: date-fns (33MB source)
-          if (id.includes('node_modules/date-fns')) {
-            return 'vendor-dates';
-          }
-          // Vendor: framer-motion animations
-          if (id.includes('node_modules/framer-motion')) {
-            return 'vendor-motion';
-          }
-          // Vendor: zod validation
-          if (id.includes('node_modules/zod')) {
-            return 'vendor-zod';
-          }
-          // Vendor: xlsx / spreadsheet
-          if (id.includes('node_modules/xlsx') || id.includes('node_modules/jszip')) {
-            return 'vendor-xlsx';
-          }
-          // Vendor: form handling
-          if (id.includes('node_modules/react-hook-form') || id.includes('node_modules/@hookform')) {
-            return 'vendor-forms';
-          }
-          // Vendor: Monaco editor or code editors
-          if (id.includes('node_modules/monaco-editor') || id.includes('node_modules/@monaco-editor')) {
-            return 'vendor-monaco';
-          }
-          // Vendor: Stripe frontend
-          if (id.includes('node_modules/@stripe/')) {
-            return 'vendor-stripe';
-          }
-          // Vendor: superjson
-          if (id.includes('node_modules/superjson')) {
-            return 'vendor-superjson';
-          }
-          // Vendor: tiptap rich text editor
+          // Vendor: tiptap rich text editor (large, no circular deps)
           if (id.includes('node_modules/@tiptap/') || id.includes('node_modules/prosemirror')) {
             return 'vendor-tiptap';
           }
-          // Vendor: codemirror code editor
+          // Vendor: codemirror code editor (large, no circular deps)
           if (id.includes('node_modules/@codemirror/') || id.includes('node_modules/@lezer/')) {
             return 'vendor-codemirror';
           }
-          // Vendor: dnd-kit drag and drop
-          if (id.includes('node_modules/@dnd-kit/')) {
-            return 'vendor-dnd';
+          // Vendor: xlsx / spreadsheet (large, no circular deps)
+          if (id.includes('node_modules/xlsx') || id.includes('node_modules/jszip')) {
+            return 'vendor-xlsx';
           }
-          // Vendor: AWS SDK (S3)
+          // Vendor: AWS SDK (S3, large, no circular deps)
           if (id.includes('node_modules/@aws-sdk/')) {
             return 'vendor-aws';
           }
-          // Vendor: Other node_modules (catch-all)
+          // All other node_modules go into vendor-misc (including react, react-dom, radix, trpc, etc.)
+          // This avoids circular dependencies between react and its dependent libraries
           if (id.includes('node_modules/')) {
             return 'vendor-misc';
           }
-          // Note: app-admin, app-lms, app-org groupings removed — let Vite create
-          // individual per-page chunks for lazy-loaded components (better code splitting)
         },
       },
     },
