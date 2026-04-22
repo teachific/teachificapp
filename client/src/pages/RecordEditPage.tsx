@@ -2649,7 +2649,7 @@ export default function RecordEditPage() {
   const { user } = useAuth();
   const { data: myOrgs } = trpc.orgs.myOrgs.useQuery();
   const orgId = myOrgs?.[0]?.id ?? 0;
-  const { isBuilder, isLoading: planLoading } = usePlanLimits();
+  const { isBuilder, isPro, isLoading: planLoading } = usePlanLimits();
 
   const handleItemSaved = useCallback((item: MediaItem) => {
     setLastSavedItem(item);
@@ -2707,10 +2707,10 @@ export default function RecordEditPage() {
           <Button
             size="sm"
             className="gap-1.5 bg-[#0e8a96] hover:bg-[#0a6e78] text-white text-xs"
-            onClick={() => { window.location.href = "/studio-pro"; }}
+            onClick={() => { window.location.href = isPro ? "/studio-pro" : "/apps"; }}
           >
             <Download className="h-3.5 w-3.5" />
-            Download App
+            {isPro ? "Download App" : "Get Desktop App"}
           </Button>
           <Button
             size="sm"
@@ -2770,13 +2770,13 @@ export default function RecordEditPage() {
               <Button
                 variant="outline"
                 className="gap-2"
-                onClick={() => { window.location.href = "/studio-pro"; }}
+                onClick={() => { window.location.href = isPro ? "/studio-pro" : "/apps"; }}
               >
                 <Download className="h-4 w-4" />
-                Download Desktop App
+                {isPro ? "Download Desktop App" : "Get Desktop App"}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">The full Teachific Studio™ desktop app is available on all plans with no recording limits.</p>
+            <p className="text-xs text-muted-foreground">The Teachific Studio™ desktop app requires a <strong>Pro or Enterprise</strong> plan, or is available as a standalone purchase.</p>
           </div>
         ) : (
           <>

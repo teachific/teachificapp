@@ -108,17 +108,23 @@ export default function DesktopDownloadPage({ app }: { app: AppKey }) {
               <Lock className="w-8 h-8 text-amber-500 shrink-0 mt-0.5" />
               <div className="space-y-3">
                 <div>
-                  <p className="font-semibold text-amber-900 text-lg">Subscription Required</p>
+                  <p className="font-semibold text-amber-900 text-lg">Pro or Enterprise Plan Required</p>
                   <p className="text-amber-800 text-sm mt-1">
-                    An active {meta.name} subscription is required to download the desktop app.
-                    Start your 14-day free trial — no credit card required.
+                    The {meta.name} desktop app is available on <strong>Pro and Enterprise</strong> Teachific plans, or as a standalone purchase.
                   </p>
                 </div>
-                <Link href={meta.upgradePath}>
-                  <Button className="bg-amber-600 hover:bg-amber-700 text-white gap-2">
-                    Start Free Trial <ExternalLink className="w-4 h-4" />
-                  </Button>
-                </Link>
+                <div className="flex flex-wrap gap-2">
+                  <Link href="/settings/billing">
+                    <Button className="bg-amber-600 hover:bg-amber-700 text-white gap-2">
+                      Upgrade Plan <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                  <Link href="/apps">
+                    <Button variant="outline" className="border-amber-400 text-amber-800 hover:bg-amber-100 gap-2">
+                      Buy Standalone App
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </CardContent>
           </Card>
