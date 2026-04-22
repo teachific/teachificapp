@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Check, Upload, X, Loader2, Image as ImageIcon } from "lucide-react";
 
 const PRESET_COLORS = [
-  { name: "Teal", value: "#189aa1" },
+  { name: "Teal", value: "#15a4b7" },
   { name: "Aqua", value: "#4ad9e0" },
   { name: "Blue", value: "#3b82f6" },
   { name: "Indigo", value: "#6366f1" },
@@ -170,14 +170,15 @@ export default function BrandingPage() {
   );
 
   const [form, setForm] = useState({
-    primaryColor: "#189aa1",
+    primaryColor: "#15a4b7",
     accentColor: "#4ad9e0",
     fontFamily: "Inter",
     schoolName: "",
     adminLogoUrl: "",
     customCss: "",
-    studentPrimaryColor: "#189aa1",
+    studentPrimaryColor: "#15a4b7",
     studentAccentColor: "#4ad9e0",
+    studentTheme: "light" as "light" | "dark",
   });
 
   useEffect(() => {
@@ -189,8 +190,9 @@ export default function BrandingPage() {
         schoolName: theme.schoolName ?? "",
         adminLogoUrl: theme.adminLogoUrl ?? "",
         customCss: theme.customCss ?? "",
-        studentPrimaryColor: theme.studentPrimaryColor ?? "#189aa1",
+        studentPrimaryColor: theme.studentPrimaryColor ?? "#15a4b7",
         studentAccentColor: theme.studentAccentColor ?? "#4ad9e0",
+        studentTheme: (theme.studentTheme ?? "light") as "light" | "dark",
       });
     }
   }, [theme]);
@@ -357,7 +359,7 @@ export default function BrandingPage() {
                       set("studentPrimaryColor", e.target.value);
                       set("primaryColor", e.target.value);
                     }}
-                    placeholder="#189aa1"
+                    placeholder="#15a4b7"
                     className="h-8 font-mono text-sm"
                   />
                 </div>
@@ -401,6 +403,55 @@ export default function BrandingPage() {
                     className="h-8 font-mono text-sm"
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">School Theme</CardTitle>
+              <CardDescription>Choose a light or dark background for your student school pages</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => set("studentTheme", "light")}
+                  className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all ${
+                    form.studentTheme === "light"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/40"
+                  }`}
+                >
+                  <div className="w-full h-16 rounded-lg bg-white border border-border flex flex-col gap-1 p-2 overflow-hidden">
+                    <div className="h-2 w-3/4 rounded bg-gray-200" />
+                    <div className="h-2 w-1/2 rounded bg-gray-100" />
+                    <div className="mt-1 h-3 w-1/3 rounded" style={{ backgroundColor: form.studentPrimaryColor }} />
+                  </div>
+                  <span className="text-sm font-medium">Light</span>
+                  {form.studentTheme === "light" && (
+                    <span className="text-xs text-primary font-semibold">Active</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => set("studentTheme", "dark")}
+                  className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all ${
+                    form.studentTheme === "dark"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/40"
+                  }`}
+                >
+                  <div className="w-full h-16 rounded-lg bg-gray-900 border border-gray-700 flex flex-col gap-1 p-2 overflow-hidden">
+                    <div className="h-2 w-3/4 rounded bg-gray-700" />
+                    <div className="h-2 w-1/2 rounded bg-gray-800" />
+                    <div className="mt-1 h-3 w-1/3 rounded" style={{ backgroundColor: form.studentPrimaryColor }} />
+                  </div>
+                  <span className="text-sm font-medium">Dark</span>
+                  {form.studentTheme === "dark" && (
+                    <span className="text-xs text-primary font-semibold">Active</span>
+                  )}
+                </button>
               </div>
             </CardContent>
           </Card>

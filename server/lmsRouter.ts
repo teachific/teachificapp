@@ -849,6 +849,7 @@ export const lmsRouter = router({
           customCss: z.string().nullish().transform(v => v ?? undefined),
           studentPrimaryColor: z.string().optional(),
           studentAccentColor: z.string().optional(),
+          studentTheme: z.enum(["light", "dark"]).optional(),
           watermarkImageUrl: z.string().nullable().optional(),
           watermarkOpacity: z.number().min(0).max(100).optional(),
           watermarkPosition: z.string().optional(),

@@ -2935,3 +2935,19 @@
 - [x] Replace Manus LLM with dual-backend (OpenAI + Manus fallback)
 - [x] Install @aws-sdk/client-s3, @aws-sdk/s3-request-presigner, openai packages
 - [x] Write DEPLOYMENT.md with full Railway setup guide
+
+## Teachific Teal Default Theme for Learner Pages
+- [ ] Apply Teachific teal (#0d9488 / teal-600) as default primary color to SchoolPage (auto-generated landing)
+- [ ] Apply teal theme to CourseSalesPage header and CTAs
+- [ ] Apply teal theme to CoursePlayerPage header and progress elements
+- [ ] Apply teal theme to SchoolMyCoursesPage
+- [ ] Apply teal theme to OrgPoliciesPage header
+- [ ] Apply teal theme to CommunityLearnerPage
+- [ ] Apply teal theme to FormPlayerPage (when no org branding override)
+- [ ] Apply teal theme to SchoolMemberLayout header/nav
+- [ ] Apply teal theme to StudentLayout
+- [ ] Ensure org branding primaryColor overrides the teal default where set
+- [x] Add studentTheme field (light | dark) to org_themes table (default: light)
+- [x] Add Dark/Light theme toggle to BrandingPage under the color settings section
+- [x] Wire studentTheme from org theme data into SubdomainSchoolRouter so learner pages use the org's chosen theme
+- [x] Ensure teal primary color is applied correctly in both light and dark theme variations

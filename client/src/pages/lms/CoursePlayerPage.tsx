@@ -580,7 +580,7 @@ export default function CoursePlayerPage() {
   const updateProgress = trpc.lms.enrollments.updateLessonProgress.useMutation();
   const utils = trpc.useUtils();
 
-  const primaryColor = course?.playerThemeColor || theme?.primaryColor || "#189aa1";
+  const primaryColor = course?.playerThemeColor || theme?.primaryColor || "#15a4b7";
 
   // Flatten all lessons for prev/next navigation
   const allLessons = (curriculum || []).flatMap((s: any) => s.lessons || []);

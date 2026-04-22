@@ -419,7 +419,7 @@ export default function CourseSalesPage() {
     enrollMut.mutate({ courseId, orgId: course.orgId, pricingId, amountPaid: 0 });
   };
 
-  const primaryColor = theme?.studentPrimaryColor || theme?.primaryColor || "#189aa1";
+  const primaryColor = theme?.studentPrimaryColor || theme?.primaryColor || "#15a4b7";
 
   let blocks: any[] = [];
   if (page?.blocksJson) {

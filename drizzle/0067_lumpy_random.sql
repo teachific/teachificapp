@@ -1,0 +1,1 @@
+ALTER TABLE `org_themes` ADD `studentTheme` enum('light','dark') DEFAULT 'light';

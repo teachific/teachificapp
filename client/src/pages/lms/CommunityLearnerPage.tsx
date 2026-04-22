@@ -370,7 +370,7 @@ export default function CommunityLearnerPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  const primaryColor = hub?.primaryColor || "#189aa1";
+  const primaryColor = hub?.primaryColor || "#15a4b7";
   const selectedSpace = spaces?.find((s: any) => s.id === selectedSpaceId);
   const isMember = members?.some((m: any) => m.userId === user?.id);
 

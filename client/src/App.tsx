@@ -8,6 +8,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { UploadQueueProvider } from "./contexts/UploadQueueContext";
 import { UploadQueuePanel } from "./components/UploadQueuePanel";
 import { getSubdomain } from "./hooks/useSubdomain";
+import { SubdomainThemeProvider } from "./components/SubdomainThemeProvider";
 
 
 import Dashboard from "./pages/Dashboard";
@@ -426,7 +427,11 @@ function Router() {
   // If running on an org subdomain, serve the school portal directly
   const subdomain = getSubdomain();
   if (subdomain) {
-    return <SubdomainSchoolRouter subdomain={subdomain} />;
+    return (
+      <SubdomainThemeProvider subdomain={subdomain}>
+        <SubdomainSchoolRouter subdomain={subdomain} />
+      </SubdomainThemeProvider>
+    );
   }
 
   const path = window.location.pathname;

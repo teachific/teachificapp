@@ -448,9 +448,10 @@ export const orgThemes = mysqlTable("org_themes", {
   adminLogoUrl: text("adminLogoUrl"),
   faviconUrl: text("faviconUrl"),
   customCss: text("customCss"),
-  // Student-facing colors (derived from primary/accent but can be overridden)
+  // Student-facing colors and theme (derived from primary/accent but can be overridden)
   studentPrimaryColor: varchar("studentPrimaryColor", { length: 32 }),
   studentAccentColor: varchar("studentAccentColor", { length: 32 }),
+  studentTheme: mysqlEnum("studentTheme", ["light", "dark"]).default("light"),
   // Notification settings (JSON): { enrollment, completion, quizResult, reminder, announcement, weeklyDigest }
   notificationSettings: text("notificationSettings"),
   // Email template overrides (JSON): { logoUrl, primaryColor, footerText, senderName }

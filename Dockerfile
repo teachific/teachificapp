@@ -8,13 +8,13 @@ COPY package.json pnpm-lock.yaml ./
 COPY patches/ ./patches/
 RUN pnpm install --frozen-lockfile
 
-# Build server only (frontend assets are pre-built and committed to repo)
-# This avoids vite-plugin-manus-runtime creating circular module dependencies
+# Build both client (vite) and server (esbuild)
+# vite builds React into dist/public, esbuild compiles Express into dist/index.js
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm build:server
+RUN NODE_ENV=production pnpm build
 
 # Production runtime
 FROM node:22-alpine AS runner
