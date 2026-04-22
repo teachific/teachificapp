@@ -790,7 +790,7 @@ export const appRouter = router({
     }),
     // Upload org logo to S3 and save URL
     uploadLogo: protectedProcedure
-      .input(z.object({ fileName: z.string(), contentType: z.string() }))
+      .input(z.object({ fileName: z.string(), contentType: z.string(), fileUrl: z.string().optional() }))
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
@@ -804,17 +804,15 @@ export const appRouter = router({
         if (rows[0].role !== "org_admin" && rows[0].role !== "org_super_admin" && ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin" && ctx.user.role !== "org_super_admin") {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
-        const ext = input.fileName.split(".").pop() ?? "png";
-        const key = `org-logos/${rows[0].org.id}/${Date.now()}-${nanoid(8)}.${ext}`;
-        const { url } = await storagePut(key, Buffer.alloc(0), input.contentType);
-        const fileUrl = url.split("?")[0];
+        // If fileUrl is provided (uploaded via /api/media-upload), just save it
+        const fileUrl = input.fileUrl ?? (() => { throw new TRPCError({ code: "BAD_REQUEST", message: "fileUrl is required" }); })();
         // Save the logo URL to the org
         await updateOrg(rows[0].org.id, { logoUrl: fileUrl });
-        return { key, fileUrl, uploadUrl: url };
+        return { fileUrl };
       }),
      // Upload org favicon to S3 and save URL in orgThemes
     uploadFavicon: orgAdminProcedure
-      .input(z.object({ fileName: z.string(), contentType: z.string() }))
+      .input(z.object({ fileName: z.string(), contentType: z.string(), fileUrl: z.string() }))
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
@@ -825,10 +823,7 @@ export const appRouter = router({
           .where(eq(orgMembers.userId, ctx.user.id))
           .limit(1);
         if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND" });
-        const ext = input.fileName.split(".").pop() ?? "ico";
-        const key = `org-favicons/${rows[0].org.id}/${Date.now()}-${nanoid(8)}.${ext}`;
-        const { url } = await storagePut(key, Buffer.alloc(0), input.contentType);
-        const fileUrl = url.split("?")[0];
+        const fileUrl = input.fileUrl;
         // Upsert orgTheme with faviconUrl
         const { orgThemes } = await import("../drizzle/schema");
         const existing = await db.select({ id: orgThemes.id }).from(orgThemes).where(eq(orgThemes.orgId, rows[0].org.id)).limit(1);
@@ -837,11 +832,11 @@ export const appRouter = router({
         } else {
           await db.insert(orgThemes).values({ orgId: rows[0].org.id, faviconUrl: fileUrl });
         }
-        return { key, fileUrl, uploadUrl: url };
+        return { fileUrl };
       }),
     // Upload site logo (student-facing) to S3 and save URL in orgThemes
     uploadSiteLogo: orgAdminProcedure
-      .input(z.object({ fileName: z.string(), contentType: z.string() }))
+      .input(z.object({ fileName: z.string(), contentType: z.string(), fileUrl: z.string() }))
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
@@ -852,10 +847,7 @@ export const appRouter = router({
           .where(eq(orgMembers.userId, ctx.user.id))
           .limit(1);
         if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND" });
-        const ext = input.fileName.split(".").pop() ?? "png";
-        const key = `org-site-logos/${rows[0].org.id}/${Date.now()}-${nanoid(8)}.${ext}`;
-        const { url } = await storagePut(key, Buffer.alloc(0), input.contentType);
-        const fileUrl = url.split("?")[0];
+        const fileUrl = input.fileUrl;
         // Upsert orgTheme with adminLogoUrl (student-facing logo)
         const { orgThemes } = await import("../drizzle/schema");
         const existing = await db.select({ id: orgThemes.id }).from(orgThemes).where(eq(orgThemes.orgId, rows[0].org.id)).limit(1);
@@ -864,7 +856,7 @@ export const appRouter = router({
         } else {
           await db.insert(orgThemes).values({ orgId: rows[0].org.id, adminLogoUrl: fileUrl });
         }
-        return { key, fileUrl, uploadUrl: url };
+        return { fileUrl };
       }),
     get: protectedProcedure.input(z.object({ id: z.number() })).query(({ input }) => getOrgById(input.id)),
     getBySlug: protectedProcedure.input(z.object({ slug: z.string() })).query(({ input }) => getOrgBySlug(input.slug)),

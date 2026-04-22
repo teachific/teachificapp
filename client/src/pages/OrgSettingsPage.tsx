@@ -200,12 +200,6 @@ export default function OrgSettingsPage() {
   const subdomainChanged = debouncedSlug !== orgCtx?.org?.slug;
 
   const uploadLogo = trpc.orgs.uploadLogo.useMutation({
-    onSuccess: (data) => {
-      setLogoUrl(data.fileUrl);
-      setLogoPreview(data.fileUrl);
-      utils.orgs.myContext.invalidate();
-      toast.success("Logo uploaded successfully");
-    },
     onError: (e) => toast.error(e.message),
   });
 
@@ -222,10 +216,18 @@ export default function OrgSettingsPage() {
     if (file.size > 2 * 1024 * 1024) { toast.error("Favicon must be under 2 MB"); return; }
     setFaviconUploading(true);
     try {
-      const { uploadUrl, fileUrl } = await uploadFavicon.mutateAsync({ fileName: file.name, contentType: file.type || "image/x-icon" });
-      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/x-icon" } });
+      const orgId = orgCtx?.org?.id;
+      if (!orgId) throw new Error("No org found");
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("orgId", String(orgId));
+      formData.append("folder", "branding");
+      const res = await fetch("/api/media-upload", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) { const e = await res.json().catch(() => ({ error: res.statusText })); throw new Error(e.error ?? "Upload failed"); }
+      const { url: fileUrl } = await res.json();
+      await uploadFavicon.mutateAsync({ fileName: file.name, contentType: file.type || "image/x-icon", fileUrl });
       setFaviconUrl(fileUrl);
-      utils.lms.themes.get.invalidate({ orgId: orgCtx?.org?.id! });
+      utils.lms.themes.get.invalidate({ orgId });
       toast.success("Favicon uploaded!");
     } catch (err: any) {
       toast.error(err?.message || "Upload failed");
@@ -241,10 +243,18 @@ export default function OrgSettingsPage() {
     if (file.size > 5 * 1024 * 1024) { toast.error("Logo must be under 5 MB"); return; }
     setSiteLogoUploading(true);
     try {
-      const { uploadUrl, fileUrl } = await uploadSiteLogo.mutateAsync({ fileName: file.name, contentType: file.type || "image/png" });
-      await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/png" } });
+      const orgId = orgCtx?.org?.id;
+      if (!orgId) throw new Error("No org found");
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("orgId", String(orgId));
+      formData.append("folder", "branding");
+      const res = await fetch("/api/media-upload", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) { const e = await res.json().catch(() => ({ error: res.statusText })); throw new Error(e.error ?? "Upload failed"); }
+      const { url: fileUrl } = await res.json();
+      await uploadSiteLogo.mutateAsync({ fileName: file.name, contentType: file.type || "image/png", fileUrl });
       setSiteLogoUrl(fileUrl);
-      utils.lms.themes.get.invalidate({ orgId: orgCtx?.org?.id! });
+      utils.lms.themes.get.invalidate({ orgId });
       toast.success("Site logo uploaded!");
     } catch (err: any) {
       toast.error(err?.message || "Upload failed");
@@ -313,15 +323,16 @@ export default function OrgSettingsPage() {
 
     setLogoUploading(true);
     try {
-      const { uploadUrl, fileUrl } = await uploadLogo.mutateAsync({
-        fileName: file.name,
-        contentType: file.type || "image/png",
-      });
-      await fetch(uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type || "image/png" },
-      });
+      const orgId = orgCtx?.org?.id;
+      if (!orgId) throw new Error("No org found");
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("orgId", String(orgId));
+      formData.append("folder", "branding");
+      const res = await fetch("/api/media-upload", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) { const e = await res.json().catch(() => ({ error: res.statusText })); throw new Error(e.error ?? "Upload failed"); }
+      const { url: fileUrl } = await res.json();
+      await uploadLogo.mutateAsync({ fileName: file.name, contentType: file.type || "image/png", fileUrl });
       setLogoUrl(fileUrl);
       setLogoPreview(fileUrl);
       utils.orgs.myContext.invalidate();

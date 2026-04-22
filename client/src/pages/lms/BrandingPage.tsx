@@ -75,7 +75,6 @@ function LogoUploader({
 }) {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const getUploadUrl = trpc.lms.media.getUploadUrl.useMutation();
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -86,18 +85,21 @@ function LogoUploader({
     }
     setUploading(true);
     try {
-      const { fileUrl } = await getUploadUrl.mutateAsync({
-        orgId,
-        fileName: file.name,
-        contentType: file.type || "image/png",
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("orgId", String(orgId));
+      formData.append("folder", "branding");
+      const res = await fetch("/api/media-upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
       });
-      await fetch(fileUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type || "image/png" },
-      });
-      const cleanUrl = fileUrl.split("?")[0];
-      onChange(cleanUrl);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error ?? "Upload failed");
+      }
+      const { url } = await res.json();
+      onChange(url);
       toast.success("Logo uploaded");
     } catch (err: any) {
       toast.error("Upload failed: " + (err.message ?? "Unknown error"));
