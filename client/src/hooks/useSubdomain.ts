@@ -5,7 +5,7 @@
  * (e.g. allaboutultrasound.teachific.app) and returns the subdomain slug.
  *
  * Returns null when running on the root domain (teachific.app, www.teachific.app,
- * localhost, or any Manus preview URL).
+ * localhost, Railway preview URLs, or any Manus preview URL).
  */
 
 const ROOT_DOMAINS = new Set([
@@ -18,23 +18,35 @@ const ROOT_DOMAINS = new Set([
 // Manus preview domains follow the pattern: *.manus.space or *.manus.computer
 const MANUS_PREVIEW_PATTERN = /\.manus\.(space|computer)$/;
 
+// Railway preview domains follow the pattern: *.up.railway.app
+const RAILWAY_PREVIEW_PATTERN = /\.up\.railway\.app$/;
+
+// Any domain that is NOT teachific.app (or a subdomain of it) should be treated
+// as a root domain — this covers Railway URLs, custom domains not yet mapped, etc.
+function isTeachificSubdomain(hostname: string): boolean {
+  // Must end with .teachific.app and have something before it
+  return hostname.endsWith(".teachific.app") && hostname !== "teachific.app" && hostname !== "www.teachific.app";
+}
+
 export function getSubdomain(): string | null {
   const hostname = window.location.hostname;
 
-  // Never treat root domains or Manus preview URLs as subdomains
+  // Never treat root domains or Manus/Railway preview URLs as subdomains
   if (ROOT_DOMAINS.has(hostname)) return null;
   if (MANUS_PREVIEW_PATTERN.test(hostname)) return null;
+  if (RAILWAY_PREVIEW_PATTERN.test(hostname)) return null;
 
-  // Split hostname into parts: ["allaboutultrasound", "teachific", "app"]
-  const parts = hostname.split(".");
+  // Only treat as a subdomain if it's actually a subdomain of teachific.app
+  if (!isTeachificSubdomain(hostname)) return null;
 
-  // We need at least 3 parts for a subdomain (sub.domain.tld)
-  if (parts.length < 3) return null;
-
-  const sub = parts[0];
+  // Extract the subdomain part: "allaboutultrasound" from "allaboutultrasound.teachific.app"
+  const sub = hostname.replace(/\.teachific\.app$/, "");
 
   // Exclude "www" as a valid org subdomain
   if (sub === "www") return null;
+
+  // Subdomain must be a simple slug (no dots)
+  if (sub.includes(".")) return null;
 
   return sub;
 }
@@ -46,11 +58,15 @@ export function useSubdomain(): string | null {
 
 /**
  * Returns true if the current environment supports real subdomains
- * (i.e. we're on teachific.app, not localhost or a Manus preview URL).
+ * (i.e. we're on teachific.app, not localhost or a preview URL).
  */
 export function supportsSubdomains(): boolean {
   const hostname = window.location.hostname;
-  return !ROOT_DOMAINS.has(hostname) && !MANUS_PREVIEW_PATTERN.test(hostname) && hostname !== "localhost" && hostname !== "127.0.0.1";
+  return (
+    hostname === "teachific.app" ||
+    hostname === "www.teachific.app" ||
+    isTeachificSubdomain(hostname)
+  );
 }
 
 /**
@@ -63,17 +79,17 @@ export function getOrgSubdomainUrl(slug: string, path = ""): string {
   const protocol = window.location.protocol;
   const port = window.location.port;
 
-  // On localhost or Manus preview, can't use real subdomains — use /school/:slug fallback
+  // On localhost, Manus preview, or Railway preview — use /school/:slug fallback
   if (
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
-    MANUS_PREVIEW_PATTERN.test(hostname)
+    MANUS_PREVIEW_PATTERN.test(hostname) ||
+    RAILWAY_PREVIEW_PATTERN.test(hostname)
   ) {
     const portSuffix = port ? `:${port}` : "";
     return `${protocol}//${hostname}${portSuffix}/school/${slug}${path}`;
   }
 
   // On root domain (teachific.app or www.teachific.app), build the subdomain URL
-  const rootDomain = hostname.replace(/^www\./, "");
-  return `${protocol}//${slug}.${rootDomain}${path}`;
+  return `${protocol}//${slug}.teachific.app${path}`;
 }
