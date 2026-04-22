@@ -120,27 +120,29 @@ export default function SchoolPage({ subdomainOrg }: { subdomainOrg?: string } =
     : (orgs?.[0]?.id ?? undefined);
 
   // ── Data queries (all keyed on orgId) ────────────────────────────────────
-  // Use public procedures when no user is logged in (avoids OAuth redirect for public visitors)
+  // When visiting via a subdomain (orgSlug present), always use the public slug-based procedures.
+  // This avoids race conditions where orgId hasn't resolved yet and ensures learners always see
+  // published courses regardless of auth state. The admin LMS dashboard uses separate routes.
   const { data: publicCourses, isLoading: publicCoursesLoading } = trpc.lms.publicSchool.coursesBySlug.useQuery(
     { slug: orgSlug! },
-    { enabled: !!orgSlug && !user }
+    { enabled: !!orgSlug }
   );
   const { data: authedCourses, isLoading: authedCoursesLoading } = trpc.lms.courses.list.useQuery(
     { orgId: orgId! },
-    { enabled: !!orgId && !!user }
+    { enabled: !!orgId && !!user && !orgSlug }
   );
-  const courses = user ? authedCourses : (orgSlug ? publicCourses : undefined);
-  const coursesLoading = user ? authedCoursesLoading : publicCoursesLoading;
+  const courses = orgSlug ? publicCourses : (user ? authedCourses : undefined);
+  const coursesLoading = orgSlug ? publicCoursesLoading : authedCoursesLoading;
 
   const { data: publicTheme } = trpc.lms.publicSchool.themeBySlug.useQuery(
     { slug: orgSlug! },
-    { enabled: !!orgSlug && !user }
+    { enabled: !!orgSlug }
   );
   const { data: authedTheme } = trpc.lms.themes.get.useQuery(
     { orgId: orgId! },
-    { enabled: !!orgId && !!user }
+    { enabled: !!orgId && !!user && !orgSlug }
   );
-  const theme = user ? authedTheme : publicTheme;
+  const theme = orgSlug ? publicTheme : (user ? authedTheme : undefined);
 
   // ── Legal docs: use slug-based endpoint when slug is present ─────────────
   const { data: legalDocsBySlug } = trpc.orgs.publicLegalDocsBySlug.useQuery(
