@@ -1431,7 +1431,7 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, onSave, isSav
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-    <div className="flex h-full bg-slate-100 overflow-hidden">
+    <div className="flex h-screen bg-slate-100 overflow-hidden">
       {/* ── Left Sidebar: Element Library ────────────────────────────────── */}
       <div className={`flex flex-col bg-white border-r border-border transition-all duration-200 shrink-0 ${sidebarCollapsed ? "w-10" : "w-52"}`}>
         {/* Sidebar header */}
@@ -1535,7 +1535,7 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, onSave, isSav
       </div>
 
       {/* ── Right Panel: Properties ─────────────────────────────────────────── */}
-      <div className={`flex flex-col bg-white border-l border-border transition-all duration-200 shrink-0 ${propsPanelCollapsed ? "w-10" : "w-72"}`}>
+      <div className={`flex flex-col bg-white border-l border-border transition-all duration-200 shrink-0 ${propsPanelCollapsed ? "w-10" : "w-80"}`}>
         {/* Panel header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
           {!propsPanelCollapsed && (

@@ -112,7 +112,7 @@ export default function PageBuilderPage() {
   const previewUrl = page?.slug ? `/p/${page.slug}` : null;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background">
+    <div className="flex flex-col h-screen overflow-hidden bg-background w-screen">
       {/* ─── Top Bar ─────────────────────────────────────────────────────────── */}
       <div className="h-12 border-b border-border flex items-center justify-between px-3 shrink-0 bg-white z-20 shadow-sm">
         {/* Left: Back + title */}

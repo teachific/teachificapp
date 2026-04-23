@@ -394,8 +394,8 @@ function SubdomainSchoolRouter({ subdomain }: { subdomain: string }) {
         <Route path="/lms/my-courses">{() => <DashboardLayout><MyCoursesPage /></DashboardLayout>}</Route>
         <Route path="/lms/my-certificates">{() => <DashboardLayout><MyCertificatesPage /></DashboardLayout>}</Route>
         <Route path="/lms/custom-pages">{() => <DashboardLayout><CustomPagesPage /></DashboardLayout>}</Route>
-        <Route path="/lms/page-builder/:pageId">{() => <DashboardLayout><PageBuilderPage /></DashboardLayout>}</Route>
-        <Route path="/lms/courses/:courseId/page-builder">{() => <DashboardLayout><PageBuilderPage /></DashboardLayout>}</Route>
+        <Route path="/lms/page-builder/:pageId" component={PageBuilderPage} />
+        <Route path="/lms/courses/:courseId/page-builder" component={PageBuilderPage} />
 
         {/* ── Learner / public routes ── */}
         <Route path="/learn/:courseId/overview" component={CourseOverviewPage} />
