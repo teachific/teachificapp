@@ -29,6 +29,7 @@ import {
   useSensors,
   closestCenter,
   useDroppable,
+  useDraggable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -124,6 +125,8 @@ const BLOCK_DEFAULTS: Record<BlockType, Record<string, any>> = {
     ctaUrl: "#",
     ctaSecondaryText: "",
     ctaSecondaryUrl: "",
+    ctaBgColor: "#6366f1",
+    ctaTextColor: "#ffffff",
     backgroundType: "color",
     backgroundColor: "#1e293b",
     backgroundImageUrl: "",
@@ -142,6 +145,8 @@ const BLOCK_DEFAULTS: Record<BlockType, Record<string, any>> = {
     imageAlt: "",
     ctaText: "",
     ctaUrl: "",
+    ctaBgColor: "#6366f1",
+    ctaTextColor: "#ffffff",
     backgroundColor: "#ffffff",
     textColor: "#1e293b",
   },
@@ -160,6 +165,8 @@ const BLOCK_DEFAULTS: Record<BlockType, Record<string, any>> = {
     ctaText: "Start Learning",
     ctaUrl: "#",
     ctaStyle: "primary",
+    ctaBgColor: "#6366f1",
+    ctaTextColor: "#ffffff",
     backgroundType: "color",
     backgroundColor: "#0f172a",
     backgroundImageUrl: "",
@@ -435,7 +442,7 @@ function TextMediaCanvas({ data, onChange }: { data: Record<string, any>; onChan
         <div style={{ flex: 1 }}>
           <InlineText tag="h2" value={data.headline} onChange={v => onChange({ ...data, headline: v })} style={{ color: data.textColor || "#1e293b", fontSize: "1.875rem", fontWeight: 700, marginBottom: "16px" }} placeholder="Headline…" />
           <InlineText tag="p" value={data.body} onChange={v => onChange({ ...data, body: v })} style={{ color: data.textColor || "#1e293b", lineHeight: "1.7", opacity: 0.85 }} placeholder="Body text…" multiline />
-          {data.ctaText && <a href={data.ctaUrl || "#"} style={{ display: "inline-block", marginTop: "24px", backgroundColor: "#6366f1", color: "#fff", padding: "10px 24px", borderRadius: "8px", textDecoration: "none", fontWeight: 600 }}>{data.ctaText}</a>}
+          {data.ctaText && <a href={data.ctaUrl || "#"} style={{ display: "inline-block", marginTop: "24px", backgroundColor: data.ctaBgColor || "#6366f1", color: data.ctaTextColor || "#fff", padding: "10px 24px", borderRadius: "8px", textDecoration: "none", fontWeight: 600 }}>{data.ctaText}</a>}
         </div>
         <div style={{ flex: 1 }}>
           {data.imageUrl ? (
@@ -464,7 +471,7 @@ function CTACanvas({ data, onChange }: { data: Record<string, any>; onChange: (d
       <div style={{ position: "relative", zIndex: 2 }}>
         <InlineText tag="h2" value={data.headline} onChange={v => onChange({ ...data, headline: v })} style={{ color: data.textColor || "#fff", fontSize: "2rem", fontWeight: 700, marginBottom: "12px" }} placeholder="CTA Headline…" />
         <InlineText tag="p" value={data.subtext} onChange={v => onChange({ ...data, subtext: v })} style={{ color: data.textColor || "#fff", opacity: 0.8, marginBottom: "32px", fontSize: "1.125rem" }} placeholder="Supporting text…" multiline />
-        <InlineText tag="span" value={data.ctaText || "Get Started"} onChange={v => onChange({ ...data, ctaText: v })} style={{ backgroundColor: "#6366f1", color: "#fff", padding: "14px 36px", borderRadius: "8px", fontWeight: 700, fontSize: "1.125rem", display: "inline-block" }} placeholder="Button text…" />
+        <InlineText tag="span" value={data.ctaText || "Get Started"} onChange={v => onChange({ ...data, ctaText: v })} style={{ backgroundColor: data.ctaBgColor || "#6366f1", color: data.ctaTextColor || "#fff", padding: "14px 36px", borderRadius: "8px", fontWeight: 700, fontSize: "1.125rem", display: "inline-block" }} placeholder="Button text…" />
       </div>
     </div>
   );
@@ -857,6 +864,8 @@ function PropertiesPanel({ block, onChange, onDelete, onDuplicate, onToggleVisib
             <TextProp label="Subtext" field="subtext" data={d} onChange={onChange} multiline placeholder="Supporting text…" />
             <TextProp label="CTA Button Text" field="ctaText" data={d} onChange={onChange} placeholder="Enroll Now" />
             <TextProp label="CTA Button URL" field="ctaUrl" data={d} onChange={onChange} placeholder="https://…" />
+            <ColorProp label="Button Color" field="ctaBgColor" data={d} onChange={onChange} />
+            <ColorProp label="Button Text Color" field="ctaTextColor" data={d} onChange={onChange} />
             <Separator />
             <SelectProp label="Background Type" field="backgroundType" data={d} onChange={onChange} options={[{ value: "color", label: "Color" }, { value: "image", label: "Image" }, { value: "video", label: "Video" }]} />
             {d.backgroundType === "color" && <ColorProp label="Background Color" field="backgroundColor" data={d} onChange={onChange} />}
@@ -872,6 +881,8 @@ function PropertiesPanel({ block, onChange, onDelete, onDuplicate, onToggleVisib
             <TextProp label="Body Text" field="body" data={d} onChange={onChange} multiline />
             <TextProp label="CTA Text" field="ctaText" data={d} onChange={onChange} />
             <TextProp label="CTA URL" field="ctaUrl" data={d} onChange={onChange} placeholder="https://…" />
+            <ColorProp label="Button Color" field="ctaBgColor" data={d} onChange={onChange} />
+            <ColorProp label="Button Text Color" field="ctaTextColor" data={d} onChange={onChange} />
             <Separator />
             <ImageUploadProp label="Image" field="imageUrl" data={d} onChange={onChange} orgId={orgId} />
             <SelectProp label="Image Position" field="imagePosition" data={d} onChange={onChange} options={[{ value: "right", label: "Right" }, { value: "left", label: "Left" }]} />
@@ -885,6 +896,8 @@ function PropertiesPanel({ block, onChange, onDelete, onDuplicate, onToggleVisib
             <TextProp label="Subtext" field="subtext" data={d} onChange={onChange} multiline />
             <TextProp label="Button Text" field="ctaText" data={d} onChange={onChange} />
             <TextProp label="Button URL" field="ctaUrl" data={d} onChange={onChange} placeholder="https://…" />
+            <ColorProp label="Button Color" field="ctaBgColor" data={d} onChange={onChange} />
+            <ColorProp label="Button Text Color" field="ctaTextColor" data={d} onChange={onChange} />
             <Separator />
             <SelectProp label="Background Type" field="backgroundType" data={d} onChange={onChange} options={[{ value: "color", label: "Color" }, { value: "image", label: "Image" }]} />
             {d.backgroundType === "color" && <ColorProp label="Background Color" field="backgroundColor" data={d} onChange={onChange} />}
@@ -1170,11 +1183,18 @@ function CanvasDropZone({ children, isEmpty }: { children: React.ReactNode; isEm
 // ─── Draggable Element Tile (sidebar) ─────────────────────────────────────────
 
 function ElementTile({ type, label, icon: Icon, onAdd }: { type: BlockType; label: string; icon: React.ComponentType<any>; onAdd: (type: BlockType) => void }) {
+  const id = `tile-${type}`;
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id,
+    data: { isElementTile: true, blockType: type },
+  });
   return (
     <button
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
       onClick={() => onAdd(type)}
-      draggable
-      className="w-full flex flex-col items-center gap-1.5 p-3 rounded-xl border border-border bg-background hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-all group cursor-grab active:cursor-grabbing text-center"
+      className={`w-full flex flex-col items-center gap-1.5 p-3 rounded-xl border border-border bg-background hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-all group cursor-grab active:cursor-grabbing text-center ${isDragging ? "opacity-50 border-indigo-400" : ""}`}
       title={`Add ${label}`}
     >
       <Icon size={20} className="text-muted-foreground group-hover:text-indigo-500 transition-colors" />
@@ -1306,8 +1326,14 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, onSave, isSav
   const categoryElements = ELEMENT_LIBRARY.filter(e => e.category === activeCategory);
 
   return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
     <div className="flex h-full bg-slate-100 overflow-hidden">
-      {/* ── Left Sidebar: Element Library ─────────────────────────────────── */}
+      {/* ── Left Sidebar: Element Library ────────────────────────────────── */}
       <div className={`flex flex-col bg-white border-r border-border transition-all duration-200 shrink-0 ${sidebarCollapsed ? "w-10" : "w-52"}`}>
         {/* Sidebar header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
@@ -1374,18 +1400,12 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, onSave, isSav
           </button>
         </div>
       )}
-      {/* ── Center: Canvas ─────────────────────────────────────────────────── */}
+      {/* ── Center: Canvas ─────────────────────────────────────────────────────── */}
       <div
         id="wysiwyg-canvas"
         className="flex-1 overflow-auto"
         onClick={() => setSelectedId(null)}
       >
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
           <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
             <CanvasDropZone isEmpty={blocks.length === 0}>
               {blocks.map(block => (
@@ -1409,11 +1429,10 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, onSave, isSav
           <DragOverlay>
             {activeId && (
               <div className="bg-white rounded-lg shadow-2xl border-2 border-indigo-500 p-3 opacity-90 text-sm font-medium text-indigo-700">
-                Moving section…
+                {(activeId as string).startsWith("tile-") ? "Drop to add section…" : "Moving section…"}
               </div>
             )}
           </DragOverlay>
-        </DndContext>
       </div>
 
       {/* ── Right Panel: Properties ─────────────────────────────────────────── */}
@@ -1457,5 +1476,6 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, onSave, isSav
         )}
       </div>
     </div>
+    </DndContext>
   );
 }
