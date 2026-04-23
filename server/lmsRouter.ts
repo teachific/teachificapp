@@ -327,6 +327,24 @@ export const lmsRouter = router({
           orgName: org.name,
         };
       }),
+
+    // Returns the published school_home page builder blocks for a school subdomain
+    homePageBySlug: publicProcedure
+      .input(z.object({ slug: z.string() }))
+      .query(async ({ input }) => {
+        const org = await getOrgBySlug(input.slug);
+        if (!org) return null;
+        const pages = await getPagesByOrg(org.id);
+        const homePage = pages.find((p: any) => p.pageType === "school_home" && p.isPublished);
+        if (!homePage) return null;
+        let blocks: any[] = [];
+        try {
+          blocks = homePage.blocksJson ? JSON.parse(homePage.blocksJson) : [];
+        } catch {
+          blocks = [];
+        }
+        return { pageId: homePage.id, blocks };
+      }),
   }),
 
   // ── Courses ──────────────────────────────────────────────────────────────

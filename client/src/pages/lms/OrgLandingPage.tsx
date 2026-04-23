@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useOrgBranding } from "@/hooks/useOrgBranding";
+import { renderBlockPreview } from "@/components/PageBuilder";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -143,6 +144,12 @@ export default function OrgLandingPage({ subdomainOrg, fallback }: { subdomainOr
     { enabled: !!landingData?.org?.id && (landingData?.showCourses ?? true), staleTime: 60_000 }
   );
 
+  // Fetch page-builder school_home page if one exists
+  const { data: homePage } = trpc.lms.publicSchool.homePageBySlug.useQuery(
+    { slug: subdomainOrg },
+    { staleTime: 60_000 }
+  );
+
   // Fetch org theme for favicon/logo injection
   const { data: orgTheme } = trpc.lms.publicSchool.themeBySlug.useQuery(
     { slug: subdomainOrg },
@@ -170,6 +177,19 @@ export default function OrgLandingPage({ subdomainOrg, fallback }: { subdomainOr
           <Skeleton className="h-6 w-1/2 bg-white/10" />
           <Skeleton className="h-10 w-40 bg-white/10" />
         </div>
+      </div>
+    );
+  }
+
+  // If a published page-builder school_home page exists, render it instead
+  if (homePage && homePage.blocks && homePage.blocks.length > 0) {
+    return (
+      <div className="min-h-screen">
+        {homePage.blocks
+          .filter((b: any) => b.visible !== false)
+          .map((block: any) => (
+            <div key={block.id}>{renderBlockPreview(block)}</div>
+          ))}
       </div>
     );
   }
