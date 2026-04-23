@@ -1314,6 +1314,28 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, onSave, isSav
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
+
+    // Case 1: ElementTile dragged from sidebar — add a new block
+    if (active.data.current?.isElementTile) {
+      const blockType = active.data.current.blockType as BlockType;
+      if (over) {
+        // If dropped over an existing block, insert before it; otherwise append
+        const targetIdx = blocks.findIndex(b => b.id === over.id);
+        const defaults = BLOCK_DEFAULTS[blockType] ?? {};
+        const newBlock: Block = { id: nanoid(8), type: blockType, data: defaults, visible: true };
+        if (targetIdx !== -1) {
+          const updated = [...blocks];
+          updated.splice(targetIdx, 0, newBlock);
+          updateBlocks(updated);
+        } else {
+          updateBlocks([...blocks, newBlock]);
+        }
+        setSelectedId(newBlock.id);
+      }
+      return;
+    }
+
+    // Case 2: Reorder existing blocks
     if (!over || active.id === over.id) return;
     const oldIdx = blocks.findIndex(b => b.id === active.id);
     const newIdx = blocks.findIndex(b => b.id === over.id);
