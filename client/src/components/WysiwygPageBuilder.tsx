@@ -719,7 +719,7 @@ function ChecklistStepsCanvas({ data, onChange }: { data: Record<string, any>; o
 
 // Master canvas block renderer
 function renderCanvasBlock(block: Block, onChange: (d: Record<string, any>) => void) {
-  const p = { data: block.data, onChange };
+  const p = { data: block.data ?? {}, onChange };
   switch (block.type) {
     case "banner": return <BannerCanvas {...p} />;
     case "text_media": return <TextMediaCanvas {...p} />;
@@ -835,7 +835,7 @@ function PropertiesPanel({ block, onChange, onDelete, onDuplicate, onToggleVisib
   courses: { id: number; title: string }[];
   orgId?: number;
 }) {
-  const d = block.data;
+  const d = block.data ?? {};
   const set = (key: string, val: any) => onChange({ ...d, [key]: val });
   const libEntry = ELEMENT_LIBRARY.find(e => e.type === block.type);
 

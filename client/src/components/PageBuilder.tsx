@@ -751,25 +751,26 @@ function FeatureGridPreview({ data }: { data: Record<string, any> }) {
 }
 
 export function renderBlockPreview(block: Block) {
+  const safeData = block.data ?? {};
   switch (block.type) {
-    case "banner": return <BannerPreview data={block.data} />;
-    case "text_media": return <TextMediaPreview data={block.data} />;
-    case "image": return <ImagePreview data={block.data} />;
-    case "cta": return <CTAPreview data={block.data} />;
-    case "course_outline": return <CourseOutlinePreview data={block.data} />;
-    case "video": return <VideoPreview data={block.data} />;
-    case "testimonials": return <TestimonialsPreview data={block.data} />;
-    case "pricing": return <PricingPreview data={block.data} />;
-    case "checklist": return <ChecklistPreview data={block.data} />;
-    case "html": return <HtmlPreview data={block.data} />;
-    case "spacer": return <SpacerPreview data={block.data} />;
-    case "divider": return <DividerPreview data={block.data} />;
-    case "bg_section": return <BgSectionPreview data={block.data} />;
-    case "button": return <ButtonPreview data={block.data} />;
-    case "icon_list": return <IconListPreview data={block.data} />;
-    case "numbered_steps": return <NumberedStepsPreview data={block.data} />;
-    case "checklist_steps": return <ChecklistStepsPreview data={block.data} />;
-    case "feature_grid": return <FeatureGridPreview data={block.data} />;
+    case "banner": return <BannerPreview data={safeData} />;
+    case "text_media": return <TextMediaPreview data={safeData} />;
+    case "image": return <ImagePreview data={safeData} />;
+    case "cta": return <CTAPreview data={safeData} />;
+    case "course_outline": return <CourseOutlinePreview data={safeData} />;
+    case "video": return <VideoPreview data={safeData} />;
+    case "testimonials": return <TestimonialsPreview data={safeData} />;
+    case "pricing": return <PricingPreview data={safeData} />;
+    case "checklist": return <ChecklistPreview data={safeData} />;
+    case "html": return <HtmlPreview data={safeData} />;
+    case "spacer": return <SpacerPreview data={safeData} />;
+    case "divider": return <DividerPreview data={safeData} />;
+    case "bg_section": return <BgSectionPreview data={safeData} />;
+    case "button": return <ButtonPreview data={safeData} />;
+    case "icon_list": return <IconListPreview data={safeData} />;
+    case "numbered_steps": return <NumberedStepsPreview data={safeData} />;
+    case "checklist_steps": return <ChecklistStepsPreview data={safeData} />;
+    case "feature_grid": return <FeatureGridPreview data={safeData} />;
     default: return null;
   }
 }
