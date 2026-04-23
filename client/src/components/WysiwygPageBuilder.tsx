@@ -131,6 +131,9 @@ const BLOCK_DEFAULTS: Record<BlockType, Record<string, any>> = {
     backgroundColor: "#1e293b",
     backgroundImageUrl: "",
     backgroundVideoUrl: "",
+    gradientFrom: "#1e293b",
+    gradientTo: "#6366f1",
+    gradientDirection: "to bottom right",
     textColor: "#ffffff",
     height: "large",
     alignment: "center",
@@ -147,7 +150,12 @@ const BLOCK_DEFAULTS: Record<BlockType, Record<string, any>> = {
     ctaUrl: "",
     ctaBgColor: "#6366f1",
     ctaTextColor: "#ffffff",
+    backgroundType: "color",
     backgroundColor: "#ffffff",
+    backgroundImageUrl: "",
+    gradientFrom: "#ffffff",
+    gradientTo: "#e0e7ff",
+    gradientDirection: "to bottom right",
     textColor: "#1e293b",
   },
   image: {
@@ -170,6 +178,10 @@ const BLOCK_DEFAULTS: Record<BlockType, Record<string, any>> = {
     backgroundType: "color",
     backgroundColor: "#0f172a",
     backgroundImageUrl: "",
+    backgroundVideoUrl: "",
+    gradientFrom: "#0f172a",
+    gradientTo: "#6366f1",
+    gradientDirection: "to bottom right",
     textColor: "#ffffff",
     alignment: "center",
     overlay: true,
@@ -228,7 +240,13 @@ const BLOCK_DEFAULTS: Record<BlockType, Record<string, any>> = {
   bg_section: {
     headline: "Our Mission",
     body: "We believe in empowering learners with the best education possible.",
+    backgroundType: "image",
+    backgroundColor: "#1e293b",
     backgroundImageUrl: "",
+    backgroundVideoUrl: "",
+    gradientFrom: "#1e293b",
+    gradientTo: "#6366f1",
+    gradientDirection: "to bottom right",
     overlay: true,
     overlayOpacity: 0.6,
     textColor: "#ffffff",
@@ -387,13 +405,19 @@ function InlineText({
   );
 }
 
+// Helper to compute background style from block data
+function getBgStyle(data: Record<string, any>, fallback = "#1e293b"): React.CSSProperties {
+  const type = data.backgroundType ?? "color";
+  if (type === "image" && data.backgroundImageUrl) return { backgroundImage: `url(${data.backgroundImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" };
+  if (type === "gradient") return { background: `linear-gradient(${data.gradientDirection || "to bottom right"}, ${data.gradientFrom || fallback}, ${data.gradientTo || "#6366f1"})` };
+  if (type === "video") return { backgroundColor: "#000" };
+  return { backgroundColor: data.backgroundColor || fallback };
+}
+
 // Banner canvas block
 function BannerCanvas({ data, onChange }: { data: Record<string, any>; onChange: (d: Record<string, any>) => void }) {
   const isVideo = data.backgroundType === "video" && data.backgroundVideoUrl;
-  const bg = data.backgroundType === "image" && data.backgroundImageUrl
-    ? { backgroundImage: `url(${data.backgroundImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
-    : isVideo ? { backgroundColor: "#000" }
-    : { backgroundColor: data.backgroundColor || "#1e293b" };
+  const bg = getBgStyle(data, "#1e293b");
   const heights: Record<string, string> = { small: "200px", medium: "320px", large: "480px" };
 
   return (
@@ -436,8 +460,9 @@ function BannerCanvas({ data, onChange }: { data: Record<string, any>; onChange:
 
 function TextMediaCanvas({ data, onChange }: { data: Record<string, any>; onChange: (d: Record<string, any>) => void }) {
   const isRight = data.imagePosition !== "left";
+  const bg = getBgStyle(data, "#ffffff");
   return (
-    <div style={{ backgroundColor: data.backgroundColor || "#fff", padding: "60px 40px" }}>
+    <div style={{ ...bg, padding: "60px 40px" }}>
       <div style={{ display: "flex", gap: "48px", alignItems: "center", flexDirection: isRight ? "row" : "row-reverse", maxWidth: "1100px", margin: "0 auto" }}>
         <div style={{ flex: 1 }}>
           <InlineText tag="h2" value={data.headline} onChange={v => onChange({ ...data, headline: v })} style={{ color: data.textColor || "#1e293b", fontSize: "1.875rem", fontWeight: 700, marginBottom: "16px" }} placeholder="Headline…" />
@@ -462,12 +487,12 @@ function TextMediaCanvas({ data, onChange }: { data: Record<string, any>; onChan
 }
 
 function CTACanvas({ data, onChange }: { data: Record<string, any>; onChange: (d: Record<string, any>) => void }) {
-  const bg = data.backgroundType === "image" && data.backgroundImageUrl
-    ? { backgroundImage: `url(${data.backgroundImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
-    : { backgroundColor: data.backgroundColor || "#0f172a" };
+  const isVideo = data.backgroundType === "video" && data.backgroundVideoUrl;
+  const bg = getBgStyle(data, "#0f172a");
   return (
     <div style={{ ...bg, padding: "80px 40px", textAlign: data.alignment || "center", position: "relative" }}>
-      {data.backgroundType === "image" && data.overlay && <div style={{ position: "absolute", inset: 0, backgroundColor: `rgba(0,0,0,${data.overlayOpacity ?? 0.5})`, zIndex: 1 }} />}
+      {isVideo && <video autoPlay muted loop playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }} src={data.backgroundVideoUrl} />}
+      {(data.backgroundType === "image" || isVideo) && data.overlay && <div style={{ position: "absolute", inset: 0, backgroundColor: `rgba(0,0,0,${data.overlayOpacity ?? 0.5})`, zIndex: 1 }} />}
       <div style={{ position: "relative", zIndex: 2 }}>
         <InlineText tag="h2" value={data.headline} onChange={v => onChange({ ...data, headline: v })} style={{ color: data.textColor || "#fff", fontSize: "2rem", fontWeight: 700, marginBottom: "12px" }} placeholder="CTA Headline…" />
         <InlineText tag="p" value={data.subtext} onChange={v => onChange({ ...data, subtext: v })} style={{ color: data.textColor || "#fff", opacity: 0.8, marginBottom: "32px", fontSize: "1.125rem" }} placeholder="Supporting text…" multiline />
@@ -533,12 +558,12 @@ function ChecklistCanvas({ data, onChange }: { data: Record<string, any>; onChan
 }
 
 function BgSectionCanvas({ data, onChange }: { data: Record<string, any>; onChange: (d: Record<string, any>) => void }) {
-  const bg = data.backgroundImageUrl
-    ? { backgroundImage: `url(${data.backgroundImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
-    : { backgroundColor: "#334155" };
+  const isVideo = data.backgroundType === "video" && data.backgroundVideoUrl;
+  const bg = getBgStyle(data, "#334155");
   return (
     <div style={{ ...bg, padding: `${data.paddingY || 80}px 40px`, textAlign: data.alignment || "center", position: "relative" }}>
-      {data.overlay && <div style={{ position: "absolute", inset: 0, backgroundColor: `rgba(0,0,0,${data.overlayOpacity ?? 0.6})`, zIndex: 1 }} />}
+      {isVideo && <video autoPlay muted loop playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }} src={data.backgroundVideoUrl} />}
+      {(data.backgroundType === "image" || isVideo || !data.backgroundType) && data.overlay && <div style={{ position: "absolute", inset: 0, backgroundColor: `rgba(0,0,0,${data.overlayOpacity ?? 0.6})`, zIndex: 1 }} />}
       <div style={{ position: "relative", zIndex: 2, maxWidth: "800px", margin: "0 auto" }}>
         <InlineText tag="h2" value={data.headline} onChange={v => onChange({ ...data, headline: v })} style={{ color: data.textColor || "#fff", fontSize: "2rem", fontWeight: 700, marginBottom: "16px" }} placeholder="Headline…" />
         <InlineText tag="p" value={data.body} onChange={v => onChange({ ...data, body: v })} style={{ color: data.textColor || "#fff", opacity: 0.9, lineHeight: "1.7", fontSize: "1.125rem" }} placeholder="Body text…" multiline />
@@ -867,10 +892,24 @@ function PropertiesPanel({ block, onChange, onDelete, onDuplicate, onToggleVisib
             <ColorProp label="Button Color" field="ctaBgColor" data={d} onChange={onChange} />
             <ColorProp label="Button Text Color" field="ctaTextColor" data={d} onChange={onChange} />
             <Separator />
-            <SelectProp label="Background Type" field="backgroundType" data={d} onChange={onChange} options={[{ value: "color", label: "Color" }, { value: "image", label: "Image" }, { value: "video", label: "Video" }]} />
+            <SelectProp label="Background Type" field="backgroundType" data={d} onChange={onChange} options={[{ value: "color", label: "Color" }, { value: "gradient", label: "Gradient" }, { value: "image", label: "Image" }, { value: "video", label: "Video" }]} />
             {d.backgroundType === "color" && <ColorProp label="Background Color" field="backgroundColor" data={d} onChange={onChange} />}
-            {d.backgroundType === "image" && <ImageUploadProp label="Background Image" field="backgroundImageUrl" data={d} onChange={onChange} orgId={orgId} />}
-            {d.backgroundType === "video" && <TextProp label="Background Video URL" field="backgroundVideoUrl" data={d} onChange={onChange} placeholder="https://…" />}
+            {d.backgroundType === "gradient" && <>
+              <ColorProp label="Gradient Start" field="gradientFrom" data={d} onChange={onChange} />
+              <ColorProp label="Gradient End" field="gradientTo" data={d} onChange={onChange} />
+              <SelectProp label="Direction" field="gradientDirection" data={d} onChange={onChange} options={[{ value: "to right", label: "Left → Right" }, { value: "to bottom", label: "Top → Bottom" }, { value: "to bottom right", label: "Diagonal ↘" }, { value: "to bottom left", label: "Diagonal ↙" }]} />
+            </>}
+            {d.backgroundType === "image" && <>
+              <ImageUploadProp label="Background Image" field="backgroundImageUrl" data={d} onChange={onChange} orgId={orgId} />
+              <div className="flex items-center gap-2"><input type="checkbox" checked={!!d.overlay} onChange={e => onChange({ ...d, overlay: e.target.checked })} /><span className="text-xs text-muted-foreground">Overlay</span></div>
+              {d.overlay && <NumberProp label="Overlay Opacity" field="overlayOpacity" data={d} onChange={onChange} min={0} max={1} />}
+            </>
+            }
+            {d.backgroundType === "video" && <>
+              <TextProp label="Background Video URL" field="backgroundVideoUrl" data={d} onChange={onChange} placeholder="https://…" />
+              <div className="flex items-center gap-2"><input type="checkbox" checked={!!d.overlay} onChange={e => onChange({ ...d, overlay: e.target.checked })} /><span className="text-xs text-muted-foreground">Overlay</span></div>
+              {d.overlay && <NumberProp label="Overlay Opacity" field="overlayOpacity" data={d} onChange={onChange} min={0} max={1} />}
+            </>}
             <ColorProp label="Text Color" field="textColor" data={d} onChange={onChange} />
             <SelectProp label="Height" field="height" data={d} onChange={onChange} options={[{ value: "small", label: "Small" }, { value: "medium", label: "Medium" }, { value: "large", label: "Large" }]} />
             <SelectProp label="Alignment" field="alignment" data={d} onChange={onChange} options={[{ value: "left", label: "Left" }, { value: "center", label: "Center" }, { value: "right", label: "Right" }]} />
@@ -887,7 +926,14 @@ function PropertiesPanel({ block, onChange, onDelete, onDuplicate, onToggleVisib
             <ImageUploadProp label="Image" field="imageUrl" data={d} onChange={onChange} orgId={orgId} />
             <SelectProp label="Image Position" field="imagePosition" data={d} onChange={onChange} options={[{ value: "right", label: "Right" }, { value: "left", label: "Left" }]} />
             <Separator />
-            <ColorProp label="Background Color" field="backgroundColor" data={d} onChange={onChange} />
+            <SelectProp label="Background Type" field="backgroundType" data={d} onChange={onChange} options={[{ value: "color", label: "Color" }, { value: "gradient", label: "Gradient" }, { value: "image", label: "Image" }]} />
+            {(d.backgroundType === "color" || !d.backgroundType) && <ColorProp label="Background Color" field="backgroundColor" data={d} onChange={onChange} />}
+            {d.backgroundType === "gradient" && <>
+              <ColorProp label="Gradient Start" field="gradientFrom" data={d} onChange={onChange} />
+              <ColorProp label="Gradient End" field="gradientTo" data={d} onChange={onChange} />
+              <SelectProp label="Direction" field="gradientDirection" data={d} onChange={onChange} options={[{ value: "to right", label: "Left → Right" }, { value: "to bottom", label: "Top → Bottom" }, { value: "to bottom right", label: "Diagonal ↘" }, { value: "to bottom left", label: "Diagonal ↙" }]} />
+            </>}
+            {d.backgroundType === "image" && <ImageUploadProp label="Background Image" field="backgroundImageUrl" data={d} onChange={onChange} orgId={orgId} />}
             <ColorProp label="Text Color" field="textColor" data={d} onChange={onChange} />
           </>}
 
@@ -899,9 +945,23 @@ function PropertiesPanel({ block, onChange, onDelete, onDuplicate, onToggleVisib
             <ColorProp label="Button Color" field="ctaBgColor" data={d} onChange={onChange} />
             <ColorProp label="Button Text Color" field="ctaTextColor" data={d} onChange={onChange} />
             <Separator />
-            <SelectProp label="Background Type" field="backgroundType" data={d} onChange={onChange} options={[{ value: "color", label: "Color" }, { value: "image", label: "Image" }]} />
+            <SelectProp label="Background Type" field="backgroundType" data={d} onChange={onChange} options={[{ value: "color", label: "Color" }, { value: "gradient", label: "Gradient" }, { value: "image", label: "Image" }, { value: "video", label: "Video" }]} />
             {d.backgroundType === "color" && <ColorProp label="Background Color" field="backgroundColor" data={d} onChange={onChange} />}
-            {d.backgroundType === "image" && <ImageUploadProp label="Background Image" field="backgroundImageUrl" data={d} onChange={onChange} orgId={orgId} />}
+            {d.backgroundType === "gradient" && <>
+              <ColorProp label="Gradient Start" field="gradientFrom" data={d} onChange={onChange} />
+              <ColorProp label="Gradient End" field="gradientTo" data={d} onChange={onChange} />
+              <SelectProp label="Direction" field="gradientDirection" data={d} onChange={onChange} options={[{ value: "to right", label: "Left → Right" }, { value: "to bottom", label: "Top → Bottom" }, { value: "to bottom right", label: "Diagonal ↘" }, { value: "to bottom left", label: "Diagonal ↙" }]} />
+            </>}
+            {d.backgroundType === "image" && <>
+              <ImageUploadProp label="Background Image" field="backgroundImageUrl" data={d} onChange={onChange} orgId={orgId} />
+              <div className="flex items-center gap-2"><input type="checkbox" checked={!!d.overlay} onChange={e => onChange({ ...d, overlay: e.target.checked })} /><span className="text-xs text-muted-foreground">Overlay</span></div>
+              {d.overlay && <NumberProp label="Overlay Opacity" field="overlayOpacity" data={d} onChange={onChange} min={0} max={1} />}
+            </>}
+            {d.backgroundType === "video" && <>
+              <TextProp label="Background Video URL" field="backgroundVideoUrl" data={d} onChange={onChange} placeholder="https://…" />
+              <div className="flex items-center gap-2"><input type="checkbox" checked={!!d.overlay} onChange={e => onChange({ ...d, overlay: e.target.checked })} /><span className="text-xs text-muted-foreground">Overlay</span></div>
+              {d.overlay && <NumberProp label="Overlay Opacity" field="overlayOpacity" data={d} onChange={onChange} min={0} max={1} />}
+            </>}
             <ColorProp label="Text Color" field="textColor" data={d} onChange={onChange} />
             <SelectProp label="Alignment" field="alignment" data={d} onChange={onChange} options={[{ value: "left", label: "Left" }, { value: "center", label: "Center" }]} />
           </>}
@@ -909,7 +969,24 @@ function PropertiesPanel({ block, onChange, onDelete, onDuplicate, onToggleVisib
           {block.type === "bg_section" && <>
             <TextProp label="Headline" field="headline" data={d} onChange={onChange} />
             <TextProp label="Body Text" field="body" data={d} onChange={onChange} multiline />
-            <ImageUploadProp label="Background Image" field="backgroundImageUrl" data={d} onChange={onChange} orgId={orgId} />
+            <Separator />
+            <SelectProp label="Background Type" field="backgroundType" data={d} onChange={onChange} options={[{ value: "color", label: "Color" }, { value: "gradient", label: "Gradient" }, { value: "image", label: "Image" }, { value: "video", label: "Video" }]} />
+            {(d.backgroundType === "color" || !d.backgroundType) && <ColorProp label="Background Color" field="backgroundColor" data={d} onChange={onChange} />}
+            {d.backgroundType === "gradient" && <>
+              <ColorProp label="Gradient Start" field="gradientFrom" data={d} onChange={onChange} />
+              <ColorProp label="Gradient End" field="gradientTo" data={d} onChange={onChange} />
+              <SelectProp label="Direction" field="gradientDirection" data={d} onChange={onChange} options={[{ value: "to right", label: "Left → Right" }, { value: "to bottom", label: "Top → Bottom" }, { value: "to bottom right", label: "Diagonal ↘" }, { value: "to bottom left", label: "Diagonal ↙" }]} />
+            </>}
+            {d.backgroundType === "image" && <>
+              <ImageUploadProp label="Background Image" field="backgroundImageUrl" data={d} onChange={onChange} orgId={orgId} />
+              <div className="flex items-center gap-2"><input type="checkbox" checked={!!d.overlay} onChange={e => onChange({ ...d, overlay: e.target.checked })} /><span className="text-xs text-muted-foreground">Overlay</span></div>
+              {d.overlay && <NumberProp label="Overlay Opacity" field="overlayOpacity" data={d} onChange={onChange} min={0} max={1} />}
+            </>}
+            {d.backgroundType === "video" && <>
+              <TextProp label="Background Video URL" field="backgroundVideoUrl" data={d} onChange={onChange} placeholder="https://…" />
+              <div className="flex items-center gap-2"><input type="checkbox" checked={!!d.overlay} onChange={e => onChange({ ...d, overlay: e.target.checked })} /><span className="text-xs text-muted-foreground">Overlay</span></div>
+              {d.overlay && <NumberProp label="Overlay Opacity" field="overlayOpacity" data={d} onChange={onChange} min={0} max={1} />}
+            </>}
             <ColorProp label="Text Color" field="textColor" data={d} onChange={onChange} />
             <NumberProp label="Vertical Padding (px)" field="paddingY" data={d} onChange={onChange} min={20} max={300} />
             <SelectProp label="Alignment" field="alignment" data={d} onChange={onChange} options={[{ value: "left", label: "Left" }, { value: "center", label: "Center" }]} />
@@ -1123,7 +1200,7 @@ function SortableCanvasBlock({
       ref={setNodeRef}
       style={style}
       className={`group/block relative transition-all ${!block.visible ? "opacity-40" : ""}`}
-      onClick={onSelect}
+      onClick={(e) => { e.stopPropagation(); onSelect(); }}
     >
       {/* Selection border */}
       <div className={`absolute inset-0 pointer-events-none z-10 transition-all ${isSelected ? "ring-2 ring-indigo-500 ring-offset-0" : "group-hover/block:ring-1 group-hover/block:ring-indigo-300"}`} />
@@ -1426,7 +1503,7 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, onSave, isSav
       <div
         id="wysiwyg-canvas"
         className="flex-1 overflow-auto"
-        onClick={() => setSelectedId(null)}
+        onClick={(e) => { if (e.target === e.currentTarget) setSelectedId(null); }}
       >
           <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
             <CanvasDropZone isEmpty={blocks.length === 0}>
@@ -1436,7 +1513,7 @@ export function WysiwygPageBuilder({ initialBlocks = [], onChange, onSave, isSav
                   block={block}
                   isSelected={selectedId === block.id}
                   onSelect={() => {
-                    setSelectedId(selectedId === block.id ? null : block.id);
+                    setSelectedId(block.id);
                     if (propsPanelCollapsed) setPropsPanelCollapsed(false);
                   }}
                   onDelete={() => deleteBlock(block.id)}
