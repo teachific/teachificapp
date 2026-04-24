@@ -37,13 +37,14 @@ type LegalDocs = {
 
 // ─── Block Renderer (student-facing, read-only) ───────────────────────────────
 
-function RenderBlock({ block, primaryColor, curriculum, pricing, legalDocs, onEnroll }: {
+function RenderBlock({ block, primaryColor, curriculum, pricing, legalDocs, onEnroll, course }: {
   block: any;
   primaryColor: string;
   curriculum: any[];
   pricing: any[];
   legalDocs?: LegalDocs;
   onEnroll?: EnrollFn;
+  course?: any;
 }) {
   const d = block.data;
   const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({});
@@ -226,6 +227,30 @@ function RenderBlock({ block, primaryColor, curriculum, pricing, legalDocs, onEn
                   >
                     {p.price > 0 ? `Enroll — $${p.price}` : "Enroll Free"}
                   </Button>
+                  {/* Course meta below enroll button */}
+                  <div className="mt-4 flex flex-col gap-2">
+                    {(() => {
+                      const totalLessons = curriculum.reduce((acc: number, s: any) => acc + (s.lessons?.length || 0), 0);
+                      return totalLessons > 0 ? (
+                        <div className="flex items-center gap-2 text-sm" style={{ color: primaryColor }}>
+                          <BookOpen className="h-4 w-4 shrink-0" />
+                          <span>{totalLessons} lesson{totalLessons !== 1 ? 's' : ''}</span>
+                        </div>
+                      ) : null;
+                    })()}
+                    <div className="flex items-center gap-2 text-sm" style={{ color: primaryColor }}>
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span>
+                        {!course || course.accessDurationType === 'lifetime'
+                          ? 'Full lifetime access'
+                          : course.accessDurationType === 'days' && course.accessDurationDays
+                          ? `Access for ${course.accessDurationDays} days`
+                          : course.accessDurationType === 'date' && course.accessExpiryDate
+                          ? `Access until ${new Date(course.accessExpiryDate).toLocaleDateString()}`
+                          : 'Full lifetime access'}
+                      </span>
+                    </div>
+                  </div>
                   </div>
                 ))}
               </div>
@@ -495,6 +520,7 @@ export default function CourseSalesPage() {
                 pricing={pricing || []}
                 legalDocs={legalDocs}
                 onEnroll={handleEnroll}
+                course={course}
               />
             </div>
           ))}
@@ -540,6 +566,7 @@ export default function CourseSalesPage() {
               pricing={pricing}
               legalDocs={legalDocs}
               onEnroll={handleEnroll}
+              course={course}
             />
           )}
         </div>

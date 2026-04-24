@@ -755,6 +755,10 @@ function CourseSettingsTab({
     thumbnailUrl: course.thumbnailUrl ?? "",
     // Instructor
     instructorId: course.instructorId ?? null,
+    // Access Duration
+    accessDurationType: (course.accessDurationType ?? "lifetime") as "lifetime" | "days" | "date",
+    accessDurationDays: course.accessDurationDays ?? 30,
+    accessExpiryDate: course.accessExpiryDate ? new Date(course.accessExpiryDate).toISOString().split("T")[0] : "",
     // Watermark override
     watermarkImageUrl: course.watermarkImageUrl ?? "",
     watermarkOpacity: course.watermarkOpacity ?? 30,
@@ -1075,6 +1079,54 @@ function CourseSettingsTab({
         )}
       </section>
 
+      {/* Access Duration */}
+      <section className="border border-border rounded-xl p-6 flex flex-col gap-5">
+        <div>
+          <h2 className="font-semibold text-base">Content Access Duration</h2>
+          <p className="text-xs text-muted-foreground mt-1">How long students have access to this course after enrollment</p>
+        </div>
+        <div>
+          <Label>Access type</Label>
+          <Select value={form.accessDurationType} onValueChange={(v) => set("accessDurationType", v as "lifetime" | "days" | "date")}>
+            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="lifetime">Full lifetime access</SelectItem>
+              <SelectItem value="days">Limited — number of days</SelectItem>
+              <SelectItem value="date">Limited — fixed expiry date</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {form.accessDurationType === "days" && (
+          <div>
+            <Label>Number of days after enrollment</Label>
+            <div className="flex items-center gap-2 mt-1.5">
+              <Input
+                type="number"
+                min={1}
+                max={3650}
+                value={form.accessDurationDays}
+                onChange={(e) => set("accessDurationDays", parseInt(e.target.value) || 30)}
+                className="w-32"
+              />
+              <span className="text-sm text-muted-foreground">days</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">e.g. 30 = access expires 30 days after enrollment</p>
+          </div>
+        )}
+        {form.accessDurationType === "date" && (
+          <div>
+            <Label>Access expiry date</Label>
+            <Input
+              type="date"
+              value={form.accessExpiryDate}
+              onChange={(e) => set("accessExpiryDate", e.target.value)}
+              className="mt-1.5 w-48"
+            />
+            <p className="text-xs text-muted-foreground mt-1">All students lose access on this date regardless of when they enrolled</p>
+          </div>
+        )}
+      </section>
+
       {/* After Purchase */}
       <section className="border border-border rounded-xl p-6 flex flex-col gap-5">
         <h2 className="font-semibold text-base">After Purchase</h2>
@@ -1198,7 +1250,24 @@ function CourseSettingsTab({
         </div>
       </section>
 
-      <Button onClick={() => onSave(form)} className="self-start">Save Settings</Button>
+      <Button
+        onClick={() => {
+          const saveData: any = { ...form };
+          // Convert accessExpiryDate string to Date object if set
+          if (form.accessDurationType === "date" && form.accessExpiryDate) {
+            saveData.accessExpiryDate = new Date(form.accessExpiryDate);
+          } else {
+            saveData.accessExpiryDate = null;
+          }
+          if (form.accessDurationType !== "days") {
+            saveData.accessDurationDays = null;
+          }
+          onSave(saveData);
+        }}
+        className="self-start"
+      >
+        Save Settings
+      </Button>
     </div>
   );
 }

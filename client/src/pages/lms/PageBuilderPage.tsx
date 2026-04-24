@@ -10,9 +10,10 @@ import type { Block } from "@/components/WysiwygPageBuilder";
 import {
   Save,
   X,
-  ChevronLeft,
+  ArrowLeft,
   Eye,
   Globe,
+  LayoutDashboard,
 } from "lucide-react";
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
@@ -115,14 +116,18 @@ export default function PageBuilderPage() {
     <div className="flex flex-col h-screen overflow-hidden bg-background w-screen">
       {/* ─── Top Bar ─────────────────────────────────────────────────────────── */}
       <div className="h-12 border-b border-border flex items-center justify-between px-3 shrink-0 bg-white z-20 shadow-sm">
-        {/* Left: Back + title */}
+        {/* Left: Back to Admin + title */}
         <div className="flex items-center gap-2 min-w-0">
           <button
-            onClick={() => setLocation(courseId ? `/lms/courses/${courseId}` : "/lms/courses")}
-            className="h-7 w-7 rounded-lg hover:bg-accent flex items-center justify-center shrink-0"
+            onClick={() => setLocation("/lms")}
+            className="h-7 px-2 rounded-lg hover:bg-accent flex items-center gap-1.5 shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            title="Back to Admin"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <LayoutDashboard className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Admin</span>
           </button>
+          <div className="w-px h-5 bg-border shrink-0" />
           <Input
             value={pageTitle}
             onChange={(e) => { setPageTitle(e.target.value); setIsDirty(true); }}

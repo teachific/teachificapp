@@ -82,6 +82,7 @@ import RecordPage from "./pages/RecordPage";
 import WebsitePage from "./pages/marketing/WebsitePage";
 import EmailCampaignsPage from "./pages/marketing/EmailCampaignsPage";
 import FunnelsPage from "./pages/marketing/FunnelsPage";
+import FunnelBuilderPage from "./pages/marketing/FunnelBuilderPage";
 import AffiliatesPage from "./pages/marketing/AffiliatesPage";
 
 // Sales section
@@ -371,6 +372,7 @@ function SubdomainSchoolRouter({ subdomain }: { subdomain: string }) {
         <Route path="/media-library">{() => <DashboardLayout><MediaLibraryPage /></DashboardLayout>}</Route>
         <Route path="/marketing/website">{() => <DashboardLayout><WebsitePage /></DashboardLayout>}</Route>
         <Route path="/marketing/email">{() => <DashboardLayout><EmailCampaignsPage /></DashboardLayout>}</Route>
+        <Route path="/marketing/funnels/:id">{() => <FunnelBuilderPage />}</Route>
         <Route path="/marketing/funnels">{() => <DashboardLayout><FunnelsPage /></DashboardLayout>}</Route>
         <Route path="/marketing/affiliates">{() => <DashboardLayout><AffiliatesPage /></DashboardLayout>}</Route>
         <Route path="/marketing">{() => { window.location.replace("/marketing/website"); return null; }}</Route>

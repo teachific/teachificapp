@@ -437,6 +437,10 @@ export const lmsRouter = router({
           instructorBio: z.string().optional(),
           preStartPageEnabled: z.boolean().optional(),
           instructorId: z.number().nullable().optional(),
+          // Access duration
+          accessDurationType: z.enum(["lifetime", "days", "date"]).optional(),
+          accessDurationDays: z.number().nullable().optional(),
+          accessExpiryDate: z.date().nullable().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -3853,7 +3857,7 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
         await bulkUpsertCards(input.deckId, input.cards);
         return { ok: true };
       }),
-    generateAI: protectedProcedure
+     generateAI: protectedProcedure
       .input(z.object({ orgId: z.number(), topic: z.string().min(3), numCards: z.number().default(15), context: z.string().optional() }))
       .mutation(async ({ input, ctx }) => {
         await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
@@ -3877,4 +3881,126 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
       }),
   }),
 
+  // ── Funnels ─────────────────────────────────────────────────────────────────
+
+  funnels: router({
+    list: protectedProcedure
+      .input(z.object({ orgId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const { getFunnelsByOrg } = await import("./funnelDb");
+        return getFunnelsByOrg(input.orgId);
+      }),
+
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const { getFunnelWithSteps } = await import("./funnelDb");
+        const funnel = await getFunnelWithSteps(input.id);
+        if (!funnel) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, funnel.orgId, undefined, ctx.user.role);
+        return funnel;
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        orgId: z.number(),
+        name: z.string().min(1),
+        description: z.string().optional(),
+        courseId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await requireOrgRole(ctx.user.id, input.orgId, undefined, ctx.user.role);
+        const { createFunnel } = await import("./funnelDb");
+        return createFunnel(input);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        isActive: z.boolean().optional(),
+        courseId: z.number().nullable().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getFunnelById, updateFunnel } = await import("./funnelDb");
+        const funnel = await getFunnelById(input.id);
+        if (!funnel) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, funnel.orgId, undefined, ctx.user.role);
+        const { id, ...data } = input;
+        return updateFunnel(id, data as any);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getFunnelById, deleteFunnel } = await import("./funnelDb");
+        const funnel = await getFunnelById(input.id);
+        if (!funnel) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgAdmin(ctx.user.id, funnel.orgId, ctx.user.role);
+        await deleteFunnel(input.id);
+        return { ok: true };
+      }),
+
+    // ── Steps ────────────────────────────────────────────────────────────────
+
+    createStep: protectedProcedure
+      .input(z.object({
+        funnelId: z.number(),
+        name: z.string().min(1),
+        stepType: z.enum(["landing", "sales", "order", "upsell", "downsell", "thank_you", "webinar", "custom"]).optional(),
+        sortOrder: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getFunnelById, createFunnelStep } = await import("./funnelDb");
+        const funnel = await getFunnelById(input.funnelId);
+        if (!funnel) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, funnel.orgId, undefined, ctx.user.role);
+        return createFunnelStep(input);
+      }),
+
+    updateStep: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        stepType: z.enum(["landing", "sales", "order", "upsell", "downsell", "thank_you", "webinar", "custom"]).optional(),
+        pageId: z.number().nullable().optional(),
+        slug: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getFunnelStepById, getFunnelById, updateFunnelStep } = await import("./funnelDb");
+        const step = await getFunnelStepById(input.id);
+        if (!step) throw new TRPCError({ code: "NOT_FOUND" });
+        const funnel = await getFunnelById(step.funnelId);
+        if (!funnel) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, funnel.orgId, undefined, ctx.user.role);
+        const { id, ...data } = input;
+        return updateFunnelStep(id, data as any);
+      }),
+
+    deleteStep: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getFunnelStepById, getFunnelById, deleteFunnelStep } = await import("./funnelDb");
+        const step = await getFunnelStepById(input.id);
+        if (!step) throw new TRPCError({ code: "NOT_FOUND" });
+        const funnel = await getFunnelById(step.funnelId);
+        if (!funnel) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, funnel.orgId, undefined, ctx.user.role);
+        await deleteFunnelStep(input.id);
+        return { ok: true };
+      }),
+
+    reorderSteps: protectedProcedure
+      .input(z.object({ funnelId: z.number(), stepIds: z.array(z.number()) }))
+      .mutation(async ({ input, ctx }) => {
+        const { getFunnelById, reorderFunnelSteps } = await import("./funnelDb");
+        const funnel = await getFunnelById(input.funnelId);
+        if (!funnel) throw new TRPCError({ code: "NOT_FOUND" });
+        await requireOrgRole(ctx.user.id, funnel.orgId, undefined, ctx.user.role);
+        await reorderFunnelSteps(input.stepIds);
+        return { ok: true };
+      }),
+  }),
 });

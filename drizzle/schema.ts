@@ -565,6 +565,11 @@ export const courses = mysqlTable("courses", {
   targetAudience: text("targetAudience"), // JSON array of strings
   instructorBio: text("instructorBio"), // Rich text bio for the instructor shown on pre-start page
   preStartPageEnabled: boolean("preStartPageEnabled").default(true).notNull(),
+  // Access duration per course (how long a student has access after enrollment)
+  // 'lifetime' = unlimited, 'days' = N days from enrollment, 'date' = fixed expiry date
+  accessDurationType: mysqlEnum("accessDurationType", ["lifetime", "days", "date"]).default("lifetime").notNull(),
+  accessDurationDays: int("accessDurationDays"), // used when accessDurationType = 'days'
+  accessExpiryDate: timestamp("accessExpiryDate"), // used when accessDurationType = 'date'
   // Sort order for catalog/admin reordering
   sortOrder: int("sortOrder").default(0).notNull(),
   // Counters
@@ -2107,6 +2112,58 @@ export const orgLandingPages = mysqlTable("org_landing_pages", {
 });
 export type OrgLandingPage = typeof orgLandingPages.$inferSelect;
 export type InsertOrgLandingPage = typeof orgLandingPages.$inferInsert;
+
+// ─── Funnels ─────────────────────────────────────────────────────────────────
+// ClickFunnels-style multi-step funnels. Each funnel has ordered steps.
+// Each step links to a page_builder_pages page.
+export const funnels = mysqlTable("funnels", {
+  id: int("id").autoincrement().primaryKey(),
+  orgId: int("orgId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  slug: varchar("slug", { length: 200 }).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  // Optional: link funnel to a course (e.g. course sales funnel)
+  courseId: int("courseId"),
+  // Analytics counters
+  totalVisitors: int("totalVisitors").default(0).notNull(),
+  totalConversions: int("totalConversions").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Funnel = typeof funnels.$inferSelect;
+export type InsertFunnel = typeof funnels.$inferInsert;
+
+export const funnelSteps = mysqlTable("funnel_steps", {
+  id: int("id").autoincrement().primaryKey(),
+  funnelId: int("funnelId").notNull(),
+  // Step ordering (0-indexed)
+  sortOrder: int("sortOrder").default(0).notNull(),
+  // Step name shown in the builder UI
+  name: varchar("name", { length: 255 }).notNull(),
+  // Step type
+  stepType: mysqlEnum("stepType", [
+    "landing",       // Main landing / opt-in page
+    "sales",         // Sales / offer page
+    "order",         // Order / checkout page
+    "upsell",        // One-time offer upsell
+    "downsell",      // Downsell offer
+    "thank_you",     // Thank you / confirmation page
+    "webinar",       // Webinar registration
+    "custom",        // Generic custom page
+  ]).default("landing").notNull(),
+  // Link to a page_builder_pages page (null = not yet designed)
+  pageId: int("pageId"),
+  // URL path for this step (e.g. /funnels/my-funnel/step-1)
+  slug: varchar("slug", { length: 200 }),
+  // Analytics
+  visitors: int("visitors").default(0).notNull(),
+  conversions: int("conversions").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type FunnelStep = typeof funnelSteps.$inferSelect;
+export type InsertFunnelStep = typeof funnelSteps.$inferInsert;
 
 // ─── Support Tickets ──────────────────────────────────────────────────────────
 export const supportTickets = mysqlTable("support_tickets", {

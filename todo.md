@@ -2951,3 +2951,31 @@
 - [x] Add Dark/Light theme toggle to BrandingPage under the color settings section
 - [x] Wire studentTheme from org theme data into SubdomainSchoolRouter so learner pages use the org's chosen theme
 - [x] Ensure teal primary color is applied correctly in both light and dark theme variations
+
+## Per-Course Access Duration
+- [x] Add accessDurationType (lifetime/days/date), accessDurationDays, accessExpiryDate fields to courses table
+- [x] Generate and apply Drizzle migration for access duration fields
+- [x] Add access duration fields to courses.update procedure input schema in lmsRouter.ts
+- [x] Add Access Duration section UI to CourseSettingsTab in CourseBuilderPage
+- [x] Pass course prop to RenderBlock in CourseSalesPage for access duration display
+
+## Funnel Builder (ClickFunnels-style)
+- [x] Add funnels and funnel_steps tables to schema.ts
+- [x] Generate and apply Drizzle migration for funnels tables
+- [x] Create funnelDb.ts with CRUD helpers (create/get/update/delete funnel + steps, reorder)
+- [x] Add funnels router to lmsRouter.ts (list, get, create, update, delete, createStep, updateStep, deleteStep, reorderSteps)
+- [x] Replace FunnelsPage mock data with real tRPC data (list, create, delete)
+- [x] Create FunnelBuilderPage with full-screen visual step-flow editor (DnD sortable steps)
+- [x] Add FunnelBuilderPage route to App.tsx (/marketing/funnels/:id)
+- [x] Write unit tests for funnels schema, router input validation, and access duration logic
+
+## Funnel Builder (ClickFunnels-style)
+- [x] Add funnels and funnel_steps tables to schema.ts
+- [x] Create funnelDb.ts with CRUD helpers
+- [x] Add funnels router to lmsRouter.ts
+- [x] Replace FunnelsPage mock data with real tRPC data
+- [x] Create FunnelBuilderPage with visual step-flow editor
+- [x] Write unit tests for funnels and access duration
+## Per-Course Access Duration
+- [x] Add accessDurationType/accessDurationDays/accessExpiryDate to courses table
+- [x] Add access duration UI to CourseSettingsTab
