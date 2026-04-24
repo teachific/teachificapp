@@ -2990,3 +2990,26 @@
 - [x] Rewrite LessonBannerEditor with confetti cannon toggle, confetti style picker, custom MP3 URL, and "Show Effect" preview button
 - [x] Update LessonEditorSheet to pass confetti/customSoundUrl fields to LessonBannerEditor
 - [x] Update CoursePlayerPage to fire confetti cannon and play custom sound when banners trigger
+
+## Certificate of Completion Email
+- [x] certificateEnabled flag on courses table (already existed)
+- [x] certificateCompletionHtml email template added
+- [x] Certificate email sent via SendGrid when learner reaches 100% progress
+- [x] Email includes verification code, course URL CTA, and org branding
+
+## Lesson Notes and Bookmarks
+- [x] lesson_notes table: userId, courseId, lessonId, enrollmentId, content, createdAt
+- [x] lesson_bookmarks table: userId, courseId, lessonId, enrollmentId, label, createdAt
+- [x] tRPC procedures: notes.byLesson, notes.byCourse, notes.create, notes.update, notes.delete
+- [x] tRPC procedures: bookmarks.byCourse, bookmarks.toggle, bookmarks.delete
+- [x] My Notes sidebar tab in CoursePlayerPage with Current Lesson / All Notes / Bookmarks tabs
+- [x] Bookmark toggle button in player top bar
+
+## Course Drip Scheduling
+- [x] dripDays, dripType, dripDate fields already in courseLessons schema
+- [x] curriculum.get procedure computes isDripLocked and unlocksAt per lesson based on enrollment date
+- [x] Sidebar shows "Unlocks in X days" / "Unlocks tomorrow" / "Unlocks [date]" for locked lessons
+- [x] Drip-locked lessons block navigation in sidebar
+- [x] dripUnlockHtml email template added
+- [x] drip.sendUnlockNotifications tRPC procedure (admin-only, for daily scheduled task)
+- [x] Drip scheduling UI already in LessonEditorSheet settings tab

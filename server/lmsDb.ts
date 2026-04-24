@@ -43,6 +43,8 @@ import {
   bundles,
   flashcardDecks,
   flashcardCards,
+  lessonNotes,
+  lessonBookmarks,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1566,4 +1568,89 @@ export async function bulkUpsertCards(deckId: number, cards: Array<{ front: stri
   if (cards.length === 0) return;
   await db.insert(flashcardCards).values(cards.map((c) => ({ deckId, front: c.front, back: c.back, frontImageUrl: c.frontImageUrl, backImageUrl: c.backImageUrl, sortOrder: c.sortOrder })));
   await db.update(flashcardDecks).set({ cardCount: cards.length, updatedAt: new Date() }).where(eq(flashcardDecks.id, deckId));
+}
+
+// ─── Lesson Notes ─────────────────────────────────────────────────────────────
+
+export async function getNotesByLesson(userId: number, lessonId: number) {
+  return db
+    .select()
+    .from(lessonNotes)
+    .where(and(eq(lessonNotes.userId, userId), eq(lessonNotes.lessonId, lessonId)))
+    .orderBy(asc(lessonNotes.createdAt));
+}
+
+export async function getNotesByCourse(userId: number, courseId: number) {
+  return db
+    .select()
+    .from(lessonNotes)
+    .where(and(eq(lessonNotes.userId, userId), eq(lessonNotes.courseId, courseId)))
+    .orderBy(desc(lessonNotes.createdAt));
+}
+
+export async function getNoteById(id: number) {
+  const rows = await db.select().from(lessonNotes).where(eq(lessonNotes.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function createNote(data: {
+  userId: number;
+  courseId: number;
+  lessonId: number;
+  enrollmentId: number;
+  content: string;
+  videoTimestamp?: number;
+}) {
+  const result = await db.insert(lessonNotes).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getNoteById(Number(id));
+}
+
+export async function updateNote(id: number, content: string) {
+  await db.update(lessonNotes).set({ content, updatedAt: new Date() }).where(eq(lessonNotes.id, id));
+  return getNoteById(id);
+}
+
+export async function deleteNote(id: number) {
+  await db.delete(lessonNotes).where(eq(lessonNotes.id, id));
+}
+
+// ─── Lesson Bookmarks ─────────────────────────────────────────────────────────
+
+export async function getBookmarksByCourse(userId: number, courseId: number) {
+  return db
+    .select()
+    .from(lessonBookmarks)
+    .where(and(eq(lessonBookmarks.userId, userId), eq(lessonBookmarks.courseId, courseId)))
+    .orderBy(desc(lessonBookmarks.createdAt));
+}
+
+export async function getBookmark(userId: number, lessonId: number) {
+  const rows = await db
+    .select()
+    .from(lessonBookmarks)
+    .where(and(eq(lessonBookmarks.userId, userId), eq(lessonBookmarks.lessonId, lessonId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getBookmarkById(id: number) {
+  const rows = await db.select().from(lessonBookmarks).where(eq(lessonBookmarks.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function createBookmark(data: {
+  userId: number;
+  courseId: number;
+  lessonId: number;
+  enrollmentId: number;
+  label?: string;
+}) {
+  const result = await db.insert(lessonBookmarks).values(data);
+  const id = (result as any)[0]?.insertId ?? (result as any).insertId;
+  return getBookmarkById(Number(id));
+}
+
+export async function deleteBookmark(id: number) {
+  await db.delete(lessonBookmarks).where(eq(lessonBookmarks.id, id));
 }

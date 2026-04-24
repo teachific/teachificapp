@@ -285,3 +285,69 @@ export function campaignEmailHtml(opts: {
     footerNote,
   });
 }
+
+// ─── Template: Certificate of Completion ─────────────────────────────────────
+export function certificateCompletionHtml(opts: {
+  userName: string;
+  courseTitle: string;
+  orgName?: string;
+  issuedAt: Date;
+  verificationCode: string;
+  certificateUrl?: string;
+  courseUrl?: string;
+}): string {
+  const { userName, courseTitle, orgName, issuedAt, verificationCode, certificateUrl, courseUrl } = opts;
+  const dateStr = issuedAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const body = `
+    <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;">Congratulations, ${userName || "there"}!</h2>
+    <p style="margin:0 0 16px;font-size:15px;color:#475569;line-height:1.7;">You have successfully completed:</p>
+    <div style="background:#f0fafa;border:1px solid #b2e0e3;border-radius:8px;padding:16px 20px;margin:0 0 20px;text-align:center;">
+      <p style="margin:0;font-size:18px;font-weight:700;color:#0e6b72;">${courseTitle}</p>
+      ${orgName ? `<p style="margin:6px 0 0;font-size:13px;color:#64748b;">Offered by ${orgName}</p>` : ""}
+    </div>
+    <p style="margin:0 0 16px;font-size:15px;color:#475569;line-height:1.7;">Your certificate of completion was issued on <strong>${dateStr}</strong>.</p>
+    <div style="background:#f8fafc;border:1px solid #e8edf2;border-radius:8px;padding:12px 16px;margin:0 0 20px;font-size:13px;color:#64748b;">
+      <strong>Verification Code:</strong> <span style="font-family:monospace;color:#0f172a;">${verificationCode}</span>
+    </div>
+    ${certificateUrl ? ctaButton("Download Your Certificate", certificateUrl) : ""}
+    ${courseUrl && !certificateUrl ? ctaButton("View Course", courseUrl) : ""}
+    ${divider()}
+    <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">${orgName ? `This certificate was issued by ${orgName} via Teachific™.` : "Powered by Teachific™."}</p>
+  `;
+  return emailLayout({
+    preheader: `You've completed "${courseTitle}" — your certificate is ready!`,
+    title: `Certificate of Completion — ${courseTitle}`,
+    body,
+    footerNote: orgName ? `This email was sent on behalf of ${orgName}.` : undefined,
+  });
+}
+
+// ─── Template: Drip Content Unlock ───────────────────────────────────────────
+export function dripUnlockHtml(opts: {
+  userName: string;
+  courseTitle: string;
+  orgName?: string;
+  unlockedLessons: string[];
+  courseUrl?: string;
+}): string {
+  const { userName, courseTitle, orgName, unlockedLessons, courseUrl } = opts;
+  const lessonListHtml = unlockedLessons
+    .map((t) => `<li style="margin:6px 0;color:#475569;">${t}</li>`)
+    .join("");
+  const body = `
+    <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;">New content is available!</h2>
+    <p style="margin:0 0 16px;font-size:15px;color:#475569;line-height:1.7;">Hi ${userName || "there"},</p>
+    <p style="margin:0 0 8px;font-size:15px;color:#475569;line-height:1.7;">New lessons have just unlocked in <strong>${courseTitle}</strong>${orgName ? ` at ${orgName}` : ""}:</p>
+    <ul style="margin:16px 0;padding-left:20px;font-size:15px;line-height:1.7;">${lessonListHtml}</ul>
+    <p style="margin:0 0 16px;font-size:15px;color:#475569;line-height:1.7;">Log in to continue your learning journey.</p>
+    ${courseUrl ? ctaButton("Continue Learning", courseUrl) : ""}
+    ${divider()}
+    <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">${orgName ? `This notification was sent on behalf of ${orgName} via Teachific™.` : "Powered by Teachific™."}</p>
+  `;
+  return emailLayout({
+    preheader: `New lessons are available in "${courseTitle}"!`,
+    title: `New content unlocked — ${courseTitle}`,
+    body,
+    footerNote: orgName ? `This email was sent on behalf of ${orgName}.` : undefined,
+  });
+}

@@ -2192,3 +2192,36 @@ export const supportTickets = mysqlTable("support_tickets", {
 });
 export type SupportTicket = typeof supportTickets.$inferSelect;
 export type InsertSupportTicket = typeof supportTickets.$inferInsert;
+
+// ─── Lesson Notes ─────────────────────────────────────────────────────────────
+// Learner-private notes attached to a specific lesson (optionally with a timestamp
+// so they can be linked to a specific moment in a video lesson).
+export const lessonNotes = mysqlTable("lesson_notes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  courseId: int("courseId").notNull(),
+  lessonId: int("lessonId").notNull(),
+  enrollmentId: int("enrollmentId").notNull(),
+  content: text("content").notNull(),
+  // Optional video timestamp in seconds (null for non-video lessons)
+  videoTimestamp: int("videoTimestamp"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type LessonNote = typeof lessonNotes.$inferSelect;
+export type InsertLessonNote = typeof lessonNotes.$inferInsert;
+
+// ─── Lesson Bookmarks ─────────────────────────────────────────────────────────
+// Learner-private bookmarks to quickly return to a specific lesson.
+export const lessonBookmarks = mysqlTable("lesson_bookmarks", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  courseId: int("courseId").notNull(),
+  lessonId: int("lessonId").notNull(),
+  enrollmentId: int("enrollmentId").notNull(),
+  // Optional label the learner gives this bookmark
+  label: varchar("label", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type LessonBookmark = typeof lessonBookmarks.$inferSelect;
+export type InsertLessonBookmark = typeof lessonBookmarks.$inferInsert;

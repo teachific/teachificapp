@@ -19,6 +19,7 @@ import {
   FileDown, Link2, Video, BookOpen, ClipboardList, Zap,
   Calendar, Home, Menu, X, Maximize2, Settings,
   RotateCcw, Lock, Clock, Search, StickyNote, Award, Download,
+  Bookmark, BookmarkCheck, PenLine, Trash2, Edit3,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -561,6 +562,10 @@ export default function CoursePlayerPage() {
   const [sidebarSearch, setSidebarSearch] = useState("");
   const [notesOpen, setNotesOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
+  const [notesTab, setNotesTab] = useState<"current" | "all" | "bookmarks">("current");
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState("");
+
   const [showCompletion, setShowCompletion] = useState(false);
   const [activeBanner, setActiveBanner] = useState<{
     message: string;
@@ -593,6 +598,33 @@ export default function CoursePlayerPage() {
   const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null;
   const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null;
 
+  // DB-backed notes and bookmarks (declared after currentLesson to avoid TDZ error)
+  const { data: currentLessonNotes, refetch: refetchLessonNotes } = trpc.lms.notes.byLesson.useQuery(
+    { lessonId: currentLesson?.id ?? 0, courseId },
+    { enabled: !!currentLesson && notesOpen }
+  );
+  const { data: allCourseNotes, refetch: refetchAllNotes } = trpc.lms.notes.byCourse.useQuery(
+    { courseId },
+    { enabled: notesOpen && notesTab === "all" }
+  );
+  const { data: courseBookmarks, refetch: refetchBookmarks } = trpc.lms.bookmarks.byCourse.useQuery(
+    { courseId },
+    { enabled: notesOpen }
+  );
+  const createNote = trpc.lms.notes.create.useMutation({
+    onSuccess: () => { refetchLessonNotes(); refetchAllNotes(); setNoteText(""); },
+  });
+  const updateNoteM = trpc.lms.notes.update.useMutation({
+    onSuccess: () => { refetchLessonNotes(); refetchAllNotes(); setEditingNoteId(null); },
+  });
+  const deleteNoteM = trpc.lms.notes.delete.useMutation({
+    onSuccess: () => { refetchLessonNotes(); refetchAllNotes(); },
+  });
+  const toggleBookmark = trpc.lms.bookmarks.toggle.useMutation({
+    onSuccess: () => refetchBookmarks(),
+  });
+  const isBookmarked = (courseBookmarks ?? []).some((b: any) => b.lessonId === currentLesson?.id);
+
   // Auto-expand section containing current lesson
   useEffect(() => {
     if (!currentLesson || !curriculum) return;
@@ -621,6 +653,9 @@ export default function CoursePlayerPage() {
   const isLessonLocked = (lessonId: number): boolean => {
     const idx = allLessons.findIndex((l: any) => l.id === lessonId);
     if (idx <= 0) return false; // first lesson is never locked
+    // Check drip lock
+    const lesson = allLessons[idx] as any;
+    if (lesson?.isDripLocked) return true;
     // Walk backwards through all lessons before this one
     for (let i = 0; i < idx; i++) {
       const prev = allLessons[i] as any;
@@ -629,6 +664,19 @@ export default function CoursePlayerPage() {
       if (prevStatus !== "completed") return true; // prerequisite not met
     }
     return false;
+  };
+
+  // Format unlock date for display
+  const getDripUnlockLabel = (lesson: any): string | null => {
+    if (!lesson?.isDripLocked || !lesson?.unlocksAt) return null;
+    const unlockDate = new Date(lesson.unlocksAt);
+    const now = new Date();
+    const diffMs = unlockDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return null;
+    if (diffDays === 1) return "Unlocks tomorrow";
+    if (diffDays <= 7) return `Unlocks in ${diffDays} days`;
+    return `Unlocks ${unlockDate.toLocaleDateString()}`;
   };
 
   // Show a banner and auto-dismiss after durationMs
@@ -677,13 +725,11 @@ export default function CoursePlayerPage() {
     };
   }, [currentLesson?.id]);
 
-  // Load notes from localStorage when lesson changes
+  // Reset note text when lesson changes
   useEffect(() => {
-    if (currentLesson) {
-      const key = `notes-${courseId}-${currentLesson.id}`;
-      setNoteText(localStorage.getItem(key) ?? "");
-    }
-  }, [currentLesson?.id, courseId]);
+    setNoteText("");
+    setEditingNoteId(null);
+  }, [currentLesson?.id]);
 
   const handleComplete = useCallback(async () => {
     if (!currentLesson) return;
@@ -841,16 +887,33 @@ export default function CoursePlayerPage() {
             </Button>
           )}
           {allowNotes && (
-            <button
-              onClick={() => setNotesOpen((n) => !n)}
-              className={cn(
-                "h-8 w-8 flex items-center justify-center rounded transition-colors",
-                notesOpen ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground"
-              )}
-              title="Notes"
-            >
-              <StickyNote className="h-4 w-4" />
-            </button>
+            <>
+              <button
+                onClick={() => { setNotesOpen((n) => !n); setNotesTab("current"); }}
+                className={cn(
+                  "h-8 w-8 flex items-center justify-center rounded transition-colors",
+                  notesOpen ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground"
+                )}
+                title="My Notes"
+              >
+                <StickyNote className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => {
+                  if (currentLesson) {
+                    toggleBookmark.mutate({ courseId, lessonId: currentLesson.id });
+                    toast.success(isBookmarked ? "Bookmark removed" : "Lesson bookmarked!");
+                  }
+                }}
+                className={cn(
+                  "h-8 w-8 flex items-center justify-center rounded transition-colors",
+                  isBookmarked ? "text-amber-500" : "hover:bg-muted text-muted-foreground"
+                )}
+                title={isBookmarked ? "Remove bookmark" : "Bookmark this lesson"}
+              >
+                {isBookmarked ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -946,6 +1009,7 @@ export default function CoursePlayerPage() {
                         const status = getLessonStatus(lesson.id);
                         const isActive = lesson.id === currentLesson?.id;
                         const locked = isLessonLocked(lesson.id);
+                        const dripLabel = getDripUnlockLabel(lesson);
                         return (
                           <button
                             key={lesson.id}
@@ -978,7 +1042,9 @@ export default function CoursePlayerPage() {
                               {lesson.title}
                             </span>
                             {locked && (
-                              <span className="text-[9px] text-muted-foreground/60 shrink-0 font-medium uppercase tracking-wide">Locked</span>
+                              <span className="text-[9px] text-muted-foreground/60 shrink-0 font-medium uppercase tracking-wide">
+                                {dripLabel ?? "Locked"}
+                              </span>
                             )}
                             {!locked && lesson.isPrerequisite && status !== "completed" && (
                               <span className="text-[9px] text-amber-600 shrink-0 font-medium uppercase tracking-wide">Gate</span>
@@ -1101,46 +1167,114 @@ export default function CoursePlayerPage() {
           )}
         </main>
 
-        {/* Notes panel */}
+        {/* Notes & Bookmarks panel */}
         {allowNotes && notesOpen && (
-          <aside className="w-80 border-l border-border bg-background flex flex-col shrink-0">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <aside className="w-80 border-l border-border bg-background flex flex-col shrink-0 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
               <div className="flex items-center gap-2">
                 <StickyNote className="h-4 w-4 text-primary" />
                 <span className="font-medium text-sm">My Notes</span>
               </div>
-              <button
-                onClick={() => setNotesOpen(false)}
-                className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted transition-colors"
-              >
+              <button onClick={() => setNotesOpen(false)} className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted transition-colors">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
-            <div className="flex-1 p-4 flex flex-col gap-3">
-              <p className="text-xs text-muted-foreground">
-                Notes for: <span className="font-medium text-foreground">{currentLesson?.title ?? "this lesson"}</span>
-              </p>
-              <Textarea
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Type your notes here..."
-                className="flex-1 min-h-[200px] resize-none text-sm"
-              />
-              <Button
-                size="sm"
-                className="w-full"
-                style={{ backgroundColor: primaryColor }}
-                onClick={() => {
-                  // Save to localStorage keyed by lesson
-                  if (currentLesson) {
-                    const key = `notes-${courseId}-${currentLesson.id}`;
-                    localStorage.setItem(key, noteText);
-                    toast.success("Notes saved!");
-                  }
-                }}
-              >
-                Save Notes
-              </Button>
+            {/* Tab bar */}
+            <div className="flex border-b border-border shrink-0">
+              {(["current", "all", "bookmarks"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setNotesTab(tab)}
+                  className={cn(
+                    "flex-1 py-2 text-xs font-medium transition-colors",
+                    notesTab === tab ? "border-b-2" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  style={notesTab === tab ? { borderBottomColor: primaryColor, color: primaryColor } : {}}
+                >
+                  {tab === "current" ? "This Lesson" : tab === "all" ? "All Notes" : "Bookmarks"}
+                </button>
+              ))}
+            </div>
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Current lesson notes */}
+              {notesTab === "current" && (
+                <div className="p-4 flex flex-col gap-3">
+                  <p className="text-xs text-muted-foreground">Notes for: <span className="font-medium text-foreground">{currentLesson?.title ?? "this lesson"}</span></p>
+                  {(currentLessonNotes ?? []).map((note: any) => (
+                    <div key={note.id} className="bg-muted/40 rounded-lg p-3 text-sm group relative">
+                      {editingNoteId === note.id ? (
+                        <>
+                          <Textarea value={editingNoteText} onChange={(e) => setEditingNoteText(e.target.value)} className="text-sm resize-none min-h-[80px] mb-2" autoFocus />
+                          <div className="flex gap-2">
+                            <Button size="sm" className="flex-1 h-7 text-xs" style={{ backgroundColor: primaryColor }} onClick={() => updateNoteM.mutate({ id: note.id, content: editingNoteText })}>Save</Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditingNoteId(null)}>Cancel</Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="whitespace-pre-wrap text-foreground">{note.content}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{new Date(note.createdAt).toLocaleDateString()}</p>
+                          <div className="absolute top-2 right-2 hidden group-hover:flex gap-1">
+                            <button onClick={() => { setEditingNoteId(note.id); setEditingNoteText(note.content); }} className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted">
+                              <Edit3 className="h-3 w-3 text-muted-foreground" />
+                            </button>
+                            <button onClick={() => deleteNoteM.mutate({ id: note.id })} className="h-6 w-6 flex items-center justify-center rounded hover:bg-destructive/10">
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  <Textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Add a note for this lesson..." className="resize-none text-sm min-h-[100px]" />
+                  <Button size="sm" className="w-full" style={{ backgroundColor: primaryColor }} disabled={!noteText.trim() || createNote.isPending}
+                    onClick={() => { if (currentLesson && noteText.trim()) createNote.mutate({ courseId, lessonId: currentLesson.id, content: noteText.trim() }); }}
+                  >
+                    <PenLine className="h-3.5 w-3.5 mr-1.5" /> Add Note
+                  </Button>
+                </div>
+              )}
+              {/* All course notes */}
+              {notesTab === "all" && (
+                <div className="p-4 flex flex-col gap-3">
+                  {(allCourseNotes ?? []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">No notes yet. Add notes while watching lessons.</p>
+                  ) : (allCourseNotes ?? []).map((note: any) => {
+                    const lesson = allLessons.find((l: any) => l.id === note.lessonId);
+                    return (
+                      <div key={note.id} className="bg-muted/40 rounded-lg p-3 text-sm group relative">
+                        <p className="text-xs font-medium mb-1 cursor-pointer hover:underline" style={{ color: primaryColor }} onClick={() => { setCurrentLessonId(note.lessonId); setNotesTab("current"); }}>{lesson?.title ?? "Unknown lesson"}</p>
+                        <p className="whitespace-pre-wrap text-foreground">{note.content}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{new Date(note.createdAt).toLocaleDateString()}</p>
+                        <button onClick={() => deleteNoteM.mutate({ id: note.id })} className="absolute top-2 right-2 hidden group-hover:flex h-6 w-6 items-center justify-center rounded hover:bg-destructive/10">
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {/* Bookmarks */}
+              {notesTab === "bookmarks" && (
+                <div className="p-4 flex flex-col gap-2">
+                  {(courseBookmarks ?? []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">No bookmarks yet. Click the bookmark icon in the top bar to bookmark a lesson.</p>
+                  ) : (courseBookmarks ?? []).map((bm: any) => {
+                    const lesson = allLessons.find((l: any) => l.id === bm.lessonId);
+                    return (
+                      <button key={bm.id} onClick={() => setCurrentLessonId(bm.lessonId)} className="w-full flex items-center gap-2.5 p-3 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors text-left">
+                        <BookmarkCheck className="h-4 w-4 shrink-0 text-amber-500" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{lesson?.title ?? "Unknown lesson"}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(bm.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </aside>
         )}

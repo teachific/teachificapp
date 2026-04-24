@@ -188,7 +188,7 @@ import { storagePut } from "./storage";
 import { transcribeAudio } from "./_core/voiceTranscription";
 import { getLimits } from "../shared/tierLimits";
 import { sendEmail, resolveMergeTags, buildUnsubscribeToken } from "./sendgrid";
-import { courseEnrollmentHtml, groupManagerAssignmentHtml } from "./emailTemplates";
+import { courseEnrollmentHtml, groupManagerAssignmentHtml, certificateCompletionHtml, dripUnlockHtml } from "./emailTemplates";
 import { getOrgMembers, getUserById } from "./db";
 import { generateCertificatePdf, shouldShowTeachificBranding } from "./certificateGenerator";
 
@@ -487,8 +487,35 @@ export const lmsRouter = router({
   curriculum: router({
     get: protectedProcedure
       .input(z.object({ courseId: z.number() }))
-      .query(async ({ input }) => {
-        return getFullCurriculum(input.courseId);
+      .query(async ({ input, ctx }) => {
+        const curriculum = await getFullCurriculum(input.courseId);
+        // Compute drip lock status per lesson based on enrollment date
+        const enrollment = await getEnrollment(input.courseId, ctx.user.id);
+        const enrolledAt = enrollment?.enrolledAt ? new Date(enrollment.enrolledAt) : null;
+        const now = new Date();
+        return curriculum.map((section: any) => ({
+          ...section,
+          lessons: (section.lessons || []).map((lesson: any) => {
+            let isDripLocked = false;
+            let unlocksAt: Date | null = null;
+            if (enrolledAt && lesson.dripType && lesson.dripType !== "immediate") {
+              if (lesson.dripType === "days_after_enrollment" && lesson.dripDays != null) {
+                const unlockDate = new Date(enrolledAt.getTime() + lesson.dripDays * 24 * 60 * 60 * 1000);
+                if (unlockDate > now) {
+                  isDripLocked = true;
+                  unlocksAt = unlockDate;
+                }
+              } else if (lesson.dripType === "specific_date" && lesson.dripDate) {
+                const unlockDate = new Date(lesson.dripDate);
+                if (unlockDate > now) {
+                  isDripLocked = true;
+                  unlocksAt = unlockDate;
+                }
+              }
+            }
+            return { ...lesson, isDripLocked, unlocksAt };
+          }),
+        }));
       }),
 
     createSection: protectedProcedure
@@ -845,6 +872,31 @@ export const lmsRouter = router({
                   issuedAt: new Date().toISOString(),
                 }),
               });
+              // Send certificate completion email
+              try {
+                const [org, user] = await Promise.all([
+                  getOrgById(course.orgId),
+                  getUserById(ctx.user.id),
+                ]);
+                if (user?.email) {
+                  const SITE_URL = process.env.VITE_SITE_URL ?? "https://teachific.app";
+                  const courseUrl = `${SITE_URL}/learn/${(course as any).slug ?? course.id}`;
+                  await sendEmail({
+                    to: user.email,
+                    subject: `Certificate of Completion — ${course.title}`,
+                    html: certificateCompletionHtml({
+                      userName: user.name ?? user.email,
+                      courseTitle: course.title,
+                      orgName: org?.name,
+                      issuedAt: new Date(),
+                      verificationCode,
+                      courseUrl,
+                    }),
+                  });
+                }
+              } catch (emailErr) {
+                console.error("[Certificate] Failed to send completion email:", emailErr);
+              }
             }
           }
         }
@@ -4007,6 +4059,174 @@ Generate 5-7 blocks that make a compelling school homepage. Use the org's colors
         await requireOrgRole(ctx.user.id, funnel.orgId, undefined, ctx.user.role);
         await reorderFunnelSteps(input.stepIds);
         return { ok: true };
+      }),
+  }),
+
+  // ── Lesson Notes ─────────────────────────────────────────────────────────
+  notes: router({
+    /** Get all notes for the current user in a specific lesson */
+    byLesson: protectedProcedure
+      .input(z.object({ lessonId: z.number(), courseId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const { getNotesByLesson } = await import("./lmsDb");
+        return getNotesByLesson(ctx.user.id, input.lessonId);
+      }),
+    /** Get all notes for the current user in a course (for My Notes tab) */
+    byCourse: protectedProcedure
+      .input(z.object({ courseId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const { getNotesByCourse } = await import("./lmsDb");
+        return getNotesByCourse(ctx.user.id, input.courseId);
+      }),
+    create: protectedProcedure
+      .input(z.object({
+        courseId: z.number(),
+        lessonId: z.number(),
+        content: z.string().min(1),
+        videoTimestamp: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getEnrollment, createNote } = await import("./lmsDb");
+        const enrollment = await getEnrollment(input.courseId, ctx.user.id);
+        if (!enrollment) throw new TRPCError({ code: "FORBIDDEN", message: "Not enrolled" });
+        return createNote({
+          userId: ctx.user.id,
+          courseId: input.courseId,
+          lessonId: input.lessonId,
+          enrollmentId: enrollment.id,
+          content: input.content,
+          videoTimestamp: input.videoTimestamp,
+        });
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), content: z.string().min(1) }))
+      .mutation(async ({ input, ctx }) => {
+        const { getNoteById, updateNote } = await import("./lmsDb");
+        const note = await getNoteById(input.id);
+        if (!note) throw new TRPCError({ code: "NOT_FOUND" });
+        if (note.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        return updateNote(input.id, input.content);
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getNoteById, deleteNote } = await import("./lmsDb");
+        const note = await getNoteById(input.id);
+        if (!note) throw new TRPCError({ code: "NOT_FOUND" });
+        if (note.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await deleteNote(input.id);
+        return { ok: true };
+      }),
+  }),
+
+  // ── Lesson Bookmarks ──────────────────────────────────────────────────────
+  bookmarks: router({
+    /** Get all bookmarks for the current user in a course */
+    byCourse: protectedProcedure
+      .input(z.object({ courseId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const { getBookmarksByCourse } = await import("./lmsDb");
+        return getBookmarksByCourse(ctx.user.id, input.courseId);
+      }),
+    /** Toggle a bookmark on a lesson (create if not exists, delete if exists) */
+    toggle: protectedProcedure
+      .input(z.object({
+        courseId: z.number(),
+        lessonId: z.number(),
+        label: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getEnrollment, getBookmark, createBookmark, deleteBookmark } = await import("./lmsDb");
+        const enrollment = await getEnrollment(input.courseId, ctx.user.id);
+        if (!enrollment) throw new TRPCError({ code: "FORBIDDEN", message: "Not enrolled" });
+        const existing = await getBookmark(ctx.user.id, input.lessonId);
+        if (existing) {
+          await deleteBookmark(existing.id);
+          return { bookmarked: false };
+        }
+        await createBookmark({
+          userId: ctx.user.id,
+          courseId: input.courseId,
+          lessonId: input.lessonId,
+          enrollmentId: enrollment.id,
+          label: input.label,
+        });
+        return { bookmarked: true };
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getBookmarkById, deleteBookmark } = await import("./lmsDb");
+        const bm = await getBookmarkById(input.id);
+        if (!bm) throw new TRPCError({ code: "NOT_FOUND" });
+        if (bm.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        await deleteBookmark(input.id);
+        return { ok: true };
+      }),
+  }),
+
+  // ── Drip Notifications ───────────────────────────────────────────────────
+  drip: router({
+    // Called by a daily scheduled task — finds lessons that just unlocked today
+    // and emails each enrolled student a list of newly available content.
+    sendUnlockNotifications: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        // Only platform admins can trigger this
+        if (ctx.user.role !== "site_owner" && ctx.user.role !== "site_admin" && ctx.user.role !== "org_super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const { getLessonsByCourse, getEnrollmentsByCourse, getCoursesByOrg } = await import("./lmsDb");
+        const { getAllOrgs } = await import("./db");
+        const orgs = await getAllOrgs();
+        const now = new Date();
+        const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000); // last 24h
+        let totalEmails = 0;
+        for (const org of orgs) {
+          const orgCourses = await getCoursesByOrg(org.id);
+          for (const course of orgCourses) {
+            const [lessons, enrollments] = await Promise.all([
+              getLessonsByCourse(course.id),
+              getEnrollmentsByCourse(course.id),
+            ]);
+            // Find lessons with drip scheduling
+            const dripLessons = lessons.filter(
+              (l: any) => l.dripType === "days_after_enrollment" && l.dripDays != null
+            );
+            if (dripLessons.length === 0) continue;
+            for (const enrollment of enrollments) {
+              if (!enrollment.isActive) continue;
+              const enrolledAt = new Date(enrollment.enrolledAt);
+              // Find lessons that unlocked in the last 24h for this enrollment
+              const newlyUnlocked = dripLessons.filter((l: any) => {
+                const unlockDate = new Date(enrolledAt.getTime() + l.dripDays * 24 * 60 * 60 * 1000);
+                return unlockDate >= windowStart && unlockDate <= now;
+              });
+              if (newlyUnlocked.length === 0) continue;
+              // Get user email
+              const user = await getUserById(enrollment.userId);
+              if (!user?.email) continue;
+              const SITE_URL = process.env.VITE_SITE_URL ?? "https://teachific.app";
+              const courseUrl = `${SITE_URL}/learn/${(course as any).slug ?? course.id}`;
+              try {
+                await sendEmail({
+                  to: user.email,
+                  subject: `New content unlocked in "${course.title}"`,
+                  html: dripUnlockHtml({
+                    userName: user.name ?? user.email,
+                    courseTitle: course.title,
+                    orgName: org.name,
+                    unlockedLessons: newlyUnlocked.map((l: any) => l.title),
+                    courseUrl,
+                  }),
+                });
+                totalEmails++;
+              } catch (err) {
+                console.error("[Drip] Failed to send unlock email:", err);
+              }
+            }
+          }
+        }
+        return { totalEmails };
       }),
   }),
 });
