@@ -1394,6 +1394,9 @@ export function LessonEditorSheet({
                   message: form.startBannerMessage ?? "",
                   imageUrl: form.startBannerImageUrl ?? "",
                   sound: form.startBannerSound ?? "none",
+                  customSoundUrl: form.startBannerCustomSoundUrl ?? "",
+                  confetti: form.startBannerConfetti ?? false,
+                  confettiStyle: (form.startBannerConfettiStyle ?? "burst") as any,
                   durationMs: form.startBannerDurationMs ?? 5000,
                 }}
                 completeBanner={{
@@ -1402,6 +1405,9 @@ export function LessonEditorSheet({
                   message: form.completeBannerMessage ?? "",
                   imageUrl: form.completeBannerImageUrl ?? "",
                   sound: form.completeBannerSound ?? "none",
+                  customSoundUrl: form.completeBannerCustomSoundUrl ?? "",
+                  confetti: form.completeBannerConfetti ?? false,
+                  confettiStyle: (form.completeBannerConfettiStyle ?? "burst") as any,
                   durationMs: form.completeBannerDurationMs ?? 5000,
                 }}
                 onSave={(start: BannerConfig, complete: BannerConfig) => {
@@ -1412,12 +1418,18 @@ export function LessonEditorSheet({
                     startBannerMessage: start.message,
                     startBannerImageUrl: start.imageUrl,
                     startBannerSound: start.sound,
+                    startBannerCustomSoundUrl: start.customSoundUrl,
+                    startBannerConfetti: start.confetti,
+                    startBannerConfettiStyle: start.confettiStyle,
                     startBannerDurationMs: start.durationMs,
                     completeBannerEnabled: complete.enabled,
                     completeBannerPosition: complete.position,
                     completeBannerMessage: complete.message,
                     completeBannerImageUrl: complete.imageUrl,
                     completeBannerSound: complete.sound,
+                    completeBannerCustomSoundUrl: complete.customSoundUrl,
+                    completeBannerConfetti: complete.confetti,
+                    completeBannerConfettiStyle: complete.confettiStyle,
                     completeBannerDurationMs: complete.durationMs,
                   }));
                   toast.success("Banner settings updated — click Save Lesson to persist");

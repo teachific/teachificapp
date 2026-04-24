@@ -635,13 +635,19 @@ export const courseLessons = mysqlTable("course_lessons", {
   startBannerPosition: mysqlEnum("startBannerPosition", ["top", "bottom", "left"]).default("top"),
   startBannerMessage: text("startBannerMessage"),
   startBannerImageUrl: text("startBannerImageUrl"),
-  startBannerSound: varchar("startBannerSound", { length: 64 }), // e.g. 'chime', 'bell', 'fanfare', 'none'
+  startBannerSound: varchar("startBannerSound", { length: 64 }), // e.g. 'chime', 'bell', 'fanfare', 'none', 'custom'
+  startBannerCustomSoundUrl: text("startBannerCustomSoundUrl"), // custom MP3 URL when sound='custom'
+  startBannerConfetti: boolean("startBannerConfetti").default(false).notNull(), // fire confetti cannon
+  startBannerConfettiStyle: mysqlEnum("startBannerConfettiStyle", ["burst", "cannon", "rain", "fireworks"]).default("burst"),
   startBannerDurationMs: int("startBannerDurationMs").default(5000),
   completeBannerEnabled: boolean("completeBannerEnabled").default(false).notNull(),
   completeBannerPosition: mysqlEnum("completeBannerPosition", ["top", "bottom", "left"]).default("bottom"),
   completeBannerMessage: text("completeBannerMessage"),
   completeBannerImageUrl: text("completeBannerImageUrl"),
   completeBannerSound: varchar("completeBannerSound", { length: 64 }),
+  completeBannerCustomSoundUrl: text("completeBannerCustomSoundUrl"), // custom MP3 URL when sound='custom'
+  completeBannerConfetti: boolean("completeBannerConfetti").default(false).notNull(), // fire confetti cannon
+  completeBannerConfettiStyle: mysqlEnum("completeBannerConfettiStyle", ["burst", "cannon", "rain", "fireworks"]).default("burst"),
   completeBannerDurationMs: int("completeBannerDurationMs").default(5000),
   // Settings
   sortOrder: int("sortOrder").default(0).notNull(),

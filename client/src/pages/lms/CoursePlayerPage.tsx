@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RichTextContent } from "@/components/RichTextEditor";
 import { BANNER_SOUNDS } from "@/lib/bannerSounds";
+import { fireConfetti } from "@/components/lms/LessonBannerEditor";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -566,6 +567,9 @@ export default function CoursePlayerPage() {
     imageUrl?: string | null;
     position: "top" | "bottom" | "left";
     sound?: string | null;
+    customSoundUrl?: string | null;
+    confetti?: boolean | null;
+    confettiStyle?: string | null;
     durationMs: number;
   } | null>(null);
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -631,7 +635,18 @@ export default function CoursePlayerPage() {
   const showBanner = useCallback((banner: typeof activeBanner) => {
     if (!banner) return;
     setActiveBanner(banner);
-    if (banner.sound) playBannerSound(banner.sound);
+    // Play sound
+    if (banner.sound && banner.sound !== "none") {
+      if (banner.sound === "custom" && banner.customSoundUrl) {
+        try { const a = new Audio(banner.customSoundUrl); a.volume = 0.6; a.play().catch(() => {}); } catch {}
+      } else {
+        playBannerSound(banner.sound);
+      }
+    }
+    // Fire confetti cannon
+    if (banner.confetti) {
+      fireConfetti((banner.confettiStyle as any) || "burst");
+    }
     if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
     bannerTimerRef.current = setTimeout(() => setActiveBanner(null), banner.durationMs || 5000);
   }, []);
@@ -651,6 +666,9 @@ export default function CoursePlayerPage() {
         imageUrl: currentLesson.startBannerImageUrl,
         position: currentLesson.startBannerPosition || "top",
         sound: currentLesson.startBannerSound,
+        customSoundUrl: (currentLesson as any).startBannerCustomSoundUrl,
+        confetti: (currentLesson as any).startBannerConfetti,
+        confettiStyle: (currentLesson as any).startBannerConfettiStyle,
         durationMs: currentLesson.startBannerDurationMs || 5000,
       });
     }
@@ -683,6 +701,9 @@ export default function CoursePlayerPage() {
           imageUrl: currentLesson.completeBannerImageUrl,
           position: currentLesson.completeBannerPosition || "bottom",
           sound: currentLesson.completeBannerSound,
+          customSoundUrl: (currentLesson as any).completeBannerCustomSoundUrl,
+          confetti: (currentLesson as any).completeBannerConfetti,
+          confettiStyle: (currentLesson as any).completeBannerConfettiStyle,
           durationMs: currentLesson.completeBannerDurationMs || 5000,
         });
       } else {

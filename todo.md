@@ -2979,3 +2979,14 @@
 ## Per-Course Access Duration
 - [x] Add accessDurationType/accessDurationDays/accessExpiryDate to courses table
 - [x] Add access duration UI to CourseSettingsTab
+
+## Lesson Banner Confetti & Sound Improvements
+- [x] Install canvas-confetti library
+- [x] Add startBannerConfetti, startBannerConfettiStyle, startBannerCustomSoundUrl fields to schema
+- [x] Add completeBannerConfetti, completeBannerConfettiStyle, completeBannerCustomSoundUrl fields to schema
+- [x] Apply migration to database
+- [x] Update lmsRouter lesson update procedure with new banner fields
+- [x] Expand bannerSounds.ts with more presets (applause, fanfare, chime, bell, etc.) and custom entry
+- [x] Rewrite LessonBannerEditor with confetti cannon toggle, confetti style picker, custom MP3 URL, and "Show Effect" preview button
+- [x] Update LessonEditorSheet to pass confetti/customSoundUrl fields to LessonBannerEditor
+- [x] Update CoursePlayerPage to fire confetti cannon and play custom sound when banners trigger
