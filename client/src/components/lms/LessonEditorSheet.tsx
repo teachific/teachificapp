@@ -335,40 +335,56 @@ function FileUploadField({
     setUploading(true);
     setProgress(0);
     try {
-      // Use /api/media-upload which proxies through the server to Forge storage
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("orgId", String(orgId));
-      fd.append("folder", contentType.startsWith("video") ? "lms-video" : "lms-media");
+      // Chunked upload — 5 MB pieces to bypass proxy timeout on large video/audio files
+      const CHUNK_SIZE = 5 * 1024 * 1024;
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+      const folder = contentType.startsWith("video") ? "lms-video" : "lms-media";
 
-      // Use XMLHttpRequest for upload progress tracking
-      const url = await new Promise<string>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/api/media-upload");
-        xhr.withCredentials = true;
-        xhr.upload.onprogress = (ev) => {
-          if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100));
-        };
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const data = JSON.parse(xhr.responseText);
-              resolve(data.url);
-            } catch {
-              reject(new Error("Invalid response from server"));
-            }
-          } else {
-            try {
-              const err = JSON.parse(xhr.responseText);
-              reject(new Error(err.error ?? `Upload failed (${xhr.status})`));
-            } catch {
-              reject(new Error(`Upload failed (${xhr.status})`));
-            }
-          }
-        };
-        xhr.onerror = () => reject(new Error("Network error during upload"));
-        xhr.send(fd);
+      // 1. Initiate
+      const initRes = await fetch("/api/chunked/media/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ totalChunks, filename: file.name, totalBytes: file.size, orgId, folder, contentType }),
       });
+      if (!initRes.ok) {
+        const err = await initRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to initiate upload");
+      }
+      const { uploadId } = await initRes.json();
+
+      // 2. Upload chunks
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunkForm = new FormData();
+        chunkForm.append("chunk", file.slice(start, end), file.name);
+        chunkForm.append("chunkIndex", String(i));
+        const chunkRes = await fetch(`/api/chunked/media/chunk/${uploadId}`, {
+          method: "POST",
+          credentials: "include",
+          body: chunkForm,
+        });
+        if (!chunkRes.ok) {
+          const err = await chunkRes.json().catch(() => ({}));
+          throw new Error(err.error ?? `Chunk ${i} failed`);
+        }
+        setProgress(Math.round(((i + 1) / totalChunks) * 100));
+      }
+
+      // 3. Finalize
+      const finalRes = await fetch(`/api/chunked/media/finalize/${uploadId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      if (!finalRes.ok) {
+        const err = await finalRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "Finalize failed");
+      }
+      const data = await finalRes.json();
+      const url: string = data.url;
 
       onChange(url);
       toast.success("File uploaded successfully");

@@ -16,9 +16,9 @@ import { existsSync, unlinkSync, createWriteStream, createReadStream, statSync }
 import { tmpdir } from "os";
 import { join } from "path";
 import { nanoid } from "nanoid";
-import { processZipVersion, emitProgress } from "./scormUploadRoutes";
+import { processZipVersion, processZip, emitProgress } from "./scormUploadRoutes";
 import { storagePutStream } from "./storage";
-import { getPackageById, updatePackage } from "./db";
+import { getPackageById, updatePackage, createPackage } from "./db";
 import { sdk } from "./_core/sdk";
 import { ENV } from "./_core/env";
 
@@ -45,6 +45,139 @@ interface UploadSession {
 }
 
 const sessions = new Map<string, UploadSession>();
+
+// ── In-memory new-package session registry ───────────────────────────────────
+interface NewPackageSession extends UploadSession {
+  orgId: number;
+  uploadedBy: number;
+  title: string;
+  displayMode: string;
+  lmsShellConfig?: string;
+}
+const newPackageSessions = new Map<string, NewPackageSession>();
+
+// ── POST /api/chunked/package/initiate ────────────────────────────────────────
+router.post("/package/initiate", express.json(), async (req: Request, res: Response) => {
+  const user = await sdk.authenticateRequest(req).catch(() => null);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const { totalChunks, filename, totalBytes, orgId, uploadedBy, title, displayMode, lmsShellConfig } = req.body;
+  if (!totalChunks || !filename || !orgId || !uploadedBy) {
+    return res.status(400).json({ error: "totalChunks, filename, orgId and uploadedBy are required" });
+  }
+  const fileSizeBytes = parseInt(String(totalBytes ?? "0"), 10);
+  if (fileSizeBytes > LARGE_FILE_LIMIT) {
+    const isOwner = !!(user.role === "site_owner" || user.role === "site_admin" || user.openId === ENV.ownerOpenId);
+    if (!isOwner) return res.status(403).json({ error: "File size is restricted to 3 GB." });
+  }
+  const uploadId = nanoid(16);
+  newPackageSessions.set(uploadId, {
+    uploadId,
+    totalChunks: parseInt(String(totalChunks), 10),
+    receivedChunks: new Set(),
+    chunkPaths: new Map(),
+    filename: String(filename),
+    orgId: parseInt(String(orgId), 10),
+    uploadedBy: parseInt(String(uploadedBy), 10),
+    title: String(title ?? String(filename).replace(/\.zip$/i, "").replace(/[-_]/g, " ")),
+    displayMode: String(displayMode ?? "native"),
+    lmsShellConfig: lmsShellConfig ? String(lmsShellConfig) : undefined,
+  });
+  return res.json({ uploadId });
+});
+
+// ── POST /api/chunked/package/chunk/:uploadId ─────────────────────────────────
+router.post(
+  "/package/chunk/:uploadId",
+  chunkUpload.single("chunk"),
+  (req: Request, res: Response) => {
+    const { uploadId } = req.params;
+    const session = newPackageSessions.get(uploadId);
+    const chunkIndex = parseInt(String(req.body.chunkIndex ?? "-1"), 10);
+    const tmpPath = (req.file as (Express.Multer.File & { path: string }) | undefined)?.path;
+    if (!session) {
+      if (tmpPath && existsSync(tmpPath)) unlinkSync(tmpPath);
+      return res.status(404).json({ error: "Upload session not found" });
+    }
+    if (chunkIndex < 0 || chunkIndex >= session.totalChunks) {
+      if (tmpPath && existsSync(tmpPath)) unlinkSync(tmpPath);
+      return res.status(400).json({ error: "Invalid chunkIndex" });
+    }
+    if (!req.file || !tmpPath) return res.status(400).json({ error: "No chunk data received" });
+    session.chunkPaths.set(chunkIndex, tmpPath);
+    session.receivedChunks.add(chunkIndex);
+    return res.json({ uploadId, chunkIndex, received: session.receivedChunks.size, total: session.totalChunks });
+  }
+);
+
+// ── POST /api/chunked/package/finalize/:uploadId ──────────────────────────────
+router.post("/package/finalize/:uploadId", express.json(), async (req: Request, res: Response) => {
+  const { uploadId } = req.params;
+  const session = newPackageSessions.get(uploadId);
+  if (!session) return res.status(404).json({ error: "Upload session not found" });
+  if (session.receivedChunks.size !== session.totalChunks) {
+    return res.status(400).json({
+      error: `Missing chunks: received ${session.receivedChunks.size} of ${session.totalChunks}`,
+    });
+  }
+  const user = await sdk.authenticateRequest(req).catch(() => null);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+  const assembledPath = join(tmpdir(), `pkg-assembled-${uploadId}-${session.filename}`);
+  try {
+    await assembleChunks(session, assembledPath);
+    // Free chunk temp files immediately
+    session.chunkPaths.forEach((p) => { try { if (existsSync(p)) unlinkSync(p); } catch { /* ignore */ } });
+    newPackageSessions.delete(uploadId);
+    const fileSize = statSync(assembledPath).size;
+    const suffix = nanoid(8);
+    const { orgId, uploadedBy, title, displayMode, lmsShellConfig } = session;
+    const zipKey = `orgs/${orgId}/packages/${suffix}/${session.filename}`;
+    const { url: zipUrl } = await storagePutStream(zipKey, assembledPath, "application/zip");
+    await createPackage({
+      orgId,
+      uploadedBy,
+      title,
+      originalZipKey: zipKey,
+      originalZipUrl: zipUrl,
+      originalZipSize: fileSize,
+      contentType: "unknown",
+      scormVersion: "none",
+      displayMode,
+      lmsShellConfig,
+      status: "processing",
+    });
+    const { getDb } = await import("./db");
+    const { contentPackages } = await import("../drizzle/schema");
+    const { desc, eq } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) {
+      if (existsSync(assembledPath)) unlinkSync(assembledPath);
+      return res.status(500).json({ error: "DB unavailable" });
+    }
+    const pkgs = await db.select().from(contentPackages)
+      .where(eq(contentPackages.orgId, orgId))
+      .orderBy(desc(contentPackages.createdAt))
+      .limit(1);
+    const pkg = pkgs[0];
+    if (!pkg) {
+      if (existsSync(assembledPath)) unlinkSync(assembledPath);
+      return res.status(500).json({ error: "Package creation failed" });
+    }
+    // Respond immediately — processing runs in background
+    res.json({ packageId: pkg.id, zipUrl, status: "processing", message: "Upload received. Processing in background." });
+    // Process ZIP asynchronously
+    processZip(assembledPath, fileSize, pkg.id, orgId, suffix).catch((err) => {
+      console.error(`[Chunked Package] Package ${pkg.id} failed:`, err);
+      emitProgress(pkg.id, 0, 1, "error");
+      updatePackage(pkg.id, { status: "error", processingError: String(err) }).catch(console.error);
+    });
+  } catch (err: unknown) {
+    session.chunkPaths.forEach((p) => { try { if (existsSync(p)) unlinkSync(p); } catch { /* ignore */ } });
+    newPackageSessions.delete(uploadId);
+    if (existsSync(assembledPath)) { try { unlinkSync(assembledPath); } catch { /* ignore */ } }
+    console.error("[Chunked Package Finalize] Error:", err);
+    return res.status(500).json({ error: "Finalize failed", detail: String(err) });
+  }
+});
 
 // ── POST /api/chunked/version/:packageId/initiate ─────────────────────────────
 router.post("/version/:packageId/initiate", express.json(), async (req: Request, res: Response) => {

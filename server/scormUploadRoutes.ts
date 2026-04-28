@@ -229,7 +229,7 @@ async function parallelUpload<T>(
 }
 
 // ─── Background ZIP processing — streaming extraction to avoid RAM exhaustion ─
-async function processZip(
+export async function processZip(
   tmpPath: string,
   zipSize: number,
   packageId: number,

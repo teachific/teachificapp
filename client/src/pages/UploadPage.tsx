@@ -132,36 +132,66 @@ export default function UploadPage({ onClose, onSuccess, initialFile }: UploadPa
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("orgId", String(effectiveOrgId));
-      formData.append("uploadedBy", String(user.id));
-      formData.append("title", title);
-      formData.append("displayMode", displayMode);
-      if (description) formData.append("description", description);
+      // ── Chunked upload — splits file into 5 MB pieces to bypass proxy timeout ──
+      const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB per chunk
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
-      const result = await new Promise<{ packageId: number }>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            setUploadedBytes(e.loaded);
-            // Upload phase = 5% → 60%
-            setUploadProgress(5 + Math.round((e.loaded / e.total) * 55));
-          }
-        };
-        xhr.onload = () => {
-          if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
-          else {
-            try { reject(new Error(JSON.parse(xhr.responseText)?.error ?? "Upload failed")); }
-            catch { reject(new Error(`Upload failed (HTTP ${xhr.status})`)); }
-          }
-        };
-        xhr.onerror = () => reject(new Error("Network error during upload"));
-        xhr.ontimeout = () => reject(new Error("Upload timed out — try a smaller file or check your connection"));
-        xhr.timeout = 30 * 60 * 1000; // 30 min client timeout
-        xhr.open("POST", "/api/upload/package");
-        xhr.send(formData);
+      // 1. Initiate upload session
+      const initRes = await fetch("/api/chunked/package/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          totalChunks,
+          filename: file.name,
+          totalBytes: file.size,
+          orgId: effectiveOrgId,
+          uploadedBy: user.id,
+          title,
+          displayMode,
+          lmsShellConfig: undefined,
+        }),
       });
+      if (!initRes.ok) {
+        const err = await initRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to initiate upload");
+      }
+      const { uploadId } = await initRes.json();
+
+      // 2. Upload each chunk
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+        const chunkForm = new FormData();
+        chunkForm.append("chunk", chunk, file.name);
+        chunkForm.append("chunkIndex", String(i));
+        const chunkRes = await fetch(`/api/chunked/package/chunk/${uploadId}`, {
+          method: "POST",
+          credentials: "include",
+          body: chunkForm,
+        });
+        if (!chunkRes.ok) {
+          const err = await chunkRes.json().catch(() => ({}));
+          throw new Error(err.error ?? `Chunk ${i} upload failed`);
+        }
+        setUploadedBytes(end);
+        // Upload phase = 5% → 60%
+        setUploadProgress(5 + Math.round(((i + 1) / totalChunks) * 55));
+      }
+
+      // 3. Finalize — server assembles chunks and starts processing
+      const finalRes = await fetch(`/api/chunked/package/finalize/${uploadId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      if (!finalRes.ok) {
+        const err = await finalRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "Finalize failed");
+      }
+      const result: { packageId: number } = await finalRes.json();
 
       setPackageId(result.packageId);
       setUploadProgress(62);

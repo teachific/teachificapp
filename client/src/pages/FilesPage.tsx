@@ -29,6 +29,7 @@ import { useState, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { chunkedMediaUpload } from "@/lib/chunkedMediaUpload";
 import {
   DndContext,
   DragOverlay,
@@ -477,33 +478,12 @@ export default function FilesPage() {
     const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setMediaUploads((prev) => [...prev, { id: uid, file, progress: 0, status: "uploading" }]);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("orgId", String(orgId));
-      formData.append("folder", "lms-media");
-      const result = await new Promise<{ key: string; url: string; fileName: string; fileSize: number; fileType: string }>(
-        (resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const pct = Math.round((e.loaded / e.total) * 95);
-              setMediaUploads((prev) => prev.map((u) => u.id === uid ? { ...u, progress: pct } : u));
-            }
-          };
-          xhr.onload = () => {
-            if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
-            else {
-              try { reject(new Error(JSON.parse(xhr.responseText)?.error ?? "Upload failed")); }
-              catch { reject(new Error(`Upload failed (HTTP ${xhr.status})`)); }
-            }
-          };
-          xhr.onerror = () => reject(new Error("Network error"));
-          xhr.open("POST", "/api/media-upload");
-          xhr.send(formData);
-        }
-      );
+      const result = await chunkedMediaUpload({
+        file, orgId, folder: "lms-media",
+        onProgress: (pct) => setMediaUploads((prev) => prev.map((u) => u.id === uid ? { ...u, progress: pct } : u)),
+      });
       await saveMediaItem.mutateAsync({
-        orgId, fileName: result.fileName, mimeType: result.fileType || file.type,
+        orgId, fileName: result.fileName, mimeType: file.type,
         fileSize: result.fileSize, fileKey: result.key, url: result.url, source: "direct",
       });
       setMediaUploads((prev) => prev.map((u) => u.id === uid ? { ...u, progress: 100, status: "done" } : u));

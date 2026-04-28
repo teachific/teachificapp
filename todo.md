@@ -3013,3 +3013,11 @@
 - [x] dripUnlockHtml email template added
 - [x] drip.sendUnlockNotifications tRPC procedure (admin-only, for daily scheduled task)
 - [x] Drip scheduling UI already in LessonEditorSheet settings tab
+
+## Chunked Upload Fixes (Apr 28)
+- [x] Add /api/chunked/package/* routes for new SCORM package uploads (initiate/chunk/finalize)
+- [x] Convert UploadPage.tsx from single-POST to chunked upload (fixes Railway proxy timeout)
+- [x] Convert LessonEditorSheet media upload to chunked (fixes large video timeout)
+- [x] Create shared chunkedMediaUpload utility (client/src/lib/chunkedMediaUpload.ts)
+- [x] Convert FilesPage.tsx media upload to chunked
+- [x] Convert MediaFilesPage.tsx media upload to chunked
