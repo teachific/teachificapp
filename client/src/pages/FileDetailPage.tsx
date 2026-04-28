@@ -495,14 +495,14 @@ export default function FileDetailPage() {
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [autoFullscreenMobile, setAutoFullscreenMobile] = useState(false);
-  const [allowDownload, setAllowDownload] = useState(true);
+  const [allowDownload, setAllowDownload] = useState(false);
   const [maxPlays, setMaxPlays] = useState("");
   const [shareToken, setShareToken] = useState("");
 
   useEffect(() => { if (pkg) { setTitle(pkg.title); setDescription(pkg.description ?? ""); setIsPublic(pkg.isPublic ?? false); setAutoFullscreenMobile((pkg as any).autoFullscreenMobile ?? false); } }, [pkg]);
   useEffect(() => {
     if (perms) {
-      setAllowDownload(perms.allowDownload ?? true);
+      setAllowDownload(perms.allowDownload ?? false);
       setMaxPlays(perms.maxTotalPlays ? String(perms.maxTotalPlays) : "");
       setShareToken(perms.shareToken ?? "");
     }
