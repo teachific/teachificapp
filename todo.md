@@ -3182,3 +3182,9 @@
 - [x] Add question count badge per group in QuestionPanel
 - [x] Fix status bar text: QuizMaker not QuizCreator
 - [x] Rebuild and re-package installer after all fixes
+
+## QuizMaker Player Settings - Theme Import/Export Fix
+- [ ] Fix Import button in PlayerSettingsDialog: should open a .theme JSON file and load color/font/layout settings into the dialog (not import quiz content)
+- [ ] Fix Export button in PlayerSettingsDialog: should save current color/font/layout settings as a .theme JSON file to disk (not export quiz)
+- [ ] Add save-theme and open-theme IPC handlers to preload.ts and main.ts
+- [ ] Rebuild QuizMaker, package installer, upload to CDN, update seed

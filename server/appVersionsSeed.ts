@@ -46,7 +46,7 @@ const SEEDS: AppVersionSeed[] = [
     product: "quizcreator",
     version: "1.1.0",
     windowsUrl:
-      "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/TeachificQuizMaker-Setup-1.1.0_7a0e390a.zip",
+      "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/TeachificQuizMaker-Setup-1.1.1_60ff4a40.zip",
     macUrl: null,
     releaseNotes: "Bug fixes and improvements.",
   },
