@@ -3146,3 +3146,13 @@
 - [ ] Upload new .zip files to S3
 - [ ] Update appVersionsSeed.ts with new URLs
 - [ ] Run all tests and save checkpoint
+
+## Desktop App Rebuild v1.1.0 (RecordView + contextIsolation fix)
+- [x] Rewrite RecordView.tsx: clean teal/white design, SVG icons (no emoji), proper layout (no black block), fixed screen capture flow with error handling
+- [x] Fix TeachificCreator main.ts: contextIsolation set to false (required for getUserMedia with chromeMediaSource)
+- [x] Fix TeachificCreator main.ts: backgroundColor changed from #1a1a2e to #ffffff
+- [x] Rebuild all three apps: Vite frontend + esbuild electron bundle (clean dist-electron with only main.js and preload.js)
+- [x] Package all three Windows NSIS installers (v1.1.0)
+- [x] Upload new ZIPs to S3 CDN
+- [x] Update appVersionsSeed.ts with new CDN URLs for all three apps
+- [x] Restart server to apply seed
