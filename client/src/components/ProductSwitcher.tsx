@@ -36,7 +36,7 @@ const PRODUCTS = [
   },
   {
     key: "quizCreator" as const,
-    label: "QuizCreator™",
+    label: "QuizMaker™",
     shortLabel: "Quiz",
     href: "/quiz-creator-app",
     external: false,

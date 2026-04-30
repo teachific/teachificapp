@@ -88,7 +88,7 @@ router.post(
             break;
           }
 
-          // ── Studio / Creator / QuizCreator subscription checkout ──────────────────────
+          // ── Studio / Creator / QuizMaker subscription checkout ──────────────────────
           const appProductType = session.metadata?.product_type;
           if (session.mode === "subscription" && (appProductType === "studio" || appProductType === "creator" || appProductType === "quiz_creator")) {
             const accessTier = session.metadata?.access_tier as string;

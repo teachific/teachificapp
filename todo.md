@@ -3156,3 +3156,14 @@
 - [x] Upload new ZIPs to S3 CDN
 - [x] Update appVersionsSeed.ts with new CDN URLs for all three apps
 - [x] Restart server to apply seed
+
+## Rename QuizCreator to QuizMaker
+- [x] Update quiz-creator/package.json: productName, appId, description
+- [x] Update quiz-creator/electron/main.ts: window title, About dialog text
+- [x] Update appVersionsSeed.ts: product key remains "quizcreator" internally but display name changes; update windowsUrl filename
+- [x] Update all web platform UI references: DesktopDownloadPage, any page that shows "QuizCreator"
+- [x] Rebuild QuizMaker app (Vite + esbuild)
+- [x] Package new installer (now named "Teachific QuizMaker Setup 1.1.0.exe")
+- [x] Upload new ZIP to S3
+- [x] Update appVersionsSeed.ts with new URL
+- [x] Restart server and save checkpoint

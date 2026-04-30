@@ -85,7 +85,7 @@ export default function LoginPage() {
     const appName = returnTo.startsWith("/studio")
       ? "Teachific Studio™"
       : returnTo.startsWith("/quiz-creator")
-      ? "Teachific QuizCreator™"
+      ? "Teachific QuizMaker™"
       : contextParam === "desktop" && !returnTo
       ? "Teachific"
       : "TeachificCreator™";

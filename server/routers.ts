@@ -2334,8 +2334,8 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         return { questions, warnings };
       }),
 
-    // ── Import from QuizCreator .quiz file ──────────────────────────────────────
-    importFromQuizCreator: protectedProcedure
+    // ── Import from QuizMaker .quiz file ──────────────────────────────────────
+    importFromQuizMaker: protectedProcedure
       .input(z.object({
         orgId: z.number(),
         // The raw text content of the .quiz file (TEACHIFIC_QUIZ_V1 format)
@@ -2407,7 +2407,7 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         });
         if (!newQuiz) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to create quiz" });
 
-        // Map QuizCreator question types → DB question types
+        // Map QuizMaker question types → DB question types
         const typeMap: Record<string, string> = {
           mcq: "multiple_choice",
           tf: "true_false",
@@ -3120,9 +3120,9 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
       }),
   }),
 
-  // ─── QuizCreator Product ──────────────────────────────────────────────────────
+  // ─── QuizMaker Product ──────────────────────────────────────────────────────
   quizCreator: router({
-    /** Get the current user's QuizCreator role */
+    /** Get the current user's QuizMaker role */
     getMyRole: protectedProcedure.query(async ({ ctx }) => {
       const user = await getUserById(ctx.user.id);
       const role = (user?.quizCreatorAccess ?? "none") as "none" | "web" | "desktop" | "bundle";
@@ -3132,7 +3132,7 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
       return { role, trialEndsAt, isInTrial, isPaid };
     }),
 
-    /** Admin: set a user's QuizCreator role */
+    /** Admin: set a user's QuizMaker role */
     setUserRole: adminProcedure
       .input(z.object({
         userId: z.number(),
@@ -3143,7 +3143,7 @@ Respond in JSON: { "questions": [{ "questionText": "...", "questionType": "multi
         return { success: true };
       }),
 
-    /** Admin: list all users with their QuizCreator role */
+    /** Admin: list all users with their QuizMaker role */
     listUsersWithRole: adminProcedure.query(async () => {
       const allUsers = await getAllUsers();
       return allUsers.map((u) => ({

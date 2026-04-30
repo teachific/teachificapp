@@ -265,9 +265,9 @@ const SITEMAP_SECTIONS: SitemapSection[] = [
       { label: "Teachific Studio™ Dashboard", path: "/studio" },
       { label: "Teachific Studio™ Download", path: "/studio/download" },
       { label: "Teachific Studio™ Pro (Marketing)", path: "/studio-pro" },
-      { label: "Teachific QuizCreator™ Dashboard", path: "/quiz-creator-app" },
-      { label: "Teachific QuizCreator™ Download", path: "/quiz-creator-app/download" },
-      { label: "Teachific QuizCreator™ Pro (Marketing)", path: "/quiz-creator-pro" },
+      { label: "Teachific QuizMaker™ Dashboard", path: "/quiz-creator-app" },
+      { label: "Teachific QuizMaker™ Download", path: "/quiz-creator-app/download" },
+      { label: "Teachific QuizMaker™ Pro (Marketing)", path: "/quiz-creator-pro" },
     ],
   },
   {
@@ -1895,7 +1895,7 @@ export default function PlatformAdminPage() {
             <Video className="w-3.5 h-3.5" /> Studio
           </TabsTrigger>
           <TabsTrigger value="quizcreator" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
-            <FileQuestion className="w-3.5 h-3.5" /> QuizCreator
+            <FileQuestion className="w-3.5 h-3.5" /> QuizMaker
           </TabsTrigger>
           <TabsTrigger value="teachificpay" className="data-[state=active]:bg-teal-600 data-[state=active]:text-slate-900 text-slate-700 gap-1.5">
             <DollarSign className="w-3.5 h-3.5" /> TeachificPay
@@ -2686,11 +2686,11 @@ function StudioAdminTab() {
   );
 }
 
-// ─── Teachific QuizCreator Admin Tab ─────────────────────────────────────────
+// ─── Teachific QuizMaker Admin Tab ─────────────────────────────────────────
 function QuizCreatorAdminTab() {
   const { data: users = [], refetch } = trpc.billing.adminListQuizCreatorUsers.useQuery();
   const setRole = trpc.billing.adminSetQuizCreatorRole.useMutation({
-    onSuccess: () => { refetch(); toast.success("QuizCreator role updated"); },
+    onSuccess: () => { refetch(); toast.success("QuizMaker role updated"); },
     onError: (e) => toast.error(e.message),
   });
   const [search, setSearch] = useState("");
@@ -2704,10 +2704,10 @@ function QuizCreatorAdminTab() {
         <CardHeader>
           <CardTitle className="text-slate-900 flex items-center gap-2">
             <FileQuestion className="w-4 h-4 text-teal-500" />
-            Teachific™ QuizCreator — User Management
+            Teachific™ QuizMaker — User Management
           </CardTitle>
           <CardDescription className="text-slate-600">
-            View and manage all users with a Teachific™ QuizCreator subscription or trial.
+            View and manage all users with a Teachific™ QuizMaker subscription or trial.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -2729,7 +2729,7 @@ function QuizCreatorAdminTab() {
                 <TableRow className="border-gray-200 bg-gray-50">
                   <TableHead className="text-slate-700 font-semibold">User</TableHead>
                   <TableHead className="text-slate-700 font-semibold">Email</TableHead>
-                  <TableHead className="text-slate-700 font-semibold">QuizCreator Role</TableHead>
+                  <TableHead className="text-slate-700 font-semibold">QuizMaker Role</TableHead>
                   <TableHead className="text-slate-700 font-semibold">Trial</TableHead>
                   <TableHead className="text-slate-700 font-semibold">Joined</TableHead>
                   <TableHead className="text-slate-700 font-semibold">Actions</TableHead>
@@ -3597,7 +3597,7 @@ function AppVersionsTab() {
   const PRODUCT_LABELS: Record<string, string> = {
     creator: "TeachificCreator™",
     studio: "Teachific Studio™",
-    quizcreator: "Teachific QuizCreator™",
+    quizcreator: "Teachific QuizMaker™",
   };
   const PRODUCT_ICONS: Record<string, string> = {
     creator: "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/icon-creator-Q43rWNPW6eUUYkvwYEJxKM.webp",
@@ -3718,7 +3718,7 @@ function AppVersionsTab() {
                 <SelectContent>
                   <SelectItem value="creator">TeachificCreator™</SelectItem>
                   <SelectItem value="studio">Teachific Studio™</SelectItem>
-                  <SelectItem value="quizcreator">Teachific QuizCreator™</SelectItem>
+                  <SelectItem value="quizcreator">Teachific QuizMaker™</SelectItem>
                 </SelectContent>
               </Select>
             </div>

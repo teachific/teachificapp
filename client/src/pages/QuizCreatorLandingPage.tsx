@@ -124,7 +124,7 @@ const PLAN_FEATURES = [
 const PLANS = [
   {
     id: "pro",
-    name: "Teachific QuizCreator™",
+    name: "Teachific QuizMaker™",
     badge: null,
     monthlyPrice: 47,
     annualPrice: 399,
@@ -141,7 +141,7 @@ const PLANS = [
     annualPrice: null,
     description: "For large organizations with custom requirements.",
     features: [
-      "Everything in Teachific QuizCreator™",
+      "Everything in Teachific QuizMaker™",
       "Unlimited seats",
       "SSO / SAML integration",
       "White-label quiz player",
@@ -164,7 +164,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      "I've tried every quiz builder out there. QuizCreator™ is the only one that gives me a portable file I actually own — not locked inside someone else's platform.",
+      "I've tried every quiz builder out there. QuizMaker™ is the only one that gives me a portable file I actually own — not locked inside someone else's platform.",
     name: "Prof. A. Okonkwo",
     title: "Medical Education Faculty",
     stars: 5,
@@ -192,7 +192,7 @@ export default function QuizCreatorLandingPage() {
             <Link href="/">
               <span className="text-xl font-black tracking-tight cursor-pointer">
                 <span className="text-white">Teachific</span>
-                <span className="text-teal-400"> QuizCreator</span>
+                <span className="text-teal-400"> QuizMaker</span>
                 <sup className="text-[10px] text-teal-400 ml-0.5">™</sup>
               </span>
             </Link>
@@ -237,7 +237,7 @@ export default function QuizCreatorLandingPage() {
           </h1>
 
           <p className="text-xl text-white/70 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Teachific QuizCreator™ is the standalone quiz authoring tool built for educators who demand more
+            Teachific QuizMaker™ is the standalone quiz authoring tool built for educators who demand more
             than a basic form builder. Create hotspot, matching, and 5 other question types — then export to a
             portable, encrypted .quiz file that belongs to you.
           </p>
@@ -293,7 +293,7 @@ export default function QuizCreatorLandingPage() {
               Every Question Type You'll Ever Need
             </h2>
             <p className="text-white/60 text-lg max-w-2xl mx-auto">
-              From simple multiple choice to complex image hotspots — QuizCreator™ gives you the full toolkit
+              From simple multiple choice to complex image hotspots — QuizMaker™ gives you the full toolkit
               to build assessments that actually measure understanding.
             </p>
           </div>
@@ -324,7 +324,7 @@ export default function QuizCreatorLandingPage() {
               Built for Serious Content Creators
             </h2>
             <p className="text-white/60 text-lg max-w-2xl mx-auto">
-              Teachific QuizCreator™ isn't a form builder with a quiz skin. It's purpose-built authoring software
+              Teachific QuizMaker™ isn't a form builder with a quiz skin. It's purpose-built authoring software
               for educators who create content professionally.
             </p>
           </div>
@@ -363,7 +363,7 @@ export default function QuizCreatorLandingPage() {
               </p>
               <p className="text-white/50 text-base leading-relaxed mb-10">
                 Hotspot questions are the gold standard for visual assessment in healthcare education,
-                engineering training, and technical certification programs. Teachific QuizCreator™ is the only
+                engineering training, and technical certification programs. Teachific QuizMaker™ is the only
                 standalone tool that makes them this easy to build.
               </p>
               <Link href="/register">
@@ -510,7 +510,7 @@ export default function QuizCreatorLandingPage() {
               <thead>
                 <tr className="border-b border-white/10 bg-white/5">
                   <th className="text-left px-6 py-4 text-white/60 font-medium">Feature</th>
-                  <th className="text-center px-4 py-4 text-teal-400 font-bold">Teachific QuizCreator™</th>
+                  <th className="text-center px-4 py-4 text-teal-400 font-bold">Teachific QuizMaker™</th>
                   <th className="text-center px-4 py-4 text-white/40 font-medium">Google Forms</th>
                   <th className="text-center px-4 py-4 text-white/40 font-medium">Typeform</th>
                 </tr>
@@ -565,7 +565,7 @@ export default function QuizCreatorLandingPage() {
                 Start Building Better Assessments Today
               </h2>
               <p className="text-white/60 text-lg mb-10 leading-relaxed">
-                Join educators who have moved beyond basic quiz forms. Teachific QuizCreator™ gives you the
+                Join educators who have moved beyond basic quiz forms. Teachific QuizMaker™ gives you the
                 authoring power to build assessments that are as sophisticated as the subjects you teach.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -597,7 +597,7 @@ export default function QuizCreatorLandingPage() {
           <div className="flex items-center gap-2">
             <span className="text-lg font-black">
               <span className="text-white">Teachific</span>
-              <span className="text-teal-400"> QuizCreator</span>
+              <span className="text-teal-400"> QuizMaker</span>
               <sup className="text-[10px] text-teal-400">™</sup>
             </span>
             <span className="text-white/30 text-sm">by Teachific™</span>

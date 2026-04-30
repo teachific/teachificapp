@@ -13,8 +13,8 @@ import { Download } from "lucide-react";
 /**
  * QuizCreatorDashboard
  *
- * Standalone shell for users who have a QuizCreator subscription but no LMS access.
- * Shows a minimal top nav with the QuizCreator branding, then embeds the full Quiz Creator tool.
+ * Standalone shell for users who have a QuizMaker subscription but no LMS access.
+ * Shows a minimal top nav with the QuizMaker branding, then embeds the full Quiz Creator tool.
  */
 export default function QuizCreatorDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -70,7 +70,7 @@ export default function QuizCreatorDashboard() {
           </div>
           <h1 className="text-2xl font-bold text-white mb-3">No Active Subscription</h1>
           <p className="text-white/60 mb-8">
-            You don't have an active QuizCreator subscription. View plans to get started.
+            You don't have an active QuizMaker subscription. View plans to get started.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/quiz-creator-pro">

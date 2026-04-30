@@ -174,10 +174,10 @@ function BareRouter() {
         <Route path="/support" component={SupportPage} />
         {/* Standalone Quiz Creator — gated by role */}
         <Route path="/quiz-creator" component={QuizCreatorGate} />
-        {/* QuizCreator standalone app for users without LMS access */}
+        {/* QuizMaker standalone app for users without LMS access */}
         <Route path="/quiz-creator-app/download">{() => <DesktopDownloadPage app="quizCreator" />}</Route>
         <Route path="/quiz-creator-app" component={QuizCreatorDashboard} />
-        {/* QuizCreator sales/marketing page */}
+        {/* QuizMaker sales/marketing page */}
         <Route path="/quiz-creator-pro" component={QuizCreatorLandingPage} />
         {/* Teachific Studio standalone dashboard */}
         <Route path="/studio/download">{() => <DesktopDownloadPage app="studio" />}</Route>

@@ -638,7 +638,7 @@ export default function StudioLandingPage() {
           <div className="flex items-center gap-6 text-sm text-white/40">
             <Link href="/" className="hover:text-white transition-colors">Teachific Home</Link>
             <Link href="/creator-pro" className="hover:text-white transition-colors">TeachificCreator™</Link>
-            <Link href="/quiz-creator-pro" className="hover:text-white transition-colors">QuizCreator™</Link>
+            <Link href="/quiz-creator-pro" className="hover:text-white transition-colors">QuizMaker™</Link>
             <a href="#" className="hover:text-white transition-colors">Privacy</a>
             <a href="#" className="hover:text-white transition-colors">Terms</a>
           </div>

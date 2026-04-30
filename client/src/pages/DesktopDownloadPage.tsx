@@ -46,10 +46,10 @@ const APP_META: Record<AppKey, {
     bgGradient: "from-violet-50 to-white",
   },
   quizCreator: {
-    name: "Teachific QuizCreator™",
+    name: "Teachific QuizMaker™",
     tagline: "Create interactive quizzes and assessments",
     backPath: "/quiz-creator-app",
-    backLabel: "Back to QuizCreator Dashboard",
+    backLabel: "Back to QuizMaker Dashboard",
     upgradePath: "/quiz-creator-pro",
     color: "text-orange-600",
     bgGradient: "from-orange-50 to-white",

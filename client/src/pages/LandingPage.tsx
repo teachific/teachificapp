@@ -82,7 +82,7 @@ function LandingNav({ user }: { user?: { name?: string | null; email?: string | 
               <a href="/quiz-creator-pro" className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
                 <span className="text-base mt-0.5">📝</span>
                 <div>
-                  <div className="text-sm font-semibold text-gray-900">Teachific™ QuizCreator</div>
+                  <div className="text-sm font-semibold text-gray-900">Teachific™ QuizMaker</div>
                   <div className="text-xs text-gray-500">Standalone quiz builder</div>
                 </div>
               </a>
@@ -978,7 +978,7 @@ function LandingFooter() {
               </li>
               <li>
                 <a href="/quiz-creator-pro" className="hover:text-white transition-colors">
-                  Teachific™ QuizCreator
+                  Teachific™ QuizMaker
                 </a>
               </li>
             </ul>

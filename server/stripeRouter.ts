@@ -490,7 +490,7 @@ export const stripeRouter = router({
       await db.update(users).set({ creatorAccess: input.role, creatorTrialEndsAt: trialEndsAt }).where(eq(users.id, input.userId));
       return { success: true };
     }),
-  // ── Admin: list all QuizCreator users ────────────────────────────────────
+  // ── Admin: list all QuizMaker users ────────────────────────────────────
   adminListQuizCreatorUsers: adminProcedure.query(async () => {
     const db = await getDb();
     const { users } = await import("../drizzle/schema");
@@ -500,7 +500,7 @@ export const stripeRouter = router({
     }).from(users).orderBy(users.createdAt);
     return allUsers.map((u) => ({ ...u, quizCreatorAccess: (u.quizCreatorAccess ?? "none") as "none" | "web" | "desktop" | "bundle" }));
   }),
-  // ── Admin: set a user's QuizCreator role ─────────────────────────────────
+  // ── Admin: set a user's QuizMaker role ─────────────────────────────────
   adminSetQuizCreatorRole: adminProcedure
     .input(z.object({
       userId: z.number(),
@@ -596,7 +596,7 @@ export const stripeRouter = router({
       return { checkoutUrl: session.url };
     }),
 
-  // ── Teachific QuizCreator™ checkout (Web / Desktop / Bundle) ─────────────────────────
+  // ── Teachific QuizMaker™ checkout (Web / Desktop / Bundle) ─────────────────────────
   createQuizCreatorCheckout: protectedProcedure
     .input(z.object({
       interval: z.enum(["monthly", "annual"]),
@@ -607,7 +607,7 @@ export const stripeRouter = router({
       const stripe = getStripe();
       const priceKey = `quiz_creator_${input.accessTier}_${input.interval}`;
       const priceId = STRIPE_PRICE_IDS[priceKey];
-      if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "QuizCreator price not found. Please try again shortly." });
+      if (!priceId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "QuizMaker price not found. Please try again shortly." });
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         payment_method_types: ["card"],
@@ -666,7 +666,7 @@ export const stripeRouter = router({
     const db = await getDb();
     const { users, orgMembers, orgSubscriptions } = await import("../drizzle/schema");
 
-    // User-level roles (Studio, Creator, QuizCreator)
+    // User-level roles (Studio, Creator, QuizMaker)
     const [userRow] = await db
       .select({
         studioAccess: users.studioAccess,
@@ -712,17 +712,17 @@ export const stripeRouter = router({
     const creatorInTrial = creatorAccess !== "none" && creatorTrialEndsAt && new Date(creatorTrialEndsAt) > new Date();
     const hasCreator = creatorAccess !== "none";
 
-    // QuizCreator
+    // QuizMaker
     const quizRole = (userRow?.quizCreatorAccess ?? "none") as string;
     const quizTrialEndsAt = userRow?.quizCreatorTrialEndsAt ?? null;
     const quizInTrial = quizRole !== "none" && quizTrialEndsAt && new Date(quizTrialEndsAt) > new Date();
-    const hasQuizCreator = quizRole !== "none";
+    const hasQuizMaker = quizRole !== "none";
 
     return {
       lms: { plan: lmsPlan, isActive: hasLms },
       studio: { tier: studioAccess, isActive: hasStudio, isInTrial: !!studioInTrial },
       creator: { tier: creatorAccess, isActive: hasCreator, isInTrial: !!creatorInTrial },
-      quizCreator: { tier: quizRole, isActive: hasQuizCreator, isInTrial: !!quizInTrial },
+      quizCreator: { tier: quizRole, isActive: hasQuizMaker, isInTrial: !!quizInTrial },
     };
   }),
 

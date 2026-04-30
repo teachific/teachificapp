@@ -31,7 +31,7 @@ const FAQS = [
     items: [
       {
         q: "Which desktop apps are included with my subscription?",
-        a: "TeachificCreator™, Teachific Studio™, and Teachific QuizCreator™ are each available as separate subscriptions. You can manage your access under My Apps in the dashboard sidebar.",
+        a: "TeachificCreator™, Teachific Studio™, and Teachific QuizMaker™ are each available as separate subscriptions. You can manage your access under My Apps in the dashboard sidebar.",
       },
       {
         q: "The desktop app shows a blank screen or keeps returning to the login page.",

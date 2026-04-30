@@ -70,10 +70,10 @@ function QuizCreatorUpgradeWall() {
         </div>
 
         <h1 className="text-2xl font-bold text-white mb-3">
-          QuizCreator Access Required
+          QuizMaker Access Required
         </h1>
         <p className="text-white/60 mb-8 leading-relaxed">
-          QuizCreator is available as a standalone subscription or included with Teachific Enterprise.
+          QuizMaker is available as a standalone subscription or included with Teachific Enterprise.
           Upgrade to start building professional quizzes with hotspot, matching, and 5 other question types.
         </p>
 

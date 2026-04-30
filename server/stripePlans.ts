@@ -336,11 +336,11 @@ export async function ensureStripePlans(): Promise<void> {
     STRIPE_PRICE_IDS[`creator_${tier}_annual`] = annualPrice.id;
   }
 
-  // ── Teachific QuizCreator™ — Web + Desktop plans ─────────────────────────────────
+  // ── Teachific QuizMaker™ — Web + Desktop plans ─────────────────────────────────
   const quizCreatorAppPlans: Record<"web" | "desktop" | "bundle", { name: string; monthlyPrice: number; annualPrice: number; description: string }> = {
-    web:     { name: "Teachific QuizCreator™ Web",    monthlyPrice: 3700, annualPrice: 29900, description: "Teachific QuizCreator™ Web — browser-based quiz creation, 7 question types, LMS integration" },
-    desktop: { name: "Teachific QuizCreator™ Desktop", monthlyPrice: 4800, annualPrice: 39900, description: "Teachific QuizCreator™ Desktop — full desktop quiz authoring, AES-256 encrypted .quiz files" },
-    bundle:  { name: "Teachific QuizCreator™ Bundle",  monthlyPrice: 6500, annualPrice: 54900, description: "Teachific QuizCreator™ Bundle — Web + Desktop apps" },
+    web:     { name: "Teachific QuizMaker™ Web",    monthlyPrice: 3700, annualPrice: 29900, description: "Teachific QuizMaker™ Web — browser-based quiz creation, 7 question types, LMS integration" },
+    desktop: { name: "Teachific QuizMaker™ Desktop", monthlyPrice: 4800, annualPrice: 39900, description: "Teachific QuizMaker™ Desktop — full desktop quiz authoring, AES-256 encrypted .quiz files" },
+    bundle:  { name: "Teachific QuizMaker™ Bundle",  monthlyPrice: 6500, annualPrice: 54900, description: "Teachific QuizMaker™ Bundle — Web + Desktop apps" },
   };
   for (const [tier, plan] of Object.entries(quizCreatorAppPlans) as ["web"|"desktop"|"bundle", typeof quizCreatorAppPlans["web"]][]) {
     const productKey = `quiz_creator_${tier}`;

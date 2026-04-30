@@ -1,5 +1,5 @@
 /**
- * DownloadPage — Shared download hub component for Creator, Studio, and QuizCreator.
+ * DownloadPage — Shared download hub component for Creator, Studio, and QuizMaker.
  * Shows Windows/macOS download buttons, system requirements, and release notes.
  */
 import { trpc } from "@/lib/trpc";
@@ -47,7 +47,7 @@ const PRODUCT_INFO: Record<Product, {
     ],
   },
   quizcreator: {
-    name: "Teachific QuizCreator™",
+    name: "Teachific QuizMaker™",
     tagline: "Professional quiz and assessment builder with analytics",
     features: [
       "Multiple question types",
