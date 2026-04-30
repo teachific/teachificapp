@@ -3108,3 +3108,41 @@
 - [x] Upload .zip files to S3 (CDN URLs updated in appVersionsSeed.ts)
 - [x] Update appVersionsSeed.ts with new URLs
 - [x] Run all tests (116 passed) and save checkpoint
+
+## Desktop Apps: Engine Implementation (Missing from Previous Build)
+
+### QuizCreator Engines
+- [ ] Implement publishQuiz IPC handler in electron/main.ts
+- [ ] HTML5 export engine: generate self-contained quiz player HTML with embedded JS/CSS
+- [ ] SCORM 1.2 export engine: imsmanifest.xml + adl/scorm 1.2 API wrapper + quiz HTML + zip
+- [ ] SCORM 2004 export engine: imsmanifest.xml (SCORM 2004 4th Ed) + API_1484_11 wrapper + zip
+- [ ] xAPI export engine: quiz HTML with tincan.xml + xAPI statement generation
+- [ ] Word export: generate .docx with question list using docx library
+- [ ] Excel export: generate .xlsx in iSpring template format using xlsx library
+- [ ] Excel import: parse iSpring template columns, map to quiz question types
+- [ ] CSV import: parse question/answer rows into quiz format
+- [ ] Preview: render quiz HTML in BrowserWindow popup
+- [ ] Wire all IPC handlers to preload.ts contextBridge
+
+### Studio Engines
+- [ ] desktopCapturer: enumerate screens and windows for recording source selection
+- [ ] Screen recording: MediaRecorder API with desktopCapturer stream
+- [ ] Camera recording: getUserMedia camera overlay on screen capture
+- [ ] Save recording as .webm then convert to .mp4 using ffmpeg
+- [ ] Transcription: send audio to Teachific API /api/transcribe endpoint
+- [ ] Transcript-based editing: map word timestamps to video segments, cut on delete
+- [ ] AI highlights: send transcript to Teachific API /api/highlights endpoint
+- [ ] Export: ffmpeg concat/trim pipeline for final MP4
+
+### TeachificCreator Engines
+- [ ] SCORM course export: generate imsmanifest.xml + HTML5 course player + zip
+- [ ] pptx import: parse .pptx using pptx2json or officegen
+- [ ] PowerPoint add-in: generate .ppam manifest + ribbon XML + VBA stub
+- [ ] Publish IPC handler: wire all export formats
+- [ ] All IPC handlers connected to preload.ts contextBridge
+
+### Build & Deploy
+- [ ] Rebuild all three Windows installers after engine implementation
+- [ ] Upload new .zip files to S3
+- [ ] Update appVersionsSeed.ts with new URLs
+- [ ] Run all tests and save checkpoint
