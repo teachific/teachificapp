@@ -3048,3 +3048,63 @@
 - [x] Fix it to display the existing S3 URLs from the database (not show empty input fields)
 - [x] Created appVersionsSeed.ts — idempotent startup seed that upserts all 3 app versions with real S3 URLs on every server start
 - [x] Wired ensureAppVersions() into server/_core/index.ts startup (runs 3s after server starts, non-blocking)
+
+## Desktop Apps: Full Rebuild (per original PRD)
+
+### Architecture (corrected)
+- TeachificCreator™ ($117/mo) = ALL-IN-ONE: course authoring + QuizMaker + Studio + PowerPoint add-in + Content Library + AI + Role-Play + Interactions
+- Teachific QuizCreator™ ($47/mo) = Standalone iSpring QuizMaker equivalent
+- Teachific Studio™ ($47/mo) = Screen recording + transcription editing + AI highlights + MP4 export
+
+### Phase 1: Shared File Formats & Scaffolding
+- [x] Define .quiz JSON schema (metadata, groups, questions, answers, feedback, scoring, player settings, animations)
+- [x] Define .course JSON schema (modules, lessons, pages, media)
+- [x] Scaffold all 3 Electron apps with React + Tailwind + Vite
+- [x] Shared login/activation component (email/password via Teachific API)
+
+### Phase 2: Teachific QuizCreator™
+- [ ] Ribbon toolbar: Home, Insert, Design, Animation, Help tabs
+- [ ] Left panel: question list with groups, shuffle toggle, question count badges
+- [ ] Form View: structured question editor (question text, answers, correct answer, feedback)
+- [ ] Slide View: visual slide editor with branded background, embedded media
+- [ ] Question types: MC, T/F, Multiple Response, Fill-in-the-blank, Matching, Sequence, Hotspot, Image-based
+- [ ] Intro slide and User Info Form slides
+- [ ] Quiz Properties dialog: General, Scoring, Question Properties, Question List, Reporting
+- [ ] Player customization: Features, Navigation, Color Scheme, Text, Import/Export
+- [ ] Animation tab: Answer animation (None, Appear, Fade, Float In) with timing
+- [ ] Insert: Picture, Shape, Text Box, Equation, Symbol, Video, Audio, Characters, Backgrounds
+- [ ] Design: Themes, Format Background, Color Scheme
+- [ ] Publish: HTML5, SCORM 1.2, SCORM 2004, xAPI, Word export
+- [ ] Export to Excel (.xlsx)
+- [ ] Import questions from Excel/CSV
+- [ ] Open/Save .quiz files natively
+- [ ] Preview quiz in built-in browser window
+- [ ] Login-based activation, 14-day trial, watermark on exports for trial users
+
+### Phase 3: Teachific Studio™
+- [ ] Screen recording: Screen only, Camera only, Screen + Camera
+- [ ] Transcription generation from recordings
+- [ ] Transcription-based editing (delete words to cut video)
+- [ ] AI-generated 10 highlight clips from full video
+- [ ] Video timeline editor
+- [ ] Export as MP4
+- [ ] Login-based activation, 14-day trial, watermark for trial users
+
+### Phase 4: TeachificCreator™ (All-in-One)
+- [ ] Slide-based course authoring (PowerPoint-like)
+- [ ] Import .pptx files
+- [ ] PowerPoint add-in (.ppam) for ribbon integration
+- [ ] Built-in QuizMaker (full QuizCreator feature set)
+- [ ] Built-in Studio (screen recording + video editing)
+- [ ] Content Library: Characters, Backgrounds, Objects, Icons
+- [ ] AI Image Generation
+- [ ] Role-Play / Dialogue builder
+- [ ] Interactions: Steps, Timeline, Process, Cyclic, Catalog
+- [ ] Publish to SCORM 1.2, SCORM 2004, xAPI, HTML5, .pptx
+- [ ] Login-based activation, 14-day trial, watermark for trial users
+
+### Phase 5: Build & Deploy
+- [x] Package all three as Windows NSIS installers (96 MB each)
+- [x] Upload .zip files to S3 (CDN URLs updated in appVersionsSeed.ts)
+- [x] Update appVersionsSeed.ts with new URLs
+- [x] Run all tests (116 passed) and save checkpoint
