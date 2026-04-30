@@ -30,7 +30,7 @@ const SEEDS: AppVersionSeed[] = [
     product: "creator",
     version: "1.1.0",
     windowsUrl:
-      "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/TeachificCreator-Setup-1.1.0_0b19d97c.zip",
+      "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/TeachificCreator-Setup-1.1.0_9ee69402.zip",
     macUrl: null,
     releaseNotes: "Bug fixes and improvements.",
   },
@@ -38,7 +38,7 @@ const SEEDS: AppVersionSeed[] = [
     product: "studio",
     version: "1.1.0",
     windowsUrl:
-      "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/TeachificStudio-Setup-1.1.0_94b73c98.zip",
+      "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/TeachificStudio-Setup-1.1.0_e581fbcb.zip",
     macUrl: null,
     releaseNotes: "Bug fixes and improvements.",
   },
@@ -46,7 +46,7 @@ const SEEDS: AppVersionSeed[] = [
     product: "quizcreator",
     version: "1.1.0",
     windowsUrl:
-      "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/TeachificQuizMaker-Setup-1.1.1_60ff4a40.zip",
+      "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/TeachificQuizMaker-Setup-1.1.0_c25967e0.zip",
     macUrl: null,
     releaseNotes: "Bug fixes and improvements.",
   },
