@@ -3167,3 +3167,18 @@
 - [x] Upload new ZIP to S3
 - [x] Update appVersionsSeed.ts with new URL
 - [x] Restart server and save checkpoint
+
+## QuizMaker Desktop App - Full Overhaul (iSpring parity)
+- [x] Fix blank dialog windows: dialog-box needs explicit height, overflow-y-auto on content area
+- [x] Add missing selectFolder IPC handler to preload.ts and main.ts
+- [x] Fix Publish flow: outputPath must default to user's Desktop, Browse button must work
+- [x] Add Numeric, Short Answer, Essay, Rating Scale question types
+- [x] Add per-question branching section in FormView (Correct → Next/Specific/End, Incorrect → same)
+- [x] Add per-question scoring override in FormView
+- [x] Fix SlideView: render actual question text and answer choices on the slide canvas
+- [x] Fix SlideView: clicking thumbnail selects that question
+- [x] Improve QuestionPanel: show question type icon and truncated question text
+- [x] Update Ribbon title bar to say QuizMaker not QuizCreator
+- [x] Add question count badge per group in QuestionPanel
+- [x] Fix status bar text: QuizMaker not QuizCreator
+- [x] Rebuild and re-package installer after all fixes
