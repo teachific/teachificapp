@@ -28,27 +28,27 @@ interface AppVersionSeed {
 const SEEDS: AppVersionSeed[] = [
   {
     product: "creator",
-    version: "1.0.0",
+    version: "1.1.0",
     windowsUrl:
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/TeachificCreator-Setup-1.0.0_df7323d9.zip",
     macUrl: null,
-    releaseNotes: "Initial release of TeachificCreator™ for Windows. Includes course authoring, built-in QuizMaker, screen recording, SCORM/HTML5/xAPI export, and Teachific icon.",
+    releaseNotes: "Bug fixes and improvements.",
   },
   {
     product: "studio",
-    version: "1.0.0",
+    version: "1.1.0",
     windowsUrl:
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/TeachificStudio-Setup-1.0.0_bf3ea6b0.zip",
     macUrl: null,
-    releaseNotes: "Initial release of Teachific Studio™ for Windows. Screen recording, transcription editing, AI highlight clips, MP4 export, and Teachific icon.",
+    releaseNotes: "Bug fixes and improvements.",
   },
   {
     product: "quizcreator",
-    version: "1.0.0",
+    version: "1.1.0",
     windowsUrl:
       "https://d2xsxph8kpxj0f.cloudfront.net/310519663401463434/fJXMsdmk8vcb8V4GDt37f6/TeachificQuizCreator-Setup-1.0.0_0bab2180.zip",
     macUrl: null,
-    releaseNotes: "Initial release of Teachific QuizCreator™ for Windows. Full iSpring QuizMaker-equivalent with SCORM, HTML5, xAPI, Excel/Word export, and Teachific icon.",
+    releaseNotes: "Bug fixes and improvements.",
   },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
