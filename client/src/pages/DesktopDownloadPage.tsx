@@ -153,7 +153,7 @@ export default function DesktopDownloadPage({ app }: { app: AppKey }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-slate-900 group-hover:text-teal-700">Download for Windows</p>
-                      <p className="text-xs text-slate-500 mt-0.5">.exe installer · Windows 10+</p>
+                      <p className="text-xs text-slate-500 mt-0.5">.zip archive · Windows 10+ · Extract to install</p>
                     </div>
                     {downloading === "windows" ? (
                       <Loader2 className="w-4 h-4 animate-spin text-teal-500 shrink-0" />
@@ -164,15 +164,16 @@ export default function DesktopDownloadPage({ app }: { app: AppKey }) {
 
                   {/* macOS */}
                   <button
-                    onClick={() => handleDownload("mac", data.mac ?? "")}
-                    className="flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 hover:border-teal-400 hover:bg-teal-50/50 transition-all text-left group"
+                    onClick={() => data.mac ? handleDownload("mac", data.mac) : undefined}
+                    disabled={!data.mac}
+                    className="flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 hover:border-teal-400 hover:bg-teal-50/50 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="p-3 rounded-lg bg-slate-100 shrink-0">
                       <Apple className="w-6 h-6 text-slate-700" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-slate-900 group-hover:text-teal-700">Download for macOS</p>
-                      <p className="text-xs text-slate-500 mt-0.5">.dmg installer · macOS 11+</p>
+                      <p className="text-xs text-slate-500 mt-0.5">.dmg installer · macOS 11+ · Coming soon</p>
                     </div>
                     {downloading === "mac" ? (
                       <Loader2 className="w-4 h-4 animate-spin text-teal-500 shrink-0" />
@@ -183,14 +184,12 @@ export default function DesktopDownloadPage({ app }: { app: AppKey }) {
                 </div>
 
                 <p className="text-xs text-slate-400 text-center pt-1">
-                  Having trouble?{" "}
+                  Having trouble? Contact{" "}
                   <a
-                    href={data.releasePage}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="mailto:support@teachific.app"
                     className="underline hover:text-slate-600"
                   >
-                    View all release assets on GitHub
+                    support@teachific.app
                   </a>
                 </p>
               </CardContent>
@@ -205,7 +204,7 @@ export default function DesktopDownloadPage({ app }: { app: AppKey }) {
                 <ol className="space-y-3">
                   {[
                     { step: "1", title: "Download the installer", desc: "Click the button above for your operating system." },
-                    { step: "2", title: "Run the installer", desc: "Windows: double-click the .exe and follow the prompts. macOS: open the .dmg, drag the app to Applications." },
+                    { step: "2", title: "Run the installer", desc: "Windows: extract the .zip file, then double-click the .exe installer and follow the prompts. macOS: open the .dmg, drag the app to Applications." },
                     { step: "3", title: "Launch and sign in", desc: `Open ${meta.name} and sign in with your Teachific account to activate.` },
                     { step: "4", title: "Start creating", desc: "Your subscription is automatically verified — no extra steps needed." },
                   ].map(({ step, title, desc }) => (

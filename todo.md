@@ -3021,3 +3021,13 @@
 - [x] Create shared chunkedMediaUpload utility (client/src/lib/chunkedMediaUpload.ts)
 - [x] Convert FilesPage.tsx media upload to chunked
 - [x] Convert MediaFilesPage.tsx media upload to chunked
+
+## Desktop Apps: Real Electron Builds
+- [x] Build Teachific Studio Electron app (screen recording, media capture)
+- [x] Build Teachific Creator Electron app (SCORM course authoring)
+- [x] Build Teachific Quiz Creator Electron app (interactive quiz builder)
+- [x] Package all three as Windows NSIS installers (.exe)
+- [x] Upload all three as .zip archives to S3/CDN
+- [x] Update app_versions DB table with real S3 download URLs
+- [x] Update DesktopDownloadPage to reflect .zip format and remove broken GitHub links
+- [x] Disable macOS button when no macOS URL available (shows "Coming soon")

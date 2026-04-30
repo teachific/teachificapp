@@ -765,18 +765,13 @@ export const stripeRouter = router({
         .from(appVersions)
         .where(and2(eq(appVersions.product, dbProduct as "creator" | "studio" | "quizcreator"), eq(appVersions.isLatest, true)))
         .limit(1);
-      const RELEASE_PAGES: Record<string, string> = {
-        creator: "https://github.com/teachific/teachific-creator-desktop/releases/latest",
-        studio: "https://github.com/teachific/teachific-studio-desktop/releases/latest",
-        quizcreator: "https://github.com/teachific/teachific-quizcreator-desktop/releases/latest",
-      };
       return {
         hasAccess: true,
         app: input.app,
-        version: latestRow?.version ?? "1.0.2",
+        version: latestRow?.version ?? "1.0.0",
         windows: latestRow?.windowsUrl ?? null,
         mac: latestRow?.macUrl ?? null,
-        releasePage: RELEASE_PAGES[dbProduct],
+        releasePage: null,
       };
     }),
 
