@@ -3031,3 +3031,20 @@
 - [x] Update app_versions DB table with real S3 download URLs
 - [x] Update DesktopDownloadPage to reflect .zip format and remove broken GitHub links
 - [x] Disable macOS button when no macOS URL available (shows "Coming soon")
+
+## Desktop Apps: Auto-Update, macOS Builds & Code Signing
+- [ ] Add electron-updater to all three Electron apps
+- [ ] Wire auto-update check on app startup (check for new version from app_versions API)
+- [ ] Show update notification UI in each app (banner + download button)
+- [ ] Attempt macOS cross-compilation (.dmg) or document CI approach
+- [ ] Upload macOS builds to S3 and update app_versions macUrl
+- [ ] Add code signing config to electron-builder for Windows
+- [ ] Document EV certificate workflow for production signing
+- [ ] Update DesktopDownloadPage to show macOS download button when URL is available
+- [ ] Run all tests and save checkpoint
+
+## Bug Fix: Platform Admin App Versions shows empty URLs
+- [x] Find the App Versions admin page component
+- [x] Fix it to display the existing S3 URLs from the database (not show empty input fields)
+- [x] Created appVersionsSeed.ts — idempotent startup seed that upserts all 3 app versions with real S3 URLs on every server start
+- [x] Wired ensureAppVersions() into server/_core/index.ts startup (runs 3s after server starts, non-blocking)

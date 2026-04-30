@@ -205,6 +205,16 @@ async function startServer() {
       console.warn("[Stripe] Plan initialization skipped:", e.message);
     }
   }, 2000);
+
+  // Seed desktop app download URLs (idempotent, non-blocking)
+  setTimeout(async () => {
+    try {
+      const { ensureAppVersions } = await import("../appVersionsSeed");
+      await ensureAppVersions();
+    } catch (e: any) {
+      console.warn("[AppVersions] Seed skipped:", e.message);
+    }
+  }, 3000);
 }
 
 startServer().catch(console.error);
