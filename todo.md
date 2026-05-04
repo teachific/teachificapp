@@ -3250,3 +3250,11 @@
 - [x] Update PublicQuizPlayerPage to apply quiz branding (colors, logo, fonts, completion message)
 - [x] Live preview of branding in the panel
 - [x] Write vitest tests for branding persistence
+
+## Question-Level Analytics
+- [x] Add quizMaker.getQuestionAnalytics procedure (aggregates per-question correct/incorrect rates from attempt answers JSON)
+- [x] Parse answersJson from quiz_attempts to compute per-question stats (correct count, incorrect count, % correct, most common wrong answer)
+- [x] Update QuizAnalyticsPanel to show per-question breakdown with visual bars
+- [x] Show which answer options were selected most frequently for MCQ questions
+- [x] Write vitest tests for getQuestionAnalytics procedure
+- [x] Save checkpoint

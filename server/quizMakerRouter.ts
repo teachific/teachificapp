@@ -813,6 +813,134 @@ export const quizMakerRouter = router({
       return { downloadUrl: url };
     }),
 
+  /** Get question-level analytics for a quiz (per-question correct/incorrect rates) */
+  getQuestionAnalytics: protectedProcedure
+    .input(z.object({ quizId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const db = (await getDb())!;
+      // Verify ownership
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(and(eq(quizzes.id, input.quizId), eq(quizzes.userId, ctx.user.id)));
+      if (!quiz) throw new Error("Quiz not found");
+
+      // Get questions from the quiz instructions JSON
+      const questions: any[] = quiz.instructions ? JSON.parse(quiz.instructions) : [];
+      if (questions.length === 0) return { questions: [] };
+
+      // Get all attempts for this quiz
+      const attempts = await db
+        .select()
+        .from(quizAttempts)
+        .where(eq(quizAttempts.quizId, input.quizId));
+
+      if (attempts.length === 0) {
+        return {
+          questions: questions.map((q: any) => ({
+            id: q.id,
+            stem: q.stem || "Untitled",
+            type: q.type,
+            totalResponses: 0,
+            correctCount: 0,
+            incorrectCount: 0,
+            correctRate: 0,
+            optionBreakdown: [] as { optionId: string; optionText: string; count: number; percentage: number; isCorrect: boolean }[],
+          })),
+        };
+      }
+
+      // Parse all attempts' answers
+      const parsedAttempts = attempts
+        .map((a) => {
+          try { return a.answersJson ? JSON.parse(a.answersJson) : null; }
+          catch { return null; }
+        })
+        .filter(Boolean) as Record<string, any>[];
+
+      // Compute per-question stats
+      const questionStats = questions.map((q: any) => {
+        const qId = q.id;
+        let correctCount = 0;
+        let incorrectCount = 0;
+        const optionCounts: Record<string, number> = {};
+
+        for (const attemptAnswers of parsedAttempts) {
+          const ans = attemptAnswers[qId];
+          if (ans === undefined || ans === null) continue;
+
+          // Determine correctness based on question type
+          let isCorrect = false;
+          if (q.type === "mcq" || q.type === "image_choice") {
+            const data = q.data;
+            const correctIds = (data?.choices || []).filter((c: any) => c.correct).map((c: any) => c.id);
+            const selected = Array.isArray(ans) ? ans : [];
+            isCorrect = JSON.stringify([...correctIds].sort()) === JSON.stringify([...selected].sort());
+            // Track option selections
+            for (const optId of selected) {
+              optionCounts[optId] = (optionCounts[optId] || 0) + 1;
+            }
+          } else if (q.type === "tf") {
+            const data = q.data;
+            isCorrect = ans === data?.correct;
+            // Track true/false selections
+            const key = String(ans);
+            optionCounts[key] = (optionCounts[key] || 0) + 1;
+          } else if (q.type === "matching") {
+            const data = q.data;
+            const a = (typeof ans === "object" && !Array.isArray(ans)) ? ans : {};
+            isCorrect = (data?.pairs || []).every((p: any) => a[p.id] === p.id);
+          } else if (q.type === "fill_blank") {
+            const data = q.data;
+            const a = (typeof ans === "object" && !Array.isArray(ans)) ? ans : {};
+            isCorrect = (data?.blanks || []).every((b: any) => {
+              const userAns = (a[b.id] ?? "").trim();
+              return (b.acceptedAnswers || []).some((accepted: string) =>
+                b.caseSensitive ? userAns === accepted : userAns.toLowerCase() === accepted.toLowerCase()
+              );
+            });
+          }
+
+          if (isCorrect) correctCount++;
+          else incorrectCount++;
+        }
+
+        const totalResponses = correctCount + incorrectCount;
+        const correctRate = totalResponses > 0 ? Math.round((correctCount / totalResponses) * 1000) / 10 : 0;
+
+        // Build option breakdown for MCQ/TF questions
+        let optionBreakdown: { optionId: string; optionText: string; count: number; percentage: number; isCorrect: boolean }[] = [];
+        if (q.type === "mcq" || q.type === "image_choice") {
+          const choices = q.data?.choices || [];
+          optionBreakdown = choices.map((c: any) => ({
+            optionId: c.id,
+            optionText: c.text || c.label || "Option",
+            count: optionCounts[c.id] || 0,
+            percentage: totalResponses > 0 ? Math.round(((optionCounts[c.id] || 0) / totalResponses) * 1000) / 10 : 0,
+            isCorrect: !!c.correct,
+          }));
+        } else if (q.type === "tf") {
+          optionBreakdown = [
+            { optionId: "true", optionText: "True", count: optionCounts["true"] || 0, percentage: totalResponses > 0 ? Math.round(((optionCounts["true"] || 0) / totalResponses) * 1000) / 10 : 0, isCorrect: q.data?.correct === true },
+            { optionId: "false", optionText: "False", count: optionCounts["false"] || 0, percentage: totalResponses > 0 ? Math.round(((optionCounts["false"] || 0) / totalResponses) * 1000) / 10 : 0, isCorrect: q.data?.correct === false },
+          ];
+        }
+
+        return {
+          id: qId,
+          stem: q.stem || "Untitled",
+          type: q.type,
+          totalResponses,
+          correctCount,
+          incorrectCount,
+          correctRate,
+          optionBreakdown,
+        };
+      });
+
+      return { questions: questionStats };
+    }),
+
   /** Get publish status for a quiz */
   getPublishStatus: protectedProcedure
     .input(z.object({ quizId: z.number() }))

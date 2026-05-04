@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { BarChart3, Users, Clock, Award, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
+import { BarChart3, Users, Clock, Award, TrendingUp, ChevronDown, ChevronUp, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
 import { useState } from "react";
 
 interface QuizAnalyticsPanelProps {
@@ -8,8 +8,14 @@ interface QuizAnalyticsPanelProps {
 
 export default function QuizAnalyticsPanel({ quizId }: QuizAnalyticsPanelProps) {
   const [showAttempts, setShowAttempts] = useState(false);
+  const [showQuestionDetails, setShowQuestionDetails] = useState(true);
 
   const { data: analytics, isLoading: analyticsLoading } = trpc.quizMaker.getQuizAnalytics.useQuery(
+    { quizId: quizId! },
+    { enabled: !!quizId }
+  );
+
+  const { data: questionAnalytics, isLoading: questionLoading } = trpc.quizMaker.getQuestionAnalytics.useQuery(
     { quizId: quizId! },
     { enabled: !!quizId }
   );
@@ -47,7 +53,7 @@ export default function QuizAnalyticsPanel({ quizId }: QuizAnalyticsPanelProps) 
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-120px)]">
       <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
         <BarChart3 className="w-4 h-4" /> Quiz Analytics
       </h3>
@@ -113,6 +119,36 @@ export default function QuizAnalyticsPanel({ quizId }: QuizAnalyticsPanelProps) 
         <p className="text-[10px] text-gray-400 text-center">Score %</p>
       </div>
 
+      {/* Question-Level Analytics */}
+      <div className="border-t border-gray-100 pt-3">
+        <button
+          onClick={() => setShowQuestionDetails(!showQuestionDetails)}
+          className="flex items-center justify-between w-full text-xs font-medium text-gray-600 hover:text-gray-800"
+        >
+          <span className="flex items-center gap-1.5">
+            <HelpCircle className="w-3.5 h-3.5" />
+            Question Breakdown
+          </span>
+          {showQuestionDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </button>
+
+        {showQuestionDetails && (
+          <div className="mt-3 space-y-3">
+            {questionLoading ? (
+              <div className="text-center py-2">
+                <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              </div>
+            ) : questionAnalytics?.questions.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-2">No question data available</p>
+            ) : (
+              questionAnalytics?.questions.map((q, idx) => (
+                <QuestionCard key={q.id} question={q} index={idx} />
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Recent Attempts */}
       <div className="border-t border-gray-100 pt-3">
         <button
@@ -158,6 +194,115 @@ export default function QuizAnalyticsPanel({ quizId }: QuizAnalyticsPanelProps) 
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Question Card Component ──────────────────────────────────────────────────
+
+interface QuestionStat {
+  id: string;
+  stem: string;
+  type: string;
+  totalResponses: number;
+  correctCount: number;
+  incorrectCount: number;
+  correctRate: number;
+  optionBreakdown: { optionId: string; optionText: string; count: number; percentage: number; isCorrect: boolean }[];
+}
+
+function QuestionCard({ question, index }: { question: QuestionStat; index: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasOptions = question.optionBreakdown.length > 0;
+
+  // Color based on correctRate
+  const rateColor = question.correctRate >= 70 ? "text-teal-600" : question.correctRate >= 40 ? "text-amber-600" : "text-red-500";
+  const rateBg = question.correctRate >= 70 ? "bg-teal-50" : question.correctRate >= 40 ? "bg-amber-50" : "bg-red-50";
+  const rateBarColor = question.correctRate >= 70 ? "#24abbc" : question.correctRate >= 40 ? "#d97706" : "#ef4444";
+
+  return (
+    <div className="bg-gray-50 rounded-xl p-3">
+      {/* Question Header */}
+      <div
+        className={`flex items-start gap-2 ${hasOptions ? "cursor-pointer" : ""}`}
+        onClick={() => hasOptions && setExpanded(!expanded)}
+      >
+        <span className="text-[10px] font-bold text-gray-400 mt-0.5 shrink-0">Q{index + 1}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-gray-700 font-medium truncate">{question.stem}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-[10px] text-gray-400">{question.totalResponses} responses</span>
+            <span className="text-[10px] text-gray-300">·</span>
+            <span className="text-[10px] text-gray-400 capitalize">{question.type.replace("_", " ")}</span>
+          </div>
+        </div>
+        <div className={`flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg ${rateBg}`}>
+          {question.correctRate >= 70 ? (
+            <CheckCircle2 className="w-3 h-3 text-teal-600" />
+          ) : question.correctRate >= 40 ? (
+            <HelpCircle className="w-3 h-3 text-amber-600" />
+          ) : (
+            <XCircle className="w-3 h-3 text-red-500" />
+          )}
+          <span className={`text-xs font-bold ${rateColor}`}>{question.correctRate}%</span>
+        </div>
+      </div>
+
+      {/* Correct/Incorrect Bar */}
+      <div className="mt-2 flex items-center gap-2">
+        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${question.correctRate}%`, backgroundColor: rateBarColor }}
+          />
+        </div>
+        <div className="flex items-center gap-1.5 text-[10px]">
+          <span className="text-teal-600 font-medium">{question.correctCount}✓</span>
+          <span className="text-red-400 font-medium">{question.incorrectCount}✗</span>
+        </div>
+      </div>
+
+      {/* Option Breakdown (expanded) */}
+      {expanded && hasOptions && (
+        <div className="mt-3 space-y-1.5 border-t border-gray-200 pt-2">
+          <p className="text-[10px] text-gray-500 font-medium mb-1">Answer Distribution</p>
+          {question.optionBreakdown.map((opt) => (
+            <div key={opt.optionId} className="flex items-center gap-2">
+              <div className="flex items-center gap-1 w-3 shrink-0">
+                {opt.isCorrect ? (
+                  <CheckCircle2 className="w-3 h-3 text-teal-500" />
+                ) : (
+                  <span className="w-3 h-3 rounded-full border border-gray-300" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className={`text-[10px] truncate max-w-[120px] ${opt.isCorrect ? "text-teal-700 font-medium" : "text-gray-600"}`}>
+                    {opt.optionText}
+                  </span>
+                  <span className="text-[10px] text-gray-400 shrink-0 ml-1">{opt.count} ({opt.percentage}%)</span>
+                </div>
+                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${opt.percentage}%`,
+                      backgroundColor: opt.isCorrect ? "#24abbc" : "#94a3b8",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Expand hint */}
+      {hasOptions && !expanded && (
+        <p className="text-[9px] text-gray-400 mt-1.5 text-center cursor-pointer" onClick={() => setExpanded(true)}>
+          Click to see answer distribution →
+        </p>
+      )}
     </div>
   );
 }
