@@ -334,6 +334,12 @@ export const quizzes = mysqlTable("quizzes", {
   isPublished: boolean("isPublished").default(false).notNull(),
   shareToken: varchar("shareToken", { length: 32 }).unique(),
   publishedAt: timestamp("publishedAt"),
+  // Branding/theming for published quiz player
+  brandPrimaryColor: varchar("brandPrimaryColor", { length: 32 }),
+  brandBgColor: varchar("brandBgColor", { length: 32 }),
+  brandLogoUrl: text("brandLogoUrl"),
+  brandFontFamily: varchar("brandFontFamily", { length: 128 }),
+  completionMessage: text("completionMessage"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -426,6 +432,12 @@ export const quizAttempts = mysqlTable("quiz_attempts", {
   isPassed: boolean("isPassed"),
   isCompleted: boolean("isCompleted").default(false).notNull(),
   timeTakenSeconds: int("timeTakenSeconds"),
+  // QuizMaker published quiz fields (for anonymous/public quiz takers)
+  takerName: varchar("takerName", { length: 255 }),
+  takerEmail: varchar("takerEmail", { length: 320 }),
+  answersJson: longtext("answersJson"), // Full answers snapshot for analytics
+  shareToken: varchar("shareToken", { length: 32 }), // Links attempt to published quiz
+  totalPoints: float("totalPoints"),
 });
 
 export type QuizAttempt = typeof quizAttempts.$inferSelect;

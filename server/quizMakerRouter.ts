@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "./_core/trpc";
 import { getDb } from "./db";
-import { quizzes, quizQuestions, quizAnswerChoices, organizations, orgMembers } from "../drizzle/schema";
+import { quizzes, quizQuestions, quizAnswerChoices, organizations, orgMembers, quizAttempts } from "../drizzle/schema";
 import { eq, and, asc, desc } from "drizzle-orm";
 
 // ─── QuizMaker Web Editor Router ─────────────────────────────────────────────
@@ -589,6 +589,228 @@ export const quizMakerRouter = router({
         showCorrectAnswers: quiz.showCorrectAnswers,
         questions,
       };
+    }),
+
+  // ── Attempt Tracking ──────────────────────────────────────────────────────
+
+  /** Submit a quiz attempt from the public player (no auth required) */
+  submitAttempt: publicProcedure
+    .input(
+      z.object({
+        shareToken: z.string().min(1),
+        takerName: z.string().max(255).optional(),
+        takerEmail: z.string().email().max(320).optional(),
+        score: z.number(),
+        totalPoints: z.number(),
+        passed: z.boolean(),
+        timeTakenSeconds: z.number().optional(),
+        answersJson: z.string(), // JSON snapshot of all answers
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = (await getDb())!;
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(and(eq(quizzes.shareToken, input.shareToken), eq(quizzes.isPublished, true)));
+      if (!quiz) throw new Error("Quiz not found or not published");
+
+      const scorePct = input.totalPoints > 0 ? (input.score / input.totalPoints) * 100 : 0;
+
+      const [result] = await db.insert(quizAttempts).values({
+        quizId: quiz.id,
+        orgId: quiz.orgId || undefined,
+        scoreRaw: input.score,
+        scorePct,
+        totalPoints: input.totalPoints,
+        isPassed: input.passed,
+        isCompleted: true,
+        timeTakenSeconds: input.timeTakenSeconds || undefined,
+        takerName: input.takerName || undefined,
+        takerEmail: input.takerEmail || undefined,
+        answersJson: input.answersJson,
+        shareToken: input.shareToken,
+        submittedAt: new Date(),
+      });
+
+      return { attemptId: result.insertId };
+    }),
+
+  /** Get attempts for a quiz (quiz owner only) */
+  getAttempts: protectedProcedure
+    .input(
+      z.object({
+        quizId: z.number(),
+        limit: z.number().min(1).max(100).default(50),
+        offset: z.number().min(0).default(0),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const db = (await getDb())!;
+      // Verify ownership
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(and(eq(quizzes.id, input.quizId), eq(quizzes.userId, ctx.user.id)));
+      if (!quiz) throw new Error("Quiz not found");
+
+      const attempts = await db
+        .select()
+        .from(quizAttempts)
+        .where(eq(quizAttempts.quizId, input.quizId))
+        .orderBy(desc(quizAttempts.startedAt));
+
+      // Manual pagination since we need total count
+      const total = attempts.length;
+      const paginated = attempts.slice(input.offset, input.offset + input.limit);
+
+      return { attempts: paginated, total };
+    }),
+
+  /** Get analytics summary for a quiz (quiz owner only) */
+  getQuizAnalytics: protectedProcedure
+    .input(z.object({ quizId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const db = (await getDb())!;
+      // Verify ownership
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(and(eq(quizzes.id, input.quizId), eq(quizzes.userId, ctx.user.id)));
+      if (!quiz) throw new Error("Quiz not found");
+
+      const attempts = await db
+        .select()
+        .from(quizAttempts)
+        .where(eq(quizAttempts.quizId, input.quizId));
+
+      const totalAttempts = attempts.length;
+      if (totalAttempts === 0) {
+        return {
+          totalAttempts: 0,
+          averageScore: 0,
+          passRate: 0,
+          averageTime: 0,
+          scoreDistribution: [],
+        };
+      }
+
+      const scores = attempts.map((a) => a.scorePct || 0);
+      const averageScore = scores.reduce((sum, s) => sum + s, 0) / totalAttempts;
+      const passCount = attempts.filter((a) => a.isPassed).length;
+      const passRate = (passCount / totalAttempts) * 100;
+      const times = attempts.filter((a) => a.timeTakenSeconds).map((a) => a.timeTakenSeconds!);
+      const averageTime = times.length > 0 ? times.reduce((sum, t) => sum + t, 0) / times.length : 0;
+
+      // Score distribution in 10% buckets
+      const buckets = Array.from({ length: 10 }, (_, i) => ({
+        range: `${i * 10}-${(i + 1) * 10}%`,
+        count: 0,
+      }));
+      for (const score of scores) {
+        const idx = Math.min(Math.floor(score / 10), 9);
+        buckets[idx].count++;
+      }
+
+      return {
+        totalAttempts,
+        averageScore: Math.round(averageScore * 10) / 10,
+        passRate: Math.round(passRate * 10) / 10,
+        averageTime: Math.round(averageTime),
+        scoreDistribution: buckets,
+      };
+    }),
+
+  // ── Branding ──────────────────────────────────────────────────────────────
+
+  /** Update quiz branding settings */
+  updateBranding: protectedProcedure
+    .input(
+      z.object({
+        quizId: z.number(),
+        brandPrimaryColor: z.string().max(32).nullable().optional(),
+        brandBgColor: z.string().max(32).nullable().optional(),
+        brandLogoUrl: z.string().nullable().optional(),
+        brandFontFamily: z.string().max(128).nullable().optional(),
+        completionMessage: z.string().nullable().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = (await getDb())!;
+      const { quizId, ...data } = input;
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(and(eq(quizzes.id, quizId), eq(quizzes.userId, ctx.user.id)));
+      if (!quiz) throw new Error("Quiz not found");
+
+      const updateData: any = {};
+      for (const [key, val] of Object.entries(data)) {
+        if (val !== undefined) updateData[key] = val;
+      }
+      if (Object.keys(updateData).length > 0) {
+        await db.update(quizzes).set(updateData).where(eq(quizzes.id, quizId));
+      }
+      return { success: true };
+    }),
+
+  /** Get quiz branding (for the public player) */
+  getQuizBranding: publicProcedure
+    .input(z.object({ shareToken: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const db = (await getDb())!;
+      const [quiz] = await db
+        .select({
+          brandPrimaryColor: quizzes.brandPrimaryColor,
+          brandBgColor: quizzes.brandBgColor,
+          brandLogoUrl: quizzes.brandLogoUrl,
+          brandFontFamily: quizzes.brandFontFamily,
+          completionMessage: quizzes.completionMessage,
+        })
+        .from(quizzes)
+        .where(and(eq(quizzes.shareToken, input.shareToken), eq(quizzes.isPublished, true)));
+      if (!quiz) return null;
+      return quiz;
+    }),
+
+  // ── SCORM Export ──────────────────────────────────────────────────────────
+
+  /** Export quiz as SCORM 1.2 or 2004 package */
+  exportScorm: protectedProcedure
+    .input(
+      z.object({
+        quizId: z.number(),
+        format: z.enum(["scorm12", "scorm2004"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = (await getDb())!;
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(and(eq(quizzes.id, input.quizId), eq(quizzes.userId, ctx.user.id)));
+      if (!quiz) throw new Error("Quiz not found");
+
+      const questions = quiz.instructions ? JSON.parse(quiz.instructions) : [];
+      if (questions.length === 0) throw new Error("Quiz has no questions. Save to cloud first.");
+
+      const { generateScormPackage } = await import("./scormGenerator");
+      const zipBuffer = await generateScormPackage({
+        title: quiz.title,
+        description: quiz.description || "",
+        questions,
+        passingScore: quiz.passingScore || 70,
+        timeLimit: quiz.timeLimit,
+        shuffleQuestions: quiz.shuffleQuestions,
+        format: input.format,
+      });
+
+      // Upload to S3
+      const { storagePut } = await import("./storage");
+      const fileName = `scorm-exports/${ctx.user.id}/${quiz.id}-${input.format}-${Date.now()}.zip`;
+      const { url } = await storagePut(fileName, zipBuffer, "application/zip");
+
+      return { downloadUrl: url };
     }),
 
   /** Get publish status for a quiz */

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { ChevronLeft, ChevronRight, CheckCircle2, XCircle, RotateCcw, Clock, Award } from "lucide-react";
@@ -6,9 +6,17 @@ import type { QuizQuestion, McqData, TfData, MatchingData, HotspotData, FillBlan
 
 type Answer = string | boolean | string[] | Record<string, string>;
 
+interface Branding {
+  brandPrimaryColor: string | null;
+  brandBgColor: string | null;
+  brandLogoUrl: string | null;
+  brandFontFamily: string | null;
+  completionMessage: string | null;
+}
+
 // ─── Question Renderers ──────────────────────────────────────────────────────
 
-function McqQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: Answer; setAnswer: (a: Answer) => void }) {
+function McqQuestion({ q, answer, setAnswer, primaryColor }: { q: QuizQuestion; answer: Answer; setAnswer: (a: Answer) => void; primaryColor: string }) {
   const data = q.data as McqData;
   const selected = (answer as string[]) ?? [];
   const toggle = (id: string) => {
@@ -25,12 +33,13 @@ function McqQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: Answer
           key={c.id}
           onClick={() => toggle(c.id)}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
-            selected.includes(c.id) ? "border-teal-500 bg-teal-50" : "border-gray-200 hover:border-gray-300"
+            selected.includes(c.id) ? "bg-opacity-10" : "border-gray-200 hover:border-gray-300"
           }`}
+          style={selected.includes(c.id) ? { borderColor: primaryColor, backgroundColor: `${primaryColor}10` } : undefined}
         >
-          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-            selected.includes(c.id) ? "border-teal-500 bg-teal-500" : "border-gray-300"
-          }`}>
+          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0`}
+            style={selected.includes(c.id) ? { borderColor: primaryColor, backgroundColor: primaryColor } : { borderColor: "#d1d5db" }}
+          >
             {selected.includes(c.id) && <span className="w-2 h-2 rounded-full bg-white" />}
           </span>
           <span className="text-sm text-gray-700">{c.text}</span>
@@ -40,7 +49,7 @@ function McqQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: Answer
   );
 }
 
-function TfQuestion({ answer, setAnswer }: { answer: Answer; setAnswer: (a: Answer) => void }) {
+function TfQuestion({ answer, setAnswer, primaryColor }: { answer: Answer; setAnswer: (a: Answer) => void; primaryColor: string }) {
   return (
     <div className="flex gap-4">
       {[true, false].map((val) => (
@@ -48,8 +57,9 @@ function TfQuestion({ answer, setAnswer }: { answer: Answer; setAnswer: (a: Answ
           key={String(val)}
           onClick={() => setAnswer(val)}
           className={`flex-1 py-4 rounded-xl border-2 text-sm font-semibold transition-all ${
-            answer === val ? "border-teal-500 bg-teal-50 text-teal-700" : "border-gray-200 text-gray-600 hover:border-gray-300"
+            answer === val ? "" : "border-gray-200 text-gray-600 hover:border-gray-300"
           }`}
+          style={answer === val ? { borderColor: primaryColor, backgroundColor: `${primaryColor}10`, color: primaryColor } : undefined}
         >
           {val ? "✓ True" : "✗ False"}
         </button>
@@ -58,7 +68,7 @@ function TfQuestion({ answer, setAnswer }: { answer: Answer; setAnswer: (a: Answ
   );
 }
 
-function MatchingQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: Answer; setAnswer: (a: Answer) => void }) {
+function MatchingQuestion({ q, answer, setAnswer, primaryColor }: { q: QuizQuestion; answer: Answer; setAnswer: (a: Answer) => void; primaryColor: string }) {
   const data = q.data as MatchingData;
   const ans = (answer as Record<string, string>) ?? {};
   return (
@@ -72,7 +82,8 @@ function MatchingQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: A
           <select
             value={ans[pair.id] ?? ""}
             onChange={(e) => setAnswer({ ...ans, [pair.id]: e.target.value })}
-            className="flex-1 px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/50"
+            className="flex-1 px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2"
+            style={{ "--tw-ring-color": `${primaryColor}50` } as any}
           >
             <option value="">Select...</option>
             {data.pairs.map((p) => (
@@ -85,7 +96,7 @@ function MatchingQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: A
   );
 }
 
-function HotspotQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: Answer; setAnswer: (a: Answer) => void }) {
+function HotspotQuestion({ q, answer, setAnswer, primaryColor }: { q: QuizQuestion; answer: Answer; setAnswer: (a: Answer) => void; primaryColor: string }) {
   const data = q.data as HotspotData;
   const selected = (answer as string[]) ?? [];
 
@@ -121,7 +132,7 @@ function HotspotQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: An
         return (
           <div
             key={r.id}
-            className={`absolute rounded-full border-2 transition-all ${isSelected ? "bg-teal-400/40 border-teal-500" : "bg-transparent border-transparent hover:bg-white/20"}`}
+            className={`absolute border-2 transition-all ${isSelected ? "" : "bg-transparent border-transparent hover:bg-white/20"}`}
             style={{
               left: `${r.x}%`,
               top: `${r.y}%`,
@@ -129,6 +140,7 @@ function HotspotQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: An
               height: r.shape === "circle" ? `${(r.radius ?? 5) * 2}%` : `${r.height ?? 10}%`,
               transform: "translate(-50%, -50%)",
               borderRadius: r.shape === "circle" ? "50%" : "8px",
+              ...(isSelected ? { backgroundColor: `${primaryColor}40`, borderColor: primaryColor } : {}),
             }}
           />
         );
@@ -140,7 +152,7 @@ function HotspotQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: An
   );
 }
 
-function FillBlankQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: Answer; setAnswer: (a: Answer) => void }) {
+function FillBlankQuestion({ q, answer, setAnswer, primaryColor }: { q: QuizQuestion; answer: Answer; setAnswer: (a: Answer) => void; primaryColor: string }) {
   const data = q.data as FillBlankData;
   const ans = (answer as Record<string, string>) ?? {};
   const parts = data.template.split(/(\{\{[^}]+\}\})/g);
@@ -158,7 +170,8 @@ function FillBlankQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: 
               value={ans[blankId] ?? ""}
               onChange={(e) => setAnswer({ ...ans, [blankId]: e.target.value })}
               placeholder="___"
-              className="inline-block w-32 px-2 py-1 border-b-2 border-teal-400 bg-teal-50/50 rounded text-sm focus:outline-none text-center"
+              className="inline-block w-32 px-2 py-1 border-b-2 rounded text-sm focus:outline-none text-center"
+              style={{ borderColor: primaryColor, backgroundColor: `${primaryColor}08` }}
             />
           );
         }
@@ -168,19 +181,20 @@ function FillBlankQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: 
   );
 }
 
-function ShortAnswerQuestion({ answer, setAnswer }: { answer: Answer; setAnswer: (a: Answer) => void }) {
+function ShortAnswerQuestion({ answer, setAnswer, primaryColor }: { answer: Answer; setAnswer: (a: Answer) => void; primaryColor: string }) {
   return (
     <textarea
       value={(answer as string) ?? ""}
       onChange={(e) => setAnswer(e.target.value)}
       rows={4}
       placeholder="Type your answer here..."
-      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/50 resize-none"
+      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 resize-none"
+      style={{ "--tw-ring-color": `${primaryColor}50` } as any}
     />
   );
 }
 
-function ImageChoiceQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer: Answer; setAnswer: (a: Answer) => void }) {
+function ImageChoiceQuestion({ q, answer, setAnswer, primaryColor }: { q: QuizQuestion; answer: Answer; setAnswer: (a: Answer) => void; primaryColor: string }) {
   const data = q.data as ImageChoiceData;
   const selected = (answer as string[]) ?? [];
   const toggle = (id: string) => {
@@ -197,8 +211,9 @@ function ImageChoiceQuestion({ q, answer, setAnswer }: { q: QuizQuestion; answer
           key={c.id}
           onClick={() => toggle(c.id)}
           className={`border-2 rounded-xl overflow-hidden text-left transition-all ${
-            selected.includes(c.id) ? "border-teal-500" : "border-gray-200 hover:border-gray-300"
+            selected.includes(c.id) ? "" : "border-gray-200 hover:border-gray-300"
           }`}
+          style={selected.includes(c.id) ? { borderColor: primaryColor } : undefined}
         >
           {c.imageUrl && <img src={c.imageUrl} alt={c.label} className="w-full h-28 object-cover" />}
           <div className="p-2 text-xs text-gray-700 text-center">{c.label}</div>
@@ -242,36 +257,6 @@ function calcScore(questions: QuizQuestion[], answers: Record<string, Answer>): 
   return earned;
 }
 
-// ─── Timer Hook ──────────────────────────────────────────────────────────────
-
-function useTimer(timeLimitMinutes: number | null, onExpire: () => void) {
-  const [timeLeft, setTimeLeft] = useState<number | null>(timeLimitMinutes ? timeLimitMinutes * 60 : null);
-
-  useState(() => {
-    if (timeLeft === null) return;
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev === null) return null;
-        if (prev <= 1) {
-          clearInterval(interval);
-          onExpire();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  });
-
-  return timeLeft;
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function PublicQuizPlayerPage() {
@@ -280,11 +265,29 @@ export default function PublicQuizPlayerPage() {
     { shareToken: shareToken || "" },
     { enabled: !!shareToken, retry: false }
   );
+  const { data: branding } = trpc.quizMaker.getQuizBranding.useQuery(
+    { shareToken: shareToken || "" },
+    { enabled: !!shareToken }
+  );
+
+  const submitAttemptMutation = trpc.quizMaker.submitAttempt.useMutation();
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [submitted, setSubmitted] = useState(false);
   const [started, setStarted] = useState(false);
+  const startTimeRef = useRef<number>(0);
+
+  // Branding colors
+  const primaryColor = branding?.brandPrimaryColor || "#24abbc";
+  const bgColor = branding?.brandBgColor || null;
+  const logoUrl = branding?.brandLogoUrl || null;
+  const fontFamily = branding?.brandFontFamily || null;
+  const completionMessage = branding?.completionMessage || null;
+
+  const bgGradient = bgColor
+    ? `linear-gradient(135deg, ${bgColor}, ${bgColor}dd)`
+    : "linear-gradient(135deg, #f9fafb, #e6f7f8)";
 
   // Shuffle questions once on start
   const questions = useMemo(() => {
@@ -294,13 +297,30 @@ export default function PublicQuizPlayerPage() {
       return [...qs].sort(() => 0.5 - Math.random());
     }
     return qs;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quiz, started]);
+
+  // Apply font family
+  useEffect(() => {
+    if (fontFamily) {
+      document.body.style.fontFamily = `"${fontFamily}", -apple-system, BlinkMacSystemFont, sans-serif`;
+      // Try to load from Google Fonts
+      const link = document.createElement("link");
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily)}:wght@400;500;600;700&display=swap`;
+      link.rel = "stylesheet";
+      document.head.appendChild(link);
+      return () => {
+        document.body.style.fontFamily = "";
+        document.head.removeChild(link);
+      };
+    }
+  }, [fontFamily]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-teal-50">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: bgGradient }}>
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-10 h-10 border-3 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{ borderColor: primaryColor, borderTopColor: "transparent" }} />
           <p className="text-gray-500 text-sm">Loading quiz...</p>
         </div>
       </div>
@@ -326,11 +346,15 @@ export default function PublicQuizPlayerPage() {
   // ─── Start Screen ──────────────────────────────────────────────────────────
   if (!started) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-teal-50 p-4">
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: bgGradient }}>
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-8 text-center">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "linear-gradient(135deg, #24abbc, #0d8a9a)" }}>
-            <Award className="w-8 h-8 text-white" />
-          </div>
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="h-14 mx-auto mb-4 object-contain" />
+          ) : (
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}cc)` }}>
+              <Award className="w-8 h-8 text-white" />
+            </div>
+          )}
           <h1 className="text-2xl font-bold text-gray-800 mb-2">{quiz.title}</h1>
           {quiz.description && <p className="text-gray-500 text-sm mb-6">{quiz.description}</p>}
 
@@ -354,9 +378,9 @@ export default function PublicQuizPlayerPage() {
           </div>
 
           <button
-            onClick={() => setStarted(true)}
+            onClick={() => { setStarted(true); startTimeRef.current = Date.now(); }}
             className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-            style={{ background: "linear-gradient(135deg, #24abbc, #0d8a9a)" }}
+            style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}cc)` }}
           >
             Start Quiz
           </button>
@@ -375,12 +399,17 @@ export default function PublicQuizPlayerPage() {
     const pct = totalPoints > 0 ? Math.round((score / totalPoints) * 100) : 0;
     const passed = pct >= (quiz.passingScore ?? 70);
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-teal-50 p-4">
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: bgGradient }}>
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center">
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${passed ? "bg-teal-100" : "bg-red-100"}`}>
-            {passed ? <CheckCircle2 className="w-10 h-10 text-teal-500" /> : <XCircle className="w-10 h-10 text-red-500" />}
+          {logoUrl && <img src={logoUrl} alt="Logo" className="h-10 mx-auto mb-4 object-contain" />}
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4`}
+            style={{ backgroundColor: passed ? `${primaryColor}20` : "#fee2e2" }}
+          >
+            {passed ? <CheckCircle2 className="w-10 h-10" style={{ color: primaryColor }} /> : <XCircle className="w-10 h-10 text-red-500" />}
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-1">{passed ? "Quiz Passed!" : "Not Quite"}</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-1">
+            {completionMessage ? completionMessage : (passed ? "Quiz Passed!" : "Not Quite")}
+          </h2>
           <p className="text-gray-500 mb-2">You scored {score}/{totalPoints} points ({pct}%)</p>
           <p className="text-sm text-gray-400 mb-6">Passing score: {quiz.passingScore}%</p>
 
@@ -406,7 +435,7 @@ export default function PublicQuizPlayerPage() {
                 return (
                   <div key={q.id} className="flex items-center gap-2 text-sm">
                     {isCorrect ? (
-                      <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: primaryColor }} />
                     ) : (
                       <XCircle className="w-4 h-4 text-red-400 shrink-0" />
                     )}
@@ -419,7 +448,7 @@ export default function PublicQuizPlayerPage() {
 
           <div className="flex gap-3 justify-center">
             <button
-              onClick={() => { setSubmitted(false); setAnswers({}); setCurrentIdx(0); }}
+              onClick={() => { setSubmitted(false); setAnswers({}); setCurrentIdx(0); startTimeRef.current = Date.now(); }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
             >
               <RotateCcw className="w-4 h-4" /> Retry
@@ -434,16 +463,37 @@ export default function PublicQuizPlayerPage() {
     );
   }
 
+  // ─── Submit Handler ────────────────────────────────────────────────────────
+  const handleSubmit = () => {
+    const score = calcScore(questions, answers);
+    const pct = totalPoints > 0 ? Math.round((score / totalPoints) * 100) : 0;
+    const passed = pct >= (quiz.passingScore ?? 70);
+    const timeTaken = Math.round((Date.now() - startTimeRef.current) / 1000);
+
+    // Submit attempt to backend (fire and forget)
+    submitAttemptMutation.mutate({
+      shareToken: shareToken || "",
+      score,
+      totalPoints,
+      passed,
+      timeTakenSeconds: timeTaken,
+      answersJson: JSON.stringify(answers),
+    });
+
+    setSubmitted(true);
+  };
+
   // ─── Question Screen ───────────────────────────────────────────────────────
   const q = questions[currentIdx];
   if (!q) return null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-teal-50 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: bgGradient }}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div>
+          <div className="flex items-center gap-3">
+            {logoUrl && <img src={logoUrl} alt="Logo" className="h-7 object-contain" />}
             <h2 className="text-base font-bold text-gray-800">{quiz.title}</h2>
           </div>
           <div className="flex items-center gap-3">
@@ -462,7 +512,7 @@ export default function PublicQuizPlayerPage() {
         <div className="h-1 bg-gray-100">
           <div
             className="h-full transition-all"
-            style={{ width: `${((currentIdx + 1) / questions.length) * 100}%`, background: "#24abbc" }}
+            style={{ width: `${((currentIdx + 1) / questions.length) * 100}%`, background: primaryColor }}
           />
         </div>
 
@@ -470,7 +520,7 @@ export default function PublicQuizPlayerPage() {
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-bold text-white px-2 py-0.5 rounded-full" style={{ background: "#24abbc" }}>
+              <span className="text-xs font-bold text-white px-2 py-0.5 rounded-full" style={{ background: primaryColor }}>
                 Q{currentIdx + 1}
               </span>
               <span className="text-xs text-gray-400">{q.points} point{q.points !== 1 ? "s" : ""}</span>
@@ -479,13 +529,13 @@ export default function PublicQuizPlayerPage() {
             {q.image && <img src={q.image.url} alt={q.image.alt} className="mt-3 rounded-xl max-h-48 object-cover" />}
           </div>
 
-          {q.type === "mcq" && <McqQuestion q={q} answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} />}
-          {q.type === "tf" && <TfQuestion answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} />}
-          {q.type === "matching" && <MatchingQuestion q={q} answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} />}
-          {q.type === "hotspot" && (q.data as HotspotData).imageUrl && <HotspotQuestion q={q} answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} />}
-          {q.type === "fill_blank" && <FillBlankQuestion q={q} answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} />}
-          {q.type === "short_answer" && <ShortAnswerQuestion answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} />}
-          {q.type === "image_choice" && <ImageChoiceQuestion q={q} answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} />}
+          {q.type === "mcq" && <McqQuestion q={q} answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} primaryColor={primaryColor} />}
+          {q.type === "tf" && <TfQuestion answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} primaryColor={primaryColor} />}
+          {q.type === "matching" && <MatchingQuestion q={q} answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} primaryColor={primaryColor} />}
+          {q.type === "hotspot" && (q.data as HotspotData).imageUrl && <HotspotQuestion q={q} answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} primaryColor={primaryColor} />}
+          {q.type === "fill_blank" && <FillBlankQuestion q={q} answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} primaryColor={primaryColor} />}
+          {q.type === "short_answer" && <ShortAnswerQuestion answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} primaryColor={primaryColor} />}
+          {q.type === "image_choice" && <ImageChoiceQuestion q={q} answer={answers[q.id]} setAnswer={(a) => setAnswers((p) => ({ ...p, [q.id]: a }))} primaryColor={primaryColor} />}
         </div>
 
         {/* Navigation */}
@@ -502,15 +552,15 @@ export default function PublicQuizPlayerPage() {
             <button
               onClick={() => setCurrentIdx((i) => i + 1)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
-              style={{ background: "linear-gradient(135deg, #24abbc, #0d8a9a)" }}
+              style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}cc)` }}
             >
               Next <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
             <button
-              onClick={() => setSubmitted(true)}
+              onClick={handleSubmit}
               className="px-5 py-2 rounded-xl text-sm font-semibold text-white transition-all"
-              style={{ background: "linear-gradient(135deg, #24abbc, #0d8a9a)" }}
+              style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}cc)` }}
             >
               Submit Quiz
             </button>

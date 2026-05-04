@@ -3226,3 +3226,27 @@
 - [x] Backend: getPublishStatus returns orgSlug for subdomain URL generation
 - [x] Keep /quiz/:shareToken in BareRouter as fallback for dev/preview (production uses subdomains)
 - [x] QuizMaker editor requires login via QuizCreatorGate (already enforced)
+
+## Quiz Attempt Tracking & Analytics
+- [x] Create quiz_attempts table (quizId, taker name/email, score, totalPoints, passed, answers JSON, startedAt, completedAt)
+- [x] Add quizMaker.submitAttempt public procedure (records attempt from public player)
+- [x] Add quizMaker.getAttempts protected procedure (list attempts for a quiz, with pagination)
+- [x] Add quizMaker.getQuizAnalytics protected procedure (aggregate stats: avg score, pass rate, attempts count)
+- [x] Update PublicQuizPlayerPage to submit attempt on quiz completion
+- [x] Build QuizAnalyticsPanel in editor sidebar (total attempts, avg score, pass rate, recent attempts table)
+- [x] Write vitest tests for attempt tracking procedures
+
+## SCORM/HTML5 Export from Web Editor
+- [x] Create server-side SCORM package generator (builds imsmanifest.xml, SCO HTML, JS runtime)
+- [x] Support SCORM 1.2 export (cmi.core.score, cmi.core.lesson_status)
+- [x] Support SCORM 2004 export (cmi.score.scaled, cmi.completion_status, cmi.success_status)
+- [x] Add quizMaker.exportScorm procedure (generates ZIP, uploads to S3, returns download URL)
+- [x] Add Export button to QuizMaker editor toolbar with format picker (SCORM 1.2 / SCORM 2004)
+- [x] Write vitest tests for SCORM export
+
+## Quiz Branding/Theming
+- [x] Add branding fields to quizzes table (primaryColor, logoUrl, completionMessage, bgColor, fontFamily)
+- [x] Add BrandingPanel to editor sidebar with color presets, pickers, font selector, logo URL, completion message
+- [x] Update PublicQuizPlayerPage to apply quiz branding (colors, logo, fonts, completion message)
+- [x] Live preview of branding in the panel
+- [x] Write vitest tests for branding persistence
