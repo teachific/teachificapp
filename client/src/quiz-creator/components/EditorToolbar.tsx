@@ -13,6 +13,7 @@ import {
   Upload,
   Cloud,
   CloudUpload,
+  Globe,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,9 +23,11 @@ interface Props {
   onSettings: () => void;
   onLicense: () => void;
   onCloudOpen?: () => void;
+  onPublish?: () => void;
+  isPublished?: boolean;
 }
 
-export function EditorToolbar({ onPreview, onSettings, onLicense, onCloudOpen }: Props) {
+export function EditorToolbar({ onPreview, onSettings, onLicense, onCloudOpen, onPublish, isPublished }: Props) {
   const { quiz, isDirty, markSaved, loadQuiz, newQuiz, license } = useQuizStore();
   const [saving, setSaving] = useState(false);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
@@ -192,6 +195,20 @@ export function EditorToolbar({ onPreview, onSettings, onLicense, onCloudOpen }:
           <Play className="w-3.5 h-3.5" />
           Preview
         </button>
+
+        {user && (
+          <button
+            onClick={onPublish}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+              isPublished
+                ? "bg-green-500/20 text-green-300 hover:bg-green-500/30"
+                : "bg-white/10 text-white/80 hover:text-white hover:bg-white/15"
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            {isPublished ? "Published" : "Publish"}
+          </button>
+        )}
 
         <div className="w-px h-5 bg-white/20" />
 

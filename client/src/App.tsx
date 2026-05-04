@@ -114,6 +114,7 @@ import PlatformPoliciesPage from "./pages/PlatformPoliciesPage";
 import HelpPage from "./pages/HelpPage";
 
 import QuizCreatorPage from "./pages/QuizCreatorPage";
+import PublicQuizPlayerPage from "./pages/PublicQuizPlayerPage";
 import QuizCreatorGate from "./pages/QuizCreatorGate";
 import QuizCreatorDashboard from "./pages/QuizCreatorDashboard";
 import QuizCreatorLandingPage from "./pages/QuizCreatorLandingPage";
@@ -189,6 +190,9 @@ function BareRouter() {
         <Route path="/creator/download">{() => <DesktopDownloadPage app="creator" />}</Route>
         <Route path="/creator" component={CreatorDashboardPage} />
         <Route path="/creator/:projectId" component={CreatorEditorPage} />
+        {/* Public quiz player — no auth required */}
+        <Route path="/school/:orgSlug/quiz/:shareToken" component={PublicQuizPlayerPage} />
+        <Route path="/quiz/:shareToken" component={PublicQuizPlayerPage} />
       </Switch>
   );
 }
@@ -413,6 +417,7 @@ function SubdomainSchoolRouter({ subdomain }: { subdomain: string }) {
         <Route path="/shop/:slug" component={DigitalProductSalesPage} />
         <Route path="/forms/:orgSlug/:slug" component={FormPlayerPage} />
         <Route path="/forms/:slug" component={FormPlayerPage} />
+        <Route path="/quiz/:shareToken" component={PublicQuizPlayerPage} />
         <Route path="/p/:slug" component={PublicPagePage} />
         <Route path="/policies" component={OrgPoliciesPage} />
         <Route path="/terms" component={OrgPoliciesPage} />
@@ -457,7 +462,8 @@ function Router() {
     path === "/terms" ||
     path === "/privacy" ||
     path === "/help" ||
-    path.startsWith("/community/");
+    path.startsWith("/community/") ||
+    path.startsWith("/quiz/");
   return isBare ? <BareRouter /> : <AdminRouter />;
 }
 

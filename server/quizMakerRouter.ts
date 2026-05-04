@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "./_core/trpc";
+import { router, protectedProcedure, publicProcedure } from "./_core/trpc";
 import { getDb } from "./db";
-import { quizzes, quizQuestions, quizAnswerChoices } from "../drizzle/schema";
+import { quizzes, quizQuestions, quizAnswerChoices, organizations, orgMembers } from "../drizzle/schema";
 import { eq, and, asc, desc } from "drizzle-orm";
 
 // ─── QuizMaker Web Editor Router ─────────────────────────────────────────────
@@ -485,4 +485,149 @@ export const quizMakerRouter = router({
 
       return { id: newQuizId };
     }),
+
+  // ── Publish / Share ───────────────────────────────────────────────────────
+
+  /** Publish a quiz and generate a share token */
+  publish: protectedProcedure
+    .input(z.object({ quizId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = (await getDb())!;
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(and(eq(quizzes.id, input.quizId), eq(quizzes.userId, ctx.user.id)));
+      if (!quiz) throw new Error("Quiz not found");
+
+      // Generate a unique share token if one doesn't exist
+      let token = quiz.shareToken;
+      if (!token) {
+        token = generateShareToken();
+      }
+
+      // Find the user's org to associate the quiz with their subdomain
+      let orgSlug: string | null = null;
+      const [membership] = await db
+        .select({ orgId: orgMembers.orgId })
+        .from(orgMembers)
+        .where(eq(orgMembers.userId, ctx.user.id))
+        .limit(1);
+      if (membership) {
+        const [org] = await db
+          .select({ slug: organizations.slug })
+          .from(organizations)
+          .where(eq(organizations.id, membership.orgId));
+        if (org) {
+          orgSlug = org.slug;
+          // Store the orgId on the quiz so it's associated with the subdomain
+          await db.update(quizzes).set({
+            isPublished: true,
+            shareToken: token,
+            publishedAt: new Date(),
+            orgId: membership.orgId,
+          }).where(eq(quizzes.id, input.quizId));
+        } else {
+          await db.update(quizzes).set({
+            isPublished: true,
+            shareToken: token,
+            publishedAt: new Date(),
+          }).where(eq(quizzes.id, input.quizId));
+        }
+      } else {
+        await db.update(quizzes).set({
+          isPublished: true,
+          shareToken: token,
+          publishedAt: new Date(),
+        }).where(eq(quizzes.id, input.quizId));
+      }
+
+      return { shareToken: token, orgSlug };
+    }),
+
+  /** Unpublish a quiz (keep the share token for re-publishing) */
+  unpublish: protectedProcedure
+    .input(z.object({ quizId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = (await getDb())!;
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(and(eq(quizzes.id, input.quizId), eq(quizzes.userId, ctx.user.id)));
+      if (!quiz) throw new Error("Quiz not found");
+
+      await db.update(quizzes).set({
+        isPublished: false,
+      }).where(eq(quizzes.id, input.quizId));
+
+      return { success: true };
+    }),
+
+  /** Get a published quiz by share token (public, no auth required) */
+  getPublishedQuiz: publicProcedure
+    .input(z.object({ shareToken: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const db = (await getDb())!;
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(and(eq(quizzes.shareToken, input.shareToken), eq(quizzes.isPublished, true)));
+      if (!quiz) throw new Error("Quiz not found or not published");
+
+      // Parse questions from the instructions JSON field
+      const questions = quiz.instructions ? JSON.parse(quiz.instructions) : [];
+
+      return {
+        id: quiz.id,
+        title: quiz.title,
+        description: quiz.description,
+        passingScore: quiz.passingScore,
+        timeLimit: quiz.timeLimit,
+        maxAttempts: quiz.maxAttempts,
+        shuffleQuestions: quiz.shuffleQuestions,
+        shuffleAnswers: quiz.shuffleAnswers,
+        showFeedbackImmediately: quiz.showFeedbackImmediately,
+        showCorrectAnswers: quiz.showCorrectAnswers,
+        questions,
+      };
+    }),
+
+  /** Get publish status for a quiz */
+  getPublishStatus: protectedProcedure
+    .input(z.object({ quizId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const db = (await getDb())!;
+      const [quiz] = await db
+        .select()
+        .from(quizzes)
+        .where(and(eq(quizzes.id, input.quizId), eq(quizzes.userId, ctx.user.id)));
+      if (!quiz) throw new Error("Quiz not found");
+
+      // Look up org slug for share URL generation
+      let orgSlug: string | null = null;
+      if (quiz.orgId && quiz.orgId > 0) {
+        const [org] = await db
+          .select({ slug: organizations.slug })
+          .from(organizations)
+          .where(eq(organizations.id, quiz.orgId));
+        if (org) orgSlug = org.slug;
+      }
+
+      return {
+        isPublished: quiz.isPublished,
+        shareToken: quiz.shareToken,
+        publishedAt: quiz.publishedAt,
+        orgSlug,
+      };
+    }),
 });
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function generateShareToken(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let token = '';
+  for (let i = 0; i < 16; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+}

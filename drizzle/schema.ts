@@ -332,6 +332,8 @@ export const quizzes = mysqlTable("quizzes", {
   showFeedbackImmediately: boolean("showFeedbackImmediately").default(true).notNull(),
   showCorrectAnswers: boolean("showCorrectAnswers").default(true).notNull(),
   isPublished: boolean("isPublished").default(false).notNull(),
+  shareToken: varchar("shareToken", { length: 32 }).unique(),
+  publishedAt: timestamp("publishedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

@@ -3203,3 +3203,26 @@
 - [x] Unit tests for quizMaker router (8 tests passing)
 - [ ] SCORM/HTML5 export from web
 - [x] Save checkpoint
+
+## QuizMaker Publish Feature (Shareable Links & Embed Codes)
+- [x] Add shareToken column to quizzes table (unique, nullable — generated on publish)
+- [x] Add publishedAt timestamp column to quizzes table
+- [x] Generate and apply migration SQL
+- [x] Add quizMaker.publish procedure: generates shareToken, sets isPublished=true, sets publishedAt
+- [x] Add quizMaker.unpublish procedure: clears isPublished, keeps shareToken for re-publish
+- [x] Add quizMaker.getPublishedQuiz public procedure: fetch quiz by shareToken (no auth required)
+- [x] Build public quiz player page at /quiz/:shareToken (standalone, no login required)
+- [x] Quiz player: renders all question types, scoring, results page
+- [x] Add Publish button to QuizMaker editor toolbar
+- [x] Build ShareDialog component: shows shareable link, iframe embed code, copy buttons
+- [x] Show published/unpublished badge in editor
+- [x] Write vitest tests for publish/unpublish/getPublishedQuiz procedures
+- [x] Save checkpoint
+
+## QuizMaker Publish - Subdomain Integration
+- [x] Add /quiz/:shareToken route to SubdomainSchoolRouter so quizzes are served on org subdomains
+- [x] Update ShareDialog to generate share links using the user's org subdomain URL
+- [x] Associate published quizzes with the user's org (store orgId with quiz on publish)
+- [x] Backend: getPublishStatus returns orgSlug for subdomain URL generation
+- [x] Keep /quiz/:shareToken in BareRouter as fallback for dev/preview (production uses subdomains)
+- [x] QuizMaker editor requires login via QuizCreatorGate (already enforced)
