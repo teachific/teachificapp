@@ -5,11 +5,13 @@ import { QuestionEditor } from "@/quiz-creator/components/QuestionEditor";
 import { QuizSettings } from "@/quiz-creator/components/QuizSettings";
 import { LicenseManager } from "@/quiz-creator/components/LicenseManager";
 import { QuizPreview } from "@/quiz-creator/components/QuizPreview";
+import { CloudQuizBrowser } from "@/quiz-creator/components/CloudQuizBrowser";
 
 export default function QuizCreatorPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [showLicense, setShowLicense] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showCloudBrowser, setShowCloudBrowser] = useState(false);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
@@ -17,6 +19,7 @@ export default function QuizCreatorPage() {
         onPreview={() => setShowPreview(true)}
         onSettings={() => setShowSettings(true)}
         onLicense={() => setShowLicense(true)}
+        onCloudOpen={() => setShowCloudBrowser(true)}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -27,6 +30,7 @@ export default function QuizCreatorPage() {
       {showSettings && <QuizSettings onClose={() => setShowSettings(false)} />}
       {showLicense && <LicenseManager onClose={() => setShowLicense(false)} />}
       {showPreview && <QuizPreview onClose={() => setShowPreview(false)} />}
+      {showCloudBrowser && <CloudQuizBrowser onClose={() => setShowCloudBrowser(false)} />}
     </div>
   );
 }

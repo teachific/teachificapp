@@ -320,6 +320,7 @@ export const quizzes = mysqlTable("quizzes", {
   packageId: int("packageId"), // null = standalone quiz
   orgId: int("orgId").notNull(),
   createdBy: int("createdBy").notNull(),
+  userId: int("userId"), // owner for standalone QuizMaker product
   title: varchar("title", { length: 500 }).notNull(),
   description: text("description"),
   instructions: text("instructions"),
@@ -351,6 +352,10 @@ export const quizQuestions = mysqlTable("quiz_questions", {
     "matching",
     "multiple_select",
     "hotspot",
+    "ordering",
+    "fill_blank",
+    "numeric",
+    "rating_scale",
   ]).default("multiple_choice").notNull(),
   questionText: text("questionText").notNull(),
   questionHtml: text("questionHtml"),
@@ -366,6 +371,20 @@ export const quizQuestions = mysqlTable("quiz_questions", {
   rubric: text("rubric"),
   // Hotspot: JSON array of regions [{id,x,y,width,height,label,isCorrect}]
   hotspotRegionsJson: text("hotspotRegionsJson"),
+  // Ordering question: JSON array of items in correct order [{id, text}]
+  orderingItemsJson: text("orderingItemsJson"),
+  // Fill-in-blank: JSON array of accepted answers
+  fillBlankAnswersJson: text("fillBlankAnswersJson"),
+  // Numeric: correct value and tolerance
+  numericAnswer: float("numericAnswer"),
+  numericTolerance: float("numericTolerance"),
+  // Rating scale: min, max, labels
+  ratingMin: int("ratingMin").default(1),
+  ratingMax: int("ratingMax").default(5),
+  ratingLabelsJson: text("ratingLabelsJson"),
+  // Branching: question sortOrder to jump to after correct/incorrect
+  branchOnCorrect: int("branchOnCorrect"),
+  branchOnIncorrect: int("branchOnIncorrect"),
   explanation: text("explanation"),
   points: float("points").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

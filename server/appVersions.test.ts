@@ -15,7 +15,7 @@ describe("app_versions table - real S3 download URLs", () => {
     expect(row.windowsUrl).toBeTruthy();
     expect(row.windowsUrl).toContain("cloudfront.net");
     expect(row.windowsUrl).toContain(".zip");
-    expect(row.version).toBe("1.0.0");
+    expect(row.version).toBe("1.1.0");
   });
 
   it("creator has a real S3 windowsUrl", async () => {
@@ -29,7 +29,7 @@ describe("app_versions table - real S3 download URLs", () => {
     expect(row.windowsUrl).toBeTruthy();
     expect(row.windowsUrl).toContain("cloudfront.net");
     expect(row.windowsUrl).toContain(".zip");
-    expect(row.version).toBe("1.0.0");
+    expect(row.version).toBe("1.1.0");
   });
 
   it("quizcreator has a real S3 windowsUrl", async () => {
@@ -43,7 +43,7 @@ describe("app_versions table - real S3 download URLs", () => {
     expect(row.windowsUrl).toBeTruthy();
     expect(row.windowsUrl).toContain("cloudfront.net");
     expect(row.windowsUrl).toContain(".zip");
-    expect(row.version).toBe("1.0.0");
+    expect(row.version).toBe("1.1.0");
   });
 
   it("no product has a macUrl (macOS coming soon)", async () => {

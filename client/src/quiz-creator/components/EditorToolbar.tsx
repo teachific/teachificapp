@@ -11,18 +11,48 @@ import {
   FileText,
   Plus,
   Upload,
+  Cloud,
+  CloudUpload,
 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Props {
   onPreview: () => void;
   onSettings: () => void;
   onLicense: () => void;
+  onCloudOpen?: () => void;
 }
 
-export function EditorToolbar({ onPreview, onSettings, onLicense }: Props) {
+export function EditorToolbar({ onPreview, onSettings, onLicense, onCloudOpen }: Props) {
   const { quiz, isDirty, markSaved, loadQuiz, newQuiz, license } = useQuizStore();
   const [saving, setSaving] = useState(false);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const [cloudSaving, setCloudSaving] = useState(false);
+  const { user } = useAuth();
+  const saveToCloud = trpc.quizMaker.saveQuiz.useMutation();
+  const utils = trpc.useUtils();
+
+  const handleCloudSave = async () => {
+    setCloudSaving(true);
+    setFileMenuOpen(false);
+    try {
+      const result = await saveToCloud.mutateAsync({
+        title: quiz.meta.title,
+        description: quiz.meta.description || "",
+        questionsJson: JSON.stringify(quiz.questions),
+        settingsJson: JSON.stringify(quiz.meta),
+        quizId: (quiz.meta as any).cloudId || undefined,
+      });
+      useQuizStore.getState().updateMeta({ cloudId: result.id } as any);
+      utils.quizMaker.listQuizzes.invalidate();
+      markSaved(quiz.meta.title + " (cloud)");
+    } catch (err) {
+      alert("Cloud save failed: " + (err as Error).message);
+    } finally {
+      setCloudSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -73,7 +103,7 @@ export function EditorToolbar({ onPreview, onSettings, onLicense }: Props) {
         <div>
           <span className="text-white font-bold text-sm">Teach</span>
           <span className="font-bold text-sm" style={{ color: "#24abbc" }}>ific</span>
-          <span className="text-white/60 text-xs ml-1">Quiz Creator</span>
+          <span className="text-white/60 text-xs ml-1">QuizMaker</span>
         </div>
       </div>
 
@@ -121,6 +151,24 @@ export function EditorToolbar({ onPreview, onSettings, onLicense }: Props) {
               >
                 <Save className="w-4 h-4 text-gray-400" /> Save as .quiz
               </button>
+              {user && (
+                <>
+                  <div className="border-t border-gray-100" />
+                  <button
+                    onClick={handleCloudSave}
+                    disabled={cloudSaving}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700 disabled:opacity-50"
+                  >
+                    <CloudUpload className="w-4 h-4 text-teal-500" /> {cloudSaving ? "Saving..." : "Save to Cloud"}
+                  </button>
+                  <button
+                    onClick={() => { onCloudOpen?.(); setFileMenuOpen(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700"
+                  >
+                    <Cloud className="w-4 h-4 text-teal-500" /> Open from Cloud
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

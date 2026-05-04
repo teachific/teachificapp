@@ -3188,3 +3188,18 @@
 - [ ] Fix Export button in PlayerSettingsDialog: should save current color/font/layout settings as a .theme JSON file to disk (not export quiz)
 - [ ] Add save-theme and open-theme IPC handlers to preload.ts and main.ts
 - [ ] Rebuild QuizMaker, package installer, upload to CDN, update seed
+
+## QuizMaker Web Editor Build
+- [x] Add userId column to quizzes table (migration)
+- [x] Add ordering, fill_blank, numeric, rating_scale question types to quizQuestions enum (migration)
+- [x] Create server/quizMakerRouter.ts with full CRUD procedures
+- [x] Wire quizMakerRouter into appRouter as quizMaker namespace
+- [x] Rewrite QuizCreatorPage.tsx as full 3-panel editor (question list | form editor | settings)
+- [x] Support all question types: MC, T/F, multiple select, matching, ordering, fill-in-blank, short answer, essay, numeric, rating scale
+- [x] Quiz settings panel: title, description, passing score, time limit, shuffle, feedback mode
+- [x] Cloud save/load: Save to Cloud and Open from Cloud with CloudQuizBrowser modal
+- [x] Local save/load: .quiz file format (TEACHIFIC_QUIZ_V1 header + base64 JSON)
+- [x] Quiz preview mode with interactive question rendering
+- [x] Unit tests for quizMaker router (8 tests passing)
+- [ ] SCORM/HTML5 export from web
+- [x] Save checkpoint
